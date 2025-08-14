@@ -7,7 +7,8 @@ import { CommunityWorkersCard } from './CommunityWorkersCard';
 import { ChooseTypeSheet } from './ChooseTypeSheet';
 export function HomeScreen() {
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [selectedService, setSelectedService] = useState<'maid' | 'cook' | 'bathroom_cleaning' | null>(null);
+  const [selectedService, setSelectedService] = useState<'maid' | 'cook' | 'bathroom_cleaning'>('maid');
+
   const handleServiceSelect = (service: 'maid' | 'cook' | 'bathroom_cleaning') => {
     setSelectedService(service);
     setSheetOpen(true);
@@ -21,6 +22,6 @@ export function HomeScreen() {
         <CommunityWorkersCard onServiceSelect={handleServiceSelect} />
       </div>
 
-      <ChooseTypeSheet isOpen={sheetOpen} onClose={() => setSheetOpen(false)} service={selectedService} />
+      <ChooseTypeSheet open={sheetOpen} onOpenChange={setSheetOpen} serviceType={selectedService} />
     </div>;
 }
