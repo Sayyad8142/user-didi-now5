@@ -22,8 +22,10 @@ export type Database = {
           cust_name: string
           cust_phone: string
           flat_no: string
+          flat_size: string | null
           id: string
           notes: string | null
+          price_inr: number | null
           scheduled_date: string | null
           scheduled_time: string | null
           service_type: string
@@ -38,8 +40,10 @@ export type Database = {
           cust_name: string
           cust_phone: string
           flat_no: string
+          flat_size?: string | null
           id?: string
           notes?: string | null
+          price_inr?: number | null
           scheduled_date?: string | null
           scheduled_time?: string | null
           service_type: string
@@ -54,14 +58,52 @@ export type Database = {
           cust_name?: string
           cust_phone?: string
           flat_no?: string
+          flat_size?: string | null
           id?: string
           notes?: string | null
+          price_inr?: number | null
           scheduled_date?: string | null
           scheduled_time?: string | null
           service_type?: string
           status?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      pricing: {
+        Row: {
+          active: boolean
+          community: string | null
+          created_at: string
+          effective_from: string | null
+          flat_size: string
+          id: number
+          price_inr: number
+          service_type: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          community?: string | null
+          created_at?: string
+          effective_from?: string | null
+          flat_size: string
+          id?: number
+          price_inr: number
+          service_type: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          community?: string | null
+          created_at?: string
+          effective_from?: string | null
+          flat_size?: string
+          id?: number
+          price_inr?: number
+          service_type?: string
+          updated_at?: string
         }
         Relationships: []
       }
