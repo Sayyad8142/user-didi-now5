@@ -169,7 +169,7 @@ export function BookingForm() {
 
   if (profileLoading) {
     return (
-      <div className="min-h-screen bg-slate-50 pb-24">
+      <div className="min-h-screen bg-white pb-28">
         <div className="max-w-md mx-auto px-4 py-6">
           <div className="space-y-4">
             <Skeleton className="h-12 w-full" />
@@ -186,7 +186,7 @@ export function BookingForm() {
   const canBook = selectedFlatSize && currentPrice && !submitting;
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-24">
+    <div className="min-h-screen bg-white pb-28">
       <div className="max-w-md mx-auto px-4 py-6">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
@@ -198,7 +198,7 @@ export function BookingForm() {
           >
             <ArrowLeft className="w-5 h-5" />
           </Button>
-          <h1 className="text-xl font-bold text-primary">
+          <h1 className="text-xl font-semibold" style={{color: '#ff007a'}}>
             Book {prettyServiceName(service_type)} Service
           </h1>
           <div className="w-9"></div>
@@ -206,22 +206,22 @@ export function BookingForm() {
 
         {/* Profile Summary Card */}
         {profile && (
-          <Card className="mb-6 border-pink-50 shadow-sm rounded-2xl">
+          <Card className="mb-6 bg-white rounded-2xl shadow-lg border border-pink-50">
             <CardContent className="p-4">
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <MapPin className="w-4 h-4 text-muted-foreground" />
-                    <span className="text-sm text-muted-foreground">Community</span>
+                    <MapPin className="w-4 h-4" style={{color: '#ff007a'}} />
+                    <span className="text-sm font-medium">Community</span>
                   </div>
-                  <span className="text-sm font-medium">{profile.community}</span>
+                  <span className="text-sm font-bold">{profile.community}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <Home className="w-4 h-4 text-muted-foreground" />
-                    <span className="text-sm text-muted-foreground">Flat Number</span>
+                    <Home className="w-4 h-4" style={{color: '#ff007a'}} />
+                    <span className="text-sm font-medium">Flat Number</span>
                   </div>
-                  <span className="text-sm font-medium">{profile.flat_no}</span>
+                  <span className="text-sm font-bold">{profile.flat_no}</span>
                 </div>
               </div>
             </CardContent>
@@ -232,16 +232,40 @@ export function BookingForm() {
         <div className="mb-6">
           <h2 className="text-lg font-semibold mb-4">Select Flat Size *</h2>
           <div className="grid grid-cols-3 gap-3">
-            {FLAT_SIZES.map((size) => (
+            {FLAT_SIZES.slice(0, 3).map((size) => (
               <Button
                 key={size}
-                variant={selectedFlatSize === size ? "default" : "outline"}
+                variant="outline"
                 onClick={() => setSelectedFlatSize(size)}
-                className={`h-12 rounded-2xl transition-all ${
+                className={`h-12 min-w-[96px] font-medium rounded-xl border transition-all ${
                   selectedFlatSize === size 
-                    ? "border-2 border-primary text-primary-foreground shadow-lg" 
-                    : "border border-gray-200 hover:border-primary/50"
+                    ? "border-2 shadow" 
+                    : "border-gray-200 hover:border-gray-300"
                 }`}
+                style={selectedFlatSize === size ? {
+                  borderColor: '#ff007a',
+                  color: '#ff007a'
+                } : {}}
+              >
+                {size}
+              </Button>
+            ))}
+          </div>
+          <div className="grid grid-cols-2 gap-3 mt-3">
+            {FLAT_SIZES.slice(3).map((size) => (
+              <Button
+                key={size}
+                variant="outline"
+                onClick={() => setSelectedFlatSize(size)}
+                className={`h-12 min-w-[96px] font-medium rounded-xl border transition-all ${
+                  selectedFlatSize === size 
+                    ? "border-2 shadow" 
+                    : "border-gray-200 hover:border-gray-300"
+                }`}
+                style={selectedFlatSize === size ? {
+                  borderColor: '#ff007a',
+                  color: '#ff007a'
+                } : {}}
               >
                 {size}
               </Button>
@@ -250,12 +274,12 @@ export function BookingForm() {
         </div>
 
         {/* Price Panel */}
-        <Card className="mb-6 bg-gradient-to-r from-pink-50 to-pink-100 border-pink-200 rounded-2xl">
-          <CardContent className="p-6 text-center">
+        <Card className="mb-6 rounded-2xl shadow-sm" style={{background: 'linear-gradient(135deg, #ffd1ec 0%, #ffb3d6 100%)'}}>
+          <CardContent className="p-4 text-center">
             {loadingPricing ? (
               <Skeleton className="h-8 w-24 mx-auto" />
             ) : (
-              <div className="text-2xl font-bold text-primary">
+              <div className="text-2xl font-extrabold" style={{color: '#ff007a'}}>
                 Price: ₹{currentPrice || '—'}
               </div>
             )}
@@ -263,26 +287,27 @@ export function BookingForm() {
         </Card>
 
         {/* Service Info */}
-        <div className="flex items-center justify-center gap-2 mb-8 text-muted-foreground">
+        <div className="flex items-center justify-center gap-2 mb-8 text-gray-500">
           <Clock className="w-4 h-4" />
           <span className="text-sm">Service arrives in 10 minutes</span>
         </div>
 
         {/* Action Buttons */}
-        <div className="fixed bottom-20 left-0 right-0 px-4">
-          <div className="max-w-md mx-auto flex gap-3">
+        <div className="fixed bottom-0 inset-x-0 z-40 bg-white border-t border-gray-100">
+          <div className="max-w-md mx-auto px-4 py-4 flex gap-3">
             <Button
               variant="ghost"
               onClick={() => setScheduleSheetOpen(true)}
               disabled={!canBook}
-              className="flex-1 h-12 rounded-full border border-gray-200"
+              className="flex-1 h-12 rounded-full font-semibold"
             >
               Schedule for Later
             </Button>
             <Button
               onClick={handleBookNow}
               disabled={!canBook}
-              className="flex-1 h-12 rounded-full bg-gradient-to-r from-[#ff007a] to-[#d9006a] hover:opacity-90"
+              className="flex-1 h-12 rounded-full text-white font-semibold"
+              style={{background: 'linear-gradient(to right, #ff007a, #d9006a)'}}
             >
               {submitting ? (
                 <div className="flex items-center gap-2">
