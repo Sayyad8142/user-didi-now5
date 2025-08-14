@@ -98,7 +98,7 @@ export function BookingsScreen() {
         <div className="text-center mb-6">
           <div className="flex justify-between items-center mb-4">
             <div></div>
-            <h1 className="text-2xl font-bold text-gray-900">Bookings</h1>
+            <h1 className="text-2xl font-bold text-primary">Bookings</h1>
             <Button variant="ghost" size="sm" onClick={handleRefresh} disabled={refreshing} className="text-muted-foreground">
               <RefreshCcw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
             </Button>
