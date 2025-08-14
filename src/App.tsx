@@ -5,13 +5,23 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/components/auth/AuthProvider";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import { BottomTabs } from "@/components/BottomTabs";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import VerifyOTP from "./pages/VerifyOTP";
 import Home from "./pages/Home";
+import Bookings from "./pages/Bookings";
+import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
+
+const ProtectedLayout = ({ children }: { children: React.ReactNode }) => (
+  <div className="relative">
+    {children}
+    <BottomTabs />
+  </div>
+);
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -28,7 +38,29 @@ const App = () => (
               path="/home" 
               element={
                 <ProtectedRoute>
-                  <Home />
+                  <ProtectedLayout>
+                    <Home />
+                  </ProtectedLayout>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/bookings" 
+              element={
+                <ProtectedRoute>
+                  <ProtectedLayout>
+                    <Bookings />
+                  </ProtectedLayout>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/profile" 
+              element={
+                <ProtectedRoute>
+                  <ProtectedLayout>
+                    <Profile />
+                  </ProtectedLayout>
                 </ProtectedRoute>
               } 
             />

@@ -1,20 +1,27 @@
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useProfile } from '@/features/profile/useProfile';
 
-interface HomeHeaderProps {
-  profile: {
-    full_name?: string;
-    phone?: string;
-    community?: string;
-  } | null;
-}
+export function HomeHeader() {
+  const { profile, loading } = useProfile();
 
-export function HomeHeader({ profile }: HomeHeaderProps) {
-  const getLastFourDigits = (phone?: string) => {
-    if (!phone) return "—";
-    const digits = phone.replace(/\D/g, '');
-    return digits.length >= 4 ? digits.slice(-4) : "—";
-  };
+  if (loading) {
+    return (
+      <Card className="shadow-card border-pink-50">
+        <CardContent className="p-4 flex justify-between items-center">
+          <div>
+            <Skeleton className="h-6 w-24 mb-1" />
+            <Skeleton className="h-4 w-16" />
+          </div>
+          <div className="text-right">
+            <Skeleton className="h-4 w-20 mb-1" />
+            <Skeleton className="h-4 w-12" />
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className="shadow-card border-pink-50">
@@ -24,12 +31,12 @@ export function HomeHeader({ profile }: HomeHeaderProps) {
           <p className="text-muted-foreground text-sm">in 10Mins</p>
         </div>
         <div className="text-right">
-          <p className="text-sm font-medium text-foreground">
+          <div className="text-sm font-medium text-foreground">
             {profile?.community || "—"}
-          </p>
-          <p className="text-sm text-muted-foreground">
-            {getLastFourDigits(profile?.phone)}
-          </p>
+          </div>
+          <div className="text-xs text-muted-foreground">
+            {profile?.flat_no || "—"}
+          </div>
         </div>
       </CardContent>
     </Card>
