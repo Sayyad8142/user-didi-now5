@@ -72,7 +72,7 @@ export default function VerifyOTP() {
       if (state.mode === 'signup' && state.signupData) {
         // Create/update profile for signup
         const { error: profileError } = await supabase
-          .from('profiles')
+          .from('profiles' as any)
           .upsert({
             id: user.id,
             full_name: state.signupData.fullName,
@@ -97,10 +97,10 @@ export default function VerifyOTP() {
       } else {
         // Sign in - check if profile exists
         const { data: profile, error: profileError } = await supabase
-          .from('profiles')
+          .from('profiles' as any)
           .select('*')
           .eq('id', user.id)
-          .single();
+          .maybeSingle();
 
         if (profileError && profileError.code !== 'PGRST116') {
           console.error('Profile fetch error:', profileError);
