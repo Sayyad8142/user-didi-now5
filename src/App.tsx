@@ -13,6 +13,7 @@ import Home from "./pages/Home";
 import Bookings from "./pages/Bookings";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
+import { BookingForm } from "./features/booking/BookingForm";
 
 const queryClient = new QueryClient();
 
@@ -61,6 +62,14 @@ const App = () => (
                   <ProtectedLayout>
                     <Profile />
                   </ProtectedLayout>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/book/:service_type" 
+              element={
+                <ProtectedRoute>
+                  <BookingForm />
                 </ProtectedRoute>
               } 
             />
