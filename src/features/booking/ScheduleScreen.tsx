@@ -186,45 +186,45 @@ export function ScheduleScreen() {
   const canConfirm = selectedDate && selectedTime && !submitting;
 
   return (
-    <div className="min-h-screen bg-background pb-28">
-      <div className="max-w-md mx-auto px-4 py-6">
+    <div className="min-h-screen bg-background pb-32">
+      <div className="max-w-md mx-auto px-3 py-4">
         {/* Header */}
-        <div className="flex items-center mb-6">
-          <Button variant="ghost" size="sm" onClick={() => navigate(`/book/${service_type}`)} className="p-2">
+        <div className="flex items-center mb-4">
+          <Button variant="ghost" size="sm" onClick={() => navigate(`/book/${service_type}`)} className="p-2 -ml-2">
             <ArrowLeft className="w-5 h-5" />
           </Button>
-          <h1 className="text-xl font-semibold text-foreground ml-4">
+          <h1 className="text-lg font-semibold text-foreground ml-2">
             Schedule {prettyServiceName(service_type)}
           </h1>
         </div>
 
-        <div className="space-y-6">
+        <div className="space-y-4">
           {/* Summary Card */}
           {profile && (
-            <Card className="bg-white rounded-2xl shadow-lg border border-pink-50">
-              <CardContent className="p-4 space-y-3">
+            <Card className="bg-white rounded-2xl shadow-sm border border-gray-100">
+              <CardContent className="p-3 space-y-2">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <Home className="w-5 h-5 text-primary" />
-                    <span className="text-foreground font-medium">Flat Number</span>
+                  <div className="flex items-center gap-2">
+                    <Home className="w-4 h-4 text-primary" />
+                    <span className="text-sm font-medium">Flat Number</span>
                   </div>
-                  <span className="text-foreground font-semibold">{profile.flat_no}</span>
+                  <span className="text-sm font-semibold">{profile.flat_no}</span>
                 </div>
                 
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <MapPin className="w-5 h-5 text-primary" />
-                    <span className="text-foreground font-medium">Community</span>
+                  <div className="flex items-center gap-2">
+                    <MapPin className="w-4 h-4 text-primary" />
+                    <span className="text-sm font-medium">Community</span>
                   </div>
-                  <span className="text-foreground font-semibold">{profile.community}</span>
+                  <span className="text-sm font-semibold">{profile.community}</span>
                 </div>
                 
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <Wallet className="w-5 h-5 text-primary" />
-                    <span className="text-foreground font-medium">Price</span>
+                  <div className="flex items-center gap-2">
+                    <Wallet className="w-4 h-4 text-primary" />
+                    <span className="text-sm font-medium">Price</span>
                   </div>
-                  <span className="text-foreground font-semibold">
+                  <span className="text-sm font-semibold">
                     {price ? `₹${price}` : '₹—'}
                   </span>
                 </div>
@@ -232,11 +232,11 @@ export function ScheduleScreen() {
             </Card>
           )}
 
-            <Card className="bg-white rounded-2xl shadow-lg border border-gray-100 p-4">
-              <h2 className="text-lg font-semibold text-foreground mb-4">
+            <Card className="bg-white rounded-2xl shadow-sm border border-gray-100 p-3">
+              <h2 className="text-base font-semibold text-foreground mb-3">
                 Select date of service
               </h2>
-              <div className="flex gap-3 overflow-x-auto pb-2">
+              <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
                 {dateChips.map((chip, index) => (
                   <Button
                     key={index}
@@ -245,22 +245,22 @@ export function ScheduleScreen() {
                       setSelectedDate(chip.date);
                       setSelectedTime(''); // Reset time when date changes
                     }}
-                    className={`rounded-2xl px-4 py-6 h-auto border-2 whitespace-nowrap flex-shrink-0 flex flex-col items-center gap-1 min-w-[80px] ${
+                    className={`rounded-xl px-3 py-4 h-auto border-2 whitespace-nowrap flex-shrink-0 flex flex-col items-center gap-0.5 min-w-[70px] ${
                       selectedDate.toDateString() === chip.date.toDateString()
                         ? 'border-primary bg-primary/10 text-primary'
                         : 'border-border bg-background text-foreground hover:border-primary/50'
                     }`}
                   >
-                    <span className="text-sm font-semibold">{chip.label}</span>
-                    <span className="text-xl font-bold">{chip.dayLabel}</span>
+                    <span className="text-xs font-semibold">{chip.label}</span>
+                    <span className="text-lg font-bold">{chip.dayLabel}</span>
                   </Button>
                 ))}
               </div>
             </Card>
 
           {/* Time Selection */}
-          <Card className="bg-white rounded-2xl shadow-lg border border-gray-100 p-4">
-            <h2 className="text-lg font-semibold text-foreground mb-4">
+          <Card className="bg-white rounded-2xl shadow-sm border border-gray-100 p-3">
+            <h2 className="text-base font-semibold text-foreground mb-3">
               Select start time of service
             </h2>
             
@@ -268,14 +268,14 @@ export function ScheduleScreen() {
               setActiveSegment(value as TimeSegment);
               setSelectedTime(''); // Reset time when segment changes
             }}>
-              <TabsList className="grid w-full grid-cols-3 mb-4 bg-gray-100 rounded-xl p-1">
-                <TabsTrigger value="Morning" className="rounded-lg">Morning</TabsTrigger>
-                <TabsTrigger value="Afternoon" className="rounded-lg">Afternoon</TabsTrigger>
-                <TabsTrigger value="Evening" className="rounded-lg">Evening</TabsTrigger>
+              <TabsList className="grid w-full grid-cols-3 mb-3 bg-gray-100 rounded-xl p-0.5 h-9">
+                <TabsTrigger value="Morning" className="rounded-lg text-xs">Morning</TabsTrigger>
+                <TabsTrigger value="Afternoon" className="rounded-lg text-xs">Afternoon</TabsTrigger>
+                <TabsTrigger value="Evening" className="rounded-lg text-xs">Evening</TabsTrigger>
               </TabsList>
 
               <TabsContent value={activeSegment} className="mt-0">
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-3 gap-2">
                   {currentSegmentSlots.map((slot) => {
                     const isPast = isPastToday(slot, selectedDate);
                     const isSelected = selectedTime === slot;
@@ -287,7 +287,7 @@ export function ScheduleScreen() {
                         variant="outline"
                         disabled={isPast}
                         onClick={() => setSelectedTime(slot)}
-                        className={`relative rounded-xl border-2 h-16 px-3 text-sm flex flex-col items-center justify-center ${
+                        className={`relative rounded-xl border-2 h-12 px-2 text-xs flex flex-col items-center justify-center ${
                           isSelected
                             ? 'border-primary bg-primary/10 text-primary'
                             : isPast
@@ -297,7 +297,7 @@ export function ScheduleScreen() {
                       >
                         <span className="font-medium">{toDisplay12h(slot)}</span>
                         {extraCharge > 0 && !isPast && (
-                          <span className="absolute -top-2 -right-2 bg-orange-500 text-white text-xs px-2 py-0.5 rounded-full font-semibold">
+                          <span className="absolute -top-1.5 -right-1.5 bg-orange-500 text-white text-xs px-1.5 py-0.5 rounded-full font-semibold leading-none">
                             EXTRA ₹{extraCharge}
                           </span>
                         )}
@@ -311,12 +311,12 @@ export function ScheduleScreen() {
         </div>
 
         {/* Sticky Bottom Button */}
-        <div className="fixed bottom-20 left-0 right-0 px-4">
+        <div className="fixed bottom-24 left-0 right-0 px-3">
           <div className="max-w-md mx-auto">
             <Button
               onClick={handleConfirmSchedule}
               disabled={!canConfirm}
-              className="w-full h-12 rounded-full bg-gradient-to-r from-[#ff007a] to-[#d9006a] text-white font-semibold"
+              className="w-full h-12 rounded-full bg-gradient-to-r from-[#ff007a] to-[#d9006a] text-white font-semibold text-sm disabled:opacity-50"
             >
               {submitting ? (
                 <div className="flex items-center gap-2">
