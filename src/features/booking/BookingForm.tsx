@@ -293,19 +293,12 @@ export function BookingForm() {
         </div>
 
         {/* Action Buttons */}
-        <div className="flex gap-3 mt-6">
-          <Button
-            variant="ghost"
-            onClick={() => setScheduleSheetOpen(true)}
-            disabled={!canBook}
-            className="flex-1 h-12 rounded-full font-semibold"
-          >
-            Schedule for Later
-          </Button>
+        <div className="space-y-6 mt-6">
+          {/* Book Now Button */}
           <Button
             onClick={handleBookNow}
             disabled={!canBook}
-            className="flex-1 h-12 rounded-full text-white font-semibold"
+            className="w-full h-12 rounded-full text-white font-semibold"
             style={{background: 'linear-gradient(to right, #ff007a, #d9006a)'}}
           >
             {submitting ? (
@@ -317,6 +310,24 @@ export function BookingForm() {
               "Book Now"
             )}
           </Button>
+
+          {/* Schedule Section */}
+          <div className="space-y-4">
+            <div className="text-center space-y-2">
+              <h3 className="text-lg font-semibold text-gray-800">Schedule your slot for later</h3>
+              <p className="text-sm text-gray-600">Guaranteed on-time service by our trusted Experts</p>
+            </div>
+            
+            <Button
+              onClick={() => setScheduleSheetOpen(true)}
+              disabled={!canBook}
+              className="w-full h-12 rounded-full text-white font-semibold flex items-center justify-center gap-2"
+              style={{background: 'linear-gradient(to right, #ff007a, #d9006a)'}}
+            >
+              Prebook Now
+              <ArrowLeft className="w-4 h-4 rotate-180" />
+            </Button>
+          </div>
         </div>
 
         {/* Schedule Sheet */}
