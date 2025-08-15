@@ -5,7 +5,6 @@ import { HeroCarousel } from './HeroCarousel';
 import { ServicesRow } from './ServicesRow';
 import { ServiceHours } from './ServiceHours';
 import { FeatureCarousel } from './FeatureCarousel';
-import { CommunityWorkersCard } from './CommunityWorkersCard';
 
 export function HomeScreen() {
   const navigate = useNavigate();
@@ -20,7 +19,6 @@ export function HomeScreen() {
         <ServicesRow onServiceSelect={handleServiceSelect} />
         <ServiceHours />
         <FeatureCarousel />
-        <CommunityWorkersCard onServiceSelect={handleServiceSelect} />
       </div>
     </div>;
 }
