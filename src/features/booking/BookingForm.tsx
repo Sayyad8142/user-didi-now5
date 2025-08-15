@@ -169,7 +169,7 @@ export function BookingForm() {
 
   if (profileLoading) {
     return (
-      <div className="min-h-screen bg-white pb-28">
+      <div className="min-h-screen bg-white">
         <div className="max-w-md mx-auto px-4 py-6">
           <div className="space-y-4">
             <Skeleton className="h-12 w-full" />
@@ -186,7 +186,7 @@ export function BookingForm() {
   const canBook = selectedFlatSize && currentPrice && !submitting;
 
   return (
-    <div className="min-h-screen bg-white pb-28">
+    <div className="min-h-screen bg-white">
       <div className="max-w-md mx-auto px-4 py-6">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
@@ -287,38 +287,36 @@ export function BookingForm() {
         </Card>
 
         {/* Service Info */}
-        <div className="flex items-center justify-center gap-2 mb-8 text-gray-500">
+        <div className="flex items-center justify-center gap-2 mb-6 text-gray-500">
           <Clock className="w-4 h-4" />
           <span className="text-sm">Service arrives in 10 minutes</span>
         </div>
 
         {/* Action Buttons */}
-        <div className="fixed bottom-0 inset-x-0 z-40 bg-white border-t border-gray-100">
-          <div className="max-w-md mx-auto px-4 py-4 flex gap-3">
-            <Button
-              variant="ghost"
-              onClick={() => setScheduleSheetOpen(true)}
-              disabled={!canBook}
-              className="flex-1 h-12 rounded-full font-semibold"
-            >
-              Schedule for Later
-            </Button>
-            <Button
-              onClick={handleBookNow}
-              disabled={!canBook}
-              className="flex-1 h-12 rounded-full text-white font-semibold"
-              style={{background: 'linear-gradient(to right, #ff007a, #d9006a)'}}
-            >
-              {submitting ? (
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  Booking...
-                </div>
-              ) : (
-                "Book Now"
-              )}
-            </Button>
-          </div>
+        <div className="flex gap-3 mt-6">
+          <Button
+            variant="ghost"
+            onClick={() => setScheduleSheetOpen(true)}
+            disabled={!canBook}
+            className="flex-1 h-12 rounded-full font-semibold"
+          >
+            Schedule for Later
+          </Button>
+          <Button
+            onClick={handleBookNow}
+            disabled={!canBook}
+            className="flex-1 h-12 rounded-full text-white font-semibold"
+            style={{background: 'linear-gradient(to right, #ff007a, #d9006a)'}}
+          >
+            {submitting ? (
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                Booking...
+              </div>
+            ) : (
+              "Book Now"
+            )}
+          </Button>
         </div>
 
         {/* Schedule Sheet */}
