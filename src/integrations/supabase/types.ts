@@ -21,8 +21,10 @@ export type Database = {
           created_at: string
           cust_name: string
           cust_phone: string
+          family_count: number | null
           flat_no: string
           flat_size: string | null
+          food_pref: string | null
           id: string
           notes: string | null
           price_inr: number | null
@@ -39,8 +41,10 @@ export type Database = {
           created_at?: string
           cust_name: string
           cust_phone: string
+          family_count?: number | null
           flat_no: string
           flat_size?: string | null
+          food_pref?: string | null
           id?: string
           notes?: string | null
           price_inr?: number | null
@@ -57,8 +61,10 @@ export type Database = {
           created_at?: string
           cust_name?: string
           cust_phone?: string
+          family_count?: number | null
           flat_no?: string
           flat_size?: string | null
+          food_pref?: string | null
           id?: string
           notes?: string | null
           price_inr?: number | null

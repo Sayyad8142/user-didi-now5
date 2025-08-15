@@ -9,7 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useProfile } from '@/features/profile/useProfile';
-import { prettyServiceName, isValidServiceType, getPricingMap } from './pricing';
+import { prettyServiceName, isValidServiceType, getPricingMap, calculateCookPrice } from './pricing';
 import { 
   makeSlots, 
   toDisplay12h, 
@@ -37,6 +37,8 @@ export function ScheduleScreen() {
 
   const flatSize = searchParams.get('flat');
   const priceParam = searchParams.get('price');
+  const familyCount = searchParams.get('family');
+  const foodPreference = searchParams.get('food') as 'veg' | 'non_veg' | null;
 
   useEffect(() => {
     if (!user) {
@@ -52,10 +54,12 @@ export function ScheduleScreen() {
   useEffect(() => {
     if (priceParam) {
       setPrice(parseInt(priceParam));
+    } else if (service_type === 'cook' && familyCount && foodPreference) {
+      setPrice(calculateCookPrice(parseInt(familyCount), foodPreference));
     } else if (profile && service_type && flatSize) {
       loadPrice();
     }
-  }, [profile, service_type, flatSize, priceParam]);
+  }, [profile, service_type, flatSize, priceParam, familyCount, foodPreference]);
 
   const loadPrice = async () => {
     if (!service_type || !profile || !flatSize) return;
@@ -72,9 +76,11 @@ export function ScheduleScreen() {
   };
 
   const handleConfirmSchedule = async () => {
-    if (!selectedDate || !selectedTime || !profile || !user || !service_type || !flatSize || !price) {
+    if (!selectedDate || !selectedTime || !profile || !user || !service_type || !price) {
       return;
     }
+    if (service_type !== 'cook' && !flatSize) return;
+    if (service_type === 'cook' && (!familyCount || !foodPreference)) return;
 
     setSubmitting(true);
     try {
@@ -89,7 +95,9 @@ export function ScheduleScreen() {
         scheduled_time: scheduledTime,
         notes: null,
         status: 'pending',
-        flat_size: flatSize,
+        flat_size: service_type === 'cook' ? null : flatSize,
+        family_count: service_type === 'cook' ? parseInt(familyCount!) : null,
+        food_pref: service_type === 'cook' ? foodPreference : null,
         price_inr: price,
         cust_name: profile.full_name,
         cust_phone: profile.phone,
@@ -147,7 +155,7 @@ export function ScheduleScreen() {
     );
   }
 
-  if (!flatSize) {
+  if (service_type !== 'cook' && !flatSize) {
     return (
       <div className="min-h-screen bg-background pb-28">
         <div className="max-w-md mx-auto px-4 py-6">
@@ -162,7 +170,9 @@ export function ScheduleScreen() {
           
           <Card className="bg-yellow-50 border-yellow-200 rounded-2xl">
             <CardContent className="p-4">
-              <p className="text-yellow-800 font-medium">Select flat size first</p>
+              <p className="text-yellow-800 font-medium">
+                {service_type === 'cook' ? 'Select family count and food preference first' : 'Select flat size first'}
+              </p>
               <Button 
                 variant="link" 
                 onClick={() => navigate(`/book/${service_type}`)}
