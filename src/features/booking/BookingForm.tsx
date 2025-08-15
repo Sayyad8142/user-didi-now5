@@ -222,31 +222,37 @@ export function BookingForm() {
             </Card>}
 
           {/* Action Buttons */}
-          <div className="space-y-6 mt-8">
-            <Button onClick={handleBookNow} disabled={!canBook} className="w-full h-12 rounded-2xl font-semibold">
-              {submitting ? <div className="flex items-center gap-2">
+          <div className="space-y-4 mt-8">
+            <Button 
+              onClick={handleBookNow} 
+              disabled={!canBook} 
+              className="w-full h-14 rounded-full font-semibold text-lg bg-pink-500 hover:bg-pink-600 text-white border-0"
+            >
+              {submitting ? (
+                <div className="flex items-center gap-2">
                   <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
                   <span>Booking...</span>
-                </div> : "Book Now - Instant Service"}
+                </div>
+              ) : (
+                "Book Now - Instant Service"
+              )}
             </Button>
 
             {/* Schedule Later Card */}
             <Card className="bg-background border border-border rounded-2xl">
               <CardContent className="p-6">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex-1">
-                    <h3 className="text-lg font-semibold text-foreground mb-2">
-                      Schedule your slot for later
-                    </h3>
-                    
-                  </div>
-                  <div className="flex items-center gap-1 ml-4">
-                    <Calendar className="w-6 h-6 text-primary" />
-                    
-                  </div>
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-lg font-semibold text-foreground">
+                    Schedule your slot for later
+                  </h3>
+                  <Calendar className="w-6 h-6 text-pink-500" />
                 </div>
                 
-                <Button onClick={() => setScheduleSheetOpen(true)} disabled={!canBook} className="w-full h-12 rounded-2xl font-semibold bg-pink-500 hover:bg-pink-600 text-white">
+                <Button 
+                  onClick={() => setScheduleSheetOpen(true)} 
+                  disabled={!canBook} 
+                  className="w-full h-14 rounded-full font-semibold text-lg bg-pink-500 hover:bg-pink-600 text-white border-0"
+                >
                   <span>Prebook Now</span>
                   <ArrowLeft className="w-5 h-5 ml-2 rotate-180" />
                 </Button>
