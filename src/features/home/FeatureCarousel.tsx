@@ -43,7 +43,7 @@ export function FeatureCarousel() {
       <Carousel plugins={[plugin.current]} className="w-full" onMouseEnter={plugin.current.stop} onMouseLeave={plugin.current.reset}>
         <CarouselContent className="-ml-1">
           {features.map((feature, index) => <CarouselItem key={index} className="pl-1">
-              <Card className="border border-gray-100 shadow-lg overflow-hidden">
+              <Card className="border-0 shadow-sm bg-white/80 backdrop-blur-sm overflow-hidden">
                 <CardContent className={`p-6 ${feature.bgGradient} relative`}>
                   <div className="flex items-center justify-between gap-6">
                     {/* Text Content */}
