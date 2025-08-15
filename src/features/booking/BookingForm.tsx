@@ -155,145 +155,224 @@ export function BookingForm() {
   const ServiceIcon = serviceIcon(service_type);
   const currentPrice = selectedFlatSize ? pricingMap[selectedFlatSize] : null;
   const canBook = selectedFlatSize && currentPrice && !submitting;
-  return <div className="min-h-screen gradient-bg pb-24">
-      <div className="max-w-md mx-auto px-4 py-6">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <Button variant="ghost" size="sm" onClick={() => navigate('/home')} className="p-3 rounded-2xl hover:bg-white/20 transition-smooth">
+  return <div className="min-h-screen gradient-bg pb-24 relative overflow-hidden">
+      {/* Background decoration */}
+      <div className="absolute inset-0 opacity-40">
+        <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-primary/20 to-transparent rounded-full blur-3xl transform translate-x-32 -translate-y-32" />
+        <div className="absolute bottom-0 left-0 w-80 h-80 bg-gradient-to-tr from-primary-glow/30 to-transparent rounded-full blur-3xl transform -translate-x-24 translate-y-24" />
+      </div>
+
+      <div className="max-w-md mx-auto px-4 py-6 relative z-10">
+        {/* Enhanced Header */}
+        <div className="flex items-center justify-between mb-10">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => navigate('/home')} 
+            className="p-4 rounded-3xl bg-white/20 backdrop-blur-sm hover:bg-white/30 transition-spring shadow-card border border-white/30"
+          >
             <ArrowLeft className="w-5 h-5 text-foreground" />
           </Button>
-          <h1 className="text-xl font-bold text-primary">
-            Book {prettyServiceName(service_type)} Service
-          </h1>
-          <div className="w-11"></div>
+          <div className="text-center">
+            <div className="w-16 h-16 mx-auto mb-3 gradient-primary rounded-3xl flex items-center justify-center shadow-button">
+              <ServiceIcon className="w-8 h-8 text-primary-foreground" />
+            </div>
+            <h1 className="text-2xl font-bold text-foreground mb-1">
+              {prettyServiceName(service_type)}
+            </h1>
+            <p className="text-sm text-muted-foreground">Premium Service</p>
+          </div>
+          <div className="w-12"></div>
         </div>
 
-        {/* Profile Summary Card */}
-        {profile && <Card className="mb-8 gradient-card rounded-3xl shadow-card border border-border/20 hover:shadow-button transition-spring group">
-            <CardContent className="p-6">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center">
-                      <MapPin className="w-5 h-5 text-primary" />
-                    </div>
-                    <span className="text-sm font-semibold text-foreground">Community</span>
-                  </div>
-                  <span className="text-sm font-bold text-primary bg-primary/10 px-3 py-1 rounded-full">{profile.community}</span>
+        {/* Enhanced Profile Card */}
+        {profile && (
+          <Card className="mb-8 gradient-card rounded-3xl shadow-card border border-white/30 backdrop-blur-sm hover:shadow-button transition-spring group overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-smooth" />
+            <CardContent className="p-8 relative">
+              <div className="flex items-center gap-4 mb-6">
+                <div className="w-16 h-16 gradient-primary rounded-3xl flex items-center justify-center shadow-button">
+                  <MapPin className="w-8 h-8 text-primary-foreground" />
                 </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center">
-                      <Home className="w-5 h-5 text-primary" />
-                    </div>
-                    <span className="text-sm font-semibold text-foreground">Flat Number</span>
-                  </div>
-                  <span className="text-sm font-bold text-primary bg-primary/10 px-3 py-1 rounded-full">{profile.flat_no}</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>}
-
-        {/* Flat Size Selection */}
-        <div className="mb-8">
-          <h2 className="text-lg font-bold text-foreground mb-6">Select Flat Size *</h2>
-          <div className="grid grid-cols-3 gap-4">
-            {FLAT_SIZES.slice(0, 3).map(size => (
-              <Button 
-                key={size} 
-                variant="outline" 
-                onClick={() => setSelectedFlatSize(size)} 
-                className={`h-14 min-w-[96px] font-semibold rounded-2xl border-2 transition-spring hover:scale-105 ${
-                  selectedFlatSize === size 
-                    ? "border-primary bg-primary/10 text-primary shadow-button" 
-                    : "border-border/50 hover:border-primary/50 hover:bg-primary/5"
-                }`}
-              >
-                {size}
-              </Button>
-            ))}
-          </div>
-          <div className="grid grid-cols-2 gap-4 mt-4">
-            {FLAT_SIZES.slice(3).map(size => (
-              <Button 
-                key={size} 
-                variant="outline" 
-                onClick={() => setSelectedFlatSize(size)} 
-                className={`h-14 min-w-[96px] font-semibold rounded-2xl border-2 transition-spring hover:scale-105 ${
-                  selectedFlatSize === size 
-                    ? "border-primary bg-primary/10 text-primary shadow-button" 
-                    : "border-border/50 hover:border-primary/50 hover:bg-primary/5"
-                }`}
-              >
-                {size}
-              </Button>
-            ))}
-          </div>
-        </div>
-
-        {/* Price Panel */}
-        <Card className="mb-8 gradient-primary rounded-3xl shadow-button hover:shadow-lg transition-spring group">
-          <CardContent className="p-6 text-center">
-            {loadingPricing ? (
-              <Skeleton className="h-8 w-24 mx-auto bg-white/20" />
-            ) : (
-              <div className="text-3xl font-extrabold text-primary-foreground">
-                Price: ₹{currentPrice || '—'}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Service Info */}
-        <div className="flex items-center justify-center gap-3 mb-8 text-muted-foreground bg-white/20 rounded-2xl p-4 backdrop-blur-sm">
-          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-            <Clock className="w-4 h-4 text-primary" />
-          </div>
-          <span className="text-sm font-medium">Service arrives in 10 minutes</span>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="space-y-6 mt-6">
-          {/* Book Now Button */}
-          <Button 
-            onClick={handleBookNow} 
-            disabled={!canBook} 
-            className="w-full h-16 rounded-3xl text-primary-foreground font-bold text-lg gradient-primary shadow-button hover:shadow-lg hover:scale-[1.02] transition-spring disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {submitting ? (
-              <div className="flex items-center gap-3">
-                <div className="w-5 h-5 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
-                Booking...
-              </div>
-            ) : (
-              "Book Now"
-            )}
-          </Button>
-
-          {/* Schedule Section */}
-          <div className="gradient-card rounded-3xl p-6 border border-border/50 shadow-card transition-smooth hover:shadow-button group">
-            <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <div className="flex-1">
-                  <h3 className="text-3xl font-bold text-foreground mb-2 group-hover:text-primary transition-smooth">
-                    Schedule for Later
-                  </h3>
-                </div>
-                <div className="flex-shrink-0 ml-6">
-                  <div className="w-20 h-20 gradient-primary rounded-3xl flex items-center justify-center relative shadow-button group-hover:scale-105 transition-spring">
-                    <Calendar className="w-10 h-10 text-primary-foreground" />
-                  </div>
+                <div>
+                  <h3 className="text-xl font-bold text-foreground">Service Location</h3>
+                  <p className="text-sm text-muted-foreground">Your registered address</p>
                 </div>
               </div>
               
-              <Button onClick={() => setScheduleSheetOpen(true)} disabled={!canBook} className="w-full h-16 rounded-3xl text-primary-foreground font-bold text-lg gradient-primary shadow-button hover:shadow-lg hover:scale-[1.02] transition-spring flex items-center justify-center gap-4 group disabled:opacity-50 disabled:cursor-not-allowed">
-                <span>Prebook Now</span>
-                <div className="flex items-center justify-center w-8 h-8 bg-white/20 rounded-full group-hover:bg-white/30 transition-smooth">
-                  <ArrowLeft className="w-4 h-4 rotate-180 group-hover:translate-x-0.5 transition-smooth" />
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-4 bg-white/40 rounded-2xl backdrop-blur-sm">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-primary/20 flex items-center justify-center">
+                      <MapPin className="w-5 h-5 text-primary" />
+                    </div>
+                    <span className="font-semibold text-foreground">Community</span>
+                  </div>
+                  <span className="font-bold text-primary bg-primary/10 px-4 py-2 rounded-2xl text-sm">
+                    {profile.community}
+                  </span>
+                </div>
+                
+                <div className="flex items-center justify-between p-4 bg-white/40 rounded-2xl backdrop-blur-sm">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-primary/20 flex items-center justify-center">
+                      <Home className="w-5 h-5 text-primary" />
+                    </div>
+                    <span className="font-semibold text-foreground">Flat Number</span>
+                  </div>
+                  <span className="font-bold text-primary bg-primary/10 px-4 py-2 rounded-2xl text-sm">
+                    {profile.flat_no}
+                  </span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Enhanced Flat Size Selection */}
+        <Card className="mb-8 gradient-card rounded-3xl shadow-card border border-white/30 backdrop-blur-sm">
+          <CardContent className="p-8">
+            <div className="text-center mb-8">
+              <h2 className="text-2xl font-bold text-foreground mb-2">Choose Your Space</h2>
+              <p className="text-muted-foreground">Select the size that matches your flat</p>
+            </div>
+            
+            <div className="grid grid-cols-3 gap-3 mb-4">
+              {FLAT_SIZES.slice(0, 3).map(size => (
+                <Button 
+                  key={size} 
+                  variant="outline" 
+                  onClick={() => setSelectedFlatSize(size)} 
+                  className={`h-16 font-bold rounded-3xl border-2 transition-spring hover:scale-105 backdrop-blur-sm relative overflow-hidden ${
+                    selectedFlatSize === size 
+                      ? "border-primary bg-primary/20 text-primary shadow-button" 
+                      : "border-white/40 bg-white/20 hover:border-primary/50 hover:bg-primary/10"
+                  }`}
+                >
+                  {selectedFlatSize === size && (
+                    <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-primary/5" />
+                  )}
+                  <span className="relative z-10">{size}</span>
+                </Button>
+              ))}
+            </div>
+            
+            <div className="grid grid-cols-2 gap-3">
+              {FLAT_SIZES.slice(3).map(size => (
+                <Button 
+                  key={size} 
+                  variant="outline" 
+                  onClick={() => setSelectedFlatSize(size)} 
+                  className={`h-16 font-bold rounded-3xl border-2 transition-spring hover:scale-105 backdrop-blur-sm relative overflow-hidden ${
+                    selectedFlatSize === size 
+                      ? "border-primary bg-primary/20 text-primary shadow-button" 
+                      : "border-white/40 bg-white/20 hover:border-primary/50 hover:bg-primary/10"
+                  }`}
+                >
+                  {selectedFlatSize === size && (
+                    <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-primary/5" />
+                  )}
+                  <span className="relative z-10">{size}</span>
+                </Button>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Enhanced Price Display */}
+        <Card className="mb-8 gradient-primary rounded-3xl shadow-button hover:shadow-lg transition-spring group overflow-hidden relative">
+          <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-smooth" />
+          <CardContent className="p-8 text-center relative">
+            <div className="mb-4">
+              <div className="w-16 h-16 mx-auto bg-white/20 rounded-3xl flex items-center justify-center mb-4">
+                <span className="text-2xl">₹</span>
+              </div>
+              <h3 className="text-lg font-semibold text-primary-foreground/80 mb-2">Service Price</h3>
+            </div>
+            
+            {loadingPricing ? (
+              <Skeleton className="h-12 w-32 mx-auto bg-white/20 rounded-2xl" />
+            ) : (
+              <div className="text-4xl font-extrabold text-primary-foreground mb-2">
+                ₹{currentPrice || '—'}
+              </div>
+            )}
+            <p className="text-primary-foreground/70 text-sm">All inclusive pricing</p>
+          </CardContent>
+        </Card>
+
+        {/* Enhanced Service Info */}
+        <Card className="mb-8 bg-white/30 backdrop-blur-md rounded-3xl border border-white/40 shadow-card">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-center gap-4">
+              <div className="w-12 h-12 gradient-primary rounded-2xl flex items-center justify-center shadow-button">
+                <Clock className="w-6 h-6 text-primary-foreground" />
+              </div>
+              <div className="text-center">
+                <p className="font-bold text-foreground text-lg">Quick Service</p>
+                <p className="text-sm text-muted-foreground">Arrives in 10 minutes</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Enhanced Action Buttons */}
+        <div className="space-y-6">
+          {/* Enhanced Book Now Button */}
+          <Button 
+            onClick={handleBookNow} 
+            disabled={!canBook} 
+            className="w-full h-20 rounded-3xl text-primary-foreground font-bold text-xl gradient-primary shadow-button hover:shadow-lg hover:scale-[1.02] transition-spring disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden group"
+          >
+            <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-smooth" />
+            <div className="relative z-10 flex items-center gap-4">
+              {submitting ? (
+                <>
+                  <div className="w-6 h-6 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
+                  <span>Booking...</span>
+                </>
+              ) : (
+                <>
+                  <span>Book Now</span>
+                  <div className="w-10 h-10 bg-white/20 rounded-2xl flex items-center justify-center group-hover:bg-white/30 transition-smooth">
+                    <ArrowLeft className="w-5 h-5 rotate-180 group-hover:translate-x-1 transition-smooth" />
+                  </div>
+                </>
+              )}
+            </div>
+          </Button>
+
+          {/* Enhanced Schedule Card */}
+          <Card className="gradient-card rounded-3xl shadow-card border border-white/30 backdrop-blur-sm transition-smooth hover:shadow-button group overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-smooth" />
+            <CardContent className="p-8 relative">
+              <div className="flex items-center gap-6 mb-6">
+                <div className="w-20 h-20 gradient-primary rounded-3xl flex items-center justify-center shadow-button group-hover:scale-105 transition-spring">
+                  <Calendar className="w-10 h-10 text-primary-foreground" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-2xl font-bold text-foreground mb-2 group-hover:text-primary transition-smooth">
+                    Schedule Later
+                  </h3>
+                  <p className="text-muted-foreground">Choose your preferred time</p>
+                </div>
+              </div>
+              
+              <Button 
+                onClick={() => setScheduleSheetOpen(true)} 
+                disabled={!canBook} 
+                className="w-full h-16 rounded-3xl text-primary-foreground font-bold text-lg gradient-primary shadow-button hover:shadow-lg hover:scale-[1.02] transition-spring flex items-center justify-center gap-4 group disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden"
+              >
+                <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-smooth" />
+                <div className="relative z-10 flex items-center gap-4">
+                  <span>Prebook Now</span>
+                  <div className="flex items-center justify-center w-8 h-8 bg-white/20 rounded-full group-hover:bg-white/30 transition-smooth">
+                    <ArrowLeft className="w-4 h-4 rotate-180 group-hover:translate-x-0.5 transition-smooth" />
+                  </div>
                 </div>
               </Button>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Schedule Sheet */}
