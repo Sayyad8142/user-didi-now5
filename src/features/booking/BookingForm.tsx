@@ -228,7 +228,7 @@ export function BookingForm() {
           )}
 
           {/* Action Buttons */}
-          <div className="space-y-4 mt-8">
+          <div className="space-y-6 mt-8">
             <Button onClick={handleBookNow} disabled={!canBook} className="w-full h-12 rounded-2xl font-semibold">
               {submitting ? <div className="flex items-center gap-2">
                   <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
@@ -236,9 +236,36 @@ export function BookingForm() {
                 </div> : "Book Now - Instant Service"}
             </Button>
 
-            <Button onClick={() => setScheduleSheetOpen(true)} disabled={!canBook} variant="outline" className="w-full h-12 rounded-2xl font-semibold">
-              Schedule Later
-            </Button>
+            {/* Schedule Later Card */}
+            <Card className="bg-background border border-border rounded-2xl">
+              <CardContent className="p-6">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex-1">
+                    <h3 className="text-lg font-semibold text-foreground mb-2">
+                      Schedule your slot for later
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      Guaranteed on-time service by our trusted Experts
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1 ml-4">
+                    <Calendar className="w-6 h-6 text-primary" />
+                    <div className="w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
+                      <div className="w-2 h-2 bg-white rounded-full" />
+                    </div>
+                  </div>
+                </div>
+                
+                <Button 
+                  onClick={() => setScheduleSheetOpen(true)} 
+                  disabled={!canBook} 
+                  className="w-full h-12 rounded-2xl font-semibold bg-pink-500 hover:bg-pink-600 text-white"
+                >
+                  <span>Prebook Now</span>
+                  <ArrowLeft className="w-5 h-5 ml-2 rotate-180" />
+                </Button>
+              </CardContent>
+            </Card>
           </div>
         </div>
 
