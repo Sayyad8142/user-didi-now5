@@ -249,30 +249,28 @@ export function BookingForm() {
           </Button>
 
           {/* Schedule Section */}
-          <div className="space-y-6">
-            <div className="gradient-card rounded-3xl p-6 border border-border/50 shadow-card transition-smooth hover:shadow-button group">
+          <div className="gradient-card rounded-3xl p-6 border border-border/50 shadow-card transition-smooth hover:shadow-button group">
+            <div className="space-y-6">
               <div className="flex items-center justify-between">
                 <div className="flex-1">
                   <h3 className="text-3xl font-bold text-foreground mb-2 group-hover:text-primary transition-smooth">
                     Schedule for Later
                   </h3>
-                  
                 </div>
                 <div className="flex-shrink-0 ml-6">
                   <div className="w-20 h-20 gradient-primary rounded-3xl flex items-center justify-center relative shadow-button group-hover:scale-105 transition-spring">
                     <Calendar className="w-10 h-10 text-primary-foreground" />
-                    
                   </div>
                 </div>
               </div>
+              
+              <Button onClick={() => setScheduleSheetOpen(true)} disabled={!canBook} className="w-full h-16 rounded-3xl text-primary-foreground font-bold text-lg gradient-primary shadow-button hover:shadow-lg hover:scale-[1.02] transition-spring flex items-center justify-center gap-4 group disabled:opacity-50 disabled:cursor-not-allowed">
+                <span>Prebook Now</span>
+                <div className="flex items-center justify-center w-8 h-8 bg-white/20 rounded-full group-hover:bg-white/30 transition-smooth">
+                  <ArrowLeft className="w-4 h-4 rotate-180 group-hover:translate-x-0.5 transition-smooth" />
+                </div>
+              </Button>
             </div>
-            
-            <Button onClick={() => setScheduleSheetOpen(true)} disabled={!canBook} className="w-full h-16 rounded-3xl text-primary-foreground font-bold text-lg gradient-primary shadow-button hover:shadow-lg hover:scale-[1.02] transition-spring flex items-center justify-center gap-4 group disabled:opacity-50 disabled:cursor-not-allowed">
-              <span>Prebook Now</span>
-              <div className="flex items-center justify-center w-8 h-8 bg-white/20 rounded-full group-hover:bg-white/30 transition-smooth">
-                <ArrowLeft className="w-4 h-4 rotate-180 group-hover:translate-x-0.5 transition-smooth" />
-              </div>
-            </Button>
           </div>
         </div>
 
