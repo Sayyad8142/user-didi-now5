@@ -7,12 +7,12 @@ interface ServicesRowProps {
 const services = [
   {
     id: 'maid' as const,
-    title: 'Maid Service',
+    title: 'Maid',
     image: 'https://images.unsplash.com/photo-1607990281513-2c110a25bd8c?w=200&h=200&fit=crop&crop=face'
   },
   {
     id: 'cook' as const,
-    title: 'Cook Service', 
+    title: 'Cook', 
     image: 'https://images.unsplash.com/photo-1577219491135-ce391730fb2c?w=200&h=200&fit=crop&crop=face'
   },
   {
