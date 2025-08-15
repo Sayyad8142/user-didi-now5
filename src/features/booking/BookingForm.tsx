@@ -142,12 +142,12 @@ export function BookingForm() {
     return null;
   }
   if (profileLoading) {
-    return <div className="min-h-screen bg-white pb-24">
+    return <div className="min-h-screen gradient-bg pb-24">
         <div className="max-w-md mx-auto px-4 py-6">
-          <div className="space-y-4">
-            <Skeleton className="h-12 w-full" />
-            <Skeleton className="h-32 w-full rounded-2xl" />
-            <Skeleton className="h-48 w-full rounded-2xl" />
+          <div className="space-y-6">
+            <Skeleton className="h-14 w-full rounded-3xl bg-white/20" />
+            <Skeleton className="h-36 w-full rounded-3xl bg-white/20" />
+            <Skeleton className="h-52 w-full rounded-3xl bg-white/20" />
           </div>
         </div>
       </div>;
@@ -155,97 +155,119 @@ export function BookingForm() {
   const ServiceIcon = serviceIcon(service_type);
   const currentPrice = selectedFlatSize ? pricingMap[selectedFlatSize] : null;
   const canBook = selectedFlatSize && currentPrice && !submitting;
-  return <div className="min-h-screen bg-white pb-24">
+  return <div className="min-h-screen gradient-bg pb-24">
       <div className="max-w-md mx-auto px-4 py-6">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <Button variant="ghost" size="sm" onClick={() => navigate('/home')} className="p-2">
-            <ArrowLeft className="w-5 h-5" />
+        <div className="flex items-center justify-between mb-8">
+          <Button variant="ghost" size="sm" onClick={() => navigate('/home')} className="p-3 rounded-2xl hover:bg-white/20 transition-smooth">
+            <ArrowLeft className="w-5 h-5 text-foreground" />
           </Button>
-          <h1 className="text-xl font-semibold" style={{
-          color: '#ff007a'
-        }}>
+          <h1 className="text-xl font-bold text-primary">
             Book {prettyServiceName(service_type)} Service
           </h1>
-          <div className="w-9"></div>
+          <div className="w-11"></div>
         </div>
 
         {/* Profile Summary Card */}
-        {profile && <Card className="mb-6 bg-white rounded-2xl shadow-lg border border-pink-50">
-            <CardContent className="p-4">
-              <div className="space-y-3">
+        {profile && <Card className="mb-8 gradient-card rounded-3xl shadow-card border border-border/20 hover:shadow-button transition-spring group">
+            <CardContent className="p-6">
+              <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <MapPin className="w-4 h-4" style={{
-                  color: '#ff007a'
-                }} />
-                    <span className="text-sm font-medium">Community</span>
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center">
+                      <MapPin className="w-5 h-5 text-primary" />
+                    </div>
+                    <span className="text-sm font-semibold text-foreground">Community</span>
                   </div>
-                  <span className="text-sm font-bold">{profile.community}</span>
+                  <span className="text-sm font-bold text-primary bg-primary/10 px-3 py-1 rounded-full">{profile.community}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Home className="w-4 h-4" style={{
-                  color: '#ff007a'
-                }} />
-                    <span className="text-sm font-medium">Flat Number</span>
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center">
+                      <Home className="w-5 h-5 text-primary" />
+                    </div>
+                    <span className="text-sm font-semibold text-foreground">Flat Number</span>
                   </div>
-                  <span className="text-sm font-bold">{profile.flat_no}</span>
+                  <span className="text-sm font-bold text-primary bg-primary/10 px-3 py-1 rounded-full">{profile.flat_no}</span>
                 </div>
               </div>
             </CardContent>
           </Card>}
 
         {/* Flat Size Selection */}
-        <div className="mb-6">
-          <h2 className="text-lg font-semibold mb-4">Select Flat Size *</h2>
-          <div className="grid grid-cols-3 gap-3">
-            {FLAT_SIZES.slice(0, 3).map(size => <Button key={size} variant="outline" onClick={() => setSelectedFlatSize(size)} className={`h-12 min-w-[96px] font-medium rounded-xl border transition-all ${selectedFlatSize === size ? "border-2 shadow" : "border-gray-200 hover:border-gray-300"}`} style={selectedFlatSize === size ? {
-            borderColor: '#ff007a',
-            color: '#ff007a'
-          } : {}}>
+        <div className="mb-8">
+          <h2 className="text-lg font-bold text-foreground mb-6">Select Flat Size *</h2>
+          <div className="grid grid-cols-3 gap-4">
+            {FLAT_SIZES.slice(0, 3).map(size => (
+              <Button 
+                key={size} 
+                variant="outline" 
+                onClick={() => setSelectedFlatSize(size)} 
+                className={`h-14 min-w-[96px] font-semibold rounded-2xl border-2 transition-spring hover:scale-105 ${
+                  selectedFlatSize === size 
+                    ? "border-primary bg-primary/10 text-primary shadow-button" 
+                    : "border-border/50 hover:border-primary/50 hover:bg-primary/5"
+                }`}
+              >
                 {size}
-              </Button>)}
+              </Button>
+            ))}
           </div>
-          <div className="grid grid-cols-2 gap-3 mt-3">
-            {FLAT_SIZES.slice(3).map(size => <Button key={size} variant="outline" onClick={() => setSelectedFlatSize(size)} className={`h-12 min-w-[96px] font-medium rounded-xl border transition-all ${selectedFlatSize === size ? "border-2 shadow" : "border-gray-200 hover:border-gray-300"}`} style={selectedFlatSize === size ? {
-            borderColor: '#ff007a',
-            color: '#ff007a'
-          } : {}}>
+          <div className="grid grid-cols-2 gap-4 mt-4">
+            {FLAT_SIZES.slice(3).map(size => (
+              <Button 
+                key={size} 
+                variant="outline" 
+                onClick={() => setSelectedFlatSize(size)} 
+                className={`h-14 min-w-[96px] font-semibold rounded-2xl border-2 transition-spring hover:scale-105 ${
+                  selectedFlatSize === size 
+                    ? "border-primary bg-primary/10 text-primary shadow-button" 
+                    : "border-border/50 hover:border-primary/50 hover:bg-primary/5"
+                }`}
+              >
                 {size}
-              </Button>)}
+              </Button>
+            ))}
           </div>
         </div>
 
         {/* Price Panel */}
-        <Card className="mb-6 rounded-2xl shadow-sm" style={{
-        background: 'linear-gradient(135deg, #ffd1ec 0%, #ffb3d6 100%)'
-      }}>
-          <CardContent className="p-4 text-center">
-            {loadingPricing ? <Skeleton className="h-8 w-24 mx-auto" /> : <div className="text-2xl font-extrabold" style={{
-            color: '#ff007a'
-          }}>
+        <Card className="mb-8 gradient-primary rounded-3xl shadow-button hover:shadow-lg transition-spring group">
+          <CardContent className="p-6 text-center">
+            {loadingPricing ? (
+              <Skeleton className="h-8 w-24 mx-auto bg-white/20" />
+            ) : (
+              <div className="text-3xl font-extrabold text-primary-foreground">
                 Price: ₹{currentPrice || '—'}
-              </div>}
+              </div>
+            )}
           </CardContent>
         </Card>
 
         {/* Service Info */}
-        <div className="flex items-center justify-center gap-2 mb-6 text-gray-500">
-          <Clock className="w-4 h-4" />
-          <span className="text-sm">Service arrives in 10 minutes</span>
+        <div className="flex items-center justify-center gap-3 mb-8 text-muted-foreground bg-white/20 rounded-2xl p-4 backdrop-blur-sm">
+          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+            <Clock className="w-4 h-4 text-primary" />
+          </div>
+          <span className="text-sm font-medium">Service arrives in 10 minutes</span>
         </div>
 
         {/* Action Buttons */}
         <div className="space-y-6 mt-6">
           {/* Book Now Button */}
-          <Button onClick={handleBookNow} disabled={!canBook} className="w-full h-12 rounded-full text-white font-semibold" style={{
-          background: 'linear-gradient(to right, #ff007a, #d9006a)'
-        }}>
-            {submitting ? <div className="flex items-center gap-2">
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+          <Button 
+            onClick={handleBookNow} 
+            disabled={!canBook} 
+            className="w-full h-16 rounded-3xl text-primary-foreground font-bold text-lg gradient-primary shadow-button hover:shadow-lg hover:scale-[1.02] transition-spring disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {submitting ? (
+              <div className="flex items-center gap-3">
+                <div className="w-5 h-5 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
                 Booking...
-              </div> : "Book Now"}
+              </div>
+            ) : (
+              "Book Now"
+            )}
           </Button>
 
           {/* Schedule Section */}
