@@ -69,7 +69,9 @@ const App = () => (
               path="/book/:service_type" 
               element={
                 <ProtectedRoute>
-                  <BookingForm />
+                  <ProtectedLayout>
+                    <BookingForm />
+                  </ProtectedLayout>
                 </ProtectedRoute>
               } 
             />

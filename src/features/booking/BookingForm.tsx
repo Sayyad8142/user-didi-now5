@@ -169,7 +169,7 @@ export function BookingForm() {
 
   if (profileLoading) {
     return (
-      <div className="min-h-screen bg-white">
+      <div className="min-h-screen bg-white pb-24">
         <div className="max-w-md mx-auto px-4 py-6">
           <div className="space-y-4">
             <Skeleton className="h-12 w-full" />
@@ -186,7 +186,7 @@ export function BookingForm() {
   const canBook = selectedFlatSize && currentPrice && !submitting;
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white pb-24">
       <div className="max-w-md mx-auto px-4 py-6">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
