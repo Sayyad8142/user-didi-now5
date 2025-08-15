@@ -57,21 +57,7 @@ export default function Profile() {
   return <div className="min-h-screen gradient-bg pb-24">
       <div className="max-w-md mx-auto px-4 py-8 space-y-6 bg-slate-50">
         {/* Header Section with Avatar */}
-        <div className="text-center space-y-4">
-          <div className="relative inline-block">
-            <Avatar className="h-20 w-20 shadow-card transition-spring hover:scale-105">
-              <AvatarImage src="" alt={profile?.full_name || 'User'} />
-              <AvatarFallback className="gradient-primary text-white text-xl font-bold">
-                {getInitials(profile?.full_name)}
-              </AvatarFallback>
-            </Avatar>
-            <div className="absolute -bottom-1 -right-1 h-6 w-6 bg-green-500 border-2 border-white rounded-full"></div>
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-primary">{profile?.full_name || 'User'}</h1>
-            <p className="text-muted-foreground">Verified Member</p>
-          </div>
-        </div>
+        
 
         {/* Personal Information Card */}
         <Card className="gradient-card shadow-card border-0 overflow-hidden transition-spring hover:shadow-button">
@@ -118,25 +104,8 @@ export default function Profile() {
 
         {/* Quick Actions Card */}
         <Card className="gradient-card shadow-card border-0 overflow-hidden transition-spring hover:shadow-button">
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-3 text-lg">
-              <div className="h-10 w-10 gradient-primary rounded-xl flex items-center justify-center">
-                <Settings className="w-5 h-5 text-white" />
-              </div>
-              Quick Actions
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <Button variant="ghost" className="w-full justify-start h-12 bg-white/60 hover:bg-white/80 backdrop-blur-sm rounded-2xl transition-smooth">
-              <Bell className="w-5 h-5 mr-3 text-orange-600" />
-              <span className="flex-1 text-left">Notification Settings</span>
-            </Button>
-
-            <Button variant="ghost" className="w-full justify-start h-12 bg-white/60 hover:bg-white/80 backdrop-blur-sm rounded-2xl transition-smooth">
-              <Shield className="w-5 h-5 mr-3 text-blue-600" />
-              <span className="flex-1 text-left">Privacy & Security</span>
-            </Button>
-          </CardContent>
+          
+          
         </Card>
 
         {/* Sign Out Button */}
