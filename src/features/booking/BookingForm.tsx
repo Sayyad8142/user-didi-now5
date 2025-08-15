@@ -211,21 +211,15 @@ export function BookingForm() {
           </div>
 
           {/* Price Display */}
-          {selectedFlatSize && (
-            <Card className="bg-pink-100 border-pink-200 rounded-2xl mt-6">
+          {selectedFlatSize && <Card className="bg-pink-100 border-pink-200 rounded-2xl mt-6">
               <CardContent className="p-6">
                 <div className="text-center">
-                  {loadingPricing ? (
-                    <Skeleton className="h-8 w-32 mx-auto rounded-lg" />
-                  ) : (
-                    <span className="text-2xl font-bold text-pink-600">
+                  {loadingPricing ? <Skeleton className="h-8 w-32 mx-auto rounded-lg" /> : <span className="text-2xl font-bold text-pink-600">
                       Price: ₹{currentPrice}
-                    </span>
-                  )}
+                    </span>}
                 </div>
               </CardContent>
-            </Card>
-          )}
+            </Card>}
 
           {/* Action Buttons */}
           <div className="space-y-6 mt-8">
@@ -244,23 +238,15 @@ export function BookingForm() {
                     <h3 className="text-lg font-semibold text-foreground mb-2">
                       Schedule your slot for later
                     </h3>
-                    <p className="text-sm text-muted-foreground">
-                      Guaranteed on-time service by our trusted Experts
-                    </p>
+                    
                   </div>
                   <div className="flex items-center gap-1 ml-4">
                     <Calendar className="w-6 h-6 text-primary" />
-                    <div className="w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
-                      <div className="w-2 h-2 bg-white rounded-full" />
-                    </div>
+                    
                   </div>
                 </div>
                 
-                <Button 
-                  onClick={() => setScheduleSheetOpen(true)} 
-                  disabled={!canBook} 
-                  className="w-full h-12 rounded-2xl font-semibold bg-pink-500 hover:bg-pink-600 text-white"
-                >
+                <Button onClick={() => setScheduleSheetOpen(true)} disabled={!canBook} className="w-full h-12 rounded-2xl font-semibold bg-pink-500 hover:bg-pink-600 text-white">
                   <span>Prebook Now</span>
                   <ArrowLeft className="w-5 h-5 ml-2 rotate-180" />
                 </Button>
