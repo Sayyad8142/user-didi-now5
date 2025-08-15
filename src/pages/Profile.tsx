@@ -8,33 +8,34 @@ import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
 import { User, Phone, Building, Home, LogOut, Settings, Bell, Shield } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-
 export default function Profile() {
-  const { profile, loading } = useProfile();
+  const {
+    profile,
+    loading
+  } = useProfile();
   const navigate = useNavigate();
-  const { toast } = useToast();
-
+  const {
+    toast
+  } = useToast();
   const handleSignOut = async () => {
     try {
       await supabase.auth.signOut();
       navigate('/auth');
       toast({
         title: 'Signed out successfully',
-        description: 'You have been logged out of your account',
+        description: 'You have been logged out of your account'
       });
     } catch (error) {
       console.error('Error signing out:', error);
       toast({
         title: 'Error',
         description: 'Failed to sign out',
-        variant: 'destructive',
+        variant: 'destructive'
       });
     }
   };
-
   if (loading) {
-    return (
-      <div className="min-h-screen gradient-bg pb-24">
+    return <div className="min-h-screen gradient-bg pb-24">
         <div className="max-w-md mx-auto px-4 py-8 space-y-6">
           <div className="text-center space-y-4">
             <Skeleton className="h-20 w-20 rounded-full mx-auto" />
@@ -46,23 +47,15 @@ export default function Profile() {
             <Skeleton className="h-24 rounded-3xl" />
           </div>
         </div>
-      </div>
-    );
+      </div>;
   }
 
   // Get user initials for avatar fallback
   const getInitials = (name: string = '') => {
-    return name
-      .split(' ')
-      .map(word => word.charAt(0))
-      .join('')
-      .toUpperCase()
-      .slice(0, 2);
+    return name.split(' ').map(word => word.charAt(0)).join('').toUpperCase().slice(0, 2);
   };
-
-  return (
-    <div className="min-h-screen gradient-bg pb-24">
-      <div className="max-w-md mx-auto px-4 py-8 space-y-6">
+  return <div className="min-h-screen gradient-bg pb-24">
+      <div className="max-w-md mx-auto px-4 py-8 space-y-6 bg-slate-50">
         {/* Header Section with Avatar */}
         <div className="text-center space-y-4">
           <div className="relative inline-block">
@@ -134,18 +127,12 @@ export default function Profile() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            <Button 
-              variant="ghost" 
-              className="w-full justify-start h-12 bg-white/60 hover:bg-white/80 backdrop-blur-sm rounded-2xl transition-smooth"
-            >
+            <Button variant="ghost" className="w-full justify-start h-12 bg-white/60 hover:bg-white/80 backdrop-blur-sm rounded-2xl transition-smooth">
               <Bell className="w-5 h-5 mr-3 text-orange-600" />
               <span className="flex-1 text-left">Notification Settings</span>
             </Button>
 
-            <Button 
-              variant="ghost" 
-              className="w-full justify-start h-12 bg-white/60 hover:bg-white/80 backdrop-blur-sm rounded-2xl transition-smooth"
-            >
+            <Button variant="ghost" className="w-full justify-start h-12 bg-white/60 hover:bg-white/80 backdrop-blur-sm rounded-2xl transition-smooth">
               <Shield className="w-5 h-5 mr-3 text-blue-600" />
               <span className="flex-1 text-left">Privacy & Security</span>
             </Button>
@@ -153,15 +140,10 @@ export default function Profile() {
         </Card>
 
         {/* Sign Out Button */}
-        <Button 
-          onClick={handleSignOut}
-          variant="outline"
-          className="w-full h-14 rounded-2xl border-2 border-red-200 bg-white/80 hover:bg-red-50 text-red-600 font-semibold transition-spring hover:scale-[0.98] shadow-input"
-        >
+        <Button onClick={handleSignOut} variant="outline" className="w-full h-14 rounded-2xl border-2 border-red-200 bg-white/80 hover:bg-red-50 text-red-600 font-semibold transition-spring hover:scale-[0.98] shadow-input">
           <LogOut className="w-5 h-5 mr-3" />
           Sign Out
         </Button>
       </div>
-    </div>
-  );
+    </div>;
 }
