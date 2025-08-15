@@ -273,7 +273,7 @@ export function ScheduleScreen() {
         </div>
 
         {/* Sticky Bottom Button */}
-        <div className="fixed bottom-32 left-0 right-0 px-3">
+        <div className="fixed bottom-16 left-0 right-0 px-3">
           <div className="max-w-md mx-auto">
             <Button
               onClick={handleConfirmSchedule}
