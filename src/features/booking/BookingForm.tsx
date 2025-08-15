@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, MapPin, Home, Clock } from 'lucide-react';
+import { ArrowLeft, MapPin, Home, Clock, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -313,19 +313,31 @@ export function BookingForm() {
 
           {/* Schedule Section */}
           <div className="space-y-4">
-            <div className="text-center space-y-2">
-              <h3 className="text-lg font-semibold text-gray-800">Schedule your slot for later</h3>
-              <p className="text-sm text-gray-600">Guaranteed on-time service by our trusted Experts</p>
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <h3 className="text-2xl font-semibold text-gray-800 mb-2">Schedule your slot for later</h3>
+                <p className="text-gray-600">Guaranteed on-time service by our trusted Experts</p>
+              </div>
+              <div className="flex-shrink-0 ml-4">
+                <div className="w-16 h-16 bg-gradient-to-br from-blue-100 to-blue-200 rounded-2xl flex items-center justify-center relative">
+                  <Calendar className="w-8 h-8 text-blue-600" />
+                  <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
+                    <div className="w-3 h-3 bg-white rounded-full flex items-center justify-center">
+                      ✓
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
             
             <Button
               onClick={() => setScheduleSheetOpen(true)}
               disabled={!canBook}
-              className="w-full h-12 rounded-full text-white font-semibold flex items-center justify-center gap-2"
+              className="w-full h-14 rounded-2xl text-white font-semibold text-lg flex items-center justify-center gap-3"
               style={{background: 'linear-gradient(to right, #ff007a, #d9006a)'}}
             >
               Prebook Now
-              <ArrowLeft className="w-4 h-4 rotate-180" />
+              <ArrowLeft className="w-5 h-5 rotate-180" />
             </Button>
           </div>
         </div>
