@@ -251,14 +251,25 @@ export function BookingForm() {
                   <Calendar className="w-6 h-6 text-pink-500" />
                 </div>
                 
-                <Button 
-                  onClick={() => setScheduleSheetOpen(true)} 
-                  disabled={!canBook} 
-                  className="w-full h-14 rounded-full font-semibold text-lg bg-pink-500 hover:bg-pink-600 text-white border-0"
-                >
-                  <span>Prebook Now</span>
-                  <ArrowLeft className="w-5 h-5 ml-2 rotate-180" />
-                </Button>
+            <Button 
+              onClick={() => {
+                if (!selectedFlatSize) {
+                  toast({
+                    title: "Please select flat size first",
+                    description: "Choose a flat size before scheduling.",
+                    variant: "destructive"
+                  });
+                  return;
+                }
+                const price = pricingMap[selectedFlatSize];
+                navigate(`/book/${service_type}/schedule?flat=${selectedFlatSize}&price=${price}`);
+              }} 
+              disabled={!selectedFlatSize} 
+              className="w-full h-14 rounded-full font-semibold text-lg bg-pink-500 hover:bg-pink-600 text-white border-0"
+            >
+              <span>Prebook Now</span>
+              <ArrowLeft className="w-5 h-5 ml-2 rotate-180" />
+            </Button>
               </CardContent>
             </Card>
           </div>

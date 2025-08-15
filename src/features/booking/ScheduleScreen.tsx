@@ -1,0 +1,328 @@
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { ArrowLeft, Home, MapPin, Wallet } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/components/auth/AuthProvider';
+import { useProfile } from '@/features/profile/useProfile';
+import { prettyServiceName, isValidServiceType, getPricingMap } from './pricing';
+import { 
+  makeSlots, 
+  toDisplay12h, 
+  isPastToday, 
+  getDateChips, 
+  TIME_SEGMENTS, 
+  type TimeSegment 
+} from './slot-utils';
+import { format } from 'date-fns';
+
+export function ScheduleScreen() {
+  const { service_type } = useParams<{ service_type: string }>();
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const { profile, loading: profileLoading } = useProfile();
+  const { toast } = useToast();
+
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [selectedTime, setSelectedTime] = useState<string>('');
+  const [activeSegment, setActiveSegment] = useState<TimeSegment>('Morning');
+  const [submitting, setSubmitting] = useState(false);
+  const [price, setPrice] = useState<number | null>(null);
+
+  const flatSize = searchParams.get('flat');
+  const priceParam = searchParams.get('price');
+
+  useEffect(() => {
+    if (!user) {
+      navigate('/auth');
+      return;
+    }
+    if (service_type && !isValidServiceType(service_type)) {
+      navigate('/home');
+      return;
+    }
+  }, [user, service_type, navigate]);
+
+  useEffect(() => {
+    if (priceParam) {
+      setPrice(parseInt(priceParam));
+    } else if (profile && service_type && flatSize) {
+      loadPrice();
+    }
+  }, [profile, service_type, flatSize, priceParam]);
+
+  const loadPrice = async () => {
+    if (!service_type || !profile || !flatSize) return;
+    
+    try {
+      const pricing = await getPricingMap(service_type, profile.community);
+      const flatPrice = pricing[flatSize];
+      if (flatPrice) {
+        setPrice(flatPrice);
+      }
+    } catch (error) {
+      console.error('Error loading price:', error);
+    }
+  };
+
+  const handleConfirmSchedule = async () => {
+    if (!selectedDate || !selectedTime || !profile || !user || !service_type || !flatSize || !price) {
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const scheduledDate = format(selectedDate, 'yyyy-MM-dd');
+      const scheduledTime = `${selectedTime}:00`;
+
+      const bookingData = {
+        user_id: user.id,
+        service_type,
+        booking_type: 'scheduled',
+        scheduled_date: scheduledDate,
+        scheduled_time: scheduledTime,
+        notes: null,
+        status: 'pending',
+        flat_size: flatSize,
+        price_inr: price,
+        cust_name: profile.full_name,
+        cust_phone: profile.phone,
+        community: profile.community,
+        flat_no: profile.flat_no
+      };
+
+      const { error } = await supabase
+        .from('bookings')
+        .insert([bookingData]);
+
+      if (error) {
+        console.error('Booking error:', error);
+        toast({
+          title: "Booking Failed",
+          description: "There was an error creating your booking. Please try again.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      toast({
+        title: "Schedule confirmed!",
+        description: "Your booking has been scheduled successfully."
+      });
+
+      navigate('/bookings');
+    } catch (err) {
+      console.error('Booking error:', err);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (!user || !service_type || !isValidServiceType(service_type)) {
+    return null;
+  }
+
+  if (profileLoading) {
+    return (
+      <div className="min-h-screen bg-background pb-28">
+        <div className="max-w-md mx-auto px-4 py-6">
+          <div className="space-y-6">
+            <Skeleton className="h-14 w-full rounded-3xl" />
+            <Skeleton className="h-32 w-full rounded-2xl" />
+            <Skeleton className="h-48 w-full rounded-2xl" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!flatSize) {
+    return (
+      <div className="min-h-screen bg-background pb-28">
+        <div className="max-w-md mx-auto px-4 py-6">
+          <div className="flex items-center mb-6">
+            <Button variant="ghost" size="sm" onClick={() => navigate(`/book/${service_type}`)} className="p-2">
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+            <h1 className="text-xl font-semibold text-foreground ml-4">
+              Schedule {prettyServiceName(service_type)}
+            </h1>
+          </div>
+          
+          <Card className="bg-yellow-50 border-yellow-200 rounded-2xl">
+            <CardContent className="p-4">
+              <p className="text-yellow-800 font-medium">Select flat size first</p>
+              <Button 
+                variant="link" 
+                onClick={() => navigate(`/book/${service_type}`)}
+                className="text-yellow-600 p-0 h-auto"
+              >
+                Go back to booking form
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  const dateChips = getDateChips();
+  const currentSegmentSlots = makeSlots(
+    TIME_SEGMENTS[activeSegment].start,
+    TIME_SEGMENTS[activeSegment].end
+  );
+
+  const canConfirm = selectedDate && selectedTime && !submitting;
+
+  return (
+    <div className="min-h-screen bg-background pb-28">
+      <div className="max-w-md mx-auto px-4 py-6">
+        {/* Header */}
+        <div className="flex items-center mb-6">
+          <Button variant="ghost" size="sm" onClick={() => navigate(`/book/${service_type}`)} className="p-2">
+            <ArrowLeft className="w-5 h-5" />
+          </Button>
+          <h1 className="text-xl font-semibold text-foreground ml-4">
+            Schedule {prettyServiceName(service_type)}
+          </h1>
+        </div>
+
+        <div className="space-y-6">
+          {/* Summary Card */}
+          {profile && (
+            <Card className="bg-white rounded-2xl shadow-lg border border-pink-50">
+              <CardContent className="p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Home className="w-5 h-5 text-primary" />
+                    <span className="text-foreground font-medium">Flat Number</span>
+                  </div>
+                  <span className="text-foreground font-semibold">{profile.flat_no}</span>
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <MapPin className="w-5 h-5 text-primary" />
+                    <span className="text-foreground font-medium">Community</span>
+                  </div>
+                  <span className="text-foreground font-semibold">{profile.community}</span>
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Wallet className="w-5 h-5 text-primary" />
+                    <span className="text-foreground font-medium">Price</span>
+                  </div>
+                  <span className="text-foreground font-semibold">
+                    {price ? `₹${price}` : '₹—'}
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Date Selection */}
+          <div>
+            <h2 className="text-lg font-semibold text-foreground mb-4">
+              Select date of service
+            </h2>
+            <div className="flex gap-2 overflow-x-auto pb-2">
+              {dateChips.map((chip, index) => (
+                <Button
+                  key={index}
+                  variant="outline"
+                  onClick={() => {
+                    setSelectedDate(chip.date);
+                    setSelectedTime(''); // Reset time when date changes
+                  }}
+                  className={`rounded-xl px-4 h-10 border whitespace-nowrap flex-shrink-0 ${
+                    selectedDate.toDateString() === chip.date.toDateString()
+                      ? 'border-2 border-[#ff007a] text-[#ff007a] bg-pink-50'
+                      : 'border-border bg-background text-foreground hover:border-pink-200'
+                  }`}
+                >
+                  {chip.label}
+                </Button>
+              ))}
+            </div>
+          </div>
+
+          {/* Time Selection */}
+          <div>
+            <h2 className="text-lg font-semibold text-foreground mb-4">
+              Select start time of service
+            </h2>
+            
+            <Tabs value={activeSegment} onValueChange={(value) => {
+              setActiveSegment(value as TimeSegment);
+              setSelectedTime(''); // Reset time when segment changes
+            }}>
+              <TabsList className="grid w-full grid-cols-3 mb-4">
+                <TabsTrigger value="Morning">Morning</TabsTrigger>
+                <TabsTrigger value="Afternoon">Afternoon</TabsTrigger>
+                <TabsTrigger value="Evening">Evening</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value={activeSegment} className="mt-0">
+                <div className="grid grid-cols-3 gap-3">
+                  {currentSegmentSlots.map((slot) => {
+                    const isPast = isPastToday(slot, selectedDate);
+                    const isSelected = selectedTime === slot;
+                    
+                    return (
+                      <Button
+                        key={slot}
+                        variant="outline"
+                        disabled={isPast}
+                        onClick={() => setSelectedTime(slot)}
+                        className={`rounded-xl border h-10 px-3 text-sm ${
+                          isSelected
+                            ? 'border-2 border-[#ff007a] text-[#ff007a] bg-pink-50 shadow'
+                            : isPast
+                            ? 'border-gray-200 text-gray-400 bg-gray-50'
+                            : 'border-border bg-background text-foreground hover:border-pink-200'
+                        }`}
+                      >
+                        {toDisplay12h(slot)}
+                      </Button>
+                    );
+                  })}
+                </div>
+              </TabsContent>
+            </Tabs>
+          </div>
+        </div>
+
+        {/* Sticky Bottom Button */}
+        <div className="fixed bottom-20 left-0 right-0 px-4">
+          <div className="max-w-md mx-auto">
+            <Button
+              onClick={handleConfirmSchedule}
+              disabled={!canConfirm}
+              className="w-full h-12 rounded-full bg-gradient-to-r from-[#ff007a] to-[#d9006a] text-white font-semibold"
+            >
+              {submitting ? (
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                  <span>Confirming...</span>
+                </div>
+              ) : (
+                'Confirm Schedule'
+              )}
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
