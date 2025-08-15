@@ -162,6 +162,9 @@ export function BookingForm() {
           <Button variant="ghost" size="sm" onClick={() => navigate('/home')} className="p-2">
             <ArrowLeft className="w-5 h-5" />
           </Button>
+          <h1 className="text-xl font-semibold text-foreground ml-4">
+            Book {prettyServiceName(service_type)}
+          </h1>
         </div>
 
         <div className="space-y-4">
