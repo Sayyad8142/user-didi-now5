@@ -1,22 +1,83 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useProfile } from '@/features/profile/useProfile';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
-import { User, Phone, Building, Home, LogOut, Settings, Bell, Shield } from 'lucide-react';
+import { User, Phone, Building, Home, LogOut, Settings, Bell, Shield, Edit3, Save, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 export default function Profile() {
-  const {
-    profile,
-    loading
-  } = useProfile();
+  const { profile, loading } = useProfile();
   const navigate = useNavigate();
-  const {
-    toast
-  } = useToast();
+  const { toast } = useToast();
+  
+  const [isEditing, setIsEditing] = useState(false);
+  const [editForm, setEditForm] = useState({
+    full_name: '',
+    phone: '',
+    community: '',
+    flat_no: ''
+  });
+
+  // Initialize form when profile loads
+  React.useEffect(() => {
+    if (profile) {
+      setEditForm({
+        full_name: profile.full_name || '',
+        phone: profile.phone || '',
+        community: profile.community || '',
+        flat_no: profile.flat_no || ''
+      });
+    }
+  }, [profile]);
+
+  const handleSave = async () => {
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          full_name: editForm.full_name,
+          phone: editForm.phone,
+          community: editForm.community,
+          flat_no: editForm.flat_no,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', profile?.id);
+
+      if (error) throw error;
+
+      setIsEditing(false);
+      toast({
+        title: 'Profile updated',
+        description: 'Your profile information has been updated successfully'
+      });
+      
+      // Refresh the page to show updated data
+      window.location.reload();
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to update profile',
+        variant: 'destructive'
+      });
+    }
+  };
+
+  const handleCancel = () => {
+    if (profile) {
+      setEditForm({
+        full_name: profile.full_name || '',
+        phone: profile.phone || '',
+        community: profile.community || '',
+        flat_no: profile.flat_no || ''
+      });
+    }
+    setIsEditing(false);
+  };
   const handleSignOut = async () => {
     try {
       await supabase.auth.signOut();
@@ -62,12 +123,44 @@ export default function Profile() {
         {/* Personal Information Card */}
         <Card className="gradient-card shadow-card border-0 overflow-hidden transition-spring hover:shadow-button">
           <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-3 text-lg">
-              <div className="h-10 w-10 gradient-primary rounded-xl flex items-center justify-center">
-                <User className="w-5 h-5 text-white" />
-              </div>
-              Personal Information
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-3 text-lg">
+                <div className="h-10 w-10 gradient-primary rounded-xl flex items-center justify-center">
+                  <User className="w-5 h-5 text-white" />
+                </div>
+                Personal Information
+              </CardTitle>
+              
+              {!isEditing ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsEditing(true)}
+                  className="h-8 w-8 p-0 text-muted-foreground hover:text-primary"
+                >
+                  <Edit3 className="w-4 h-4" />
+                </Button>
+              ) : (
+                <div className="flex gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleSave}
+                    className="h-8 w-8 p-0 text-green-600 hover:text-green-700"
+                  >
+                    <Save className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleCancel}
+                    className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+              )}
+            </div>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center gap-4 p-4 bg-white/60 backdrop-blur-sm rounded-2xl transition-smooth hover:bg-white/80">
@@ -76,7 +169,16 @@ export default function Profile() {
               </div>
               <div className="flex-1">
                 <p className="text-sm font-medium text-muted-foreground">Full Name</p>
-                <p className="text-base font-semibold">{profile?.full_name || 'Not provided'}</p>
+                {!isEditing ? (
+                  <p className="text-base font-semibold">{profile?.full_name || 'Not provided'}</p>
+                ) : (
+                  <Input
+                    value={editForm.full_name}
+                    onChange={(e) => setEditForm(prev => ({...prev, full_name: e.target.value}))}
+                    className="mt-1 border-0 bg-transparent p-0 text-base font-semibold focus-visible:ring-0"
+                    placeholder="Enter full name"
+                  />
+                )}
               </div>
             </div>
 
@@ -86,7 +188,16 @@ export default function Profile() {
               </div>
               <div className="flex-1">
                 <p className="text-sm font-medium text-muted-foreground">Phone Number</p>
-                <p className="text-base font-semibold">{profile?.phone || 'Not provided'}</p>
+                {!isEditing ? (
+                  <p className="text-base font-semibold">{profile?.phone || 'Not provided'}</p>
+                ) : (
+                  <Input
+                    value={editForm.phone}
+                    onChange={(e) => setEditForm(prev => ({...prev, phone: e.target.value}))}
+                    className="mt-1 border-0 bg-transparent p-0 text-base font-semibold focus-visible:ring-0"
+                    placeholder="Enter phone number"
+                  />
+                )}
               </div>
             </div>
 
@@ -96,7 +207,16 @@ export default function Profile() {
               </div>
               <div className="flex-1">
                 <p className="text-sm font-medium text-muted-foreground">Community</p>
-                <p className="text-base font-semibold">{profile?.community || 'Not provided'}</p>
+                {!isEditing ? (
+                  <p className="text-base font-semibold">{profile?.community || 'Not provided'}</p>
+                ) : (
+                  <Input
+                    value={editForm.community}
+                    onChange={(e) => setEditForm(prev => ({...prev, community: e.target.value}))}
+                    className="mt-1 border-0 bg-transparent p-0 text-base font-semibold focus-visible:ring-0"
+                    placeholder="Enter community"
+                  />
+                )}
               </div>
             </div>
 
@@ -106,7 +226,16 @@ export default function Profile() {
               </div>
               <div className="flex-1">
                 <p className="text-sm font-medium text-muted-foreground">Flat Number</p>
-                <p className="text-base font-semibold">{profile?.flat_no || 'Not provided'}</p>
+                {!isEditing ? (
+                  <p className="text-base font-semibold">{profile?.flat_no || 'Not provided'}</p>
+                ) : (
+                  <Input
+                    value={editForm.flat_no}
+                    onChange={(e) => setEditForm(prev => ({...prev, flat_no: e.target.value}))}
+                    className="mt-1 border-0 bg-transparent p-0 text-base font-semibold focus-visible:ring-0"
+                    placeholder="Enter flat number"
+                  />
+                )}
               </div>
             </div>
           </CardContent>
