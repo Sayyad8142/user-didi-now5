@@ -241,16 +241,46 @@ export function BookingForm() {
             </div>
           </div>
 
-          {/* Price Display */}
-          <Card className="bg-primary/10 border-primary/20 rounded-2xl mt-8">
-            <CardContent className="p-6 text-center">
-              {loadingPricing ? (
-                <Skeleton className="h-8 w-32 mx-auto" />
-              ) : (
-                <div className="text-3xl font-bold text-primary">
-                  Price: ₹{currentPrice || '—'}
+          {/* Enhanced Price Display */}
+          <Card className="bg-gradient-to-br from-primary/15 via-primary/10 to-primary/5 border-2 border-primary/30 rounded-3xl mt-8 overflow-hidden relative animate-fade-in hover-scale">
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-pulse" />
+            <CardContent className="p-8 relative z-10">
+              <div className="text-center space-y-4">
+                <div className="inline-flex items-center justify-center w-16 h-16 bg-primary/20 rounded-2xl mb-2 animate-scale-in">
+                  <span className="text-2xl font-bold text-primary">₹</span>
                 </div>
-              )}
+                
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+                    Total Amount
+                  </p>
+                  
+                  {loadingPricing ? (
+                    <div className="space-y-2">
+                      <Skeleton className="h-12 w-40 mx-auto rounded-xl" />
+                      <Skeleton className="h-4 w-24 mx-auto rounded-lg" />
+                    </div>
+                  ) : (
+                    <div className="space-y-1">
+                      <div className="text-4xl font-black text-primary animate-scale-in">
+                        ₹{currentPrice || '—'}
+                      </div>
+                      <p className="text-xs text-muted-foreground font-medium">
+                        Inclusive of all taxes
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {selectedFlatSize && (
+                  <div className="flex items-center justify-center gap-2 px-4 py-2 bg-primary/10 rounded-full animate-fade-in">
+                    <Home className="w-4 h-4 text-primary" />
+                    <span className="text-sm font-semibold text-primary">
+                      {selectedFlatSize} Selected
+                    </span>
+                  </div>
+                )}
+              </div>
             </CardContent>
           </Card>
 
