@@ -50,21 +50,29 @@ export const isPastToday = (hhmm: string, selectedDate: Date, minBuffer = 30): b
   return isAfter(nowPlusBuffer, slotTime);
 };
 
-export const getDateChips = (): Array<{ date: Date; label: string; isToday: boolean }> => {
+export const getDateChips = (): Array<{ date: Date; label: string; dayLabel: string; isToday: boolean }> => {
   const chips = [];
   const today = new Date();
   
   for (let i = 0; i < 7; i++) {
     const date = addDays(today, i);
-    const label = i === 0 ? 'TODAY' : format(date, 'EEE d');
+    const label = i === 0 ? 'TODAY' : format(date, 'EEE').toUpperCase();
+    const dayLabel = format(date, 'd');
     chips.push({
       date,
       label,
+      dayLabel,
       isToday: i === 0
     });
   }
   
   return chips;
+};
+
+export const getExtraCharge = (timeSlot: string): number => {
+  const [hours] = timeSlot.split(':').map(Number);
+  // Extra ₹5 for slots after 4:00 PM (16:00)
+  return hours >= 16 ? 5 : 0;
 };
 
 export const TIME_SEGMENTS = {

@@ -15,6 +15,7 @@ import {
   toDisplay12h, 
   isPastToday, 
   getDateChips, 
+  getExtraCharge,
   TIME_SEGMENTS, 
   type TimeSegment 
 } from './slot-utils';
@@ -231,34 +232,34 @@ export function ScheduleScreen() {
             </Card>
           )}
 
-          {/* Date Selection */}
-          <div>
-            <h2 className="text-lg font-semibold text-foreground mb-4">
-              Select date of service
-            </h2>
-            <div className="flex gap-2 overflow-x-auto pb-2">
-              {dateChips.map((chip, index) => (
-                <Button
-                  key={index}
-                  variant="outline"
-                  onClick={() => {
-                    setSelectedDate(chip.date);
-                    setSelectedTime(''); // Reset time when date changes
-                  }}
-                  className={`rounded-xl px-4 h-10 border whitespace-nowrap flex-shrink-0 ${
-                    selectedDate.toDateString() === chip.date.toDateString()
-                      ? 'border-2 border-[#ff007a] text-[#ff007a] bg-pink-50'
-                      : 'border-border bg-background text-foreground hover:border-pink-200'
-                  }`}
-                >
-                  {chip.label}
-                </Button>
-              ))}
-            </div>
-          </div>
+            <Card className="bg-white rounded-2xl shadow-lg border border-gray-100 p-4">
+              <h2 className="text-lg font-semibold text-foreground mb-4">
+                Select date of service
+              </h2>
+              <div className="flex gap-3 overflow-x-auto pb-2">
+                {dateChips.map((chip, index) => (
+                  <Button
+                    key={index}
+                    variant="outline"
+                    onClick={() => {
+                      setSelectedDate(chip.date);
+                      setSelectedTime(''); // Reset time when date changes
+                    }}
+                    className={`rounded-2xl px-4 py-6 h-auto border-2 whitespace-nowrap flex-shrink-0 flex flex-col items-center gap-1 min-w-[80px] ${
+                      selectedDate.toDateString() === chip.date.toDateString()
+                        ? 'border-primary bg-primary/10 text-primary'
+                        : 'border-border bg-background text-foreground hover:border-primary/50'
+                    }`}
+                  >
+                    <span className="text-sm font-semibold">{chip.label}</span>
+                    <span className="text-xl font-bold">{chip.dayLabel}</span>
+                  </Button>
+                ))}
+              </div>
+            </Card>
 
           {/* Time Selection */}
-          <div>
+          <Card className="bg-white rounded-2xl shadow-lg border border-gray-100 p-4">
             <h2 className="text-lg font-semibold text-foreground mb-4">
               Select start time of service
             </h2>
@@ -267,10 +268,10 @@ export function ScheduleScreen() {
               setActiveSegment(value as TimeSegment);
               setSelectedTime(''); // Reset time when segment changes
             }}>
-              <TabsList className="grid w-full grid-cols-3 mb-4">
-                <TabsTrigger value="Morning">Morning</TabsTrigger>
-                <TabsTrigger value="Afternoon">Afternoon</TabsTrigger>
-                <TabsTrigger value="Evening">Evening</TabsTrigger>
+              <TabsList className="grid w-full grid-cols-3 mb-4 bg-gray-100 rounded-xl p-1">
+                <TabsTrigger value="Morning" className="rounded-lg">Morning</TabsTrigger>
+                <TabsTrigger value="Afternoon" className="rounded-lg">Afternoon</TabsTrigger>
+                <TabsTrigger value="Evening" className="rounded-lg">Evening</TabsTrigger>
               </TabsList>
 
               <TabsContent value={activeSegment} className="mt-0">
@@ -278,6 +279,7 @@ export function ScheduleScreen() {
                   {currentSegmentSlots.map((slot) => {
                     const isPast = isPastToday(slot, selectedDate);
                     const isSelected = selectedTime === slot;
+                    const extraCharge = getExtraCharge(slot);
                     
                     return (
                       <Button
@@ -285,22 +287,27 @@ export function ScheduleScreen() {
                         variant="outline"
                         disabled={isPast}
                         onClick={() => setSelectedTime(slot)}
-                        className={`rounded-xl border h-10 px-3 text-sm ${
+                        className={`relative rounded-xl border-2 h-16 px-3 text-sm flex flex-col items-center justify-center ${
                           isSelected
-                            ? 'border-2 border-[#ff007a] text-[#ff007a] bg-pink-50 shadow'
+                            ? 'border-primary bg-primary/10 text-primary'
                             : isPast
                             ? 'border-gray-200 text-gray-400 bg-gray-50'
-                            : 'border-border bg-background text-foreground hover:border-pink-200'
+                            : 'border-gray-200 bg-white text-foreground hover:border-primary/50'
                         }`}
                       >
-                        {toDisplay12h(slot)}
+                        <span className="font-medium">{toDisplay12h(slot)}</span>
+                        {extraCharge > 0 && !isPast && (
+                          <span className="absolute -top-2 -right-2 bg-orange-500 text-white text-xs px-2 py-0.5 rounded-full font-semibold">
+                            EXTRA ₹{extraCharge}
+                          </span>
+                        )}
                       </Button>
                     );
                   })}
                 </div>
               </TabsContent>
             </Tabs>
-          </div>
+          </Card>
         </div>
 
         {/* Sticky Bottom Button */}
