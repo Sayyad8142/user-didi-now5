@@ -210,34 +210,22 @@ export function BookingForm() {
             </div>
           </div>
 
-          {/* Enhanced Price Display */}
-          <Card className="bg-gradient-to-br from-primary/15 via-primary/10 to-primary/5 border-2 border-primary/30 rounded-3xl mt-8 overflow-hidden relative animate-fade-in hover-scale">
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-pulse" />
-            <CardContent className="p-8 relative z-10 px-0 py-[15px]">
-              <div className="text-center space-y-4">
-                
-                
-                <div className="space-y-2">
-                  
-                  
-                  {loadingPricing ? <div className="space-y-2">
-                      <Skeleton className="h-12 w-40 mx-auto rounded-xl" />
-                      <Skeleton className="h-4 w-24 mx-auto rounded-lg" />
-                    </div> : <div className="space-y-1">
-                      
-                      
-                    </div>}
-                </div>
-
-                {selectedFlatSize && <div className="flex items-center justify-center gap-2 px-4 py-2 bg-primary/10 rounded-full animate-fade-in">
-                    <Home className="w-4 h-4 text-primary" />
-                    <span className="text-sm font-semibold text-primary">
-                      {selectedFlatSize} Selected
+          {/* Price Display */}
+          {selectedFlatSize && (
+            <Card className="bg-pink-100 border-pink-200 rounded-2xl mt-6">
+              <CardContent className="p-6">
+                <div className="text-center">
+                  {loadingPricing ? (
+                    <Skeleton className="h-8 w-32 mx-auto rounded-lg" />
+                  ) : (
+                    <span className="text-2xl font-bold text-pink-600">
+                      Price: ₹{currentPrice}
                     </span>
-                  </div>}
-              </div>
-            </CardContent>
-          </Card>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Action Buttons */}
           <div className="space-y-4 mt-8">
