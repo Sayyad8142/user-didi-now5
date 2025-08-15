@@ -199,64 +199,32 @@ export function ScheduleScreen() {
         </div>
 
         <div className="space-y-4">
-          {/* Summary Card */}
-          {profile && (
-            <Card className="bg-white rounded-2xl shadow-sm border border-gray-100">
-              <CardContent className="p-3 space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Home className="w-4 h-4 text-primary" />
-                    <span className="text-sm font-medium">Flat Number</span>
-                  </div>
-                  <span className="text-sm font-semibold">{profile.flat_no}</span>
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <MapPin className="w-4 h-4 text-primary" />
-                    <span className="text-sm font-medium">Community</span>
-                  </div>
-                  <span className="text-sm font-semibold">{profile.community}</span>
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Wallet className="w-4 h-4 text-primary" />
-                    <span className="text-sm font-medium">Price</span>
-                  </div>
-                  <span className="text-sm font-semibold">
-                    {price ? `₹${price}` : '₹—'}
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-            <Card className="bg-white rounded-2xl shadow-sm border border-gray-100 p-3">
-              <h2 className="text-base font-semibold text-foreground mb-3">
-                Select date of service
-              </h2>
-              <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
-                {dateChips.map((chip, index) => (
-                  <Button
-                    key={index}
-                    variant="outline"
-                    onClick={() => {
-                      setSelectedDate(chip.date);
-                      setSelectedTime(''); // Reset time when date changes
-                    }}
-                    className={`rounded-xl px-3 py-4 h-auto border-2 whitespace-nowrap flex-shrink-0 flex flex-col items-center gap-0.5 min-w-[70px] ${
-                      selectedDate.toDateString() === chip.date.toDateString()
-                        ? 'border-primary bg-primary/10 text-primary'
-                        : 'border-border bg-background text-foreground hover:border-primary/50'
-                    }`}
-                  >
-                    <span className="text-xs font-semibold">{chip.label}</span>
-                    <span className="text-lg font-bold">{chip.dayLabel}</span>
-                  </Button>
-                ))}
-              </div>
-            </Card>
+          {/* Date Selection */}
+          <Card className="bg-white rounded-2xl shadow-sm border border-gray-100 p-3">
+            <h2 className="text-base font-semibold text-foreground mb-3">
+              Select date of service
+            </h2>
+            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+              {dateChips.slice(0, 4).map((chip, index) => (
+                <Button
+                  key={index}
+                  variant="outline"
+                  onClick={() => {
+                    setSelectedDate(chip.date);
+                    setSelectedTime(''); // Reset time when date changes
+                  }}
+                  className={`rounded-xl px-3 py-4 h-auto border-2 whitespace-nowrap flex-shrink-0 flex flex-col items-center gap-0.5 min-w-[70px] ${
+                    selectedDate.toDateString() === chip.date.toDateString()
+                      ? 'border-primary bg-primary/10 text-primary'
+                      : 'border-border bg-background text-foreground hover:border-primary/50'
+                  }`}
+                >
+                  <span className="text-xs font-semibold">{chip.label}</span>
+                  <span className="text-lg font-bold">{chip.dayLabel}</span>
+                </Button>
+              ))}
+            </div>
+          </Card>
 
           {/* Time Selection */}
           <Card className="bg-white rounded-2xl shadow-sm border border-gray-100 p-3">
