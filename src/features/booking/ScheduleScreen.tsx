@@ -247,7 +247,6 @@ export function ScheduleScreen() {
                   {currentSegmentSlots.map((slot) => {
                     const isPast = isPastToday(slot, selectedDate);
                     const isSelected = selectedTime === slot;
-                    const extraCharge = getExtraCharge(slot);
                     
                     return (
                       <Button
@@ -264,11 +263,6 @@ export function ScheduleScreen() {
                         }`}
                       >
                         <span className="font-medium">{toDisplay12h(slot)}</span>
-                        {extraCharge > 0 && !isPast && (
-                          <span className="absolute -top-1.5 -right-1.5 bg-orange-500 text-white text-xs px-1.5 py-0.5 rounded-full font-semibold leading-none">
-                            EXTRA ₹{extraCharge}
-                          </span>
-                        )}
                       </Button>
                     );
                   })}
