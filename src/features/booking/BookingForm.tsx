@@ -256,18 +256,12 @@ export function BookingForm() {
                   <h3 className="text-3xl font-bold text-foreground mb-2 group-hover:text-primary transition-smooth">
                     Schedule for Later
                   </h3>
-                  <p className="text-muted-foreground text-sm font-medium">
-                    Plan your service at your convenience
-                  </p>
+                  
                 </div>
                 <div className="flex-shrink-0 ml-6">
                   <div className="w-20 h-20 gradient-primary rounded-3xl flex items-center justify-center relative shadow-button group-hover:scale-105 transition-spring">
                     <Calendar className="w-10 h-10 text-primary-foreground" />
-                    <div className="absolute -bottom-2 -right-2 w-8 h-8 bg-green-500 rounded-full flex items-center justify-center shadow-lg">
-                      <div className="w-4 h-4 bg-white rounded-full flex items-center justify-center text-green-500 font-bold text-xs">
-                        ✓
-                      </div>
-                    </div>
+                    
                   </div>
                 </div>
               </div>
