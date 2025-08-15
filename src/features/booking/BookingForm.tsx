@@ -200,86 +200,82 @@ export function BookingForm() {
             </Card>
           )}
 
-          {/* Select Flat Size */}
-          <div className="mt-8">
-            <h2 className="text-lg font-semibold text-foreground mb-4">
-              Select Flat Size <span className="text-destructive">*</span>
-            </h2>
-            
-            <div className="grid grid-cols-3 gap-3 mb-3">
-              {FLAT_SIZES.slice(0, 3).map(size => (
-                <Button 
-                  key={size} 
-                  variant="outline" 
-                  onClick={() => setSelectedFlatSize(size)} 
-                  className={`h-12 font-medium rounded-2xl border-2 ${
-                    selectedFlatSize === size 
-                      ? "border-primary bg-primary/5 text-primary" 
-                      : "border-border bg-background text-foreground hover:border-primary/50"
-                  }`}
-                >
-                  {size}
-                </Button>
-              ))}
-            </div>
-            
-            <div className="grid grid-cols-2 gap-3">
-              {FLAT_SIZES.slice(3).map(size => (
-                <Button 
-                  key={size} 
-                  variant="outline" 
-                  onClick={() => setSelectedFlatSize(size)} 
-                  className={`h-12 font-medium rounded-2xl border-2 ${
-                    selectedFlatSize === size 
-                      ? "border-primary bg-primary/5 text-primary" 
-                      : "border-border bg-background text-foreground hover:border-primary/50"
-                  }`}
-                >
-                  {size}
-                </Button>
-              ))}
-            </div>
-          </div>
-
-          {/* Enhanced Price Display */}
-          <Card className="bg-gradient-to-br from-primary/15 via-primary/10 to-primary/5 border-2 border-primary/30 rounded-3xl mt-8 overflow-hidden relative animate-fade-in hover-scale">
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-pulse" />
-            <CardContent className="p-8 relative z-10">
-              <div className="text-center space-y-4">
-                <div className="inline-flex items-center justify-center w-16 h-16 bg-primary/20 rounded-2xl mb-2 animate-scale-in">
-                  <span className="text-2xl font-bold text-primary">₹</span>
+          {/* Combined Flat Size Selection & Price Card */}
+          <Card className="border border-border rounded-2xl mt-8">
+            <CardContent className="p-6 space-y-6">
+              {/* Select Flat Size Section */}
+              <div>
+                <h2 className="text-lg font-semibold text-foreground mb-4">
+                  Select Flat Size <span className="text-destructive">*</span>
+                </h2>
+                
+                <div className="grid grid-cols-3 gap-3 mb-3">
+                  {FLAT_SIZES.slice(0, 3).map(size => (
+                    <Button 
+                      key={size} 
+                      variant="outline" 
+                      onClick={() => setSelectedFlatSize(size)} 
+                      className={`h-12 font-medium rounded-2xl border-2 ${
+                        selectedFlatSize === size 
+                          ? "border-primary bg-primary/5 text-primary" 
+                          : "border-border bg-background text-foreground hover:border-primary/50"
+                      }`}
+                    >
+                      {size}
+                    </Button>
+                  ))}
                 </div>
                 
-                <div className="space-y-2">
-                  <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                    Total Amount
-                  </p>
-                  
-                  {loadingPricing ? (
-                    <div className="space-y-2">
-                      <Skeleton className="h-12 w-40 mx-auto rounded-xl" />
-                      <Skeleton className="h-4 w-24 mx-auto rounded-lg" />
-                    </div>
-                  ) : (
-                    <div className="space-y-1">
-                      <div className="text-4xl font-black text-primary animate-scale-in">
-                        ₹{currentPrice || '—'}
-                      </div>
-                      <p className="text-xs text-muted-foreground font-medium">
-                        Inclusive of all taxes
-                      </p>
-                    </div>
-                  )}
+                <div className="grid grid-cols-2 gap-3">
+                  {FLAT_SIZES.slice(3).map(size => (
+                    <Button 
+                      key={size} 
+                      variant="outline" 
+                      onClick={() => setSelectedFlatSize(size)} 
+                      className={`h-12 font-medium rounded-2xl border-2 ${
+                        selectedFlatSize === size 
+                          ? "border-primary bg-primary/5 text-primary" 
+                          : "border-border bg-background text-foreground hover:border-primary/50"
+                      }`}
+                    >
+                      {size}
+                    </Button>
+                  ))}
                 </div>
+              </div>
 
-                {selectedFlatSize && (
-                  <div className="flex items-center justify-center gap-2 px-4 py-2 bg-primary/10 rounded-full animate-fade-in">
-                    <Home className="w-4 h-4 text-primary" />
-                    <span className="text-sm font-semibold text-primary">
-                      {selectedFlatSize} Selected
-                    </span>
+              {/* Price Section */}
+              <div className="bg-gradient-to-br from-pink-200 to-pink-300 rounded-3xl p-8">
+                <div className="text-center space-y-4">
+                  <div className="inline-flex items-center justify-center w-16 h-16 bg-pink-400 rounded-2xl">
+                    <span className="text-2xl font-bold text-white">₹</span>
                   </div>
-                )}
+                  
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-gray-600 uppercase tracking-wider">
+                      TOTAL AMOUNT
+                    </p>
+                    
+                    {loadingPricing ? (
+                      <div className="space-y-2">
+                        <Skeleton className="h-12 w-40 mx-auto rounded-xl bg-white/50" />
+                        <Skeleton className="h-4 w-32 mx-auto rounded-lg bg-white/50" />
+                      </div>
+                    ) : (
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-center gap-2">
+                          <span className="text-4xl font-black text-pink-600">₹</span>
+                          <span className="text-4xl font-black text-pink-600">
+                            {currentPrice || '—'}
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-600 font-medium">
+                          Inclusive of all taxes
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>
