@@ -249,29 +249,35 @@ export function BookingForm() {
           </Button>
 
           {/* Schedule Section */}
-          <div className="space-y-4">
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <h3 className="text-2xl font-semibold text-gray-800 mb-2">Schedule </h3>
-                
-              </div>
-              <div className="flex-shrink-0 ml-4">
-                <div className="w-16 h-16 bg-gradient-to-br from-blue-100 to-blue-200 rounded-2xl flex items-center justify-center relative">
-                  <Calendar className="w-8 h-8 text-blue-600" />
-                  <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
-                    <div className="w-3 h-3 bg-white rounded-full flex items-center justify-center">
-                      ✓
+          <div className="space-y-6">
+            <div className="gradient-card rounded-3xl p-6 border border-border/50 shadow-card transition-smooth hover:shadow-button group">
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <h3 className="text-3xl font-bold text-foreground mb-2 group-hover:text-primary transition-smooth">
+                    Schedule for Later
+                  </h3>
+                  <p className="text-muted-foreground text-sm font-medium">
+                    Plan your service at your convenience
+                  </p>
+                </div>
+                <div className="flex-shrink-0 ml-6">
+                  <div className="w-20 h-20 gradient-primary rounded-3xl flex items-center justify-center relative shadow-button group-hover:scale-105 transition-spring">
+                    <Calendar className="w-10 h-10 text-primary-foreground" />
+                    <div className="absolute -bottom-2 -right-2 w-8 h-8 bg-green-500 rounded-full flex items-center justify-center shadow-lg">
+                      <div className="w-4 h-4 bg-white rounded-full flex items-center justify-center text-green-500 font-bold text-xs">
+                        ✓
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
             
-            <Button onClick={() => setScheduleSheetOpen(true)} disabled={!canBook} className="w-full h-14 rounded-2xl text-white font-semibold text-lg flex items-center justify-center gap-3" style={{
-            background: 'linear-gradient(to right, #ff007a, #d9006a)'
-          }}>
-              Prebook Now
-              <ArrowLeft className="w-5 h-5 rotate-180" />
+            <Button onClick={() => setScheduleSheetOpen(true)} disabled={!canBook} className="w-full h-16 rounded-3xl text-primary-foreground font-bold text-lg gradient-primary shadow-button hover:shadow-lg hover:scale-[1.02] transition-spring flex items-center justify-center gap-4 group disabled:opacity-50 disabled:cursor-not-allowed">
+              <span>Prebook Now</span>
+              <div className="flex items-center justify-center w-8 h-8 bg-white/20 rounded-full group-hover:bg-white/30 transition-smooth">
+                <ArrowLeft className="w-4 h-4 rotate-180 group-hover:translate-x-0.5 transition-smooth" />
+              </div>
             </Button>
           </div>
         </div>
