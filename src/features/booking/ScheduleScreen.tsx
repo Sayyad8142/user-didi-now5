@@ -186,7 +186,7 @@ export function ScheduleScreen() {
   const canConfirm = selectedDate && selectedTime && !submitting;
 
   return (
-    <div className="min-h-screen bg-background pb-32">
+    <div className="min-h-screen bg-background pb-40">
       <div className="max-w-md mx-auto px-3 py-4">
         {/* Header */}
         <div className="flex items-center mb-4">
