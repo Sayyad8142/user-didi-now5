@@ -3,63 +3,46 @@ import { Carousel, CarouselContent, CarouselItem } from '@/components/ui/carouse
 import { Card, CardContent } from '@/components/ui/card';
 import { Shield, Award, Headphones, Star, Sparkles } from 'lucide-react';
 import Autoplay from 'embla-carousel-autoplay';
-
-const features = [
-  {
-    title: 'Verified Experts',
-    description: 'With valid ID proof & a spotless background for your peace of mind',
-    icon: Shield,
-    bgGradient: 'bg-gradient-to-r from-gray-50 to-blue-50',
-    iconBg: 'bg-gradient-to-br from-blue-400 to-blue-600',
-    iconShadow: 'shadow-blue-200'
-  },
-  {
-    title: 'Trained Professional',
-    description: 'Equipped with the latest best practices to deliver top-notch services',
-    icon: Award,
-    bgGradient: 'bg-gradient-to-r from-gray-50 to-emerald-50',
-    iconBg: 'bg-gradient-to-br from-emerald-400 to-emerald-600',
-    iconShadow: 'shadow-emerald-200'
-  },
-  {
-    title: 'Dedicated Support',
-    description: 'Always ready to ensure quick resolutions and a hassle-free experience',
-    icon: Headphones,
-    bgGradient: 'bg-gradient-to-r from-gray-50 to-cyan-50',
-    iconBg: 'bg-gradient-to-br from-cyan-400 to-cyan-600',
-    iconShadow: 'shadow-cyan-200'
-  },
-  {
-    title: 'We Value Your Feedback',
-    description: 'Your reviews help us consistently monitor and enhance performance',
-    icon: Star,
-    bgGradient: 'bg-gradient-to-r from-gray-50 to-amber-50',
-    iconBg: 'bg-gradient-to-br from-amber-400 to-amber-600',
-    iconShadow: 'shadow-amber-200'
-  }
-];
-
+const features = [{
+  title: 'Verified Experts',
+  description: 'With valid ID proof & a spotless background for your peace of mind',
+  icon: Shield,
+  bgGradient: 'bg-gradient-to-r from-gray-50 to-blue-50',
+  iconBg: 'bg-gradient-to-br from-blue-400 to-blue-600',
+  iconShadow: 'shadow-blue-200'
+}, {
+  title: 'Trained Professional',
+  description: 'Equipped with the latest best practices to deliver top-notch services',
+  icon: Award,
+  bgGradient: 'bg-gradient-to-r from-gray-50 to-emerald-50',
+  iconBg: 'bg-gradient-to-br from-emerald-400 to-emerald-600',
+  iconShadow: 'shadow-emerald-200'
+}, {
+  title: 'Dedicated Support',
+  description: 'Always ready to ensure quick resolutions and a hassle-free experience',
+  icon: Headphones,
+  bgGradient: 'bg-gradient-to-r from-gray-50 to-cyan-50',
+  iconBg: 'bg-gradient-to-br from-cyan-400 to-cyan-600',
+  iconShadow: 'shadow-cyan-200'
+}, {
+  title: 'We Value Your Feedback',
+  description: 'Your reviews help us consistently monitor and enhance performance',
+  icon: Star,
+  bgGradient: 'bg-gradient-to-r from-gray-50 to-amber-50',
+  iconBg: 'bg-gradient-to-br from-amber-400 to-amber-600',
+  iconShadow: 'shadow-amber-200'
+}];
 export function FeatureCarousel() {
-  const plugin = React.useRef(
-    Autoplay({ delay: 4000, stopOnInteraction: true })
-  );
-
-  return (
-    <div className="w-full space-y-3">
-      <div className="flex items-center gap-2 px-1">
-        <Sparkles className="w-5 h-5 text-primary" />
-        <h2 className="text-lg font-semibold text-foreground">Why Choose Us</h2>
-      </div>
+  const plugin = React.useRef(Autoplay({
+    delay: 4000,
+    stopOnInteraction: true
+  }));
+  return <div className="w-full space-y-3">
       
-      <Carousel
-        plugins={[plugin.current]}
-        className="w-full"
-        onMouseEnter={plugin.current.stop}
-        onMouseLeave={plugin.current.reset}
-      >
+      
+      <Carousel plugins={[plugin.current]} className="w-full" onMouseEnter={plugin.current.stop} onMouseLeave={plugin.current.reset}>
         <CarouselContent className="-ml-1">
-          {features.map((feature, index) => (
-            <CarouselItem key={index} className="pl-1">
+          {features.map((feature, index) => <CarouselItem key={index} className="pl-1">
               <Card className="border border-gray-100 shadow-lg overflow-hidden">
                 <CardContent className={`p-6 ${feature.bgGradient} relative`}>
                   <div className="flex items-center justify-between gap-6">
@@ -88,23 +71,12 @@ export function FeatureCarousel() {
                   
                   {/* Progress dots */}
                   <div className="flex justify-center gap-2 mt-6">
-                    {features.map((_, dotIndex) => (
-                      <div
-                        key={dotIndex}
-                        className={`h-2 rounded-full transition-all duration-500 ${
-                          dotIndex === index 
-                            ? 'w-8 bg-gray-400' 
-                            : 'w-2 bg-gray-300'
-                        }`}
-                      />
-                    ))}
+                    {features.map((_, dotIndex) => <div key={dotIndex} className={`h-2 rounded-full transition-all duration-500 ${dotIndex === index ? 'w-8 bg-gray-400' : 'w-2 bg-gray-300'}`} />)}
                   </div>
                 </CardContent>
               </Card>
-            </CarouselItem>
-          ))}
+            </CarouselItem>)}
         </CarouselContent>
       </Carousel>
-    </div>
-  );
+    </div>;
 }
