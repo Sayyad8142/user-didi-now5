@@ -1,17 +1,16 @@
-import React, { useState } from 'react';
+import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { HomeHeader } from './HomeHeader';
 import { HeroCarousel } from './HeroCarousel';
 import { ServicesRow } from './ServicesRow';
 import { ServiceHours } from './ServiceHours';
 import { CommunityWorkersCard } from './CommunityWorkersCard';
-import { ChooseTypeSheet } from './ChooseTypeSheet';
+
 export function HomeScreen() {
-  const [sheetOpen, setSheetOpen] = useState(false);
-  const [selectedService, setSelectedService] = useState<'maid' | 'cook' | 'bathroom_cleaning'>('maid');
+  const navigate = useNavigate();
 
   const handleServiceSelect = (service: 'maid' | 'cook' | 'bathroom_cleaning') => {
-    setSelectedService(service);
-    setSheetOpen(true);
+    navigate(`/book/${service}`);
   };
   return <div className="min-h-screen gradient-bg pb-24">
       <div className="max-w-md mx-auto px-4 py-3 space-y-4 bg-slate-50">
@@ -21,7 +20,5 @@ export function HomeScreen() {
         <ServiceHours />
         <CommunityWorkersCard onServiceSelect={handleServiceSelect} />
       </div>
-
-      <ChooseTypeSheet open={sheetOpen} onOpenChange={setSheetOpen} serviceType={selectedService} />
     </div>;
 }
