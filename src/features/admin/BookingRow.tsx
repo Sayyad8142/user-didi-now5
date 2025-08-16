@@ -1,4 +1,5 @@
 import { Phone, CalendarClock, Sparkles, ChefHat, ShowerHead } from "lucide-react";
+import Timer from "@/components/Timer";
 
 function ServiceIcon({ t}:{t:string}) {
   return t==='cook' ? <ChefHat className="h-5 w-5"/> :
@@ -37,6 +38,9 @@ export default function BookingRow({ b, onClick }:{ b:any; onClick?:()=>void }) 
       </div>
       <div className="text-xs text-gray-500 flex items-center gap-2">
         <Phone className="h-3.5 w-3.5"/> {b.cust_name} ({b.cust_phone})
+        <div className="ml-auto">
+          <Timer since={b.created_at} />
+        </div>
       </div>
     </button>
   );

@@ -37,9 +37,25 @@ export default function AdminLayout() {
 
   // realtime
   useBookingsRealtime(
-    (row)=>{ setRows(prev => [row, ...prev]); },
+    (row)=>{ 
+      setRows(prev => [row, ...prev]); 
+      // Play notification for new pending bookings
+      if (row.status === 'pending') {
+        playNotificationSound();
+      }
+    },
     (row)=>{ setRows(prev => prev.map(r => r.id===row.id ? row : r)); }
   );
+
+  const playNotificationSound = () => {
+    try {
+      const audio = new Audio('/ding.mp3');
+      audio.volume = 0.5;
+      audio.play().catch(err => console.log('Audio play failed:', err));
+    } catch (error) {
+      console.log('Audio creation failed:', error);
+    }
+  };
 
   // client-side filtering
   const filteredRows = useMemo(() => {
