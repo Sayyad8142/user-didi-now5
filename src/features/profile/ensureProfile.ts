@@ -1,63 +1,66 @@
 import { supabase } from "@/integrations/supabase/client";
 import { normalizePhone } from "./phone";
 
-/**
- * Ensure a row in public.profiles exists for the current auth user.
- * Creates it if missing, and normalizes the phone to +91XXXXXXXXXX.
- * Returns the up-to-date profile.
- */
+/** Wait until auth session is present (handles OTP race). */
+export async function waitForSession(ms = 4000) {
+  const start = Date.now();
+  while (Date.now() - start < ms) {
+    const { data } = await supabase.auth.getUser();
+    if (data.user) return data.user;
+    await new Promise(r => setTimeout(r, 150));
+  }
+  throw new Error("Session not ready");
+}
+
+/** Idempotent: creates profile if missing; normalizes phone; never throws on initial read miss. */
 export async function ensureProfile() {
-  const { data: authData, error: authErr } = await supabase.auth.getUser();
-  if (authErr || !authData.user) throw new Error("Not authenticated");
-  const uid = authData.user.id;
-
+  const user = await waitForSession();
+  const uid = user.id;
   const authPhone =
-    authData.user.phone ??
-    (authData.user.user_metadata as any)?.phone_number ??
-    (authData.user.user_metadata as any)?.phone ??
-    null;
+    user.phone ??
+    (user.user_metadata as any)?.phone_number ??
+    (user.user_metadata as any)?.phone ?? null;
+  const phone = normalizePhone(authPhone ?? "");
 
-  const normalized = normalizePhone(authPhone ?? "");
-
-  // Try to read existing
-  const { data: existing, error: readErr } = await supabase
+  // Try to read existing; if it errors, continue (we'll upsert).
+  const { data: existing } = await supabase
     .from("profiles")
-    .select("id, full_name, phone, community, flat_no")
+    .select("id, full_name, phone, community, flat_no, is_admin")
     .eq("id", uid)
     .maybeSingle();
 
-  if (readErr) throw new Error("Failed to read profile");
-
   if (!existing) {
-    // Create minimal profile
+    // Insert minimal profile (idempotent upsert)
     const { data: created, error: upErr } = await supabase
       .from("profiles")
       .upsert(
         {
           id: uid,
-          full_name: normalized || "User",
-          phone: normalized || "",
+          full_name: phone || "User",
+          phone: phone || "",
           community: "other",
           flat_no: "NA",
         },
         { onConflict: "id" }
       )
-      .select("id, full_name, phone, community, flat_no")
+      .select("id, full_name, phone, community, flat_no, is_admin")
       .single();
-    if (upErr) throw new Error("Failed to create profile");
+
+    if (upErr) throw new Error("Could not create profile");
     return created;
-  } else {
-    // Update phone if not normalized/missing
-    if (normalized && existing.phone !== normalized) {
-      const { data: updated, error: updErr } = await supabase
-        .from("profiles")
-        .update({ phone: normalized })
-        .eq("id", uid)
-        .select("id, full_name, phone, community, flat_no")
-        .single();
-      if (updErr) throw new Error("Failed to update phone");
-      return updated;
-    }
-    return existing;
   }
+
+  // Update phone if not normalized
+  if (phone && existing.phone !== phone) {
+    const { data: updated, error: updErr } = await supabase
+      .from("profiles")
+      .update({ phone })
+      .eq("id", uid)
+      .select("id, full_name, phone, community, flat_no, is_admin")
+      .single();
+    if (updErr) throw new Error("Could not update profile phone");
+    return updated;
+  }
+
+  return existing;
 }

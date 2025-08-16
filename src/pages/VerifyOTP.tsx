@@ -7,8 +7,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import { maskPhone } from '@/lib/auth-helpers';
-import { ensureProfile } from '@/features/profile/ensureProfile';
-import { isAdminPhone } from '@/features/auth/isAdmin';
+import { ensureProfile, waitForSession } from '@/features/profile/ensureProfile';
+import { normalizePhone } from '@/features/profile/phone';
 
 interface LocationState {
   phone: string;
@@ -23,6 +23,17 @@ interface LocationState {
   redirectTo?: string;
 }
 
+function isAdminPhone(phone?: string | null) {
+  const env = import.meta.env.VITE_ADMIN_PHONES ?? "";
+  const target = normalizePhone(phone ?? "");
+  if (!target) return false;
+  return env
+    .split(",")
+    .map(s => normalizePhone(s.trim()))
+    .filter(Boolean)
+    .includes(target);
+}
+
 export default function VerifyOTP() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -30,12 +41,16 @@ export default function VerifyOTP() {
   
   const state = location.state as LocationState;
   
+  const phone = state?.phone || "";
+  const adminIntent = state?.adminLogin || false;
+  const redirectTo = state?.redirectTo || (adminIntent ? "/admin" : "/home");
+  
   // Redirect if no state
   useEffect(() => {
-    if (!state?.phone || !state?.mode) {
+    if (!phone) {
       navigate('/auth');
     }
-  }, [state, navigate]);
+  }, [phone, navigate]);
 
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
@@ -52,7 +67,11 @@ export default function VerifyOTP() {
   }, [countdown]);
 
   const handleVerifyOTP = async () => {
-    if (otp.length !== 6) {
+    if (!phone) {
+      setError("Session expired. Please resend OTP.");
+      return;
+    }
+    if (otp.trim().length !== 6) {
       setError('Please enter the complete 6-digit code');
       return;
     }
@@ -62,22 +81,26 @@ export default function VerifyOTP() {
 
     try {
       // Verify OTP
-      const { data: authData, error: verifyError } = await supabase.auth.verifyOtp({
-        phone: state.phone,
-        token: otp,
-        type: 'sms',
+      const { error: verifyError } = await supabase.auth.verifyOtp({
+        type: "sms",
+        token: otp.trim(),
+        phone, // must match the phone used to send OTP
       });
 
-      if (verifyError) throw verifyError;
+      if (verifyError) {
+        const errorMsg = /expired|invalid/i.test(verifyError.message)
+          ? "OTP expired or invalid. Resend and try again."
+          : verifyError.message;
+        setError(errorMsg);
+        return;
+      }
 
-      const user = authData.user;
-      if (!user) throw new Error('Authentication failed');
-
-      // Ensure profile exists and is normalized
+      // Ensure session is set and profile exists
+      await waitForSession();
       const profile = await ensureProfile();
 
       // If signup mode with additional data, update the profile
-      if (state.mode === 'signup' && state.signupData && profile) {
+      if (state?.mode === 'signup' && state.signupData && profile) {
         const { error: updateError } = await supabase
           .from('profiles')
           .update({
@@ -85,7 +108,7 @@ export default function VerifyOTP() {
             community: state.signupData.community,
             flat_no: state.signupData.flatNo,
           })
-          .eq('id', user.id);
+          .eq('id', profile.id);
 
         if (updateError) {
           console.error('Profile update error:', updateError);
@@ -107,25 +130,23 @@ export default function VerifyOTP() {
         });
       }
 
-      // Determine redirect destination
-      let redirectTo = state.redirectTo;
-      
-      if (!redirectTo) {
-        // Fallback logic: check if phone is in admin whitelist or admin intent
-        if (isAdminPhone(profile?.phone) || state.adminLogin) {
-          redirectTo = '/admin';
-        } else {
-          redirectTo = '/home';
-        }
+      // Prefer explicit redirect target; else admin check
+      if (redirectTo) {
+        navigate(redirectTo, { replace: true });
+        return;
       }
-      
-      navigate(redirectTo, { replace: true });
+      if (isAdminPhone(profile?.phone) || adminIntent) {
+        navigate("/admin", { replace: true });
+      } else {
+        navigate("/home", { replace: true });
+      }
     } catch (error: any) {
       console.error('Verify OTP error:', error);
-      setError(error.message || 'Invalid verification code. Please try again.');
+      const errorMsg = error.message ?? "Verification failed";
+      setError(errorMsg);
       toast({
         title: 'Verification Failed',
-        description: error.message || 'Invalid verification code. Please try again.',
+        description: errorMsg,
         variant: 'destructive',
       });
     } finally {
@@ -134,27 +155,35 @@ export default function VerifyOTP() {
   };
 
   const handleResendOTP = async () => {
+    if (!phone || countdown > 0) return;
+    
     setResendLoading(true);
     setError('');
 
     try {
       const { error } = await supabase.auth.signInWithOtp({
-        phone: state.phone,
+        phone,
         options: {
           channel: 'sms',
+          shouldCreateUser: true,
         },
       });
 
-      if (error) throw error;
+      if (error) {
+        setError(error.message);
+        return;
+      }
 
       setCountdown(30);
       setOtp('');
+      setError('');
       toast({
         title: 'OTP Resent',
-        description: `New verification code sent to ${state.phone}`,
+        description: `New verification code sent to ${phone}`,
       });
     } catch (error: any) {
       console.error('Resend OTP error:', error);
+      setError(error.message || 'Failed to resend OTP. Please try again.');
       toast({
         title: 'Error',
         description: error.message || 'Failed to resend OTP. Please try again.',
@@ -169,7 +198,7 @@ export default function VerifyOTP() {
     navigate('/auth');
   };
 
-  if (!state?.phone) {
+  if (!phone) {
     return null; // Will redirect to auth
   }
 
@@ -191,7 +220,7 @@ export default function VerifyOTP() {
           <div className="text-center mb-8">
             <h1 className="text-2xl font-bold text-foreground mb-2">Verify OTP</h1>
             <p className="text-muted-foreground">
-              Enter the 6-digit code sent to {maskPhone(state.phone)}
+              Enter the 6-digit code sent to {maskPhone(phone)}
             </p>
           </div>
 
@@ -212,7 +241,7 @@ export default function VerifyOTP() {
             className="w-full h-12 rounded-full gradient-primary shadow-button transition-spring hover:scale-[1.02] disabled:scale-100 mb-4"
           >
             {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-            {state.mode === 'signup' ? 'Verify & Create Account' : 'Verify & Continue'}
+            {state?.mode === 'signup' ? 'Verify & Create Account' : 'Verify & Continue'}
           </Button>
 
           {/* Resend OTP */}
