@@ -8,7 +8,6 @@ import { toast } from 'sonner';
 const adminTabs = [
   { to: '/home', label: 'Home', icon: Home },
   { to: '/admin', label: 'Admin', icon: Calendar },
-  { to: '/profile', label: 'Profile', icon: User },
 ];
 
 export function AdminBottomNav() {
