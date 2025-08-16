@@ -54,6 +54,12 @@ export function BookingCard({ booking }: BookingCardProps) {
         </div>
       )}
 
+      {/* Booking Created Time */}
+      <div className="flex items-center gap-2 text-xs text-gray-500">
+        <Clock className="w-3 h-3" />
+        <span>Booked on {formatDateTime(booking.created_at)}</span>
+      </div>
+
       <p className="text-sm text-gray-700">
         Booking confirmed — worker will arrive in 10 mins to your flat.
       </p>
