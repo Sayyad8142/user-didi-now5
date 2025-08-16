@@ -174,6 +174,16 @@ export function AuthCard() {
               {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Send OTP
             </Button>
+            
+            <div className="text-center">
+              <button
+                type="button"
+                onClick={() => navigate("/admin-login")}
+                className="text-xs text-primary underline hover:no-underline transition-smooth"
+              >
+                Admin Login
+              </button>
+            </div>
           </TabsContent>
 
           {/* Sign Up Tab */}

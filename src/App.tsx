@@ -17,6 +17,8 @@ import { BookingForm } from "./features/booking/BookingForm";
 import { ScheduleScreen } from "./features/booking/ScheduleScreen";
 import { AdminGate } from "./features/admin/AdminGate";
 import AdminLayout from "./routes/admin/AdminLayout";
+import AdminLogin from "./routes/auth/AdminLogin";
+import AdminVerify from "./routes/auth/AdminVerify";
 
 const queryClient = new QueryClient();
 
@@ -38,6 +40,8 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/auth/verify" element={<VerifyOTP />} />
+            <Route path="/admin-login" element={<AdminLogin />} />
+            <Route path="/admin-verify" element={<AdminVerify />} />
             <Route 
               path="/home" 
               element={
