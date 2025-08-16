@@ -4,6 +4,11 @@ import { supabase } from "@/integrations/supabase/client";
 const LS_KEY = "admin_sound_enabled";
 const SOUND_SRC = "/ding.mp3"; // optional file in /public
 
+// Shared singletons so all components control the same audio instance
+let sharedAudio: HTMLAudioElement | null = null;
+let sharedCtx: AudioContext | null = null;
+let sharedLastPlay = 0;
+
 export function useNewBookingAlert() {
   const [enabled, setEnabled] = useState<boolean>(() => {
     const raw = localStorage.getItem(LS_KEY);
@@ -16,23 +21,27 @@ export function useNewBookingAlert() {
   const lastPlayRef = useRef<number>(0);
 
   useEffect(() => {
-    // prepare HTMLAudioElement (if file exists)
-    audioRef.current = new Audio(SOUND_SRC);
-    audioRef.current.preload = "auto";
-    
-    // Debug logging
-    audioRef.current.addEventListener('canplaythrough', () => {
-      console.log('Admin alert sound loaded successfully');
-    });
-    audioRef.current.addEventListener('error', (e) => {
-      console.error('Failed to load admin alert sound:', e);
-    });
+    // Prepare a single shared HTMLAudioElement
+    if (!sharedAudio) {
+      sharedAudio = new Audio(SOUND_SRC);
+      sharedAudio.preload = "auto";
+      // Debug logging
+      sharedAudio.addEventListener('canplaythrough', () => {
+        console.log('Admin alert sound loaded successfully');
+      }, { once: true } as any);
+      sharedAudio.addEventListener('error', (e) => {
+        console.error('Failed to load admin alert sound:', e);
+      });
+    }
+    audioRef.current = sharedAudio;
+    ctxRef.current = sharedCtx;
   }, []);
 
   // Web Audio fallback (works after a user gesture)
   function beepFallback() {
-    if (!ctxRef.current) ctxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
-    const ctx = ctxRef.current!;
+    if (!sharedCtx) sharedCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    ctxRef.current = sharedCtx;
+    const ctx = sharedCtx!;
     const o = ctx.createOscillator();
     const g = ctx.createGain();
     o.type = "sine";
@@ -45,8 +54,8 @@ export function useNewBookingAlert() {
 
   async function play() {
     const now = Date.now();
-    if (now - lastPlayRef.current < 600) return; // throttle
-    lastPlayRef.current = now;
+    if (now - sharedLastPlay < 600) return; // throttle
+    sharedLastPlay = now;
 
     try {
       // try HTMLAudio first
@@ -60,8 +69,8 @@ export function useNewBookingAlert() {
 
     try {
       // fallback: Web Audio beep
-      if (ctxRef.current && ctxRef.current.state === "suspended") {
-        await ctxRef.current.resume();
+      if (sharedCtx && sharedCtx.state === "suspended") {
+        await sharedCtx.resume();
       }
       beepFallback();
     } catch (_) {}
