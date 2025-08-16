@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Phone, CalendarClock, Sparkles, ChefHat, ShowerHead, Check } from "lucide-react";
 import Timer from "@/components/Timer";
 import { useToast } from "@/hooks/use-toast";
-
+import { useNewBookingAlert } from "./useNewBookingAlert";
 function ServiceIcon({ t}:{t:string}) {
   return t==='cook' ? <ChefHat className="h-5 w-5"/> :
          t==='bathroom_cleaning' ? <ShowerHead className="h-5 w-5"/> :
@@ -17,7 +17,7 @@ export function prettyService(t:string){
 export default function BookingRow({ b, onClick }:{ b:any; onClick?:()=>void }) {
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
-
+  const { stopSound } = useNewBookingAlert();
   const pill = b.status==='completed'?'bg-green-100 text-green-700':
                b.status==='assigned' ?'bg-blue-100 text-blue-700':
                b.status==='cancelled'?'bg-rose-100 text-rose-700':'bg-gray-100 text-gray-700';
@@ -27,6 +27,8 @@ export default function BookingRow({ b, onClick }:{ b:any; onClick?:()=>void }) 
 
   async function confirmBooking(e: React.MouseEvent) {
     e.stopPropagation();
+    // Immediately stop any playing notification sound on confirm
+    try { stopSound(); } catch {}
     if (saving) return;
     setSaving(true);
     try {
