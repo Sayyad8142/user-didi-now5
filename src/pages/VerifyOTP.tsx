@@ -7,6 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import { maskPhone } from '@/lib/auth-helpers';
+import { ensureProfile } from '@/features/profile/ensureProfile';
 
 interface LocationState {
   phone: string;
@@ -69,63 +70,44 @@ export default function VerifyOTP() {
       const user = authData.user;
       if (!user) throw new Error('Authentication failed');
 
-      if (state.mode === 'signup' && state.signupData) {
-        // Create/update profile for signup
-        const { error: profileError } = await supabase
-          .from('profiles' as any)
-          .upsert({
-            id: user.id,
+      // Ensure profile exists and is normalized
+      const profile = await ensureProfile();
+
+      // If signup mode with additional data, update the profile
+      if (state.mode === 'signup' && state.signupData && profile) {
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({
             full_name: state.signupData.fullName,
-            phone: state.phone,
             community: state.signupData.community,
             flat_no: state.signupData.flatNo,
-          });
+          })
+          .eq('id', user.id);
 
-        if (profileError) {
-          console.error('Profile creation error:', profileError);
+        if (updateError) {
+          console.error('Profile update error:', updateError);
           toast({
             title: 'Warning',
-            description: 'Account created but profile setup failed. Please complete your profile.',
+            description: 'Account created but profile setup incomplete. Please complete your profile.',
             variant: 'destructive',
           });
-        }
-
-        toast({
-          title: 'Welcome to Didi Now!',
-          description: 'Your account has been created successfully.',
-        });
-      } else {
-        // Sign in - check if profile exists
-        const { data: profile, error: profileError } = await supabase
-          .from('profiles' as any)
-          .select('*')
-          .eq('id', user.id)
-          .maybeSingle();
-
-        if (profileError && profileError.code !== 'PGRST116') {
-          console.error('Profile fetch error:', profileError);
-        }
-
-        if (!profile) {
-          // Profile doesn't exist - redirect to complete profile
+        } else {
           toast({
-            title: 'Complete Your Profile',
-            description: 'Please complete your profile to continue.',
+            title: 'Welcome to Didi Now!',
+            description: 'Your account has been created successfully.',
           });
-          // You can navigate to a profile completion page or show a modal
-          // For now, we'll redirect to auth to sign up properly
-          navigate('/auth');
-          return;
         }
-
+      } else {
         toast({
           title: 'Welcome back!',
           description: 'You have been signed in successfully.',
         });
       }
 
-      // Navigate to home
-      navigate('/home');
+      // Navigate: if login was kicked off from a protected route (e.g., /admin),
+      // your guard likely stored state: { redirectTo: "/admin" }
+      const redirectTo = (location.state as any)?.redirectTo as string | undefined;
+      navigate(redirectTo || '/home', { replace: true });
     } catch (error: any) {
       console.error('Verify OTP error:', error);
       setError(error.message || 'Invalid verification code. Please try again.');
