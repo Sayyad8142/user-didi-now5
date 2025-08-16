@@ -14,6 +14,51 @@ export type Database = {
   }
   public: {
     Tables: {
+      assignments: {
+        Row: {
+          assigned_at: string
+          booking_id: string
+          created_at: string
+          id: string
+          status: string
+          updated_at: string
+          worker_id: string
+        }
+        Insert: {
+          assigned_at?: string
+          booking_id: string
+          created_at?: string
+          id?: string
+          status?: string
+          updated_at?: string
+          worker_id: string
+        }
+        Update: {
+          assigned_at?: string
+          booking_id?: string
+          created_at?: string
+          id?: string
+          status?: string
+          updated_at?: string
+          worker_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assignments_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assignments_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "workers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bookings: {
         Row: {
           booking_type: string
@@ -142,6 +187,36 @@ export type Database = {
           id?: string
           is_admin?: boolean
           phone?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      workers: {
+        Row: {
+          created_at: string
+          id: string
+          is_available: boolean
+          name: string
+          phone: string
+          service_type: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_available?: boolean
+          name: string
+          phone: string
+          service_type: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_available?: boolean
+          name?: string
+          phone?: string
+          service_type?: string
           updated_at?: string
         }
         Relationships: []

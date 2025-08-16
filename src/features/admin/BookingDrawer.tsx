@@ -1,12 +1,115 @@
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { PhoneCall } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { PhoneCall, UserPlus, CheckCircle } from "lucide-react";
 import { prettyService } from "./BookingRow";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { useState, useEffect } from "react";
+
+type Worker = {
+  id: string;
+  name: string;
+  phone: string;
+  service_type: string;
+  is_available: boolean;
+};
 
 export default function BookingDrawer({open,onOpenChange,booking}:{open:boolean; onOpenChange:(v:boolean)=>void; booking:any}) {
+  const [workers, setWorkers] = useState<Worker[]>([]);
+  const [selectedWorker, setSelectedWorker] = useState<string>('');
+  const [assignModalOpen, setAssignModalOpen] = useState(false);
+  const [isAssigning, setIsAssigning] = useState(false);
+  const [isMarkingComplete, setIsMarkingComplete] = useState(false);
+  const { toast } = useToast();
+
   if (!booking) return null;
+  
   const when = booking.booking_type==='instant'
     ? 'Instant (arrive ~10 mins)'
     : `${booking.scheduled_date ?? ''} ${booking.scheduled_time?.slice(0,5) ?? ''}`.trim();
+
+  // Load available workers
+  useEffect(() => {
+    if (open) {
+      loadWorkers();
+    }
+  }, [open, booking?.service_type]);
+
+  const loadWorkers = async () => {
+    const { data, error } = await supabase
+      .from('workers')
+      .select('*')
+      .eq('is_available', true)
+      .in('service_type', [booking.service_type, 'both'])
+      .order('name');
+    
+    if (error) {
+      console.error('Error loading workers:', error);
+      return;
+    }
+    setWorkers(data || []);
+  };
+
+  const handleAssignWorker = async () => {
+    if (!selectedWorker) {
+      toast({ title: "Please select a worker", variant: "destructive" });
+      return;
+    }
+
+    setIsAssigning(true);
+    try {
+      // Insert assignment
+      const { error: assignError } = await supabase
+        .from('assignments')
+        .insert({
+          booking_id: booking.id,
+          worker_id: selectedWorker,
+          status: 'assigned'
+        });
+
+      if (assignError) throw assignError;
+
+      // Update booking status
+      const { error: bookingError } = await supabase
+        .from('bookings')
+        .update({ status: 'assigned' })
+        .eq('id', booking.id);
+
+      if (bookingError) throw bookingError;
+
+      toast({ title: "Worker assigned successfully!" });
+      setAssignModalOpen(false);
+      setSelectedWorker('');
+      onOpenChange(false);
+    } catch (error) {
+      console.error('Error assigning worker:', error);
+      toast({ title: "Failed to assign worker", variant: "destructive" });
+    } finally {
+      setIsAssigning(false);
+    }
+  };
+
+  const handleMarkComplete = async () => {
+    setIsMarkingComplete(true);
+    try {
+      const { error } = await supabase
+        .from('bookings')
+        .update({ status: 'completed' })
+        .eq('id', booking.id);
+
+      if (error) throw error;
+
+      toast({ title: "Booking marked as completed!" });
+      onOpenChange(false);
+    } catch (error) {
+      console.error('Error marking complete:', error);
+      toast({ title: "Failed to mark as completed", variant: "destructive" });
+    } finally {
+      setIsMarkingComplete(false);
+    }
+  };
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -24,13 +127,75 @@ export default function BookingDrawer({open,onOpenChange,booking}:{open:boolean;
             <div className="text-sm">Flat Size: {booking.flat_size ?? '-'}</div>
           )}
           <div className="text-sm">Price: ₹{booking.price_inr ?? '-'}</div>
+          <div className="text-sm">Status: <b className="capitalize">{booking.status}</b></div>
 
-          <a href={`tel:${booking.cust_phone}`} className="inline-flex items-center justify-center h-11 w-full rounded-full bg-gray-900 text-white gap-2">
-            <PhoneCall className="h-4 w-4"/> Call Customer
-          </a>
-          <a href="tel:+918008180018" className="inline-flex items-center justify-center h-11 w-full rounded-full bg-pink-600 text-white">
-            Call Support (8008180018)
-          </a>
+          {/* Primary Actions */}
+          <div className="grid grid-cols-2 gap-3 pt-2">
+            <Dialog open={assignModalOpen} onOpenChange={setAssignModalOpen}>
+              <DialogTrigger asChild>
+                <Button 
+                  className="h-11 rounded-full" 
+                  disabled={booking.status === 'assigned' || booking.status === 'completed'}
+                >
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  Assign Worker
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Assign Worker</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-sm font-medium">Select Worker</label>
+                    <Select value={selectedWorker} onValueChange={setSelectedWorker}>
+                      <SelectTrigger className="mt-2">
+                        <SelectValue placeholder="Choose a worker..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {workers.map((worker) => (
+                          <SelectItem key={worker.id} value={worker.id}>
+                            {worker.name} ({worker.phone})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex gap-2 justify-end">
+                    <Button variant="outline" onClick={() => setAssignModalOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button 
+                      onClick={handleAssignWorker}
+                      disabled={isAssigning || !selectedWorker}
+                    >
+                      {isAssigning ? 'Assigning...' : 'Assign'}
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+
+            <Button 
+              onClick={handleMarkComplete}
+              disabled={booking.status === 'completed' || isMarkingComplete}
+              variant="outline"
+              className="h-11 rounded-full"
+            >
+              <CheckCircle className="h-4 w-4 mr-2" />
+              {isMarkingComplete ? 'Completing...' : 'Mark Complete'}
+            </Button>
+          </div>
+
+          {/* Communication Actions */}
+          <div className="space-y-2 pt-2">
+            <a href={`tel:${booking.cust_phone}`} className="inline-flex items-center justify-center h-11 w-full rounded-full bg-gray-900 text-white gap-2">
+              <PhoneCall className="h-4 w-4"/> Call Customer
+            </a>
+            <a href="tel:+918008180018" className="inline-flex items-center justify-center h-11 w-full rounded-full bg-pink-600 text-white">
+              Call Support (8008180018)
+            </a>
+          </div>
         </div>
       </SheetContent>
     </Sheet>
