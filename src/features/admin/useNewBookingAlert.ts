@@ -19,6 +19,8 @@ export function useNewBookingAlert() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const ctxRef = useRef<AudioContext | null>(null);
   const lastPlayRef = useRef<number>(0);
+  const seenIdsRef = useRef<Set<string>>(new Set());
+  const snoozeUntilRef = useRef<number>(0);
 
   useEffect(() => {
     // Prepare a single shared HTMLAudioElement
@@ -54,6 +56,7 @@ export function useNewBookingAlert() {
 
   async function play() {
     const now = Date.now();
+    if (now < snoozeUntilRef.current) return; // snoozed
     if (now - sharedLastPlay < 600) return; // throttle
     sharedLastPlay = now;
 
@@ -83,8 +86,13 @@ export function useNewBookingAlert() {
         audioRef.current.pause();
         audioRef.current.currentTime = 0;
       }
-      // Note: Web Audio oscillators stop automatically after their duration
     } catch (_) { /* ignore */ }
+    // Note: Web Audio oscillators stop automatically after their duration
+  }
+
+  function snooze(ms: number = 4000) {
+    snoozeUntilRef.current = Date.now() + ms;
+    stopSound();
   }
 
   // Subscribe to INSERT on bookings
@@ -93,9 +101,14 @@ export function useNewBookingAlert() {
     const channel = supabase
       .channel("bookings-sound")
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "bookings" }, (payload) => {
-        // Play sound for any new booking INSERT
-        console.log("New booking INSERT received for sound alert:", payload.new?.id, payload.new?.status);
-        play();
+        const id = payload.new?.id as string | undefined;
+        if (!id) return;
+        if (seenIdsRef.current.has(id)) return; // de-dupe by id
+        seenIdsRef.current.add(id);
+        if (payload.new?.status === "pending") {
+          console.log("New pending booking INSERT received for sound alert:", id);
+          play();
+        }
       })
       .subscribe();
 
@@ -125,5 +138,5 @@ export function useNewBookingAlert() {
     }
   }
 
-  return { enabled, toggle, stopSound };
+  return { enabled, toggle, stopSound, snooze };
 }

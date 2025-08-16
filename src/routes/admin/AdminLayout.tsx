@@ -15,7 +15,7 @@ export default function AdminLayout() {
   const [active,setActive] = useState<any>(null);
   const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'assigned'>('all');
   const [searchTerm, setSearchTerm] = useState('');
-  const { enabled: soundOn, toggle: toggleSound } = useNewBookingAlert();
+  const { enabled: soundOn, toggle: toggleSound, snooze, stopSound } = useNewBookingAlert();
 
   // initial load with filter
   async function load(statusFilter: 'all' | 'pending' | 'assigned' = 'all') {
@@ -127,7 +127,7 @@ export default function AdminLayout() {
           ) : (
             <div className="space-y-3">
               {filteredRows.map(b => (
-                <BookingRow key={b.id} b={b} onClick={()=>{ setActive(b); setOpen(true); }} />
+                <BookingRow key={b.id} b={b} onClick={()=>{ setActive(b); setOpen(true); }} onInteracted={() => { snooze(4000); stopSound(); }} />
               ))}
             </div>
           )}

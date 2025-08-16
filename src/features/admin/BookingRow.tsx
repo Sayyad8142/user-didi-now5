@@ -14,7 +14,7 @@ export function prettyService(t:string){
   return t==='cook'?'Cook Service':(t==='bathroom_cleaning'?'Bathroom Cleaning':'Maid Service');
 }
 
-export default function BookingRow({ b, onClick }:{ b:any; onClick?:()=>void }) {
+export default function BookingRow({ b, onClick, onInteracted }:{ b:any; onClick?:()=>void; onInteracted?: ()=>void }) {
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
   const { stopSound } = useNewBookingAlert();
@@ -28,6 +28,7 @@ export default function BookingRow({ b, onClick }:{ b:any; onClick?:()=>void }) 
   async function confirmBooking(e: React.MouseEvent) {
     e.stopPropagation();
     // Immediately stop any playing notification sound on confirm
+    try { onInteracted?.(); } catch {}
     try { stopSound(); } catch {}
     if (saving) return;
     setSaving(true);
