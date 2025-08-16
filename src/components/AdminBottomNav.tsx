@@ -6,7 +6,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 const adminTabs = [
-  { to: '/home', label: 'Home', icon: Home },
   { to: '/admin', label: 'Admin', icon: Calendar },
 ];
 
