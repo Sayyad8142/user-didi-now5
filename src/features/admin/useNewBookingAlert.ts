@@ -56,6 +56,7 @@ export function useNewBookingAlert() {
 
   async function play() {
     const now = Date.now();
+    console.log("🎵 Attempting to play sound...", { enabled, snoozed: now < snoozeUntilRef.current, throttled: now - sharedLastPlay < 600 });
     if (now < snoozeUntilRef.current) return; // snoozed
     if (now - sharedLastPlay < 600) return; // throttle
     sharedLastPlay = now;
@@ -102,11 +103,12 @@ export function useNewBookingAlert() {
       .channel("bookings-sound")
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "bookings" }, (payload) => {
         const id = payload.new?.id as string | undefined;
+        console.log("🔔 Booking INSERT event received:", { id, status: payload.new?.status, enabled });
         if (!id) return;
         if (seenIdsRef.current.has(id)) return; // de-dupe by id
         seenIdsRef.current.add(id);
         if (payload.new?.status === "pending") {
-          console.log("New pending booking INSERT received for sound alert:", id);
+          console.log("🎵 Playing sound for new pending booking:", id);
           play();
         }
       })
