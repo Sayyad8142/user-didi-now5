@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Search, Bell, BellOff } from "lucide-react";
 import { useNewBookingAlert } from "@/features/admin/useNewBookingAlert";
+import { AdminBottomNav } from "@/components/AdminBottomNav";
 
 export default function AdminLayout() {
   const [rows,setRows] = useState<any[]>([]);
@@ -69,28 +70,28 @@ export default function AdminLayout() {
   };
 
   return (
-    <div className="min-h-dvh bg-rose-50/40">
+    <div className="min-h-dvh bg-rose-50/40 pb-20">
       <header className="sticky top-0 z-10 bg-white/90 backdrop-blur border-b border-pink-50">
-        <div className="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between">
-          <h1 className="text-2xl font-bold">
-            <span className="text-[#ff007a]">Didi Now</span> — <span className="text-[#ff007a]">Admin</span>
-          </h1>
-
-          <div className="flex items-center gap-3">
-            <span className="text-xs text-gray-500">Administrative Console</span>
-            <button
-              onClick={toggleSound}
-              className={`h-9 px-3 rounded-full border text-sm inline-flex items-center gap-2 ${soundOn ? "border-pink-300 text-[#ff007a] bg-pink-50" : "border-gray-300 text-gray-700"}`}
-              title={soundOn ? "Disable sound" : "Enable sound"}
-            >
-              {soundOn ? <Bell className="h-4 w-4" /> : <BellOff className="h-4 w-4" />}
-              {soundOn ? "Sound On" : "Sound Off"}
-            </button>
+        <div className="w-full px-4 h-14 flex items-center justify-between">
+          <div className="flex flex-col">
+            <h1 className="text-lg sm:text-2xl font-bold">
+              <span className="text-[#ff007a]">Didi Now</span> — <span className="text-[#ff007a]">Admin</span>
+            </h1>
+            <span className="text-xs text-gray-500 hidden sm:block">Administrative Console</span>
           </div>
+
+          <button
+            onClick={toggleSound}
+            className={`h-9 px-3 rounded-full border text-sm inline-flex items-center gap-2 ${soundOn ? "border-pink-300 text-[#ff007a] bg-pink-50" : "border-gray-300 text-gray-700"}`}
+            title={soundOn ? "Disable sound" : "Enable sound"}
+          >
+            {soundOn ? <Bell className="h-4 w-4" /> : <BellOff className="h-4 w-4" />}
+            <span className="hidden sm:inline">{soundOn ? "Sound On" : "Sound Off"}</span>
+          </button>
         </div>
       </header>
 
-      <main className="max-w-2xl mx-auto px-4 pb-24 pt-4 space-y-5">
+      <main className="w-full px-4 pb-24 pt-4 space-y-5">
         <section className="rounded-2xl border border-pink-50 bg-white shadow p-4">
           <div className="font-semibold mb-4">Live Queue</div>
           
@@ -139,6 +140,7 @@ export default function AdminLayout() {
         </section>
       </main>
 
+      <AdminBottomNav />
       <BookingDrawer open={open} onOpenChange={setOpen} booking={active}/>
     </div>
   );
