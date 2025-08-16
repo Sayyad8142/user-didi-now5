@@ -63,6 +63,7 @@ export type Database = {
         Row: {
           booking_type: string
           community: string
+          confirmed_at: string | null
           created_at: string
           cust_name: string
           cust_phone: string
@@ -83,6 +84,7 @@ export type Database = {
         Insert: {
           booking_type: string
           community: string
+          confirmed_at?: string | null
           created_at?: string
           cust_name: string
           cust_phone: string
@@ -103,6 +105,7 @@ export type Database = {
         Update: {
           booking_type?: string
           community?: string
+          confirmed_at?: string | null
           created_at?: string
           cust_name?: string
           cust_phone?: string

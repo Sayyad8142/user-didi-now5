@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { BookingCard } from './BookingCard';
 import { EmptyState } from './EmptyState';
+import { useMyBookingsRealtime } from './useMyBookingsRealtime';
 interface Booking {
   id: string;
   service_type: string;
@@ -24,6 +25,9 @@ export function BookingsScreen() {
     user
   } = useAuth();
   const navigate = useNavigate();
+  
+  // Enable live updates for user bookings
+  useMyBookingsRealtime();
   const [upcomingBookings, setUpcomingBookings] = useState<Booking[]>([]);
   const [historyBookings, setHistoryBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);

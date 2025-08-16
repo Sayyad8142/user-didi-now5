@@ -83,11 +83,31 @@ export function BookingCard({
 
       {/* Status Message */}
       <div className="relative">
-        <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-100 rounded-2xl px-4 py-3">
-          <p className="text-sm font-medium text-emerald-800 text-center">
-            ✨ Booking confirmed — worker will arrive in 10 mins to your flat
-          </p>
-        </div>
+        {booking.status === "assigned" ? (
+          <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-100 rounded-2xl px-4 py-3">
+            <p className="text-sm font-medium text-emerald-800 text-center">
+              ✨ Booking confirmed — worker will arrive in ~10 mins
+            </p>
+          </div>
+        ) : booking.status === "pending" ? (
+          <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-100 rounded-2xl px-4 py-3">
+            <p className="text-sm font-medium text-amber-800 text-center">
+              ⏳ We're assigning a worker…
+            </p>
+          </div>
+        ) : booking.status === "completed" ? (
+          <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-100 rounded-2xl px-4 py-3">
+            <p className="text-sm font-medium text-green-800 text-center">
+              ✅ Service completed
+            </p>
+          </div>
+        ) : (
+          <div className="bg-gradient-to-r from-gray-50 to-gray-50 border border-gray-100 rounded-2xl px-4 py-3">
+            <p className="text-sm font-medium text-gray-800 text-center">
+              Status: {booking.status}
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Address Information */}
