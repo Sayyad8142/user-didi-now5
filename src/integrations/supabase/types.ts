@@ -16,28 +16,28 @@ export type Database = {
     Tables: {
       assignments: {
         Row: {
-          assigned_at: string
           booking_id: string
           created_at: string
           id: string
+          notes: string | null
           status: string
           updated_at: string
           worker_id: string
         }
         Insert: {
-          assigned_at?: string
           booking_id: string
           created_at?: string
           id?: string
+          notes?: string | null
           status?: string
           updated_at?: string
           worker_id: string
         }
         Update: {
-          assigned_at?: string
           booking_id?: string
           created_at?: string
           id?: string
+          notes?: string | null
           status?: string
           updated_at?: string
           worker_id?: string
@@ -193,31 +193,31 @@ export type Database = {
       }
       workers: {
         Row: {
+          community: string | null
           created_at: string
+          full_name: string
           id: string
-          is_available: boolean
-          name: string
+          is_active: boolean
           phone: string
-          service_type: string
-          updated_at: string
+          service_types: string[]
         }
         Insert: {
+          community?: string | null
           created_at?: string
+          full_name: string
           id?: string
-          is_available?: boolean
-          name: string
+          is_active?: boolean
           phone: string
-          service_type: string
-          updated_at?: string
+          service_types?: string[]
         }
         Update: {
+          community?: string | null
           created_at?: string
+          full_name?: string
           id?: string
-          is_available?: boolean
-          name?: string
+          is_active?: boolean
           phone?: string
-          service_type?: string
-          updated_at?: string
+          service_types?: string[]
         }
         Relationships: []
       }

@@ -10,10 +10,11 @@ import { useState, useEffect } from "react";
 
 type Worker = {
   id: string;
-  name: string;
+  full_name: string;
   phone: string;
-  service_type: string;
-  is_available: boolean;
+  service_types: string[];
+  community: string | null;
+  is_active: boolean;
 };
 
 export default function BookingDrawer({open,onOpenChange,booking}:{open:boolean; onOpenChange:(v:boolean)=>void; booking:any}) {
@@ -41,9 +42,9 @@ export default function BookingDrawer({open,onOpenChange,booking}:{open:boolean;
     const { data, error } = await supabase
       .from('workers')
       .select('*')
-      .eq('is_available', true)
-      .in('service_type', [booking.service_type, 'both'])
-      .order('name');
+      .eq('is_active', true)
+      .filter('service_types', 'cs', `{${booking.service_type}}`)
+      .order('full_name');
     
     if (error) {
       console.error('Error loading workers:', error);
@@ -155,7 +156,8 @@ export default function BookingDrawer({open,onOpenChange,booking}:{open:boolean;
                       <SelectContent>
                         {workers.map((worker) => (
                           <SelectItem key={worker.id} value={worker.id}>
-                            {worker.name} ({worker.phone})
+                            {worker.full_name} ({worker.phone})
+                            {worker.community && ` • ${worker.community}`}
                           </SelectItem>
                         ))}
                       </SelectContent>
