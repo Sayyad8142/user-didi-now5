@@ -12,6 +12,7 @@ let sharedLastPlay = 0;
 export function useNewBookingAlert() {
   const [enabled, setEnabled] = useState<boolean>(() => {
     const raw = localStorage.getItem(LS_KEY);
+    console.log("🔔 Sound alert initialized:", { raw, enabled: raw === "1" });
     return raw === "1";
   });
 
@@ -98,6 +99,7 @@ export function useNewBookingAlert() {
 
   // Subscribe to INSERT on bookings
   useEffect(() => {
+    console.log("🔔 Setting up booking subscription, enabled:", enabled);
     if (!enabled) return;
     const channel = supabase
       .channel("bookings-sound")
@@ -114,15 +116,20 @@ export function useNewBookingAlert() {
       })
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
+    return () => { 
+      console.log("🔔 Cleaning up booking subscription");
+      supabase.removeChannel(channel); 
+    };
   }, [enabled]);
 
   // toggle also unlocks audio on first enable (counts as user gesture)
   async function toggle() {
     const val = !enabled;
+    console.log("🔔 Toggling sound:", { from: enabled, to: val });
     setEnabled(val);
     localStorage.setItem(LS_KEY, val ? "1" : "0");
     if (val) {
+      console.log("🎵 Priming audio for future playback...");
       try {
         // prime audio so future plays are allowed
         if (audioRef.current) {
@@ -130,13 +137,17 @@ export function useNewBookingAlert() {
           await audioRef.current.play();
           audioRef.current.pause();
           audioRef.current.muted = false;
+          console.log("✅ Audio primed successfully");
         } else {
           // init web-audio context
           if (!ctxRef.current) ctxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
           await ctxRef.current.resume();
           beepFallback();
+          console.log("✅ Web Audio context initialized");
         }
-      } catch { /* ignore */ }
+      } catch (e) { 
+        console.error("❌ Failed to prime audio:", e);
+      }
     }
   }
 
