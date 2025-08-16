@@ -6,7 +6,8 @@ import { useBookingsRealtime } from "@/features/admin/useRealtime";
 import QuickStats from "@/features/admin/QuickStats";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search } from "lucide-react";
+import { Search, Bell, BellOff } from "lucide-react";
+import { useNewBookingAlert } from "@/features/admin/useNewBookingAlert";
 
 export default function AdminLayout() {
   const [rows,setRows] = useState<any[]>([]);
@@ -14,6 +15,7 @@ export default function AdminLayout() {
   const [active,setActive] = useState<any>(null);
   const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'assigned'>('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const { enabled: soundOn, toggle: toggleSound } = useNewBookingAlert();
 
   // initial load with filter
   async function load(statusFilter: 'all' | 'pending' | 'assigned' = 'all') {
@@ -39,23 +41,9 @@ export default function AdminLayout() {
   useBookingsRealtime(
     (row)=>{ 
       setRows(prev => [row, ...prev]); 
-      // Play notification for new pending bookings
-      if (row.status === 'pending') {
-        playNotificationSound();
-      }
     },
     (row)=>{ setRows(prev => prev.map(r => r.id===row.id ? row : r)); }
   );
-
-  const playNotificationSound = () => {
-    try {
-      const audio = new Audio('/ding.mp3');
-      audio.volume = 0.5;
-      audio.play().catch(err => console.log('Audio play failed:', err));
-    } catch (error) {
-      console.log('Audio creation failed:', error);
-    }
-  };
 
   // client-side filtering
   const filteredRows = useMemo(() => {
@@ -87,7 +75,18 @@ export default function AdminLayout() {
           <h1 className="text-2xl font-bold">
             <span className="text-[#ff007a]">Didi Now</span> — <span className="text-[#ff007a]">Admin</span>
           </h1>
-          <div className="text-xs text-gray-500">Administrative Console</div>
+
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-gray-500">Administrative Console</span>
+            <button
+              onClick={toggleSound}
+              className={`h-9 px-3 rounded-full border text-sm inline-flex items-center gap-2 ${soundOn ? "border-pink-300 text-[#ff007a] bg-pink-50" : "border-gray-300 text-gray-700"}`}
+              title={soundOn ? "Disable sound" : "Enable sound"}
+            >
+              {soundOn ? <Bell className="h-4 w-4" /> : <BellOff className="h-4 w-4" />}
+              {soundOn ? "Sound On" : "Sound Off"}
+            </button>
+          </div>
         </div>
       </header>
 
