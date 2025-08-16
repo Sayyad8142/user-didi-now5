@@ -10,7 +10,7 @@ import { Loader2 } from "lucide-react";
 
 export default function AdminLogin() {
   const nav = useNavigate();
-  const [raw, setRaw] = useState("");
+  const [raw, setRaw] = useState("+91");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const phone = normalizePhone(raw);
