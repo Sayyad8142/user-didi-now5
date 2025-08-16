@@ -23,7 +23,6 @@ export function AuthCard() {
   
   // Sign In form
   const [signInPhone, setSignInPhone] = useState('');
-  const [adminLogin, setAdminLogin] = useState(false);
   
   // Sign Up form
   const [signUpData, setSignUpData] = useState({
@@ -103,8 +102,7 @@ export function AuthCard() {
           phone: formattedPhone,
           mode: activeTab,
           signupData: isSignUp ? signUpData : null,
-          adminLogin: adminLogin && !isSignUp, // Only allow admin login for signin
-          redirectTo: (adminLogin && !isSignUp) ? "/admin" : "/home",
+          redirectTo: "/home",
         },
       });
 
@@ -149,23 +147,6 @@ export function AuthCard() {
               required
             />
 
-            {/* Admin Login Toggle */}
-            <div className="flex items-center justify-between">
-              <label className="inline-flex items-center gap-2 text-sm cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={adminLogin}
-                  onChange={(e) => setAdminLogin(e.target.checked)}
-                  disabled={loading}
-                  className="rounded border-gray-300 text-primary focus:ring-primary focus:ring-offset-0"
-                />
-                I'm an Admin (login to Admin Panel)
-              </label>
-              {adminLogin && (
-                <span className="text-xs text-primary font-medium">Admin Login</span>
-              )}
-            </div>
-
             <Button
               onClick={handleSendOTP}
               disabled={loading || !signInPhone}
@@ -174,16 +155,6 @@ export function AuthCard() {
               {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Send OTP
             </Button>
-            
-            <div className="text-center">
-              <button
-                type="button"
-                onClick={() => navigate("/admin-login")}
-                className="text-xs text-primary underline hover:no-underline transition-smooth"
-              >
-                Admin Login
-              </button>
-            </div>
           </TabsContent>
 
           {/* Sign Up Tab */}
