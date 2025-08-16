@@ -39,47 +39,108 @@ export function BookingCard({ booking }: BookingCardProps) {
   const title = prettyServiceName(booking.service_type);
 
   return (
-    <Card className="bg-white rounded-2xl shadow-md border border-pink-50 p-4 space-y-3">
-      <div className="flex items-center gap-3">
-        <div className="h-10 w-10 rounded-xl bg-pink-100 text-[#ff007a] flex items-center justify-center">
-          {getServiceIcon(booking.service_type)}
+    <Card className="bg-white/95 backdrop-blur-sm rounded-3xl shadow-xl border-0 p-6 space-y-4 hover:shadow-2xl transition-all duration-300 relative overflow-hidden">
+      {/* Subtle gradient background */}
+      <div className="absolute inset-0 bg-gradient-to-br from-pink-50/30 via-transparent to-purple-50/20 pointer-events-none" />
+      
+      {/* Header Section */}
+      <div className="relative flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-pink-100 to-pink-50 text-[#ff007a] flex items-center justify-center shadow-lg ring-2 ring-pink-100/50">
+            {getServiceIcon(booking.service_type)}
+          </div>
+          <div>
+            <h3 className="text-lg font-bold text-gray-900 tracking-tight">{title}</h3>
+            <div className="flex items-center gap-2 mt-1">
+              <div className={`h-2 w-2 rounded-full ${
+                booking.status === 'pending' ? 'bg-yellow-400' : 
+                booking.status === 'assigned' ? 'bg-green-400' : 'bg-gray-400'
+              }`} />
+              <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                {booking.status}
+              </span>
+            </div>
+          </div>
         </div>
-        <div className="text-base font-semibold">{title}</div>
       </div>
 
-      {/* Booking Time */}
-      {booking.scheduled_date && booking.scheduled_time && (
-        <div className="flex items-center gap-2 text-sm text-gray-600">
-          <Clock className="w-4 h-4" />
-          <span>Scheduled for {formatDateTime(booking.scheduled_date, booking.scheduled_time)}</span>
-        </div>
-      )}
+      {/* Time Information Section */}
+      <div className="relative bg-gradient-to-r from-gray-50 to-gray-50/70 rounded-2xl px-4 py-3 space-y-2.5">
+        {/* Scheduled Time */}
+        {booking.scheduled_date && booking.scheduled_time && (
+          <div className="flex items-center gap-3">
+            <div className="h-8 w-8 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center">
+              <Clock className="w-4 h-4" />
+            </div>
+            <div>
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Scheduled</p>
+              <p className="text-sm font-semibold text-gray-800">
+                {formatDateTime(booking.scheduled_date, booking.scheduled_time)}
+              </p>
+            </div>
+          </div>
+        )}
 
-      {/* Booking Created Time */}
-      <div className="flex items-center gap-2 text-xs text-gray-500">
-        <Clock className="w-3 h-3" />
-        <span>Booked on {format(new Date(booking.created_at), 'dd MMM at h:mm a')}</span>
+        {/* Booking Created Time */}
+        <div className="flex items-center gap-3">
+          <div className="h-8 w-8 rounded-lg bg-gray-100 text-gray-600 flex items-center justify-center">
+            <Clock className="w-4 h-4" />
+          </div>
+          <div>
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Booked</p>
+            <p className="text-sm font-semibold text-gray-800">
+              {format(new Date(booking.created_at), 'dd MMM yyyy, h:mm a')}
+            </p>
+          </div>
+        </div>
       </div>
 
-      <p className="text-sm text-gray-700">
-        Booking confirmed — worker will arrive in 10 mins to your flat.
-      </p>
+      {/* Status Message */}
+      <div className="relative">
+        <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-100 rounded-2xl px-4 py-3">
+          <p className="text-sm font-medium text-emerald-800 text-center">
+            ✨ Booking confirmed — worker will arrive in 10 mins to your flat
+          </p>
+        </div>
+      </div>
 
-      {/* CTA visible only for upcoming (pending/assigned) */}
+      {/* Address Information */}
+      <div className="relative bg-white/60 rounded-2xl px-4 py-3 border border-gray-100">
+        <div className="flex items-center gap-3">
+          <div className="h-8 w-8 rounded-lg bg-purple-100 text-purple-600 flex items-center justify-center">
+            <div className="w-4 h-4 rounded-full border-2 border-current" />
+          </div>
+          <div>
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Address</p>
+            <p className="text-sm font-semibold text-gray-800">
+              {booking.community}, Flat {booking.flat_no}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* CTA Button */}
       {(booking.status === 'pending' || booking.status === 'assigned') && (
-        <Button asChild className="h-11 rounded-full bg-gradient-to-r from-[#ff007a] to-[#d9006a] text-white font-semibold w-full">
-          <a
-            href="tel:+918008180018"
-            target="_self"
-            rel="noopener"
-            aria-label="Call Support +91 8008180018"
+        <div className="relative pt-2">
+          <Button 
+            asChild 
+            className="h-12 rounded-2xl bg-gradient-to-r from-[#ff007a] via-[#e6006a] to-[#d9006a] hover:from-[#e6006a] hover:to-[#cc005f] text-white font-bold w-full shadow-lg hover:shadow-xl transition-all duration-300 border-0"
           >
-            <span className="inline-flex items-center gap-2">
-              <PhoneCall className="h-4 w-4" />
-              Worker not arrived? Call Support
-            </span>
-          </a>
-        </Button>
+            <a
+              href="tel:+918008180018"
+              target="_self"
+              rel="noopener"
+              aria-label="Call Support +91 8008180018"
+            >
+              <span className="inline-flex items-center gap-3">
+                <div className="h-8 w-8 rounded-full bg-white/20 flex items-center justify-center">
+                  <PhoneCall className="h-4 w-4" />
+                </div>
+                Worker not arrived? Call Support
+              </span>
+            </a>
+          </Button>
+        </div>
       )}
     </Card>
   );
