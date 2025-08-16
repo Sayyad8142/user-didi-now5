@@ -1,4 +1,7 @@
 import React from 'react';
+import femaleMaidImage from '@/assets/female-maid.webp';
+import femaleCookImage from '@/assets/female-cook.webp';
+import femaleBathroomCleanerImage from '@/assets/female-bathroom-cleaner.webp';
 
 interface ServicesRowProps {
   onServiceSelect: (service: 'maid' | 'cook' | 'bathroom_cleaning') => void;
@@ -8,17 +11,17 @@ const services = [
   {
     id: 'maid' as const,
     title: 'Maid',
-    image: 'https://images.unsplash.com/photo-1607990281513-2c110a25bd8c?w=200&h=200&fit=crop&crop=face'
+    image: femaleMaidImage
   },
   {
     id: 'cook' as const,
     title: 'Cook', 
-    image: 'https://images.unsplash.com/photo-1577219491135-ce391730fb2c?w=200&h=200&fit=crop&crop=face'
+    image: femaleCookImage
   },
   {
     id: 'bathroom_cleaning' as const,
     title: 'Bathroom Cleaning',
-    image: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=200&h=200&fit=crop&crop=center'
+    image: femaleBathroomCleanerImage
   }
 ];
 
