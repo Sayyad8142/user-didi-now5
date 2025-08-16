@@ -21,6 +21,14 @@ export default function AdminLogin() {
     setLoading(true);
     setError(null);
     
+    // Check if the number is the authorized admin number
+    const authorizedAdminNumber = "+919000666986";
+    if (phone !== authorizedAdminNumber) {
+      setError("Number not register in admin panel");
+      setLoading(false);
+      return;
+    }
+    
     try {
       const { error } = await supabase.auth.signInWithOtp({
         phone,
