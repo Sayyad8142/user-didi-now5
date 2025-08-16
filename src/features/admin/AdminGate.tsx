@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, ReactNode } from "react";
 import { Navigate, useLocation, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { normalizePhone } from "@/features/profile/phone";
 
 type Profile = {
   id: string;
@@ -9,14 +10,6 @@ type Profile = {
   community?: string | null;
   flat_no?: string | null;
 };
-
-function normalizePhone(raw?: string | null) {
-  if (!raw) return "";
-  const digits = raw.replace(/\D/g, "");
-  if (digits.startsWith("91") && digits.length === 12) return `+${digits}`;
-  if (digits.length === 10) return `+91${digits}`;
-  return raw;
-}
 
 function useAdminWhitelist() {
   const env = import.meta.env.VITE_ADMIN_PHONES ?? "+919000666986";

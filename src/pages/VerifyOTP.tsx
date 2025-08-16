@@ -8,6 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import { maskPhone } from '@/lib/auth-helpers';
 import { ensureProfile } from '@/features/profile/ensureProfile';
+import { isAdminPhone } from '@/features/auth/isAdmin';
 
 interface LocationState {
   phone: string;
@@ -18,6 +19,8 @@ interface LocationState {
     community: string;
     flatNo: string;
   } | null;
+  adminLogin?: boolean;
+  redirectTo?: string;
 }
 
 export default function VerifyOTP() {
@@ -104,10 +107,19 @@ export default function VerifyOTP() {
         });
       }
 
-      // Navigate: if login was kicked off from a protected route (e.g., /admin),
-      // your guard likely stored state: { redirectTo: "/admin" }
-      const redirectTo = (location.state as any)?.redirectTo as string | undefined;
-      navigate(redirectTo || '/home', { replace: true });
+      // Determine redirect destination
+      let redirectTo = state.redirectTo;
+      
+      if (!redirectTo) {
+        // Fallback logic: check if phone is in admin whitelist or admin intent
+        if (isAdminPhone(profile?.phone) || state.adminLogin) {
+          redirectTo = '/admin';
+        } else {
+          redirectTo = '/home';
+        }
+      }
+      
+      navigate(redirectTo, { replace: true });
     } catch (error: any) {
       console.error('Verify OTP error:', error);
       setError(error.message || 'Invalid verification code. Please try again.');
