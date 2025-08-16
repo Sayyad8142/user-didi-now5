@@ -43,9 +43,9 @@ export async function ensureProfile() {
         {
           id: uid,
           full_name: normalized || "User",
-          phone: normalized || null,
-          community: null,
-          flat_no: null,
+          phone: normalized || "",
+          community: "other",
+          flat_no: "NA",
         },
         { onConflict: "id" }
       )

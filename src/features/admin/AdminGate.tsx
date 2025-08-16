@@ -88,9 +88,9 @@ export function AdminGate({ children }: { children: ReactNode }) {
             {
               id: userId,
               full_name: authPhone ?? "User",
-              phone: authPhone,
-              community: null,
-              flat_no: null,
+              phone: normalizePhone(authPhone ?? ""),
+              community: "other",
+              flat_no: "NA",
             },
             { onConflict: "id" }
           )
