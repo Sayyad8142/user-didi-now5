@@ -206,28 +206,36 @@ export function BookingForm() {
         <div className="space-y-4">
           {/* Booking Details Card */}
           {profile && service_type === 'cook' && (
-            <div className="mt-8">
-              <h2 className="text-lg font-semibold text-[#ff007a] mb-4">
+            <div className="space-y-6">
+              <h2 className="text-2xl font-bold text-[#ff007a] text-center">
                 Booking Details
               </h2>
-              <Card className="border border-pink-100 rounded-2xl shadow-sm bg-white">
-                <CardContent className="p-4 space-y-3">
-                  <div className="flex items-center gap-3">
-                    <MapPin className="w-5 h-5 text-[#ff007a]" />
-                    <div className="flex-1 flex items-center justify-between">
-                      <span className="text-foreground font-medium">Community</span>
-                      <span className="text-foreground font-bold">{profile.community}</span>
+              
+              <div className="space-y-4">
+                <Card className="border border-gray-200 rounded-2xl bg-white shadow-sm">
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-3">
+                      <MapPin className="w-5 h-5 text-[#ff007a]" />
+                      <div className="flex-1 flex items-center justify-between">
+                        <span className="text-gray-700 font-medium">Community</span>
+                        <span className="text-gray-900 font-bold">{profile.community}</span>
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <Home className="w-5 h-5 text-[#ff007a]" />
-                    <div className="flex-1 flex items-center justify-between">
-                      <span className="text-foreground font-medium">Flat Number</span>
-                      <span className="text-foreground font-bold">{profile.flat_no}</span>
+                  </CardContent>
+                </Card>
+                
+                <Card className="border border-gray-200 rounded-2xl bg-white shadow-sm">
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-3">
+                      <Home className="w-5 h-5 text-[#ff007a]" />
+                      <div className="flex-1 flex items-center justify-between">
+                        <span className="text-gray-700 font-medium">Flat Number</span>
+                        <span className="text-gray-900 font-bold">{profile.flat_no}</span>
+                      </div>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+              </div>
             </div>
           )}
 
@@ -264,23 +272,23 @@ export function BookingForm() {
           {service_type === 'cook' && (
             <>
               {/* Family Count */}
-              <div className="mt-8">
-                <h2 className="text-lg font-semibold text-foreground mb-4">
-                  Number of Family Members <span className="text-destructive">*</span>
+              <div className="space-y-6">
+                <h2 className="text-lg font-semibold text-gray-900">
+                  Number of Family Members <span className="text-[#ff007a]">*</span>
                 </h2>
-                <div className="flex items-center justify-center gap-4">
+                <div className="flex items-center justify-center gap-6">
                   <Button 
                     variant="outline" 
-                    className="h-10 w-10 rounded-xl border-2" 
+                    className="h-12 w-12 rounded-xl border-2 border-[#ff007a] text-[#ff007a] hover:bg-[#ff007a] hover:text-white" 
                     onClick={() => setFamilyCount(Math.max(1, familyCount - 1))} 
                     disabled={familyCount <= 1}
                   >
                     –
                   </Button>
-                  <div className="w-10 text-center text-xl font-semibold">{familyCount}</div>
+                  <div className="w-12 text-center text-3xl font-bold text-gray-900">{familyCount}</div>
                   <Button 
                     variant="outline" 
-                    className="h-10 w-10 rounded-xl border-2" 
+                    className="h-12 w-12 rounded-xl border-2 border-[#ff007a] text-[#ff007a] hover:bg-[#ff007a] hover:text-white" 
                     onClick={() => setFamilyCount(Math.min(20, familyCount + 1))}
                   >
                     +
@@ -289,31 +297,31 @@ export function BookingForm() {
               </div>
 
               {/* Food Preference */}
-              <div className="mt-8">
-                <h2 className="text-lg font-semibold text-foreground mb-4">
-                  Food Preference <span className="text-destructive">*</span>
+              <div className="space-y-6">
+                <h2 className="text-lg font-semibold text-gray-900">
+                  Food Preference <span className="text-[#ff007a]">*</span>
                 </h2>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-4">
                   <button
                     onClick={() => setFoodPreference('veg')}
-                    className={`h-12 rounded-xl border px-4 flex items-center justify-center gap-2 ${
+                    className={`h-16 rounded-2xl border-2 px-4 flex items-center justify-center gap-3 transition-all ${
                       foodPreference === 'veg'
-                        ? 'border-2 border-[#ff007a] text-[#ff007a] shadow'
-                        : 'border border-gray-300 text-foreground hover:border-[#ff007a]/50'
+                        ? 'border-[#ff007a] bg-[#ff007a]/10 text-[#ff007a]'
+                        : 'border-gray-200 bg-gray-50 text-gray-700 hover:border-gray-300'
                     }`}
                   >
-                    <span>🥬</span>
+                    <span className="text-xl">🥬</span>
                     <span className="font-medium">Vegetarian</span>
                   </button>
                   <button
                     onClick={() => setFoodPreference('non_veg')}
-                    className={`h-12 rounded-xl border px-4 flex items-center justify-center gap-2 ${
+                    className={`h-16 rounded-2xl border-2 px-4 flex items-center justify-center gap-3 transition-all ${
                       foodPreference === 'non_veg'
-                        ? 'border-2 border-[#ff007a] text-[#ff007a] shadow'
-                        : 'border border-gray-300 text-foreground hover:border-[#ff007a]/50'
+                        ? 'border-[#ff007a] bg-[#ff007a]/10 text-[#ff007a]'
+                        : 'border-gray-200 bg-gray-50 text-gray-700 hover:border-gray-300'
                     }`}
                   >
-                    <span>🍗</span>
+                    <span className="text-xl">🍗</span>
                     <span className="font-medium">Non-Vegetarian</span>
                   </button>
                 </div>
@@ -344,13 +352,13 @@ export function BookingForm() {
 
           {/* Price Display */}
           {((service_type === 'cook' && foodPreference) || (service_type !== 'cook' && selectedFlatSize)) && (
-            <Card className="bg-gradient-to-r from-pink-100 to-pink-200 border-pink-200 rounded-2xl mt-6">
-              <CardContent className="p-4">
+            <Card className="bg-[#ffe4f2] border-[#ff007a]/20 rounded-2xl">
+              <CardContent className="p-6">
                 <div className="text-center">
                   {loadingPricing ? (
                     <Skeleton className="h-8 w-32 mx-auto rounded-lg" />
                   ) : (
-                    <span className="text-2xl font-extrabold text-[#ff007a]">
+                    <span className="text-3xl font-bold text-[#ff007a]">
                       Price: ₹{currentPrice}
                     </span>
                   )}
