@@ -151,5 +151,5 @@ export function useNewBookingAlert() {
     }
   }
 
-  return { enabled, toggle, stopSound, snooze };
+  return { enabled, toggle, stopSound, snooze, play };
 }
