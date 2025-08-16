@@ -19,6 +19,14 @@ export function useNewBookingAlert() {
     // prepare HTMLAudioElement (if file exists)
     audioRef.current = new Audio(SOUND_SRC);
     audioRef.current.preload = "auto";
+    
+    // Debug logging
+    audioRef.current.addEventListener('canplaythrough', () => {
+      console.log('Admin alert sound loaded successfully');
+    });
+    audioRef.current.addEventListener('error', (e) => {
+      console.error('Failed to load admin alert sound:', e);
+    });
   }, []);
 
   // Web Audio fallback (works after a user gesture)
