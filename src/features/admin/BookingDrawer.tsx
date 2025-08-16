@@ -6,6 +6,7 @@ import { PhoneCall, UserPlus, CheckCircle } from "lucide-react";
 import { prettyService } from "./BookingRow";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useNewBookingAlert } from "./useNewBookingAlert";
 import { useState, useEffect } from "react";
 
 type Worker = {
@@ -24,6 +25,7 @@ export default function BookingDrawer({open,onOpenChange,booking}:{open:boolean;
   const [isAssigning, setIsAssigning] = useState(false);
   const [isMarkingComplete, setIsMarkingComplete] = useState(false);
   const { toast } = useToast();
+  const { stopSound } = useNewBookingAlert();
 
   // Load available workers
   useEffect(() => {
@@ -80,6 +82,7 @@ export default function BookingDrawer({open,onOpenChange,booking}:{open:boolean;
       if (bookingError) throw bookingError;
 
       toast({ title: "Worker assigned successfully!" });
+      stopSound(); // Stop any playing notification sound
       setAssignModalOpen(false);
       setSelectedWorker('');
       onOpenChange(false);
@@ -102,6 +105,7 @@ export default function BookingDrawer({open,onOpenChange,booking}:{open:boolean;
       if (error) throw error;
 
       toast({ title: "Booking marked as completed!" });
+      stopSound(); // Stop any playing notification sound
       onOpenChange(false);
     } catch (error) {
       console.error('Error marking complete:', error);

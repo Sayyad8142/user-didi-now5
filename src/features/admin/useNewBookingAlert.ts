@@ -59,6 +59,17 @@ export function useNewBookingAlert() {
     } catch (_) {}
   }
 
+  function stopSound() {
+    try {
+      // Stop HTMLAudio if playing
+      if (audioRef.current && !audioRef.current.paused) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+      }
+      // Note: Web Audio oscillators stop automatically after their duration
+    } catch (_) { /* ignore */ }
+  }
+
   // Subscribe to INSERT on bookings
   useEffect(() => {
     if (!enabled) return;
@@ -99,5 +110,5 @@ export function useNewBookingAlert() {
     }
   }
 
-  return { enabled, toggle };
+  return { enabled, toggle, stopSound };
 }
