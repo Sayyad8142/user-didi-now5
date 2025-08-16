@@ -25,15 +25,9 @@ export default function BookingDrawer({open,onOpenChange,booking}:{open:boolean;
   const [isMarkingComplete, setIsMarkingComplete] = useState(false);
   const { toast } = useToast();
 
-  if (!booking) return null;
-  
-  const when = booking.booking_type==='instant'
-    ? 'Instant (arrive ~10 mins)'
-    : `${booking.scheduled_date ?? ''} ${booking.scheduled_time?.slice(0,5) ?? ''}`.trim();
-
   // Load available workers
   useEffect(() => {
-    if (open) {
+    if (open && booking?.service_type) {
       loadWorkers();
     }
   }, [open, booking?.service_type]);
@@ -53,6 +47,11 @@ export default function BookingDrawer({open,onOpenChange,booking}:{open:boolean;
     setWorkers(data || []);
   };
 
+  if (!booking) return null;
+  
+  const when = booking.booking_type==='instant'
+    ? 'Instant (arrive ~10 mins)'
+    : `${booking.scheduled_date ?? ''} ${booking.scheduled_time?.slice(0,5) ?? ''}`.trim();
   const handleAssignWorker = async () => {
     if (!selectedWorker) {
       toast({ title: "Please select a worker", variant: "destructive" });
