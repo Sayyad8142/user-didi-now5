@@ -120,6 +120,7 @@ export type Database = {
           flat_no: string
           full_name: string
           id: string
+          is_admin: boolean
           phone: string
           updated_at: string
         }
@@ -129,6 +130,7 @@ export type Database = {
           flat_no: string
           full_name: string
           id?: string
+          is_admin?: boolean
           phone: string
           updated_at?: string
         }
@@ -138,6 +140,7 @@ export type Database = {
           flat_no?: string
           full_name?: string
           id?: string
+          is_admin?: boolean
           phone?: string
           updated_at?: string
         }
