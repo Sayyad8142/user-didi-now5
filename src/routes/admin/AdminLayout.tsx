@@ -1,32 +1,68 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import BookingRow from "@/features/admin/BookingRow";
 import BookingDrawer from "@/features/admin/BookingDrawer";
 import { useBookingsRealtime } from "@/features/admin/useRealtime";
 import QuickStats from "@/features/admin/QuickStats";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Search } from "lucide-react";
 
 export default function AdminLayout() {
   const [rows,setRows] = useState<any[]>([]);
   const [open,setOpen] = useState(false);
   const [active,setActive] = useState<any>(null);
+  const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'assigned'>('all');
+  const [searchTerm, setSearchTerm] = useState('');
 
-  // initial load
-  async function load() {
-    const { data } = await supabase
+  // initial load with filter
+  async function load(statusFilter: 'all' | 'pending' | 'assigned' = 'all') {
+    let query = supabase
       .from("bookings")
-      .select("*")
-      .in("status", ["pending","assigned"])
+      .select("*");
+    
+    if (statusFilter === 'all') {
+      query = query.in("status", ["pending","assigned"]);
+    } else {
+      query = query.eq("status", statusFilter);
+    }
+    
+    const { data } = await query
       .order("created_at", { ascending:false })
       .limit(100);
     setRows(data ?? []);
   }
-  useEffect(()=>{ load(); },[]);
+  
+  useEffect(()=>{ load(filterStatus); },[filterStatus]);
 
   // realtime
   useBookingsRealtime(
     (row)=>{ setRows(prev => [row, ...prev]); },
     (row)=>{ setRows(prev => prev.map(r => r.id===row.id ? row : r)); }
   );
+
+  // client-side filtering
+  const filteredRows = useMemo(() => {
+    let filtered = rows;
+    
+    // Apply search filter
+    if (searchTerm.trim()) {
+      const search = searchTerm.toLowerCase();
+      filtered = filtered.filter(booking => 
+        booking.service_type?.toLowerCase().includes(search) ||
+        booking.community?.toLowerCase().includes(search) ||
+        booking.flat_no?.toLowerCase().includes(search) ||
+        booking.cust_name?.toLowerCase().includes(search) ||
+        booking.cust_phone?.toLowerCase().includes(search)
+      );
+    }
+    
+    return filtered;
+  }, [rows, searchTerm]);
+
+  const handleFilterChange = (status: 'all' | 'pending' | 'assigned') => {
+    setFilterStatus(status);
+  };
 
   return (
     <div className="min-h-dvh bg-rose-50/40">
@@ -41,12 +77,41 @@ export default function AdminLayout() {
 
       <main className="max-w-2xl mx-auto px-4 pb-24 pt-4 space-y-5">
         <section className="rounded-2xl border border-pink-50 bg-white shadow p-4">
-          <div className="font-semibold mb-2">Live Queue</div>
-          {rows.length === 0 ? (
-            <div className="text-sm text-gray-600">No active bookings yet</div>
+          <div className="font-semibold mb-4">Live Queue</div>
+          
+          {/* Filter Chips */}
+          <div className="flex gap-2 mb-4">
+            {(['all', 'pending', 'assigned'] as const).map((status) => (
+              <Button
+                key={status}
+                variant={filterStatus === status ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => handleFilterChange(status)}
+                className="capitalize"
+              >
+                {status === 'all' ? 'All' : status}
+              </Button>
+            ))}
+          </div>
+
+          {/* Search Input */}
+          <div className="relative mb-4">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+            <Input
+              placeholder="Search by service, community, flat, name, or phone..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+
+          {filteredRows.length === 0 ? (
+            <div className="text-sm text-gray-600">
+              {rows.length === 0 ? 'No active bookings yet' : 'No bookings match your search'}
+            </div>
           ) : (
             <div className="space-y-3">
-              {rows.map(b => (
+              {filteredRows.map(b => (
                 <BookingRow key={b.id} b={b} onClick={()=>{ setActive(b); setOpen(true); }} />
               ))}
             </div>
