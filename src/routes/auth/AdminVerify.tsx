@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { ensureProfile } from "@/features/profile/ensureProfile";
-import { normalizePhone } from "@/features/profile/phone";
+import { ensureProfile, normalizePhone } from "@/features/profile/ensureProfile";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -53,7 +52,8 @@ export default function AdminVerify() {
         return;
       }
       
-      await ensureProfile(); // creates profile if missing + normalizes phone
+      // Ensure profile exists; this will now wait for session and upsert with clear errors
+      await ensureProfile();
       nav("/admin", { replace: true });
     } catch (e: any) {
       setError(e.message ?? "Verification failed");

@@ -7,8 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import { maskPhone } from '@/lib/auth-helpers';
-import { ensureProfile, waitForSession } from '@/features/profile/ensureProfile';
-import { normalizePhone } from '@/features/profile/phone';
+import { ensureProfile, waitForSession, normalizePhone } from '@/features/profile/ensureProfile';
 
 interface LocationState {
   phone: string;

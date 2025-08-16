@@ -1,4 +1,4 @@
-import { normalizePhone } from "@/features/profile/phone";
+import { normalizePhone } from "@/features/profile/ensureProfile";
 
 export function isAdminPhone(phone?: string | null): boolean {
   const env = import.meta.env.VITE_ADMIN_PHONES ?? "";

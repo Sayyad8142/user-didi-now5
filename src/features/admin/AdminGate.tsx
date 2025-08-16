@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, ReactNode } from "react";
 import { Navigate, useLocation, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { normalizePhone } from "@/features/profile/phone";
+import { normalizePhone } from "@/features/profile/ensureProfile";
 
 type Profile = {
   id: string;

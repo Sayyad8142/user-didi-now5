@@ -11,7 +11,7 @@ import { formatPhoneIN, isValidINPhone, COMMUNITY_OPTIONS } from '@/lib/auth-hel
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
-import { normalizePhone } from '@/features/profile/phone';
+import { normalizePhone } from '@/features/profile/ensureProfile';
 
 export function AuthCard() {
   const navigate = useNavigate();
