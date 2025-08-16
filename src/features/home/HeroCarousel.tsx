@@ -1,19 +1,22 @@
 import React from 'react';
 import { Carousel, CarouselContent, CarouselItem } from '@/components/ui/carousel';
 import Autoplay from 'embla-carousel-autoplay';
+import bannerCook1 from '@/assets/banner-cook-1.webp';
+import bannerMaid1 from '@/assets/banner-maid-1.webp';
+import bannerCook2 from '@/assets/banner-cook-2.webp';
 
 const carouselImages = [
   {
-    url: "https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=800&h=450&fit=crop&crop=center",
-    alt: "Food preparation service"
+    url: bannerCook1,
+    alt: "Professional cooking service - Fresh meal preparation"  
   },
   {
-    url: "https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=800&h=450&fit=crop&crop=center", 
-    alt: "House cleaning service"
+    url: bannerMaid1,
+    alt: "Professional cleaning service - Modern kitchen cleaning"
   },
   {
-    url: "https://images.unsplash.com/photo-1563453392212-326f5e854473?w=800&h=450&fit=crop&crop=center",
-    alt: "Bathroom cleaning service"
+    url: bannerCook2,
+    alt: "Expert cooking service - Healthy meal preparation"
   }
 ];
 
