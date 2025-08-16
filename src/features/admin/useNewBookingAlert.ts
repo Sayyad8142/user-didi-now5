@@ -84,11 +84,9 @@ export function useNewBookingAlert() {
     const channel = supabase
       .channel("bookings-sound")
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "bookings" }, (payload) => {
-        // Only alert for "pending" new bookings (typical at creation)
-        if (payload.new?.status === "pending") {
-          // If tab is hidden, we still play — browsers may mute; toggle handles permission
-          play();
-        }
+        // Play sound for any new booking INSERT
+        console.log("New booking INSERT received for sound alert:", payload.new?.id, payload.new?.status);
+        play();
       })
       .subscribe();
 
