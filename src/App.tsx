@@ -15,6 +15,8 @@ import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 import { BookingForm } from "./features/booking/BookingForm";
 import { ScheduleScreen } from "./features/booking/ScheduleScreen";
+import { AdminGate } from "./features/admin/AdminGate";
+import AdminLayout from "./routes/admin/AdminLayout";
 
 const queryClient = new QueryClient();
 
@@ -84,6 +86,14 @@ const App = () => (
                     <ScheduleScreen />
                   </ProtectedLayout>
                 </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin" 
+              element={
+                <AdminGate>
+                  <AdminLayout />
+                </AdminGate>
               } 
             />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
