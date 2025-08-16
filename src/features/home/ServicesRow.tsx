@@ -34,7 +34,7 @@ export function ServicesRow({ onServiceSelect }: ServicesRowProps) {
           onClick={() => onServiceSelect(service.id)}
           className="flex flex-col items-center gap-2 flex-1"
         >
-          <div className="w-20 h-20 rounded-full border-2 border-primary shadow-md overflow-hidden hover:scale-105 transition-transform">
+          <div className="w-20 h-20 rounded-full shadow-md overflow-hidden hover:scale-105 transition-transform">
             <img
               src={service.image}
               alt={service.title}
