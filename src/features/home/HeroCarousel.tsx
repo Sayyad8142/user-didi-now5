@@ -4,13 +4,8 @@ import Autoplay from 'embla-carousel-autoplay';
 import bannerCook1 from '@/assets/banner-cook-1.webp';
 import bannerMaid1 from '@/assets/banner-maid-1.webp';
 import bannerCook2 from '@/assets/banner-cook-2.webp';
-import bannerInstantMaid from '@/assets/banner-instant-maid.webp';
 
 const carouselImages = [
-  {
-    url: bannerInstantMaid,
-    alt: "Instant maid service - Professional cleaning in 10 minutes"
-  },
   {
     url: bannerCook1,
     alt: "Professional cooking service - Fresh meal preparation"  
