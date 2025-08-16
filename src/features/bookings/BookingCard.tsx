@@ -2,7 +2,8 @@ import React from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { prettyServiceName } from '@/features/booking/utils';
-import { PhoneCall, Sparkles, ChefHat, ShowerHead } from 'lucide-react';
+import { formatDateTime } from '@/features/bookings/dt';
+import { PhoneCall, Sparkles, ChefHat, ShowerHead, Clock } from 'lucide-react';
 
 interface Booking {
   id: string;
@@ -44,6 +45,14 @@ export function BookingCard({ booking }: BookingCardProps) {
         </div>
         <div className="text-base font-semibold">{title}</div>
       </div>
+
+      {/* Booking Time */}
+      {booking.scheduled_date && booking.scheduled_time && (
+        <div className="flex items-center gap-2 text-sm text-gray-600">
+          <Clock className="w-4 h-4" />
+          <span>Scheduled for {formatDateTime(booking.scheduled_date, booking.scheduled_time)}</span>
+        </div>
+      )}
 
       <p className="text-sm text-gray-700">
         Booking confirmed — worker will arrive in 10 mins to your flat.
