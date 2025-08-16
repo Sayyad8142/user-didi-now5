@@ -3,6 +3,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { prettyServiceName } from '@/features/booking/utils';
 import { formatDateTime } from '@/features/bookings/dt';
+import { format } from 'date-fns';
 import { PhoneCall, Sparkles, ChefHat, ShowerHead, Clock } from 'lucide-react';
 
 interface Booking {
@@ -57,7 +58,7 @@ export function BookingCard({ booking }: BookingCardProps) {
       {/* Booking Created Time */}
       <div className="flex items-center gap-2 text-xs text-gray-500">
         <Clock className="w-3 h-3" />
-        <span>Booked on {formatDateTime(booking.created_at)}</span>
+        <span>Booked on {format(new Date(booking.created_at), 'dd MMM at h:mm a')}</span>
       </div>
 
       <p className="text-sm text-gray-700">
