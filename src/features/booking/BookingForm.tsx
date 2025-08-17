@@ -52,7 +52,7 @@ export function BookingForm() {
   const [foodPreference, setFoodPreference] = useState<'veg' | 'non_veg' | null>(null);
   
   // Maid service specific state
-  const [selectedTasks, setSelectedTasks] = useState<MaidTask[]>(["floor_cleaning", "dish_washing"]);
+  const [selectedTasks, setSelectedTasks] = useState<MaidTask>("floor_cleaning"); // Single task selection with radio
   
   // Fetch maid task prices
   const { data: taskPrices } = useQuery({
@@ -106,7 +106,7 @@ export function BookingForm() {
 
   // Helper functions for maid pricing
   const taskPrice = (t: MaidTask) => (taskPrices?.get(t) ?? FALLBACK_PRICES[selectedFlatSize || "2BHK"]);
-  const totalPrice = service_type === 'maid' ? selectedTasks.reduce((sum, t) => sum + taskPrice(t), 0) : 0;
+  const totalPrice = service_type === 'maid' ? taskPrice(selectedTasks) : 0;
   useEffect(() => {
     if (!user) {
       navigate('/auth');
@@ -156,10 +156,10 @@ export function BookingForm() {
       const price = calculateCookPrice(familyCount, foodPreference);
       await createBooking('instant', null, null, price);
     } else if (service_type === 'maid') {
-      if (!selectedFlatSize || selectedTasks.length === 0) {
+      if (!selectedFlatSize || !selectedTasks) {
         toast({
           title: "Please complete maid booking details",
-          description: "Select flat size and at least one task before booking.",
+          description: "Select flat size and a task before booking.",
           variant: "destructive"
         });
         return;
@@ -187,7 +187,7 @@ export function BookingForm() {
       const price = calculateCookPrice(familyCount, foodPreference);
       await createBooking('scheduled', date.toISOString().split('T')[0], time, price);
     } else if (service_type === 'maid') {
-      if (!selectedFlatSize || selectedTasks.length === 0) return;
+      if (!selectedFlatSize || !selectedTasks) return;
       await createBooking('scheduled', date.toISOString().split('T')[0], time, totalPrice);
     } else {
       if (!selectedFlatSize) return;
@@ -220,7 +220,7 @@ export function BookingForm() {
         price_inr: price,
         family_count: service_type === 'cook' ? familyCount : null,
         food_pref: service_type === 'cook' ? foodPreference : null,
-        maid_tasks: service_type === 'maid' ? selectedTasks : null,
+        maid_tasks: service_type === 'maid' ? [selectedTasks] : null,
         cust_name: profile.full_name,
         cust_phone: profile.phone,
         community: profile.community,
@@ -273,12 +273,12 @@ export function BookingForm() {
   const currentPrice = service_type === 'cook' 
     ? (foodPreference ? calculateCookPrice(familyCount, foodPreference) : null)
     : service_type === 'maid' 
-      ? (selectedFlatSize && selectedTasks.length > 0 ? totalPrice : null)
+      ? (selectedFlatSize && selectedTasks ? totalPrice : null)
       : (selectedFlatSize ? pricingMap[selectedFlatSize] : null);
   const canBook = service_type === 'cook' 
     ? (foodPreference && !submitting)
     : service_type === 'maid'
-      ? (selectedFlatSize && selectedTasks.length > 0 && !submitting)
+      ? (selectedFlatSize && selectedTasks && !submitting)
       : (selectedFlatSize && currentPrice && !submitting);
   return <div className="min-h-screen bg-background pb-24">
       <div className="max-w-md mx-auto px-4 py-6">
@@ -439,47 +439,68 @@ export function BookingForm() {
             </div>
           )}
 
-          {/* Maid Task Selection */}
+          {/* Maid Task Selection - Modern Radio Button UI */}
           {service_type === 'maid' && selectedFlatSize && (
-            <div className="mt-4">
-              <div className="text-base font-semibold mb-2">Included Tasks <span className="text-destructive">*</span></div>
-              <div className="grid grid-cols-1 gap-3">
+            <div className="mt-6">
+              <h2 className="text-lg font-semibold text-foreground mb-4">
+                Select Service <span className="text-destructive">*</span>
+              </h2>
+              <div className="space-y-3">
                 {(["floor_cleaning", "dish_washing"] as MaidTask[]).map((t) => {
-                  const active = selectedTasks.includes(t);
+                  const active = selectedTasks === t;
                   return (
-                    <button
+                    <div
                       key={t}
-                      type="button"
-                      onClick={() => {
-                        setSelectedTasks(prev => {
-                          if (prev.includes(t)) {
-                            const next = prev.filter(x => x !== t);
-                            return next.length ? next : prev; // keep at least 1 task
-                          }
-                          return [...prev, t];
-                        });
-                      }}
+                      onClick={() => setSelectedTasks(t)}
                       className={cn(
-                        "flex items-center justify-between rounded-xl border px-4 py-3",
-                        active ? "border-primary bg-primary/10" : "border-border bg-background"
+                        "relative cursor-pointer rounded-2xl border-2 p-5 transition-all duration-200",
+                        active 
+                          ? "border-primary bg-gradient-to-r from-primary/10 to-primary/5 shadow-lg shadow-primary/20" 
+                          : "border-border bg-card hover:border-primary/50 hover:shadow-md"
                       )}
                     >
-                      <span className="text-sm font-medium">
-                        {TASK_LABEL[t]}
-                      </span>
-                      <span className="text-sm font-semibold">₹{taskPrice(t)}</span>
-                    </button>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <div className={cn(
+                            "w-5 h-5 rounded-full border-2 flex items-center justify-center",
+                            active ? "border-primary bg-primary" : "border-muted-foreground"
+                          )}>
+                            {active && (
+                              <div className="w-2.5 h-2.5 rounded-full bg-primary-foreground" />
+                            )}
+                          </div>
+                          <div>
+                            <h3 className="font-semibold text-foreground">
+                              {TASK_LABEL[t]}
+                            </h3>
+                            <p className="text-sm text-muted-foreground mt-1">
+                              {t === 'floor_cleaning' 
+                                ? 'Complete floor cleaning with mop and broom' 
+                                : 'Washing all dishes, utensils, and kitchen cleanup'
+                              }
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-2xl font-bold text-primary">₹{taskPrice(t)}</div>
+                          <div className="text-xs text-muted-foreground">per service</div>
+                        </div>
+                      </div>
+                      {active && (
+                        <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-primary/5 to-transparent pointer-events-none" />
+                      )}
+                    </div>
                   );
                 })}
               </div>
-              <p className="mt-2 text-xs text-muted-foreground">
-                Tip: You can unselect one task if you only need that service. At least one task must remain selected.
+              <p className="mt-3 text-sm text-muted-foreground">
+                💡 Choose the service you need. Each service is performed by trained professionals.
               </p>
             </div>
           )}
 
           {/* Price Display */}
-          {((service_type === 'cook' && foodPreference) || (service_type === 'maid' && selectedFlatSize && selectedTasks.length > 0) || (service_type !== 'cook' && service_type !== 'maid' && selectedFlatSize)) && (
+          {((service_type === 'cook' && foodPreference) || (service_type === 'maid' && selectedFlatSize && selectedTasks) || (service_type !== 'cook' && service_type !== 'maid' && selectedFlatSize)) && (
             <Card className="bg-primary/5 border-primary/20 rounded-2xl">
               <CardContent className="p-6">
                 <div className="text-center">
@@ -543,16 +564,16 @@ export function BookingForm() {
                   const price = calculateCookPrice(familyCount, foodPreference);
                   navigate(`/book/${service_type}/schedule?family=${familyCount}&food=${foodPreference}&price=${price}`);
                 } else if (service_type === 'maid') {
-                  if (!selectedFlatSize || selectedTasks.length === 0) {
+                  if (!selectedFlatSize || !selectedTasks) {
                     toast({
                       title: "Please complete maid booking details",
-                      description: "Select flat size and at least one task before scheduling.",
+                      description: "Select flat size and a task before scheduling.",
                       variant: "destructive"
                     });
                     return;
                   }
                   const price = totalPrice;
-                  navigate(`/book/${service_type}/schedule?flat=${selectedFlatSize}&tasks=${selectedTasks.join(',')}&price=${price}`);
+                  navigate(`/book/${service_type}/schedule?flat=${selectedFlatSize}&tasks=${selectedTasks}&price=${price}`);
                 } else {
                   if (!selectedFlatSize) {
                     toast({
@@ -566,7 +587,7 @@ export function BookingForm() {
                   navigate(`/book/${service_type}/schedule?flat=${selectedFlatSize}&price=${price}`);
                 }
               }} 
-              disabled={service_type === 'cook' ? !foodPreference : service_type === 'maid' ? (!selectedFlatSize || selectedTasks.length === 0) : !selectedFlatSize} 
+              disabled={service_type === 'cook' ? !foodPreference : service_type === 'maid' ? (!selectedFlatSize || !selectedTasks) : !selectedFlatSize} 
               className="w-full h-14 rounded-full font-semibold text-lg bg-pink-500 hover:bg-pink-600 text-white border-0"
             >
               <span>Prebook Now</span>
