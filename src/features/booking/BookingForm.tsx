@@ -12,6 +12,7 @@ import { useProfile } from '@/features/profile/useProfile';
 import { prettyServiceName, serviceIcon, isValidServiceType, getPricingMap, FLAT_SIZES, type FlatSize, type PricingMap, calculateCookPrice } from './pricing';
 import { ScheduleSheet } from './ScheduleSheet';
 import { cn } from '@/lib/utils';
+import clockIcon from '@/assets/clock-3d.png';
 
 // Maid task types and constants
 type MaidTask = "floor_cleaning" | "dish_washing";
@@ -464,8 +465,8 @@ export function BookingForm() {
                   </div>
                 ) : (
                   <div className="flex items-center gap-3">
-                    <Clock className="w-5 h-5" />
-                    <span>Book Now - Instant Service</span>
+                    <img src={clockIcon} alt="Clock" className="w-6 h-6" />
+                    <span>Book now (helper will arrives in 10mins)</span>
                   </div>
                 )}
               </Button>
