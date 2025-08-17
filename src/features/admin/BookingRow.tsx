@@ -4,6 +4,7 @@ import { Phone, CalendarClock, Sparkles, ChefHat, ShowerHead, Check } from "luci
 import Timer from "@/components/Timer";
 import { useToast } from "@/hooks/use-toast";
 import { useNewBookingAlert } from "./useNewBookingAlert";
+import { SLAClock } from "./SLAClock";
 function ServiceIcon({ t}:{t:string}) {
   return t==='cook' ? <ChefHat className="h-5 w-5"/> :
          t==='bathroom_cleaning' ? <ShowerHead className="h-5 w-5"/> :
@@ -14,10 +15,25 @@ export function prettyService(t:string){
   return t==='cook'?'Cook Service':(t==='bathroom_cleaning'?'Bathroom Cleaning':'Maid Service');
 }
 
-export default function BookingRow({ b, onClick, onInteracted }:{ b:any; onClick?:()=>void; onInteracted?: ()=>void }) {
+export default function BookingRow({ 
+  b, 
+  onClick, 
+  onInteracted, 
+  slaMinutes = 12 
+}: { 
+  b: any; 
+  onClick?: () => void; 
+  onInteracted?: () => void;
+  slaMinutes?: number;
+}) {
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
   const { stopSound } = useNewBookingAlert();
+  
+  const pending = b.status === "pending";
+  const createdAt = b.created_at;
+  const overdue = pending && (Date.now() - new Date(createdAt).getTime()) > (slaMinutes * 60 * 1000);
+  
   const pill = b.status==='completed'?'bg-green-100 text-green-700':
                b.status==='assigned' ?'bg-blue-100 text-blue-700':
                b.status==='cancelled'?'bg-rose-100 text-rose-700':'bg-gray-100 text-gray-700';
@@ -54,7 +70,9 @@ export default function BookingRow({ b, onClick, onInteracted }:{ b:any; onClick
   return (
     <div
       onClick={onClick}
-      className="w-full text-left rounded-2xl border border-pink-50 bg-white shadow p-4 space-y-2 active:scale-[.99] transition cursor-pointer"
+      className={`w-full text-left rounded-2xl border bg-white shadow p-4 space-y-2 active:scale-[.99] transition cursor-pointer ${
+        overdue ? "border-red-300 ring-1 ring-red-200 bg-red-50/30" : "border-pink-50"
+      }`}
     >
       <div className="flex items-start gap-3">
         <div className="h-10 w-10 shrink-0 rounded-xl bg-pink-100 text-[#ff007a] grid place-items-center">
@@ -87,6 +105,17 @@ export default function BookingRow({ b, onClick, onInteracted }:{ b:any; onClick
               <Timer since={b.created_at} />
             </div>
           </div>
+          
+          {/* SLA Clock for pending bookings */}
+          {pending && (
+            <div className="mt-2 pt-2 border-t border-gray-100">
+              <SLAClock 
+                createdAt={createdAt} 
+                slaMinutes={slaMinutes} 
+                pending={pending} 
+              />
+            </div>
+          )}
         </div>
       </div>
     </div>

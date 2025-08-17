@@ -9,6 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Search, Bell, BellOff } from "lucide-react";
 import { useNewBookingAlert } from "@/features/admin/useNewBookingAlert";
 import { AdminBottomNav } from "@/components/AdminBottomNav";
+import { useSLASettings } from "@/features/admin/useSLASettings";
+import { useOverdueAlert } from "@/features/admin/useOverdueAlert";
 
 export default function AdminLayout() {
   const [rows,setRows] = useState<any[]>([]);
@@ -17,6 +19,12 @@ export default function AdminLayout() {
   const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'assigned'>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const { enabled: soundOn, toggle: toggleSound, snooze, stopSound, play: testSound } = useNewBookingAlert();
+  
+  // Load SLA settings
+  const { slaMinutes } = useSLASettings();
+  
+  // Enable overdue alerts - plays a beep when bookings become overdue
+  useOverdueAlert(rows, slaMinutes);
 
   // initial load with filter
   async function load(statusFilter: 'all' | 'pending' | 'assigned' = 'all') {
@@ -140,7 +148,13 @@ export default function AdminLayout() {
           ) : (
             <div className="space-y-3">
               {filteredRows.map(b => (
-                <BookingRow key={b.id} b={b} onClick={()=>{ setActive(b); setOpen(true); }} onInteracted={() => { snooze(4000); stopSound(); }} />
+                <BookingRow 
+                  key={b.id} 
+                  b={b} 
+                  onClick={() => { setActive(b); setOpen(true); }} 
+                  onInteracted={() => { snooze(4000); stopSound(); }}
+                  slaMinutes={slaMinutes}
+                />
               ))}
             </div>
           )}
