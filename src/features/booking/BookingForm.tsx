@@ -5,11 +5,25 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useProfile } from '@/features/profile/useProfile';
 import { prettyServiceName, serviceIcon, isValidServiceType, getPricingMap, FLAT_SIZES, type FlatSize, type PricingMap, calculateCookPrice } from './pricing';
 import { ScheduleSheet } from './ScheduleSheet';
+import { cn } from '@/lib/utils';
+
+// Maid task types and constants
+type MaidTask = "floor_cleaning" | "dish_washing";
+const TASK_LABEL: Record<MaidTask, string> = {
+  floor_cleaning: "Jhaadu & Pocha (Floor Cleaning)",
+  dish_washing: "Dish Washing",
+};
+// Fallback base prices if table not found
+const FALLBACK_PRICES: Record<string, number> = {
+  "2BHK": 100, "2.5BHK": 110, "3BHK": 120, "3.5BHK": 130, "4BHK": 150
+};
+
 export function BookingForm() {
   const {
     service_type
@@ -36,6 +50,63 @@ export function BookingForm() {
   // Cook service specific state
   const [familyCount, setFamilyCount] = useState(1);
   const [foodPreference, setFoodPreference] = useState<'veg' | 'non_veg' | null>(null);
+  
+  // Maid service specific state
+  const [selectedTasks, setSelectedTasks] = useState<MaidTask[]>(["floor_cleaning", "dish_washing"]);
+  
+  // Fetch maid task prices
+  const { data: taskPrices } = useQuery({
+    queryKey: ["maid_prices", selectedFlatSize, profile?.community],
+    enabled: !!selectedFlatSize && service_type === 'maid',
+    queryFn: async () => {
+      const q = supabase
+        .from("maid_pricing_tasks")
+        .select("task, price_inr, community")
+        .eq("flat_size", selectedFlatSize!)
+        .eq("active", true);
+      
+      if (profile?.community) {
+        q.or(`community.is.null,community.eq.${profile.community}`);
+      } else {
+        q.is('community', null);
+      }
+      
+      const { data, error } = await q;
+      if (error) throw error;
+      
+      // Build pricing map with community-specific overriding global
+      const map = new Map<MaidTask, number>();
+      
+      // First, add global pricing (where community is null)
+      (data || [])
+        .filter(row => row.community === null)
+        .forEach((row: any) => {
+          map.set(row.task, row.price_inr);
+        });
+
+      // Then, override with community-specific pricing if available
+      if (profile?.community) {
+        (data || [])
+          .filter(row => row.community === profile.community)
+          .forEach((row: any) => {
+            map.set(row.task, row.price_inr);
+          });
+      }
+
+      // Ensure both tasks have prices (fallback)
+      (["floor_cleaning", "dish_washing"] as MaidTask[]).forEach(t => {
+        if (!map.has(t)) {
+          map.set(t, FALLBACK_PRICES[selectedFlatSize] || 100);
+        }
+      });
+
+      return map;
+    }
+  });
+
+  // Helper functions for maid pricing
+  const taskPrice = (t: MaidTask) => (taskPrices?.get(t) ?? FALLBACK_PRICES[selectedFlatSize || "2BHK"]);
+  const totalPrice = service_type === 'maid' ? selectedTasks.reduce((sum, t) => sum + taskPrice(t), 0) : 0;
   useEffect(() => {
     if (!user) {
       navigate('/auth');
@@ -47,9 +118,9 @@ export function BookingForm() {
     }
   }, [user, service_type, navigate]);
   useEffect(() => {
-    if (profile && service_type && service_type !== 'cook') {
+    if (profile && service_type && service_type !== 'cook' && service_type !== 'maid') {
       loadPricing();
-    } else if (service_type === 'cook') {
+    } else if (service_type === 'cook' || service_type === 'maid') {
       setLoadingPricing(false);
     }
   }, [profile, service_type]);
@@ -84,6 +155,16 @@ export function BookingForm() {
       }
       const price = calculateCookPrice(familyCount, foodPreference);
       await createBooking('instant', null, null, price);
+    } else if (service_type === 'maid') {
+      if (!selectedFlatSize || selectedTasks.length === 0) {
+        toast({
+          title: "Please complete maid booking details",
+          description: "Select flat size and at least one task before booking.",
+          variant: "destructive"
+        });
+        return;
+      }
+      await createBooking('instant', null, null, totalPrice);
     } else {
       if (!selectedFlatSize) return;
       const price = pricingMap[selectedFlatSize];
@@ -105,6 +186,9 @@ export function BookingForm() {
       if (!foodPreference) return;
       const price = calculateCookPrice(familyCount, foodPreference);
       await createBooking('scheduled', date.toISOString().split('T')[0], time, price);
+    } else if (service_type === 'maid') {
+      if (!selectedFlatSize || selectedTasks.length === 0) return;
+      await createBooking('scheduled', date.toISOString().split('T')[0], time, totalPrice);
     } else {
       if (!selectedFlatSize) return;
       const price = pricingMap[selectedFlatSize];
@@ -136,6 +220,7 @@ export function BookingForm() {
         price_inr: price,
         family_count: service_type === 'cook' ? familyCount : null,
         food_pref: service_type === 'cook' ? foodPreference : null,
+        maid_tasks: service_type === 'maid' ? selectedTasks : null,
         cust_name: profile.full_name,
         cust_phone: profile.phone,
         community: profile.community,
@@ -187,10 +272,14 @@ export function BookingForm() {
   const ServiceIcon = serviceIcon(service_type);
   const currentPrice = service_type === 'cook' 
     ? (foodPreference ? calculateCookPrice(familyCount, foodPreference) : null)
-    : (selectedFlatSize ? pricingMap[selectedFlatSize] : null);
+    : service_type === 'maid' 
+      ? (selectedFlatSize && selectedTasks.length > 0 ? totalPrice : null)
+      : (selectedFlatSize ? pricingMap[selectedFlatSize] : null);
   const canBook = service_type === 'cook' 
     ? (foodPreference && !submitting)
-    : (selectedFlatSize && currentPrice && !submitting);
+    : service_type === 'maid'
+      ? (selectedFlatSize && selectedTasks.length > 0 && !submitting)
+      : (selectedFlatSize && currentPrice && !submitting);
   return <div className="min-h-screen bg-background pb-24">
       <div className="max-w-md mx-auto px-4 py-6">
         {/* Header */}
@@ -350,17 +439,63 @@ export function BookingForm() {
             </div>
           )}
 
+          {/* Maid Task Selection */}
+          {service_type === 'maid' && selectedFlatSize && (
+            <div className="mt-4">
+              <div className="text-base font-semibold mb-2">Included Tasks <span className="text-destructive">*</span></div>
+              <div className="grid grid-cols-1 gap-3">
+                {(["floor_cleaning", "dish_washing"] as MaidTask[]).map((t) => {
+                  const active = selectedTasks.includes(t);
+                  return (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => {
+                        setSelectedTasks(prev => {
+                          if (prev.includes(t)) {
+                            const next = prev.filter(x => x !== t);
+                            return next.length ? next : prev; // keep at least 1 task
+                          }
+                          return [...prev, t];
+                        });
+                      }}
+                      className={cn(
+                        "flex items-center justify-between rounded-xl border px-4 py-3",
+                        active ? "border-primary bg-primary/10" : "border-border bg-background"
+                      )}
+                    >
+                      <span className="text-sm font-medium">
+                        {TASK_LABEL[t]}
+                      </span>
+                      <span className="text-sm font-semibold">₹{taskPrice(t)}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="mt-2 text-xs text-muted-foreground">
+                Tip: You can unselect one task if you only need that service. At least one task must remain selected.
+              </p>
+            </div>
+          )}
+
           {/* Price Display */}
-          {((service_type === 'cook' && foodPreference) || (service_type !== 'cook' && selectedFlatSize)) && (
-            <Card className="bg-[#ffe4f2] border-[#ff007a]/20 rounded-2xl">
+          {((service_type === 'cook' && foodPreference) || (service_type === 'maid' && selectedFlatSize && selectedTasks.length > 0) || (service_type !== 'cook' && service_type !== 'maid' && selectedFlatSize)) && (
+            <Card className="bg-primary/5 border-primary/20 rounded-2xl">
               <CardContent className="p-6">
                 <div className="text-center">
-                  {loadingPricing ? (
+                  {loadingPricing && service_type !== 'cook' && service_type !== 'maid' ? (
                     <Skeleton className="h-8 w-32 mx-auto rounded-lg" />
                   ) : (
-                    <span className="text-3xl font-bold text-[#ff007a]">
-                      Price: ₹{currentPrice}
-                    </span>
+                    <>
+                      <span className="text-3xl font-bold text-primary">
+                        Price: ₹{currentPrice}
+                      </span>
+                      {service_type === 'maid' && selectedFlatSize && (
+                        <div className="mt-1 text-xs text-muted-foreground">
+                          Includes selected tasks • Flat size: {selectedFlatSize}
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               </CardContent>
@@ -407,6 +542,17 @@ export function BookingForm() {
                   }
                   const price = calculateCookPrice(familyCount, foodPreference);
                   navigate(`/book/${service_type}/schedule?family=${familyCount}&food=${foodPreference}&price=${price}`);
+                } else if (service_type === 'maid') {
+                  if (!selectedFlatSize || selectedTasks.length === 0) {
+                    toast({
+                      title: "Please complete maid booking details",
+                      description: "Select flat size and at least one task before scheduling.",
+                      variant: "destructive"
+                    });
+                    return;
+                  }
+                  const price = totalPrice;
+                  navigate(`/book/${service_type}/schedule?flat=${selectedFlatSize}&tasks=${selectedTasks.join(',')}&price=${price}`);
                 } else {
                   if (!selectedFlatSize) {
                     toast({
@@ -420,7 +566,7 @@ export function BookingForm() {
                   navigate(`/book/${service_type}/schedule?flat=${selectedFlatSize}&price=${price}`);
                 }
               }} 
-              disabled={service_type === 'cook' ? !foodPreference : !selectedFlatSize} 
+              disabled={service_type === 'cook' ? !foodPreference : service_type === 'maid' ? (!selectedFlatSize || selectedTasks.length === 0) : !selectedFlatSize} 
               className="w-full h-14 rounded-full font-semibold text-lg bg-pink-500 hover:bg-pink-600 text-white border-0"
             >
               <span>Prebook Now</span>

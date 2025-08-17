@@ -110,6 +110,7 @@ export type Database = {
           flat_size: string | null
           food_pref: string | null
           id: string
+          maid_tasks: Database["public"]["Enums"]["maid_task"][] | null
           notes: string | null
           price_inr: number | null
           scheduled_date: string | null
@@ -131,6 +132,7 @@ export type Database = {
           flat_size?: string | null
           food_pref?: string | null
           id?: string
+          maid_tasks?: Database["public"]["Enums"]["maid_task"][] | null
           notes?: string | null
           price_inr?: number | null
           scheduled_date?: string | null
@@ -152,6 +154,7 @@ export type Database = {
           flat_size?: string | null
           food_pref?: string | null
           id?: string
+          maid_tasks?: Database["public"]["Enums"]["maid_task"][] | null
           notes?: string | null
           price_inr?: number | null
           scheduled_date?: string | null
@@ -160,6 +163,39 @@ export type Database = {
           status?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      maid_pricing_tasks: {
+        Row: {
+          active: boolean
+          community: string | null
+          created_at: string
+          flat_size: string
+          id: number
+          price_inr: number
+          task: Database["public"]["Enums"]["maid_task"]
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          community?: string | null
+          created_at?: string
+          flat_size: string
+          id?: never
+          price_inr: number
+          task: Database["public"]["Enums"]["maid_task"]
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          community?: string | null
+          created_at?: string
+          flat_size?: string
+          id?: never
+          price_inr?: number
+          task?: Database["public"]["Enums"]["maid_task"]
+          updated_at?: string
         }
         Relationships: []
       }
@@ -357,6 +393,14 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: boolean
       }
+      maid_total_price: {
+        Args: {
+          p_community?: string
+          p_flat: string
+          p_tasks: Database["public"]["Enums"]["maid_task"][]
+        }
+        Returns: number
+      }
       pending_sla_minutes: {
         Args: Record<PropertyKey, never>
         Returns: number
@@ -371,7 +415,7 @@ export type Database = {
       }
     }
     Enums: {
-      [_ in never]: never
+      maid_task: "floor_cleaning" | "dish_washing"
     }
     CompositeTypes: {
       http_header: {
@@ -514,6 +558,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      maid_task: ["floor_cleaning", "dish_washing"],
+    },
   },
 } as const

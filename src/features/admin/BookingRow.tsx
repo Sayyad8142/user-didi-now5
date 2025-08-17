@@ -99,6 +99,13 @@ export default function BookingRow({
           <div className="text-sm text-gray-700 mt-1">
             {b.community} • {b.flat_no}
           </div>
+          {b.service_type === 'maid' && b.maid_tasks?.length && (
+            <div className="text-xs text-gray-500 mt-1">
+              Tasks: {b.maid_tasks.map((t: string) => 
+                t === 'floor_cleaning' ? 'Floor' : 'Dish'
+              ).join(' + ')}
+            </div>
+          )}
           <div className="text-xs text-gray-500 flex items-center gap-2 mt-1">
             <Phone className="h-3.5 w-3.5"/> {b.cust_name} ({b.cust_phone})
             <div className="ml-auto">
