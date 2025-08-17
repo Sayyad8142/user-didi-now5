@@ -437,7 +437,7 @@ export function BookingForm() {
 
           {/* Price Display */}
           {(service_type === 'cook' && foodPreference || service_type === 'maid' && selectedFlatSize && selectedTasks.length > 0 || service_type !== 'cook' && service_type !== 'maid' && selectedFlatSize) && <Card className="bg-primary/5 border-primary/20 rounded-2xl">
-              <CardContent className="p-6 py-[5px] px-[24px]">
+              <CardContent className="p-6 py-[5px] px-[24px] bg-stone-50">
                 <div className="text-center px-0">
                   {loadingPricing && service_type !== 'cook' && service_type !== 'maid' ? <Skeleton className="h-8 w-32 mx-auto rounded-lg" /> : <>
                       <span className="text-3xl font-bold text-primary">
