@@ -442,8 +442,8 @@ export function BookingForm() {
               </h2>
               
               {/* quick chips 1..5 */}
-              <div className="grid grid-cols-3 gap-3 mb-3">
-                {[1,2,3,4,5].map(n => (
+              <div className="grid grid-cols-2 gap-3 mb-3">
+                {[1,2,3,4].map(n => (
                   <Button
                     key={n}
                     variant="outline"
