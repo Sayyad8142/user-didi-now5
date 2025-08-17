@@ -6,11 +6,12 @@ import { useBookingsRealtime } from "@/features/admin/useRealtime";
 import QuickStats from "@/features/admin/QuickStats";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Bell, BellOff } from "lucide-react";
+import { Search, Bell, BellOff, Settings } from "lucide-react";
 import { useNewBookingAlert } from "@/features/admin/useNewBookingAlert";
 import { AdminBottomNav } from "@/components/AdminBottomNav";
 import { useSLASettings } from "@/features/admin/useSLASettings";
 import { useOverdueAlert } from "@/features/admin/useOverdueAlert";
+import { Link } from "react-router-dom";
 
 export default function AdminLayout() {
   const [rows,setRows] = useState<any[]>([]);
@@ -89,6 +90,15 @@ export default function AdminLayout() {
           </div>
 
           <div className="flex gap-2">
+            <Link
+              to="/admin/pricing"
+              className="h-9 px-3 rounded-full border border-gray-300 text-gray-700 hover:border-pink-300 hover:text-[#ff007a] hover:bg-pink-50 text-sm inline-flex items-center gap-2 transition-colors"
+              title="Pricing Settings"
+            >
+              <Settings className="h-4 w-4" />
+              <span className="hidden sm:inline">Pricing</span>
+            </Link>
+            
             <button
               onClick={toggleSound}
               className={`h-9 px-3 rounded-full border text-sm inline-flex items-center gap-2 ${soundOn ? "border-pink-300 text-[#ff007a] bg-pink-50" : "border-gray-300 text-gray-700"}`}

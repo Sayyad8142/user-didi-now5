@@ -166,10 +166,34 @@ export type Database = {
         }
         Relationships: []
       }
+      cook_pricing_settings: {
+        Row: {
+          base_price_inr: number
+          community: string
+          non_veg_extra_inr: number
+          per_extra_person_inr: number
+          updated_at: string
+        }
+        Insert: {
+          base_price_inr?: number
+          community?: string
+          non_veg_extra_inr?: number
+          per_extra_person_inr?: number
+          updated_at?: string
+        }
+        Update: {
+          base_price_inr?: number
+          community?: string
+          non_veg_extra_inr?: number
+          per_extra_person_inr?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       maid_pricing_tasks: {
         Row: {
           active: boolean
-          community: string | null
+          community: string
           created_at: string
           flat_size: string
           id: number
@@ -179,7 +203,7 @@ export type Database = {
         }
         Insert: {
           active?: boolean
-          community?: string | null
+          community?: string
           created_at?: string
           flat_size: string
           id?: never
@@ -189,7 +213,7 @@ export type Database = {
         }
         Update: {
           active?: boolean
-          community?: string | null
+          community?: string
           created_at?: string
           flat_size?: string
           id?: never
