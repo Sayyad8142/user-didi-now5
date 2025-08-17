@@ -33,10 +33,11 @@ export default function BookingRow({ b, onClick, onInteracted }:{ b:any; onClick
     if (saving) return;
     setSaving(true);
     try {
-      const { error } = await supabase
-        .from("bookings")
-        .update({ status: "assigned", confirmed_at: new Date().toISOString() })
-        .eq("id", b.id);
+      const { error } = await supabase.rpc("admin_set_booking_status", {
+        p_booking_id: b.id,
+        p_new_status: "assigned",
+        p_note: "Confirmed by admin"
+      });
       if (error) throw error;
       toast({ title: "Booking confirmed successfully" });
     } catch (err:any) {

@@ -9,6 +9,7 @@ import { useAuth } from '@/components/auth/AuthProvider';
 import { BookingCard } from './BookingCard';
 import { EmptyState } from './EmptyState';
 import { useMyBookingsRealtime } from './useMyBookingsRealtime';
+import { useBookingStatusToasts } from './useBookingStatusToasts';
 interface Booking {
   id: string;
   service_type: string;
@@ -28,6 +29,9 @@ export function BookingsScreen() {
   
   // Enable live updates for user bookings
   useMyBookingsRealtime();
+  
+  // Enable toast notifications for booking status changes
+  useBookingStatusToasts();
   const [upcomingBookings, setUpcomingBookings] = useState<Booking[]>([]);
   const [historyBookings, setHistoryBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);

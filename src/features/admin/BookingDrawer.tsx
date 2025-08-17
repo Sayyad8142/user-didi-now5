@@ -1,8 +1,9 @@
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { PhoneCall, UserPlus, CheckCircle } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { PhoneCall, UserPlus, CheckCircle, XCircle } from "lucide-react";
 import { prettyService } from "./BookingRow";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -22,7 +23,10 @@ type Worker = {
 
 export default function BookingDrawer({open,onOpenChange,booking}:{open:boolean; onOpenChange:(v:boolean)=>void; booking:any}) {
   const [assignModalOpen, setAssignModalOpen] = useState(false);
+  const [cancelModalOpen, setCancelModalOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
   const [isMarkingComplete, setIsMarkingComplete] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
   const [latestAssignment, setLatestAssignment] = useState<any>(null);
   const { toast } = useToast();
   const { stopSound } = useNewBookingAlert();
@@ -85,23 +89,52 @@ export default function BookingDrawer({open,onOpenChange,booking}:{open:boolean;
   };
 
   const handleMarkComplete = async () => {
+    if (!booking?.id || isMarkingComplete) return;
+    
     setIsMarkingComplete(true);
     try {
-      const { error } = await supabase
-        .from('bookings')
-        .update({ status: 'completed' })
-        .eq('id', booking.id);
+      const { error } = await supabase.rpc("admin_set_booking_status", {
+        p_booking_id: booking.id,
+        p_new_status: "completed",
+        p_note: "Marked completed by admin"
+      });
 
       if (error) throw error;
 
       toast({ title: "Booking marked as completed!" });
       stopSound(); // Stop any playing notification sound
       onOpenChange(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error marking complete:', error);
-      toast({ title: "Failed to mark as completed", variant: "destructive" });
+      toast({ title: "Failed to mark as completed", description: error.message, variant: "destructive" });
     } finally {
       setIsMarkingComplete(false);
+    }
+  };
+
+  const handleCancelBooking = async () => {
+    if (!booking?.id || isCancelling) return;
+    
+    setIsCancelling(true);
+    try {
+      const { error } = await supabase.rpc("admin_set_booking_status", {
+        p_booking_id: booking.id,
+        p_new_status: "cancelled",
+        p_note: cancelReason || "Cancelled by admin"
+      });
+
+      if (error) throw error;
+
+      toast({ title: "Booking cancelled successfully!" });
+      stopSound(); // Stop any playing notification sound
+      setCancelModalOpen(false);
+      setCancelReason("");
+      onOpenChange(false);
+    } catch (error: any) {
+      console.error('Error cancelling booking:', error);
+      toast({ title: "Failed to cancel booking", description: error.message, variant: "destructive" });
+    } finally {
+      setIsCancelling(false);
     }
   };
 
@@ -155,16 +188,24 @@ export default function BookingDrawer({open,onOpenChange,booking}:{open:boolean;
           </div>
 
           {/* Primary Actions */}
-          <div className="grid grid-cols-1 gap-3 pt-2">
-
+          <div className="grid grid-cols-2 gap-3 pt-2">
             <Button 
               onClick={handleMarkComplete}
               disabled={booking.status === 'completed' || isMarkingComplete}
-              variant="outline"
               className="h-11 rounded-full"
             >
               <CheckCircle className="h-4 w-4 mr-2" />
               {isMarkingComplete ? 'Completing...' : 'Mark Complete'}
+            </Button>
+
+            <Button 
+              onClick={() => setCancelModalOpen(true)}
+              disabled={booking.status === 'completed' || booking.status === 'cancelled'}
+              variant="destructive"
+              className="h-11 rounded-full"
+            >
+              <XCircle className="h-4 w-4 mr-2" />
+              Cancel Booking
             </Button>
           </div>
 
@@ -193,6 +234,37 @@ export default function BookingDrawer({open,onOpenChange,booking}:{open:boolean;
         booking={booking}
         onAssigned={handleAssignmentComplete}
       />
+
+      {/* Cancel Booking Modal */}
+      <Dialog open={cancelModalOpen} onOpenChange={setCancelModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Cancel Booking</DialogTitle>
+            <DialogDescription>
+              Add an optional reason for cancellation (visible in admin history)
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Input
+              placeholder="Reason for cancellation (optional)"
+              value={cancelReason}
+              onChange={(e) => setCancelReason(e.target.value)}
+            />
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" onClick={() => setCancelModalOpen(false)}>
+                Close
+              </Button>
+              <Button 
+                variant="destructive" 
+                onClick={handleCancelBooking} 
+                disabled={isCancelling}
+              >
+                {isCancelling ? 'Cancelling...' : 'Confirm Cancel'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Sheet>
   );
 }
