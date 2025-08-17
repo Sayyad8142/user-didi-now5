@@ -449,63 +449,91 @@ export function BookingForm() {
             </Card>}
 
           {/* Action Buttons */}
-          <div className="space-y-4 mt-8">
-            <Button onClick={handleBookNow} disabled={!canBook} className="w-full h-14 rounded-full font-semibold text-lg bg-pink-500 hover:bg-pink-600 text-white border-0">
-              {submitting ? <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                  <span>Booking...</span>
-                </div> : "Book Now - Instant Service"}
-            </Button>
+          <div className="space-y-6 mt-8">
+            {/* Instant Service Button */}
+            <div className="relative">
+              <Button 
+                onClick={handleBookNow} 
+                disabled={!canBook} 
+                className="w-full h-16 rounded-2xl font-bold text-lg bg-gradient-to-r from-pink-600 to-pink-500 hover:from-pink-700 hover:to-pink-600 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02] disabled:transform-none disabled:shadow-md"
+              >
+                {submitting ? (
+                  <div className="flex items-center gap-3">
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <span className="text-lg">Processing...</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-3">
+                    <Clock className="w-5 h-5" />
+                    <span>Book Now - Instant Service</span>
+                  </div>
+                )}
+              </Button>
+              {!canBook && (
+                <div className="absolute inset-0 bg-black/5 rounded-2xl pointer-events-none" />
+              )}
+            </div>
 
             {/* Schedule Later Card */}
-            <Card className="bg-background border border-border rounded-2xl">
-              <CardContent className="p-6">
+            <Card className="bg-gradient-to-br from-slate-50 to-white border-2 border-slate-200/60 rounded-3xl shadow-sm hover:shadow-md transition-all duration-300">
+              <CardContent className="p-8">
                 <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-lg font-semibold text-foreground">
-                    Schedule your slot for later
-                  </h3>
-                  <Calendar className="w-6 h-6 text-pink-500" />
+                  <div>
+                    <h3 className="text-xl font-bold text-slate-800 mb-1">
+                      Schedule Later
+                    </h3>
+                    <p className="text-slate-600 text-sm">
+                      Choose your preferred time slot
+                    </p>
+                  </div>
+                  <div className="bg-pink-100 p-3 rounded-full">
+                    <Calendar className="w-6 h-6 text-pink-600" />
+                  </div>
                 </div>
                 
-            <Button onClick={() => {
-                if (service_type === 'cook') {
-                  if (!foodPreference) {
-                    toast({
-                      title: "Please select food preference first",
-                      description: "Choose vegetarian or non-vegetarian option.",
-                      variant: "destructive"
-                    });
-                    return;
-                  }
-                  const price = calculateCookPrice(familyCount, foodPreference);
-                  navigate(`/book/${service_type}/schedule?family=${familyCount}&food=${foodPreference}&price=${price}`);
-                } else if (service_type === 'maid') {
-                  if (!selectedFlatSize || selectedTasks.length === 0) {
-                    toast({
-                      title: "Please complete maid booking details",
-                      description: "Select flat size and at least one task before scheduling.",
-                      variant: "destructive"
-                    });
-                    return;
-                  }
-                  const price = totalPrice;
-                  navigate(`/book/${service_type}/schedule?flat=${selectedFlatSize}&tasks=${selectedTasks.join(',')}&price=${price}`);
-                } else {
-                  if (!selectedFlatSize) {
-                    toast({
-                      title: "Please select flat size first",
-                      description: "Choose a flat size before scheduling.",
-                      variant: "destructive"
-                    });
-                    return;
-                  }
-                  const price = pricingMap[selectedFlatSize];
-                  navigate(`/book/${service_type}/schedule?flat=${selectedFlatSize}&price=${price}`);
-                }
-              }} disabled={service_type === 'cook' ? !foodPreference : service_type === 'maid' ? !selectedFlatSize || selectedTasks.length === 0 : !selectedFlatSize} className="w-full h-14 rounded-full font-semibold text-lg bg-pink-500 hover:bg-pink-600 text-white border-0">
-              <span>Prebook Now</span>
-              <ArrowLeft className="w-5 h-5 ml-2 rotate-180" />
-            </Button>
+                <Button 
+                  onClick={() => {
+                    if (service_type === 'cook') {
+                      if (!foodPreference) {
+                        toast({
+                          title: "Please select food preference first",
+                          description: "Choose vegetarian or non-vegetarian option.",
+                          variant: "destructive"
+                        });
+                        return;
+                      }
+                      const price = calculateCookPrice(familyCount, foodPreference);
+                      navigate(`/book/${service_type}/schedule?family=${familyCount}&food=${foodPreference}&price=${price}`);
+                    } else if (service_type === 'maid') {
+                      if (!selectedFlatSize || selectedTasks.length === 0) {
+                        toast({
+                          title: "Please complete maid booking details",
+                          description: "Select flat size and at least one task before scheduling.",
+                          variant: "destructive"
+                        });
+                        return;
+                      }
+                      const price = totalPrice;
+                      navigate(`/book/${service_type}/schedule?flat=${selectedFlatSize}&tasks=${selectedTasks.join(',')}&price=${price}`);
+                    } else {
+                      if (!selectedFlatSize) {
+                        toast({
+                          title: "Please select flat size first",
+                          description: "Choose a flat size before scheduling.",
+                          variant: "destructive"
+                        });
+                        return;
+                      }
+                      const price = pricingMap[selectedFlatSize];
+                      navigate(`/book/${service_type}/schedule?flat=${selectedFlatSize}&price=${price}`);
+                    }
+                  }} 
+                  disabled={service_type === 'cook' ? !foodPreference : service_type === 'maid' ? !selectedFlatSize || selectedTasks.length === 0 : !selectedFlatSize} 
+                  className="w-full h-14 rounded-2xl font-semibold text-lg bg-white hover:bg-slate-50 text-slate-800 border-2 border-slate-300 hover:border-pink-400 shadow-sm hover:shadow-md transition-all duration-300 disabled:bg-slate-100 disabled:text-slate-500 disabled:border-slate-200"
+                >
+                  <span>Schedule Booking</span>
+                  <ArrowLeft className="w-5 h-5 ml-3 rotate-180" />
+                </Button>
               </CardContent>
             </Card>
           </div>
