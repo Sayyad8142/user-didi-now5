@@ -103,8 +103,7 @@ export function BookingForm() {
 
   // Helper functions for maid pricing
   const taskPrice = (t: MaidTask) => taskPrices?.get(t) ?? FALLBACK_PRICES[selectedFlatSize || "2BHK"];
-  const totalPrice = service_type === 'maid' && selectedTasks.length > 0 ? 
-    selectedTasks.reduce((sum, task) => sum + taskPrice(task), 0) : 0;
+  const totalPrice = service_type === 'maid' && selectedTasks.length > 0 ? selectedTasks.reduce((sum, task) => sum + taskPrice(task), 0) : 0;
   useEffect(() => {
     if (!user) {
       navigate('/auth');
@@ -438,15 +437,13 @@ export function BookingForm() {
 
           {/* Price Display */}
           {(service_type === 'cook' && foodPreference || service_type === 'maid' && selectedFlatSize && selectedTasks.length > 0 || service_type !== 'cook' && service_type !== 'maid' && selectedFlatSize) && <Card className="bg-primary/5 border-primary/20 rounded-2xl">
-              <CardContent className="p-6">
-                <div className="text-center">
+              <CardContent className="p-6 py-[5px] px-[24px]">
+                <div className="text-center px-0">
                   {loadingPricing && service_type !== 'cook' && service_type !== 'maid' ? <Skeleton className="h-8 w-32 mx-auto rounded-lg" /> : <>
                       <span className="text-3xl font-bold text-primary">
                         Price: ₹{currentPrice}
                       </span>
-                      {service_type === 'maid' && selectedFlatSize && <div className="mt-1 text-xs text-muted-foreground">
-                          Includes selected tasks • Flat size: {selectedFlatSize}
-                        </div>}
+                      {service_type === 'maid' && selectedFlatSize}
                     </>}
                 </div>
               </CardContent>
