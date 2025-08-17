@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useNewBookingAlert } from "./useNewBookingAlert";
 import { HistoryList } from "./HistoryList";
+import { AssignWorkerModal } from "./AssignWorkerModal";
 import { useState, useEffect } from "react";
 
 type Worker = {
@@ -20,79 +21,67 @@ type Worker = {
 };
 
 export default function BookingDrawer({open,onOpenChange,booking}:{open:boolean; onOpenChange:(v:boolean)=>void; booking:any}) {
-  const [workers, setWorkers] = useState<Worker[]>([]);
-  const [selectedWorker, setSelectedWorker] = useState<string>('');
   const [assignModalOpen, setAssignModalOpen] = useState(false);
-  const [isAssigning, setIsAssigning] = useState(false);
   const [isMarkingComplete, setIsMarkingComplete] = useState(false);
+  const [latestAssignment, setLatestAssignment] = useState<any>(null);
   const { toast } = useToast();
   const { stopSound } = useNewBookingAlert();
 
-  // Load available workers
+  // Load latest assignment when booking changes
   useEffect(() => {
-    if (open && booking?.service_type) {
-      loadWorkers();
-    }
-  }, [open, booking?.service_type]);
-
-  const loadWorkers = async () => {
-    const { data, error } = await supabase
-      .from('workers')
-      .select('*')
-      .eq('is_active', true)
-      .filter('service_types', 'cs', `{${booking.service_type}}`)
-      .order('full_name');
+    let active = true;
     
-    if (error) {
-      console.error('Error loading workers:', error);
-      return;
-    }
-    setWorkers(data || []);
-  };
+    const loadLatestAssignment = async () => {
+      if (!booking?.id) {
+        setLatestAssignment(null);
+        return;
+      }
+      
+      try {
+        const { data, error } = await supabase
+          .from("assignments")
+          .select(`
+            id,
+            status,
+            created_at,
+            worker:workers(id, full_name, phone, community)
+          `)
+          .eq("booking_id", booking.id)
+          .order("created_at", { ascending: false })
+          .limit(1);
+          
+        if (!active) return;
+        
+        if (error) {
+          console.error("Error loading assignment:", error);
+          return;
+        }
+        
+        setLatestAssignment(data?.[0] ?? null);
+      } catch (err) {
+        console.error("Error in loadLatestAssignment:", err);
+      }
+    };
+    
+    loadLatestAssignment();
+    
+    return () => {
+      active = false;
+    };
+  }, [booking?.id]);
 
   if (!booking) return null;
   
   const when = booking.booking_type==='instant'
     ? 'Instant (arrive ~10 mins)'
     : `${booking.scheduled_date ?? ''} ${booking.scheduled_time?.slice(0,5) ?? ''}`.trim();
-  const handleAssignWorker = async () => {
-    if (!selectedWorker) {
-      toast({ title: "Please select a worker", variant: "destructive" });
-      return;
-    }
-
-    setIsAssigning(true);
-    try {
-      // Insert assignment
-      const { error: assignError } = await supabase
-        .from('assignments')
-        .insert({
-          booking_id: booking.id,
-          worker_id: selectedWorker,
-          status: 'assigned'
-        });
-
-      if (assignError) throw assignError;
-
-      // Update booking status
-      const { error: bookingError } = await supabase
-        .from('bookings')
-        .update({ status: 'assigned' })
-        .eq('id', booking.id);
-
-      if (bookingError) throw bookingError;
-
-      toast({ title: "Worker assigned successfully!" });
-      stopSound(); // Stop any playing notification sound
-      setAssignModalOpen(false);
-      setSelectedWorker('');
-      onOpenChange(false);
-    } catch (error) {
-      console.error('Error assigning worker:', error);
-      toast({ title: "Failed to assign worker", variant: "destructive" });
-    } finally {
-      setIsAssigning(false);
-    }
+  const handleAssignmentComplete = (payload: { worker: any }) => {
+    setLatestAssignment({
+      worker: payload.worker,
+      created_at: new Date().toISOString(),
+      status: "assigned"
+    });
+    stopSound(); // Stop any playing notification sound
   };
 
   const handleMarkComplete = async () => {
@@ -134,53 +123,39 @@ export default function BookingDrawer({open,onOpenChange,booking}:{open:boolean;
           <div className="text-sm">Price: ₹{booking.price_inr ?? '-'}</div>
           <div className="text-sm">Status: <b className="capitalize">{booking.status}</b></div>
 
-          {/* Primary Actions */}
-          <div className="grid grid-cols-2 gap-3 pt-2">
-            <Dialog open={assignModalOpen} onOpenChange={setAssignModalOpen}>
-              <DialogTrigger asChild>
-                <Button 
-                  className="h-11 rounded-full" 
-                  disabled={booking.status === 'assigned' || booking.status === 'completed'}
-                >
-                  <UserPlus className="h-4 w-4 mr-2" />
-                  Assign Worker
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-md">
-                <DialogHeader>
-                  <DialogTitle>Assign Worker</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <div>
-                    <label className="text-sm font-medium">Select Worker</label>
-                    <Select value={selectedWorker} onValueChange={setSelectedWorker}>
-                      <SelectTrigger className="mt-2">
-                        <SelectValue placeholder="Choose a worker..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {workers.map((worker) => (
-                          <SelectItem key={worker.id} value={worker.id}>
-                            {worker.full_name} ({worker.phone})
-                            {worker.community && ` • ${worker.community}`}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="flex gap-2 justify-end">
-                    <Button variant="outline" onClick={() => setAssignModalOpen(false)}>
-                      Cancel
-                    </Button>
-                    <Button 
-                      onClick={handleAssignWorker}
-                      disabled={isAssigning || !selectedWorker}
-                    >
-                      {isAssigning ? 'Assigning...' : 'Assign'}
-                    </Button>
+          {/* Assignment Section */}
+          <div className="bg-muted/30 rounded-2xl p-4 space-y-3">
+            <div className="text-sm font-semibold">Worker Assignment</div>
+            {latestAssignment ? (
+              <div className="space-y-2">
+                <div className="text-sm">
+                  <span className="text-muted-foreground">Assigned to:</span>
+                  <div className="font-medium">{latestAssignment.worker?.full_name}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {latestAssignment.worker?.phone}
+                    {latestAssignment.worker?.community && ` • ${latestAssignment.worker.community}`}
                   </div>
                 </div>
-              </DialogContent>
-            </Dialog>
+                <div className="text-xs text-muted-foreground">
+                  Assigned: {new Date(latestAssignment.created_at).toLocaleString()}
+                </div>
+              </div>
+            ) : (
+              <div className="text-sm text-muted-foreground">No worker assigned yet</div>
+            )}
+            <Button
+              onClick={() => setAssignModalOpen(true)}
+              variant="outline"
+              size="sm"
+              className="w-full"
+            >
+              <UserPlus className="h-4 w-4 mr-2" />
+              {latestAssignment ? "Reassign Worker" : "Assign Worker"}
+            </Button>
+          </div>
+
+          {/* Primary Actions */}
+          <div className="grid grid-cols-1 gap-3 pt-2">
 
             <Button 
               onClick={handleMarkComplete}
@@ -210,6 +185,14 @@ export default function BookingDrawer({open,onOpenChange,booking}:{open:boolean;
           </div>
         </div>
       </SheetContent>
+
+      {/* Assign Worker Modal */}
+      <AssignWorkerModal
+        open={assignModalOpen}
+        onOpenChange={setAssignModalOpen}
+        booking={booking}
+        onAssigned={handleAssignmentComplete}
+      />
     </Sheet>
   );
 }

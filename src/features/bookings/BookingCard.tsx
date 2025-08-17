@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { prettyServiceName } from '@/features/booking/utils';
 import { formatDateTime } from '@/features/bookings/dt';
 import { format } from 'date-fns';
-import { PhoneCall, Sparkles, ChefHat, ShowerHead, Clock } from 'lucide-react';
+import { PhoneCall, Sparkles, ChefHat, ShowerHead, Clock, User } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 interface Booking {
   id: string;
   service_type: string;
@@ -34,6 +35,49 @@ const getServiceIcon = (serviceType: string) => {
 export function BookingCard({
   booking
 }: BookingCardProps) {
+  const [assignedWorker, setAssignedWorker] = useState<any>(null);
+  const [loadingWorker, setLoadingWorker] = useState(true);
+  
+  // Load assigned worker
+  useEffect(() => {
+    let active = true;
+    
+    const loadAssignedWorker = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("assignments")
+          .select(`
+            id,
+            status,
+            created_at,
+            worker:workers(id, full_name, phone)
+          `)
+          .eq("booking_id", booking.id)
+          .order("created_at", { ascending: false })
+          .limit(1);
+          
+        if (!active) return;
+        
+        if (error) {
+          console.error("Error loading assigned worker:", error);
+          return;
+        }
+        
+        setAssignedWorker(data?.[0] ?? null);
+      } catch (err) {
+        console.error("Error in loadAssignedWorker:", err);
+      } finally {
+        if (active) setLoadingWorker(false);
+      }
+    };
+    
+    loadAssignedWorker();
+    
+    return () => {
+      active = false;
+    };
+  }, [booking.id]);
+  
   const title = prettyServiceName(booking.service_type);
   return <Card className="bg-white/95 backdrop-blur-sm rounded-3xl shadow-xl border-0 p-6 space-y-4 hover:shadow-2xl transition-all duration-300 relative overflow-hidden">
       {/* Subtle gradient background */}
@@ -82,7 +126,7 @@ export function BookingCard({
       </div>
 
       {/* Status Message */}
-      <div className="relative">
+      <div className="relative space-y-3">
         {booking.status === "assigned" ? (
           <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-100 rounded-2xl px-4 py-3">
             <p className="text-sm font-medium text-emerald-800 text-center">
@@ -106,6 +150,18 @@ export function BookingCard({
             <p className="text-sm font-medium text-gray-800 text-center">
               Status: {booking.status}
             </p>
+          </div>
+        )}
+
+        {/* Assigned Worker Info */}
+        {!loadingWorker && assignedWorker?.worker && (
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-2xl px-4 py-3">
+            <div className="flex items-center justify-center gap-2">
+              <User className="h-4 w-4 text-blue-600" />
+              <p className="text-sm font-medium text-blue-800">
+                Assigned to <span className="font-bold">{assignedWorker.worker.full_name}</span>
+              </p>
+            </div>
           </div>
         )}
       </div>
