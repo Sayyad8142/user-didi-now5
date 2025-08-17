@@ -19,8 +19,6 @@ import { AdminGate } from "./features/admin/AdminGate";
 import AdminLayout from "./routes/admin/AdminLayout";
 import AdminLogin from "./routes/auth/AdminLogin";
 import AdminVerify from "./routes/auth/AdminVerify";
-import AdminEmailLogin from "./routes/admin/AdminEmailLogin";
-import AdminEmailVerify from "./routes/admin/AdminEmailVerify";
 
 const queryClient = new QueryClient();
 
@@ -44,8 +42,6 @@ const App = () => (
             <Route path="/auth/verify" element={<VerifyOTP />} />
             <Route path="/admin-login" element={<AdminLogin />} />
             <Route path="/admin-verify" element={<AdminVerify />} />
-            <Route path="/admin-login-email" element={<AdminEmailLogin />} />
-            <Route path="/admin-email-verify" element={<AdminEmailVerify />} />
             <Route 
               path="/home" 
               element={

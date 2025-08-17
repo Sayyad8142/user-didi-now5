@@ -95,15 +95,6 @@ export default function AdminLogin() {
             >
               Back to User Login
             </Button>
-            
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => nav("/admin-login-email")}
-              className="w-full h-11 rounded-full text-primary hover:bg-primary/10"
-            >
-              Use Email OTP Instead
-            </Button>
           </form>
         </CardContent>
       </Card>
