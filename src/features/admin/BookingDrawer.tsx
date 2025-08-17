@@ -7,6 +7,7 @@ import { prettyService } from "./BookingRow";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useNewBookingAlert } from "./useNewBookingAlert";
+import { HistoryList } from "./HistoryList";
 import { useState, useEffect } from "react";
 
 type Worker = {
@@ -200,6 +201,12 @@ export default function BookingDrawer({open,onOpenChange,booking}:{open:boolean;
             <a href="tel:+918008180018" className="inline-flex items-center justify-center h-11 w-full rounded-full bg-pink-600 text-white">
               Call Support (8008180018)
             </a>
+          </div>
+
+          {/* Status History */}
+          <div className="border-t pt-3 mt-4">
+            <div className="text-sm font-semibold mb-3">Status History</div>
+            <HistoryList bookingId={booking.id} />
           </div>
         </div>
       </SheetContent>
