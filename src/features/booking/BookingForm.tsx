@@ -398,7 +398,7 @@ export function BookingForm() {
           {/* Maid Task Selection - Modern Checkbox UI */}
           {service_type === 'maid' && selectedFlatSize && <div className="mt-6">
               <h2 className="text-lg font-semibold text-foreground mb-4">
-                Select Services <span className="text-destructive">*</span>
+                Selected services <span className="text-destructive">*</span>
               </h2>
               <div className="space-y-2">
                 {(["floor_cleaning", "dish_washing"] as MaidTask[]).map(t => {
