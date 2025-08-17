@@ -30,7 +30,6 @@ export function HomeScreen() {
           >
             <Phone className="w-5 h-5" />
             <span className="font-semibold">Contact Manager</span>
-            <span className="text-sm opacity-90">8008180018</span>
           </Button>
         </div>
       </div>
