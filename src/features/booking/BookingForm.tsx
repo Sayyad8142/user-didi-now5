@@ -55,7 +55,7 @@ export function BookingForm() {
   const [foodPreference, setFoodPreference] = useState<'veg' | 'non_veg' | null>(null);
 
   // Maid service specific state
-  const [selectedTasks, setSelectedTasks] = useState<MaidTask>("floor_cleaning"); // Single task selection with radio
+  const [selectedTasks, setSelectedTasks] = useState<MaidTask[]>(["floor_cleaning", "dish_washing"]); // Multiple task selection with checkboxes
 
   // Fetch maid task prices
   const {
@@ -103,7 +103,8 @@ export function BookingForm() {
 
   // Helper functions for maid pricing
   const taskPrice = (t: MaidTask) => taskPrices?.get(t) ?? FALLBACK_PRICES[selectedFlatSize || "2BHK"];
-  const totalPrice = service_type === 'maid' ? taskPrice(selectedTasks) : 0;
+  const totalPrice = service_type === 'maid' && selectedTasks.length > 0 ? 
+    selectedTasks.reduce((sum, task) => sum + taskPrice(task), 0) : 0;
   useEffect(() => {
     if (!user) {
       navigate('/auth');
@@ -152,10 +153,10 @@ export function BookingForm() {
       const price = calculateCookPrice(familyCount, foodPreference);
       await createBooking('instant', null, null, price);
     } else if (service_type === 'maid') {
-      if (!selectedFlatSize || !selectedTasks) {
+      if (!selectedFlatSize || selectedTasks.length === 0) {
         toast({
           title: "Please complete maid booking details",
-          description: "Select flat size and a task before booking.",
+          description: "Select flat size and at least one task before booking.",
           variant: "destructive"
         });
         return;
@@ -182,7 +183,7 @@ export function BookingForm() {
       const price = calculateCookPrice(familyCount, foodPreference);
       await createBooking('scheduled', date.toISOString().split('T')[0], time, price);
     } else if (service_type === 'maid') {
-      if (!selectedFlatSize || !selectedTasks) return;
+      if (!selectedFlatSize || selectedTasks.length === 0) return;
       await createBooking('scheduled', date.toISOString().split('T')[0], time, totalPrice);
     } else {
       if (!selectedFlatSize) return;
@@ -215,7 +216,7 @@ export function BookingForm() {
         price_inr: price,
         family_count: service_type === 'cook' ? familyCount : null,
         food_pref: service_type === 'cook' ? foodPreference : null,
-        maid_tasks: service_type === 'maid' ? [selectedTasks] : null,
+        maid_tasks: service_type === 'maid' ? selectedTasks : null,
         cust_name: profile.full_name,
         cust_phone: profile.phone,
         community: profile.community,
@@ -265,8 +266,8 @@ export function BookingForm() {
       </div>;
   }
   const ServiceIcon = serviceIcon(service_type);
-  const currentPrice = service_type === 'cook' ? foodPreference ? calculateCookPrice(familyCount, foodPreference) : null : service_type === 'maid' ? selectedFlatSize && selectedTasks ? totalPrice : null : selectedFlatSize ? pricingMap[selectedFlatSize] : null;
-  const canBook = service_type === 'cook' ? foodPreference && !submitting : service_type === 'maid' ? selectedFlatSize && selectedTasks && !submitting : selectedFlatSize && currentPrice && !submitting;
+  const currentPrice = service_type === 'cook' ? foodPreference ? calculateCookPrice(familyCount, foodPreference) : null : service_type === 'maid' ? selectedFlatSize && selectedTasks.length > 0 ? totalPrice : null : selectedFlatSize ? pricingMap[selectedFlatSize] : null;
+  const canBook = service_type === 'cook' ? foodPreference && !submitting : service_type === 'maid' ? selectedFlatSize && selectedTasks.length > 0 && !submitting : selectedFlatSize && currentPrice && !submitting;
   return <div className="min-h-screen bg-background pb-24">
       <div className="max-w-md mx-auto px-4 py-6">
         {/* Header */}
@@ -395,33 +396,40 @@ export function BookingForm() {
               </div>
             </div>}
 
-          {/* Maid Task Selection - Modern Radio Button UI */}
+          {/* Maid Task Selection - Modern Checkbox UI */}
           {service_type === 'maid' && selectedFlatSize && <div className="mt-6">
               <h2 className="text-lg font-semibold text-foreground mb-4">
-                Select Service <span className="text-destructive">*</span>
+                Select Services <span className="text-destructive">*</span>
               </h2>
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {(["floor_cleaning", "dish_washing"] as MaidTask[]).map(t => {
-              const active = selectedTasks === t;
-              return <div key={t} onClick={() => setSelectedTasks(t)} className={cn("relative cursor-pointer rounded-2xl border-2 p-5 transition-all duration-200", active ? "border-primary bg-gradient-to-r from-primary/10 to-primary/5 shadow-lg shadow-primary/20" : "border-border bg-card hover:border-primary/50 hover:shadow-md")}>
+              const isSelected = selectedTasks.includes(t);
+              const toggleTask = () => {
+                if (isSelected) {
+                  // Don't allow unselecting if it's the only task selected
+                  if (selectedTasks.length > 1) {
+                    setSelectedTasks(prev => prev.filter(task => task !== t));
+                  }
+                } else {
+                  setSelectedTasks(prev => [...prev, t]);
+                }
+              };
+              return <div key={t} onClick={toggleTask} className={cn("relative cursor-pointer rounded-xl border-2 p-3 transition-all duration-200", isSelected ? "border-primary bg-gradient-to-r from-primary/10 to-primary/5" : "border-border bg-card hover:border-primary/50")}>
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                          <div className={cn("w-5 h-5 rounded-full border-2 flex items-center justify-center", active ? "border-primary bg-primary" : "border-muted-foreground")}>
-                            {active && <div className="w-2.5 h-2.5 rounded-full bg-primary-foreground" />}
+                        <div className="flex items-center gap-3">
+                          <div className={cn("w-4 h-4 rounded border-2 flex items-center justify-center", isSelected ? "border-primary bg-primary" : "border-muted-foreground")}>
+                            {isSelected && <div className="w-2 h-2 rounded-sm bg-primary-foreground" />}
                           </div>
                           <div>
-                            <h3 className="font-semibold text-foreground">
+                            <h3 className="font-medium text-foreground text-sm">
                               {TASK_LABEL[t]}
                             </h3>
-                            
                           </div>
                         </div>
                         <div className="text-right">
-                          <div className="text-2xl font-bold text-primary">₹{taskPrice(t)}</div>
-                          
+                          <div className="text-lg font-bold text-primary">₹{taskPrice(t)}</div>
                         </div>
                       </div>
-                      {active && <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-primary/5 to-transparent pointer-events-none" />}
                     </div>;
             })}
               </div>
@@ -429,7 +437,7 @@ export function BookingForm() {
             </div>}
 
           {/* Price Display */}
-          {(service_type === 'cook' && foodPreference || service_type === 'maid' && selectedFlatSize && selectedTasks || service_type !== 'cook' && service_type !== 'maid' && selectedFlatSize) && <Card className="bg-primary/5 border-primary/20 rounded-2xl">
+          {(service_type === 'cook' && foodPreference || service_type === 'maid' && selectedFlatSize && selectedTasks.length > 0 || service_type !== 'cook' && service_type !== 'maid' && selectedFlatSize) && <Card className="bg-primary/5 border-primary/20 rounded-2xl">
               <CardContent className="p-6">
                 <div className="text-center">
                   {loadingPricing && service_type !== 'cook' && service_type !== 'maid' ? <Skeleton className="h-8 w-32 mx-auto rounded-lg" /> : <>
@@ -476,16 +484,16 @@ export function BookingForm() {
                   const price = calculateCookPrice(familyCount, foodPreference);
                   navigate(`/book/${service_type}/schedule?family=${familyCount}&food=${foodPreference}&price=${price}`);
                 } else if (service_type === 'maid') {
-                  if (!selectedFlatSize || !selectedTasks) {
+                  if (!selectedFlatSize || selectedTasks.length === 0) {
                     toast({
                       title: "Please complete maid booking details",
-                      description: "Select flat size and a task before scheduling.",
+                      description: "Select flat size and at least one task before scheduling.",
                       variant: "destructive"
                     });
                     return;
                   }
                   const price = totalPrice;
-                  navigate(`/book/${service_type}/schedule?flat=${selectedFlatSize}&tasks=${selectedTasks}&price=${price}`);
+                  navigate(`/book/${service_type}/schedule?flat=${selectedFlatSize}&tasks=${selectedTasks.join(',')}&price=${price}`);
                 } else {
                   if (!selectedFlatSize) {
                     toast({
@@ -498,7 +506,7 @@ export function BookingForm() {
                   const price = pricingMap[selectedFlatSize];
                   navigate(`/book/${service_type}/schedule?flat=${selectedFlatSize}&price=${price}`);
                 }
-              }} disabled={service_type === 'cook' ? !foodPreference : service_type === 'maid' ? !selectedFlatSize || !selectedTasks : !selectedFlatSize} className="w-full h-14 rounded-full font-semibold text-lg bg-pink-500 hover:bg-pink-600 text-white border-0">
+              }} disabled={service_type === 'cook' ? !foodPreference : service_type === 'maid' ? !selectedFlatSize || selectedTasks.length === 0 : !selectedFlatSize} className="w-full h-14 rounded-full font-semibold text-lg bg-pink-500 hover:bg-pink-600 text-white border-0">
               <span>Prebook Now</span>
               <ArrowLeft className="w-5 h-5 ml-2 rotate-180" />
             </Button>
