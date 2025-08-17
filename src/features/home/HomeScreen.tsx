@@ -1,5 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { Phone } from 'lucide-react';
 import { HomeHeader } from './HomeHeader';
 import { HeroCarousel } from './HeroCarousel';
 import { ServicesRow } from './ServicesRow';
@@ -19,6 +21,18 @@ export function HomeScreen() {
         <ServicesRow onServiceSelect={handleServiceSelect} />
         <ServiceHours />
         <FeatureCarousel />
+        
+        {/* Contact Manager Button */}
+        <div className="pt-4">
+          <Button
+            onClick={() => window.open('tel:8008180018')}
+            className="w-full h-12 rounded-full gradient-primary shadow-button transition-spring hover:scale-[1.02] flex items-center justify-center gap-3"
+          >
+            <Phone className="w-5 h-5" />
+            <span className="font-semibold">Contact Manager</span>
+            <span className="text-sm opacity-90">8008180018</span>
+          </Button>
+        </div>
       </div>
     </div>;
 }
