@@ -57,8 +57,8 @@ export function BookingForm() {
   // Maid service specific state
   const [selectedTasks, setSelectedTasks] = useState<MaidTask[]>(["floor_cleaning", "dish_washing"]); // Multiple task selection with checkboxes
 
-  // Bathroom cleaning specific state - defaulted to 1
-  const bathroomCount = 1;
+  // Bathroom cleaning specific state
+  const [bathroomCount, setBathroomCount] = useState(1);
 
   // Fetch maid task prices
   const {
@@ -435,6 +435,51 @@ export function BookingForm() {
               </div>
             </div>}
 
+          {/* Bathroom Count Selector */}
+          {service_type === 'bathroom_cleaning' && <div className="mt-8">
+              <h2 className="text-lg font-semibold text-foreground mb-4">
+                How many bathrooms? <span className="text-destructive">*</span>
+              </h2>
+              
+              {/* quick chips 1..5 */}
+              <div className="grid grid-cols-3 gap-3 mb-3">
+                {[1,2,3,4,5].map(n => (
+                  <Button
+                    key={n}
+                    variant="outline"
+                    onClick={() => setBathroomCount(n)}
+                    className={cn(
+                      "h-12 font-medium rounded-2xl border-2",
+                      bathroomCount === n ? "border-primary bg-primary/5 text-primary" 
+                                          : "border-border bg-background text-foreground hover:border-primary/50"
+                    )}
+                  >
+                    {n} {n === 1 ? "Bathroom" : "Bathrooms"}
+                  </Button>
+                ))}
+              </div>
+
+              {/* stepper */}
+              <div className="flex items-center justify-center gap-4 mt-4">
+                <Button 
+                  variant="outline"
+                  onClick={() => setBathroomCount(c => Math.max(1, c - 1))}
+                  className="w-12 h-12 rounded-xl border-2 border-primary text-primary hover:bg-primary hover:text-primary-foreground"
+                  disabled={bathroomCount <= 1}
+                >
+                  −
+                </Button>
+                <div className="min-w-12 text-center text-2xl font-bold text-foreground">{bathroomCount}</div>
+                <Button 
+                  variant="outline"
+                  onClick={() => setBathroomCount(c => Math.min(10, c + 1))}
+                  className="w-12 h-12 rounded-xl border-2 border-primary text-primary hover:bg-primary hover:text-primary-foreground"
+                >
+                  +
+                </Button>
+              </div>
+            </div>}
+
           {/* Maid Task Selection - Modern Checkbox UI */}
           {service_type === 'maid' && selectedFlatSize && <div className="mt-6">
               <h2 className="text-lg font-semibold text-foreground mb-4">
@@ -483,6 +528,9 @@ export function BookingForm() {
                       <span className="text-3xl font-bold text-primary">
                         Price: ₹{currentPrice}
                       </span>
+                      {service_type === 'bathroom_cleaning' && (
+                        <div className="text-xs text-gray-500 mt-1">Unit: ₹{bathroomUnitPrice ?? 250} × {bathroomCount}</div>
+                      )}
                     </>}
                 </div>
               </CardContent>
