@@ -425,9 +425,7 @@ export function BookingForm() {
                     </div>;
             })}
               </div>
-              <p className="mt-3 text-sm text-muted-foreground">
-                💡 Choose the service you need. Each service is performed by trained professionals.
-              </p>
+              
             </div>}
 
           {/* Price Display */}
