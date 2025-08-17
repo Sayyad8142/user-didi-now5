@@ -12,7 +12,7 @@ const ADMIN_PHONE = (import.meta.env.VITE_ADMIN_PHONE || "+919000666986").replac
 
 export default function AdminLogin() {
   const nav = useNavigate();
-  const [phone, setPhone] = useState(ADMIN_PHONE);
+  const [phone, setPhone] = useState("+91");
   const [otpSent, setOtpSent] = useState(false);
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
