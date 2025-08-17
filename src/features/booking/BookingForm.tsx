@@ -443,7 +443,6 @@ export function BookingForm() {
                       <span className="text-3xl font-bold text-primary">
                         Price: ₹{currentPrice}
                       </span>
-                      {service_type === 'maid' && selectedFlatSize}
                     </>}
                 </div>
               </CardContent>
