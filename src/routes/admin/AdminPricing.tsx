@@ -23,6 +23,67 @@ function Card({title, children}:{title:string; children:React.ReactNode}) {
   );
 }
 
+function BathroomSettings({ community }: { community: string }) {
+  const qc = useQueryClient();
+
+  const { data: bathroom, isLoading: bathroomLoading } = useQuery({
+    queryKey: ["bathroom_settings", community],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("bathroom_pricing_settings")
+        .select("*")
+        .eq("community", community)
+        .maybeSingle();
+      if (error) throw error;
+      return data ?? { community, unit_price_inr: 250 };
+    }
+  });
+
+  const [bathroomForm, setBathroomForm] = useState({ unitPrice: 250 });
+  useEffect(() => {
+    if (!bathroom) return;
+    setBathroomForm({
+      unitPrice: bathroom.unit_price_inr ?? 250,
+    });
+  }, [bathroom]);
+
+  const upsertBathroom = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase
+        .from("bathroom_pricing_settings")
+        .upsert({
+          community,
+          unit_price_inr: Number(bathroomForm.unitPrice) || 0,
+          updated_at: new Date().toISOString()
+        });
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["bathroom_settings", community] })
+  });
+
+  return (
+    <>
+      {bathroomLoading ? <div className="text-sm text-muted-foreground">Loading…</div> : (
+        <div className="grid gap-3 max-w-md">
+          <div className="grid grid-cols-2 gap-3 items-center">
+            <div className="text-sm">Unit price per bathroom</div>
+            <Input 
+              type="number" 
+              value={bathroomForm.unitPrice} 
+              onChange={(e)=>setBathroomForm(v=>({...v, unitPrice:Number(e.target.value)}))}
+            />
+          </div>
+          <div>
+            <Button onClick={()=>upsertBathroom.mutate()} disabled={upsertBathroom.isPending}>
+              {upsertBathroom.isPending ? "Saving…" : "Save Bathroom Price"}
+            </Button>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
 export default function AdminPricing() {
   const qc = useQueryClient();
   const [community, setCommunity] = useState(""); // '' = Global
@@ -204,6 +265,11 @@ export default function AdminPricing() {
             </div>
           </div>
         )}
+      </Card>
+
+      {/* Bathroom cleaning settings */}
+      <Card title="Bathroom Cleaning — Unit Price">
+        <BathroomSettings community={community} />
       </Card>
     </div>
   );

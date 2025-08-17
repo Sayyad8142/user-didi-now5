@@ -57,6 +57,9 @@ export function BookingForm() {
   // Maid service specific state
   const [selectedTasks, setSelectedTasks] = useState<MaidTask[]>(["floor_cleaning", "dish_washing"]); // Multiple task selection with checkboxes
 
+  // Bathroom cleaning specific state
+  const [bathroomCount, setBathroomCount] = useState(1);
+
   // Fetch maid task prices
   const {
     data: taskPrices
@@ -101,9 +104,35 @@ export function BookingForm() {
     }
   });
 
+  // Fetch bathroom unit price
+  const { data: bathroomUnitPrice } = useQuery({
+    queryKey: ["bathroom_unit_price", profile?.community],
+    enabled: service_type === 'bathroom_cleaning',
+    queryFn: async () => {
+      // exact community first
+      const { data: specific } = await supabase
+        .from("bathroom_pricing_settings")
+        .select("unit_price_inr")
+        .eq("community", profile?.community || "")
+        .maybeSingle();
+      if (specific) return specific.unit_price_inr;
+
+      // global fallback
+      const { data: global } = await supabase
+        .from("bathroom_pricing_settings")
+        .select("unit_price_inr")
+        .eq("community", "")
+        .maybeSingle();
+      return global?.unit_price_inr ?? 250;
+    }
+  });
+
   // Helper functions for maid pricing
   const taskPrice = (t: MaidTask) => taskPrices?.get(t) ?? FALLBACK_PRICES[selectedFlatSize || "2BHK"];
   const totalPrice = service_type === 'maid' && selectedTasks.length > 0 ? selectedTasks.reduce((sum, task) => sum + taskPrice(task), 0) : 0;
+  
+  // Bathroom pricing calculation
+  const bathroomTotalPrice = service_type === 'bathroom_cleaning' ? (bathroomUnitPrice ?? 250) * Math.max(1, bathroomCount) : 0;
   useEffect(() => {
     if (!user) {
       navigate('/auth');
@@ -115,9 +144,9 @@ export function BookingForm() {
     }
   }, [user, service_type, navigate]);
   useEffect(() => {
-    if (profile && service_type && service_type !== 'cook' && service_type !== 'maid') {
+    if (profile && service_type && service_type !== 'cook' && service_type !== 'maid' && service_type !== 'bathroom_cleaning') {
       loadPricing();
-    } else if (service_type === 'cook' || service_type === 'maid') {
+    } else if (service_type === 'cook' || service_type === 'maid' || service_type === 'bathroom_cleaning') {
       setLoadingPricing(false);
     }
   }, [profile, service_type]);
@@ -161,6 +190,8 @@ export function BookingForm() {
         return;
       }
       await createBooking('instant', null, null, totalPrice);
+    } else if (service_type === 'bathroom_cleaning') {
+      await createBooking('instant', null, null, bathroomTotalPrice);
     } else {
       if (!selectedFlatSize) return;
       const price = pricingMap[selectedFlatSize];
@@ -184,6 +215,8 @@ export function BookingForm() {
     } else if (service_type === 'maid') {
       if (!selectedFlatSize || selectedTasks.length === 0) return;
       await createBooking('scheduled', date.toISOString().split('T')[0], time, totalPrice);
+    } else if (service_type === 'bathroom_cleaning') {
+      await createBooking('scheduled', date.toISOString().split('T')[0], time, bathroomTotalPrice);
     } else {
       if (!selectedFlatSize) return;
       const price = pricingMap[selectedFlatSize];
@@ -200,7 +233,7 @@ export function BookingForm() {
   };
   const createBooking = async (bookingType: 'instant' | 'scheduled', scheduledDate: string | null, scheduledTime: string | null, price: number) => {
     if (!profile || !user || !service_type) return;
-    if (service_type !== 'cook' && !selectedFlatSize) return;
+    if (service_type !== 'cook' && service_type !== 'bathroom_cleaning' && !selectedFlatSize) return;
     setSubmitting(true);
     try {
       const bookingData = {
@@ -211,11 +244,12 @@ export function BookingForm() {
         scheduled_time: scheduledTime,
         notes: null,
         status: 'pending',
-        flat_size: service_type === 'cook' ? null : selectedFlatSize,
+        flat_size: service_type === 'cook' || service_type === 'bathroom_cleaning' ? null : selectedFlatSize,
         price_inr: price,
         family_count: service_type === 'cook' ? familyCount : null,
         food_pref: service_type === 'cook' ? foodPreference : null,
         maid_tasks: service_type === 'maid' ? selectedTasks : null,
+        bathroom_count: service_type === 'bathroom_cleaning' ? bathroomCount : null,
         cust_name: profile.full_name,
         cust_phone: profile.phone,
         community: profile.community,
@@ -265,8 +299,14 @@ export function BookingForm() {
       </div>;
   }
   const ServiceIcon = serviceIcon(service_type);
-  const currentPrice = service_type === 'cook' ? foodPreference ? calculateCookPrice(familyCount, foodPreference) : null : service_type === 'maid' ? selectedFlatSize && selectedTasks.length > 0 ? totalPrice : null : selectedFlatSize ? pricingMap[selectedFlatSize] : null;
-  const canBook = service_type === 'cook' ? foodPreference && !submitting : service_type === 'maid' ? selectedFlatSize && selectedTasks.length > 0 && !submitting : selectedFlatSize && currentPrice && !submitting;
+  const currentPrice = service_type === 'cook' ? foodPreference ? calculateCookPrice(familyCount, foodPreference) : null 
+    : service_type === 'maid' ? selectedFlatSize && selectedTasks.length > 0 ? totalPrice : null 
+    : service_type === 'bathroom_cleaning' ? bathroomTotalPrice
+    : selectedFlatSize ? pricingMap[selectedFlatSize] : null;
+  const canBook = service_type === 'cook' ? foodPreference && !submitting 
+    : service_type === 'maid' ? selectedFlatSize && selectedTasks.length > 0 && !submitting 
+    : service_type === 'bathroom_cleaning' ? !submitting
+    : selectedFlatSize && currentPrice && !submitting;
   return <div className="min-h-screen bg-background pb-24">
       <div className="max-w-md mx-auto px-4 py-6">
         {/* Header */}
@@ -377,7 +417,7 @@ export function BookingForm() {
             </>}
 
           {/* Select Flat Size for other services */}
-          {service_type !== 'cook' && <div className="mt-8">
+          {service_type !== 'cook' && service_type !== 'bathroom_cleaning' && <div className="mt-8">
               <h2 className="text-lg font-semibold text-foreground mb-4">
                 Select Flat Size <span className="text-destructive">*</span>
               </h2>
@@ -392,6 +432,51 @@ export function BookingForm() {
                 {FLAT_SIZES.slice(3).map(size => <Button key={size} variant="outline" onClick={() => setSelectedFlatSize(size)} className={`h-12 font-medium rounded-2xl border-2 ${selectedFlatSize === size ? "border-primary bg-primary/5 text-primary" : "border-border bg-background text-foreground hover:border-primary/50"}`}>
                     {size}
                   </Button>)}
+              </div>
+            </div>}
+
+          {/* Bathroom Count Selector */}
+          {service_type === 'bathroom_cleaning' && <div className="mt-8">
+              <h2 className="text-lg font-semibold text-foreground mb-4">
+                How many bathrooms? <span className="text-destructive">*</span>
+              </h2>
+              
+              {/* quick chips 1..5 */}
+              <div className="grid grid-cols-3 gap-3 mb-3">
+                {[1,2,3,4,5].map(n => (
+                  <Button
+                    key={n}
+                    variant="outline"
+                    onClick={() => setBathroomCount(n)}
+                    className={cn(
+                      "h-12 font-medium rounded-2xl border-2",
+                      bathroomCount === n ? "border-primary bg-primary/5 text-primary" 
+                                          : "border-border bg-background text-foreground hover:border-primary/50"
+                    )}
+                  >
+                    {n} {n === 1 ? "Bathroom" : "Bathrooms"}
+                  </Button>
+                ))}
+              </div>
+
+              {/* stepper */}
+              <div className="flex items-center justify-center gap-4 mt-4">
+                <Button 
+                  variant="outline"
+                  onClick={() => setBathroomCount(c => Math.max(1, c - 1))}
+                  className="w-12 h-12 rounded-xl border-2 border-primary text-primary hover:bg-primary hover:text-primary-foreground"
+                  disabled={bathroomCount <= 1}
+                >
+                  −
+                </Button>
+                <div className="min-w-12 text-center text-2xl font-bold text-foreground">{bathroomCount}</div>
+                <Button 
+                  variant="outline"
+                  onClick={() => setBathroomCount(c => Math.min(10, c + 1))}
+                  className="w-12 h-12 rounded-xl border-2 border-primary text-primary hover:bg-primary hover:text-primary-foreground"
+                >
+                  +
+                </Button>
               </div>
             </div>}
 
@@ -436,13 +521,16 @@ export function BookingForm() {
             </div>}
 
           {/* Price Display */}
-          {(service_type === 'cook' && foodPreference || service_type === 'maid' && selectedFlatSize && selectedTasks.length > 0 || service_type !== 'cook' && service_type !== 'maid' && selectedFlatSize) && <Card className="bg-primary/5 border-primary/20 rounded-2xl">
+          {(service_type === 'cook' && foodPreference || service_type === 'maid' && selectedFlatSize && selectedTasks.length > 0 || service_type === 'bathroom_cleaning' || (service_type !== 'cook' && service_type !== 'maid' && service_type !== 'bathroom_cleaning' && selectedFlatSize)) && <Card className="bg-primary/5 border-primary/20 rounded-2xl">
               <CardContent className="p-6 py-[5px] px-[24px] bg-stone-50">
                 <div className="text-center px-0">
-                  {loadingPricing && service_type !== 'cook' && service_type !== 'maid' ? <Skeleton className="h-8 w-32 mx-auto rounded-lg" /> : <>
+                  {loadingPricing && service_type !== 'cook' && service_type !== 'maid' && service_type !== 'bathroom_cleaning' ? <Skeleton className="h-8 w-32 mx-auto rounded-lg" /> : <>
                       <span className="text-3xl font-bold text-primary">
                         Price: ₹{currentPrice}
                       </span>
+                      {service_type === 'bathroom_cleaning' && (
+                        <div className="text-xs text-gray-500 mt-1">Unit: ₹{bathroomUnitPrice ?? 250} × {bathroomCount}</div>
+                      )}
                     </>}
                 </div>
               </CardContent>
@@ -515,6 +603,9 @@ export function BookingForm() {
                       }
                       const price = totalPrice;
                       navigate(`/book/${service_type}/schedule?flat=${selectedFlatSize}&tasks=${selectedTasks.join(',')}&price=${price}`);
+                    } else if (service_type === 'bathroom_cleaning') {
+                      const price = bathroomTotalPrice;
+                      navigate(`/book/${service_type}/schedule?bathrooms=${bathroomCount}&price=${price}`);
                     } else {
                       if (!selectedFlatSize) {
                         toast({
@@ -528,7 +619,7 @@ export function BookingForm() {
                       navigate(`/book/${service_type}/schedule?flat=${selectedFlatSize}&price=${price}`);
                     }
                   }} 
-                  disabled={service_type === 'cook' ? !foodPreference : service_type === 'maid' ? !selectedFlatSize || selectedTasks.length === 0 : !selectedFlatSize} 
+                  disabled={service_type === 'cook' ? !foodPreference : service_type === 'maid' ? !selectedFlatSize || selectedTasks.length === 0 : service_type === 'bathroom_cleaning' ? false : !selectedFlatSize} 
                   className="w-full h-14 rounded-2xl font-semibold text-lg bg-white hover:bg-slate-50 text-slate-800 border-2 border-slate-300 hover:border-pink-400 shadow-sm hover:shadow-md transition-all duration-300 disabled:bg-slate-100 disabled:text-slate-500 disabled:border-slate-200"
                 >
                   <span>Schedule Booking</span>
