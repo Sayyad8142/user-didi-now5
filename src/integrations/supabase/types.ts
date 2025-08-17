@@ -267,6 +267,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_set_booking_status: {
+        Args: { p_booking_id: string; p_new_status: string; p_note?: string }
+        Returns: undefined
+      }
       is_admin: {
         Args: Record<PropertyKey, never>
         Returns: boolean
