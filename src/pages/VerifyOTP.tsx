@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { OtpBoxes } from '@/components/auth/OtpBoxes';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { ArrowLeft, Loader2, CheckCircle2 } from 'lucide-react';
 import { maskPhone } from '@/lib/auth-helpers';
 import { ensureProfile, waitForSession, normalizePhone } from '@/features/profile/ensureProfile';
 
@@ -203,67 +204,78 @@ export default function VerifyOTP() {
 
   return (
     <div className="min-h-screen gradient-bg flex items-center justify-center p-4">
-      <Card className="w-full max-w-md shadow-card border-pink-100 gradient-card backdrop-blur-sm">
-        <CardContent className="p-6">
-          {/* Back Button */}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleBack}
-            className="mb-4 p-2 hover:bg-black/5"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
+      <div className="w-full max-w-md space-y-4">
+        {/* Success Alert */}
+        <Alert className="border-green-200 bg-green-50 text-green-800">
+          <CheckCircle2 className="h-4 w-4" />
+          <AlertDescription>
+            Verification code sent to {phone}
+          </AlertDescription>
+        </Alert>
 
-          {/* Header */}
-          <div className="text-center mb-8">
-            <h1 className="text-2xl font-bold text-foreground mb-2">Verify OTP</h1>
-            <p className="text-muted-foreground">
-              Enter the 6-digit code sent to {maskPhone(phone)}
-            </p>
-          </div>
+        <Card className="shadow-card border-pink-100 gradient-card backdrop-blur-sm">
+          <CardContent className="p-6">
+            {/* Back Button */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleBack}
+              className="mb-4 p-2 hover:bg-black/5"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
 
-          {/* OTP Input */}
-          <div className="mb-6">
-            <OtpBoxes
-              value={otp}
-              onChange={setOtp}
-              disabled={loading}
-              error={error}
-            />
-          </div>
-
-          {/* Verify Button */}
-          <Button
-            onClick={handleVerifyOTP}
-            disabled={loading || otp.length !== 6}
-            className="w-full h-12 rounded-full gradient-primary shadow-button transition-spring hover:scale-[1.02] disabled:scale-100 mb-4"
-          >
-            {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-            {state?.mode === 'signup' ? 'Verify & Create Account' : 'Verify & Continue'}
-          </Button>
-
-          {/* Resend OTP */}
-          <div className="text-center">
-            {countdown > 0 ? (
-              <p className="text-sm text-muted-foreground">
-                Resend OTP in {countdown}s
+            {/* Header */}
+            <div className="text-center mb-8">
+              <h1 className="text-2xl font-bold text-foreground mb-2">Verify OTP</h1>
+              <p className="text-muted-foreground">
+                Enter the 6-digit code sent to<br />
+                <span className="font-mono font-medium">{maskPhone(phone)}</span>
               </p>
-            ) : (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleResendOTP}
-                disabled={resendLoading}
-                className="text-primary hover:text-primary-dark"
-              >
-                {resendLoading && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
-                Resend OTP
-              </Button>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+            </div>
+
+            {/* OTP Input */}
+            <div className="mb-6">
+              <OtpBoxes
+                value={otp}
+                onChange={setOtp}
+                disabled={loading}
+                error={error}
+              />
+            </div>
+
+            {/* Verify Button */}
+            <Button
+              onClick={handleVerifyOTP}
+              disabled={loading || otp.length !== 6}
+              className="w-full h-12 rounded-full gradient-primary shadow-button transition-spring hover:scale-[1.02] disabled:scale-100 mb-4"
+            >
+              {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              {state?.mode === 'signup' ? 'Verify & Create Account' : 'Verify & Continue'}
+            </Button>
+
+            {/* Resend OTP */}
+            <div className="text-center">
+              {countdown > 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  Resend OTP in {countdown}s
+                </p>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleResendOTP}
+                  disabled={resendLoading}
+                  className="text-primary hover:text-primary-dark"
+                >
+                  {resendLoading && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
+                  Resend OTP
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
