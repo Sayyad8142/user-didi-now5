@@ -5,7 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { PhoneCall, UserPlus, CheckCircle, XCircle } from "lucide-react";
 import { prettyService } from "./BookingRow";
-import { supabase } from "@/integrations/supabase/client";
+import { supabaseAdmin as supabase } from "@/lib/supabase-admin";
 import { useToast } from "@/hooks/use-toast";
 import { useNewBookingAlert } from "./useNewBookingAlert";
 import { HistoryList } from "./HistoryList";

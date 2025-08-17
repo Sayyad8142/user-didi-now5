@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabaseAdmin as supabase } from "@/lib/supabase-admin";
 
 export function useSLASettings() {
   const [slaMinutes, setSlaMinutes] = useState<number>(12);

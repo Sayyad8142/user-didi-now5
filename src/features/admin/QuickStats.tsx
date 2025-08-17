@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabaseAdmin as supabase } from "@/lib/supabase-admin";
 import { RotateCw } from "lucide-react";
 
 export default function QuickStats(){

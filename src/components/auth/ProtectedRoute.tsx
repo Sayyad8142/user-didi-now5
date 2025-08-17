@@ -11,6 +11,11 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const { user, loading } = useAuth();
   const location = useLocation();
 
+  // Don't apply user auth protection to /admin routes - let AdminGate handle it
+  if (location.pathname.startsWith("/admin")) {
+    return <>{children}</>;
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen gradient-bg flex items-center justify-center">

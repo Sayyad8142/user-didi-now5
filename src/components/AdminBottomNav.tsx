@@ -2,7 +2,7 @@ import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Home, Calendar, User, LogOut } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { supabase } from '@/integrations/supabase/client';
+import { supabaseAdmin as supabase } from "@/lib/supabase-admin";
 import { toast } from 'sonner';
 
 const adminTabs = [
@@ -18,7 +18,7 @@ export function AdminBottomNav() {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
       toast.success('Logged out successfully');
-      navigate('/auth');
+      navigate('/admin-login');
     } catch (error: any) {
       toast.error(error.message || 'Failed to logout');
     }

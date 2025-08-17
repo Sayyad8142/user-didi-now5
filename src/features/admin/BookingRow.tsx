@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabaseAdmin as supabase } from "@/lib/supabase-admin";
 import { Phone, CalendarClock, Sparkles, ChefHat, ShowerHead, Check } from "lucide-react";
 import Timer from "@/components/Timer";
 import { useToast } from "@/hooks/use-toast";

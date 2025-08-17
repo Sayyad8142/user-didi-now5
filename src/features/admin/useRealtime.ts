@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabaseAdmin as supabase } from "@/lib/supabase-admin";
 
 export function useBookingsRealtime(onInsert?: (row:any)=>void, onUpdate?: (row:any)=>void) {
   const insertRef = useRef(onInsert);
