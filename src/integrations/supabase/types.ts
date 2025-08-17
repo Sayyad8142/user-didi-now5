@@ -59,6 +59,24 @@ export type Database = {
           },
         ]
       }
+      bathroom_pricing_settings: {
+        Row: {
+          community: string
+          unit_price_inr: number
+          updated_at: string
+        }
+        Insert: {
+          community?: string
+          unit_price_inr?: number
+          updated_at?: string
+        }
+        Update: {
+          community?: string
+          unit_price_inr?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       booking_status_history: {
         Row: {
           booking_id: string
@@ -99,6 +117,7 @@ export type Database = {
       }
       bookings: {
         Row: {
+          bathroom_count: number | null
           booking_type: string
           community: string
           confirmed_at: string | null
@@ -121,6 +140,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          bathroom_count?: number | null
           booking_type: string
           community: string
           confirmed_at?: string | null
@@ -143,6 +163,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          bathroom_count?: number | null
           booking_type?: string
           community?: string
           confirmed_at?: string | null
@@ -348,6 +369,10 @@ export type Database = {
       }
       auto_handle_overdue_bookings: {
         Args: Record<PropertyKey, never>
+        Returns: number
+      }
+      bath_total_price: {
+        Args: { p_community?: string; p_count: number }
         Returns: number
       }
       bytea_to_text: {
