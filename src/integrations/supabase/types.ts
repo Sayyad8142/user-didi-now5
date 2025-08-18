@@ -423,6 +423,10 @@ export type Database = {
           upi_id: string
         }
       }
+      assign_worker: {
+        Args: { p_booking_id: string; p_worker_id: string }
+        Returns: undefined
+      }
       assign_worker_to_booking: {
         Args: { p_booking_id: string; p_worker_id: string }
         Returns: undefined
