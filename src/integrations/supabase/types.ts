@@ -117,9 +117,11 @@ export type Database = {
       }
       bookings: {
         Row: {
+          assigned_at: string | null
           bathroom_count: number | null
           booking_type: string
           community: string
+          completed_at: string | null
           confirmed_at: string | null
           created_at: string
           cust_name: string
@@ -141,9 +143,11 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          assigned_at?: string | null
           bathroom_count?: number | null
           booking_type: string
           community: string
+          completed_at?: string | null
           confirmed_at?: string | null
           created_at?: string
           cust_name: string
@@ -165,9 +169,11 @@ export type Database = {
           user_id: string
         }
         Update: {
+          assigned_at?: string | null
           bathroom_count?: number | null
           booking_type?: string
           community?: string
+          completed_at?: string | null
           confirmed_at?: string | null
           created_at?: string
           cust_name?: string
@@ -368,6 +374,10 @@ export type Database = {
     Functions: {
       admin_set_booking_status: {
         Args: { p_booking_id: string; p_new_status: string; p_note?: string }
+        Returns: undefined
+      }
+      auto_complete_assigned: {
+        Args: Record<PropertyKey, never>
         Returns: undefined
       }
       auto_handle_overdue_bookings: {
