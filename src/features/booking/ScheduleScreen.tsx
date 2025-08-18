@@ -39,6 +39,7 @@ export function ScheduleScreen() {
   const priceParam = searchParams.get('price');
   const familyCount = searchParams.get('family');
   const foodPreference = searchParams.get('food') as 'veg' | 'non_veg' | null;
+  const bathroomCount = searchParams.get('bathrooms');
 
   useEffect(() => {
     if (!user) {
@@ -79,7 +80,8 @@ export function ScheduleScreen() {
     if (!selectedDate || !selectedTime || !profile || !user || !service_type || !price) {
       return;
     }
-    if (service_type !== 'cook' && !flatSize) return;
+    if (service_type !== 'cook' && service_type !== 'bathroom_cleaning' && !flatSize) return;
+    if (service_type === 'bathroom_cleaning' && !bathroomCount) return;
     if (service_type === 'cook' && (!familyCount || !foodPreference)) return;
 
     setSubmitting(true);
@@ -95,9 +97,10 @@ export function ScheduleScreen() {
         scheduled_time: scheduledTime,
         notes: null,
         status: 'pending',
-        flat_size: service_type === 'cook' ? null : flatSize,
+        flat_size: service_type === 'cook' || service_type === 'bathroom_cleaning' ? null : flatSize,
         family_count: service_type === 'cook' ? parseInt(familyCount!) : null,
         food_pref: service_type === 'cook' ? foodPreference : null,
+        bathroom_count: service_type === 'bathroom_cleaning' ? parseInt(bathroomCount!) : null,
         price_inr: price,
         cust_name: profile.full_name,
         cust_phone: profile.phone,
@@ -155,7 +158,7 @@ export function ScheduleScreen() {
     );
   }
 
-  if (service_type !== 'cook' && !flatSize) {
+  if (service_type !== 'cook' && service_type !== 'bathroom_cleaning' && !flatSize) {
     return (
       <div className="min-h-screen bg-background pb-28">
         <div className="max-w-md mx-auto px-4 py-6">
@@ -171,7 +174,11 @@ export function ScheduleScreen() {
           <Card className="bg-yellow-50 border-yellow-200 rounded-2xl">
             <CardContent className="p-4">
               <p className="text-yellow-800 font-medium">
-                {service_type === 'cook' ? 'Select family count and food preference first' : 'Select flat size first'}
+                {service_type === 'cook' 
+                  ? 'Select family count and food preference first'
+                  : service_type === 'bathroom_cleaning'
+                  ? 'Select bathroom count first'
+                  : 'Select flat size first'}
               </p>
               <Button 
                 variant="link" 
