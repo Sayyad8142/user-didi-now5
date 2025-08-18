@@ -18,6 +18,7 @@ import { ScheduleScreen } from "./features/booking/ScheduleScreen";
 import { AdminGate } from "./features/admin/AdminGate";
 import AdminLayout from "./routes/admin/AdminLayout";
 import AdminPricing from "./routes/admin/AdminPricing";
+import AdminSettings from "./routes/admin/AdminSettings";
 import AdminLogin from "./routes/auth/AdminLogin";
 import AdminVerify from "./routes/auth/AdminVerify";
 
@@ -106,6 +107,14 @@ const App = () => (
               element={
                 <AdminGate>
                   <AdminPricing />
+                </AdminGate>
+              } 
+            />
+            <Route 
+              path="/admin/settings" 
+              element={
+                <AdminGate>
+                  <AdminSettings />
                 </AdminGate>
               } 
             />

@@ -91,32 +91,13 @@ export default function AdminLayout() {
 
           <div className="flex gap-2">
             <Link
-              to="/admin/pricing"
+              to="/admin/settings"
               className="h-9 px-3 rounded-full border border-gray-300 text-gray-700 hover:border-pink-300 hover:text-[#ff007a] hover:bg-pink-50 text-sm inline-flex items-center gap-2 transition-colors"
-              title="Pricing Settings"
+              title="Admin Settings"
             >
               <Settings className="h-4 w-4" />
-              <span className="hidden sm:inline">Pricing</span>
+              <span className="hidden sm:inline">Settings</span>
             </Link>
-            
-            <button
-              onClick={toggleSound}
-              className={`h-9 px-3 rounded-full border text-sm inline-flex items-center gap-2 ${soundOn ? "border-pink-300 text-[#ff007a] bg-pink-50" : "border-gray-300 text-gray-700"}`}
-              title={soundOn ? "Disable sound" : "Enable sound"}
-            >
-              {soundOn ? <Bell className="h-4 w-4" /> : <BellOff className="h-4 w-4" />}
-              <span className="hidden sm:inline">{soundOn ? "Sound On" : "Sound Off"}</span>
-            </button>
-            
-            {soundOn && (
-              <button
-                onClick={testSound}
-                className="h-9 px-3 rounded-full border border-blue-300 text-blue-700 bg-blue-50 text-sm inline-flex items-center gap-2"
-                title="Test sound"
-              >
-                🔊 Test
-              </button>
-            )}
           </div>
         </div>
       </header>
