@@ -3,25 +3,19 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabaseAdmin as supabase } from "@/lib/supabase-admin";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
 import { Link } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, DollarSign, Save } from "lucide-react";
 
 type MaidTask = "floor_cleaning" | "dish_washing";
 const FLATS = ["2BHK","2.5BHK","3BHK","3.5BHK","4BHK"] as const;
 const TASKS: MaidTask[] = ["floor_cleaning","dish_washing"];
 const TASK_LABEL: Record<MaidTask,string> = {
-  floor_cleaning: "Jhaadu & Pocha (Floor Cleaning)",
+  floor_cleaning: "Floor Cleaning",
   dish_washing: "Dish Washing",
 };
-
-function Card({title, children}:{title:string; children:React.ReactNode}) {
-  return (
-    <div className="rounded-2xl bg-card border border-border shadow-sm p-4 sm:p-5">
-      <div className="font-semibold text-lg mb-3 text-foreground">{title}</div>
-      {children}
-    </div>
-  );
-}
 
 function BathroomSettings({ community }: { community: string }) {
   const qc = useQueryClient();
@@ -62,25 +56,36 @@ function BathroomSettings({ community }: { community: string }) {
   });
 
   return (
-    <>
-      {bathroomLoading ? <div className="text-sm text-muted-foreground">Loading…</div> : (
-        <div className="grid gap-3 max-w-md">
-          <div className="grid grid-cols-2 gap-3 items-center">
-            <div className="text-sm">Unit price per bathroom</div>
+    <CardContent className="pt-6">
+      {bathroomLoading ? (
+        <div className="text-sm text-muted-foreground">Loading bathroom settings...</div>
+      ) : (
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="bathroom-price">Price per bathroom (₹)</Label>
             <Input 
+              id="bathroom-price"
               type="number" 
               value={bathroomForm.unitPrice} 
-              onChange={(e)=>setBathroomForm(v=>({...v, unitPrice:Number(e.target.value)}))}
+              onChange={(e) => setBathroomForm(v => ({ ...v, unitPrice: Number(e.target.value) }))}
+              className="text-lg h-12"
+              placeholder="250"
             />
+            <p className="text-xs text-muted-foreground">
+              Price charged per bathroom for cleaning service
+            </p>
           </div>
-          <div>
-            <Button onClick={()=>upsertBathroom.mutate()} disabled={upsertBathroom.isPending}>
-              {upsertBathroom.isPending ? "Saving…" : "Save Bathroom Price"}
-            </Button>
-          </div>
+          <Button 
+            onClick={() => upsertBathroom.mutate()} 
+            disabled={upsertBathroom.isPending}
+            className="w-full h-12"
+          >
+            <Save className="w-4 h-4 mr-2" />
+            {upsertBathroom.isPending ? "Saving..." : "Save Bathroom Pricing"}
+          </Button>
         </div>
       )}
-    </>
+    </CardContent>
   );
 }
 
@@ -182,95 +187,196 @@ export default function AdminPricing() {
   });
 
   return (
-    <div className="min-h-dvh bg-background p-4 space-y-4">
+    <div className="min-h-screen bg-gray-50 pb-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Link to="/admin" className="p-2 hover:bg-accent rounded-lg transition-colors">
-            <ArrowLeft className="h-5 w-5 text-muted-foreground" />
-          </Link>
-          <div>
-            <div className="text-2xl font-bold text-primary">Pricing</div>
-            <div className="text-xs text-muted-foreground">Edit service prices • Admin only</div>
+      <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
+        <div className="px-4 py-4">
+          <div className="flex items-center gap-4">
+            <Link 
+              to="/admin" 
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <ArrowLeft className="h-5 w-5 text-gray-600" />
+            </Link>
+            <div>
+              <h1 className="text-xl font-semibold text-gray-900">Service Pricing</h1>
+              <p className="text-sm text-gray-500">Configure rates for all services</p>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Scope (Global or Community) */}
-      <Card title="Scope">
-        <div className="flex gap-2 items-center">
-          <label className="text-sm text-muted-foreground">Community (blank = global)</label>
-          <Input
-            placeholder="e.g. prestige-high-fields (leave empty for global)"
-            value={community}
-            onChange={(e)=>setCommunity(e.target.value.trim())}
-            className="max-w-md"
-          />
-        </div>
-      </Card>
-
-      {/* Maid prices */}
-      <Card title="Maid — Task Prices (per flat size)">
-        {maidLoading ? <div className="text-sm text-muted-foreground">Loading…</div> : (
-          <div className="space-y-3">
-            <div className="grid grid-cols-3 gap-3 text-xs font-medium text-muted-foreground">
-              <div>Flat Size</div>
-              <div>{TASK_LABEL.floor_cleaning}</div>
-              <div>{TASK_LABEL.dish_washing}</div>
+      <div className="px-4 py-6 space-y-6 max-w-4xl mx-auto">
+        {/* Community Scope */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <DollarSign className="h-5 w-5 text-[#ff007a]" />
+              Pricing Scope
+            </CardTitle>
+            <CardDescription>
+              Set prices globally or for specific communities
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              <Label htmlFor="community">Community Name</Label>
+              <Input
+                id="community"
+                placeholder="Leave blank for global pricing (e.g., prestige-high-fields)"
+                value={community}
+                onChange={(e) => setCommunity(e.target.value.trim())}
+                className="h-12"
+              />
+              <p className="text-xs text-muted-foreground">
+                {community.trim() ? `Setting prices for ${community}` : "Setting global prices (applies to all communities)"}
+              </p>
             </div>
-            {FLATS.map(f=>(
-              <div key={f} className="grid grid-cols-3 gap-3">
-                <div className="font-semibold flex items-center">{f}</div>
-                <Input
-                  type="number"
-                  value={maidForm[f]?.floor_cleaning ?? 0}
-                  onChange={(e)=>setMaidForm(prev=>({ ...prev, [f]: { ...prev[f], floor_cleaning: Number(e.target.value) } }))}
-                />
-                <Input
-                  type="number"
-                  value={maidForm[f]?.dish_washing ?? 0}
-                  onChange={(e)=>setMaidForm(prev=>({ ...prev, [f]: { ...prev[f], dish_washing: Number(e.target.value) } }))}
-                />
+          </CardContent>
+        </Card>
+
+        {/* Maid Service Pricing */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Maid Service Pricing</CardTitle>
+            <CardDescription>
+              Set prices for cleaning tasks by apartment size
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {maidLoading ? (
+              <div className="text-center py-8">
+                <div className="text-sm text-muted-foreground">Loading maid pricing...</div>
               </div>
-            ))}
-            <div className="pt-2">
-              <Button onClick={handleMaidSave} disabled={upsertMaid.isPending}>
-                {upsertMaid.isPending ? "Saving…" : "Save Maid Prices"}
-              </Button>
-            </div>
-          </div>
-        )}
-      </Card>
+            ) : (
+              <div className="space-y-6">
+                {FLATS.map((flat, index) => (
+                  <div key={flat}>
+                    {index > 0 && <Separator className="my-4" />}
+                    <div className="space-y-4">
+                      <h4 className="font-medium text-lg text-gray-900">{flat}</h4>
+                      <div className="grid md:grid-cols-2 gap-4">
+                        {TASKS.map(task => (
+                          <div key={task} className="space-y-2">
+                            <Label>{TASK_LABEL[task]}</Label>
+                            <div className="relative">
+                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">₹</span>
+                              <Input
+                                type="number"
+                                value={maidForm[flat]?.[task] ?? 0}
+                                onChange={(e) => setMaidForm(prev => ({
+                                  ...prev, 
+                                  [flat]: { 
+                                    ...prev[flat], 
+                                    [task]: Number(e.target.value) 
+                                  }
+                                }))}
+                                className="pl-8 text-lg h-12"
+                                placeholder="100"
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                
+                <div className="pt-4 border-t">
+                  <Button 
+                    onClick={handleMaidSave} 
+                    disabled={upsertMaid.isPending}
+                    className="w-full h-12"
+                  >
+                    <Save className="w-4 h-4 mr-2" />
+                    {upsertMaid.isPending ? "Saving..." : "Save Maid Pricing"}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
-      {/* Cook settings */}
-      <Card title="Cook — Global Settings">
-        {cookLoading ? <div className="text-sm text-muted-foreground">Loading…</div> : (
-          <div className="grid gap-3 max-w-md">
-            <div className="grid grid-cols-2 gap-3 items-center">
-              <div className="text-sm">Base price</div>
-              <Input type="number" value={cookForm.base} onChange={(e)=>setCookForm(v=>({...v, base:Number(e.target.value)}))}/>
-            </div>
-            <div className="grid grid-cols-2 gap-3 items-center">
-              <div className="text-sm">Non-veg extra</div>
-              <Input type="number" value={cookForm.nonVeg} onChange={(e)=>setCookForm(v=>({...v, nonVeg:Number(e.target.value)}))}/>
-            </div>
-            <div className="grid grid-cols-2 gap-3 items-center">
-              <div className="text-sm">Per extra person</div>
-              <Input type="number" value={cookForm.perExtra} onChange={(e)=>setCookForm(v=>({...v, perExtra:Number(e.target.value)}))}/>
-            </div>
-            <div>
-              <Button onClick={()=>upsertCook.mutate()} disabled={upsertCook.isPending}>
-                {upsertCook.isPending ? "Saving…" : "Save Cook Settings"}
-              </Button>
-            </div>
-          </div>
-        )}
-      </Card>
+        {/* Cook Service Pricing */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Cook Service Pricing</CardTitle>
+            <CardDescription>
+              Base rates and additional charges for cooking service
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {cookLoading ? (
+              <div className="text-center py-4">
+                <div className="text-sm text-muted-foreground">Loading cook settings...</div>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                <div className="grid md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="base-price">Base Price (₹)</Label>
+                    <Input 
+                      id="base-price"
+                      type="number" 
+                      value={cookForm.base} 
+                      onChange={(e) => setCookForm(v => ({ ...v, base: Number(e.target.value) }))}
+                      className="text-lg h-12"
+                      placeholder="200"
+                    />
+                    <p className="text-xs text-muted-foreground">Basic cooking service charge</p>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="nonveg-extra">Non-Veg Extra (₹)</Label>
+                    <Input 
+                      id="nonveg-extra"
+                      type="number" 
+                      value={cookForm.nonVeg} 
+                      onChange={(e) => setCookForm(v => ({ ...v, nonVeg: Number(e.target.value) }))}
+                      className="text-lg h-12"
+                      placeholder="50"
+                    />
+                    <p className="text-xs text-muted-foreground">Additional charge for non-veg meals</p>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="extra-person">Per Extra Person (₹)</Label>
+                    <Input 
+                      id="extra-person"
+                      type="number" 
+                      value={cookForm.perExtra} 
+                      onChange={(e) => setCookForm(v => ({ ...v, perExtra: Number(e.target.value) }))}
+                      className="text-lg h-12"
+                      placeholder="20"
+                    />
+                    <p className="text-xs text-muted-foreground">Charge per additional family member</p>
+                  </div>
+                </div>
+                
+                <Button 
+                  onClick={() => upsertCook.mutate()} 
+                  disabled={upsertCook.isPending}
+                  className="w-full h-12"
+                >
+                  <Save className="w-4 h-4 mr-2" />
+                  {upsertCook.isPending ? "Saving..." : "Save Cook Pricing"}
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
-      {/* Bathroom cleaning settings */}
-      <Card title="Bathroom Cleaning — Unit Price">
-        <BathroomSettings community={community} />
-      </Card>
+        {/* Bathroom Cleaning Pricing */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Bathroom Cleaning Pricing</CardTitle>
+            <CardDescription>
+              Set the rate per bathroom for cleaning service
+            </CardDescription>
+          </CardHeader>
+          <BathroomSettings community={community} />
+        </Card>
+      </div>
     </div>
   );
 }
