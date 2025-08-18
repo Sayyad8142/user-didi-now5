@@ -59,8 +59,6 @@ export default function AdminSettings() {
               </Button>
             </div>
 
-            {/* Test Sound - Only show if enabled */}
-            {soundOn}
           </CardContent>
         </Card>
 
