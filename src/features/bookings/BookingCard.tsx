@@ -6,6 +6,8 @@ import { formatDateTime } from '@/features/bookings/dt';
 import { format } from 'date-fns';
 import { PhoneCall, Sparkles, ChefHat, ShowerHead, Clock, User } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import AssigningProgress from '@/features/bookings/AssigningProgress';
+import { useBookingRealtime } from '@/features/bookings/useBookingRealtime';
 interface Booking {
   id: string;
   service_type: string;
@@ -37,6 +39,10 @@ export function BookingCard({
 }: BookingCardProps) {
   const [assignedWorker, setAssignedWorker] = useState<any>(null);
   const [loadingWorker, setLoadingWorker] = useState(true);
+  const [row, setRow] = useState(booking);
+  
+  // Subscribe to real-time updates for this specific booking
+  useBookingRealtime(booking.id, (updatedBooking) => setRow(updatedBooking));
   
   // Load assigned worker
   useEffect(() => {
@@ -127,19 +133,17 @@ export function BookingCard({
 
       {/* Status Message */}
       <div className="relative space-y-3">
-        {booking.status === "assigned" ? (
+        {row.status === "pending" ? (
+          <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-100 rounded-2xl px-4 py-3">
+            <AssigningProgress booking={row} />
+          </div>
+        ) : row.status === "assigned" ? (
           <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-100 rounded-2xl px-4 py-3">
             <p className="text-sm font-medium text-emerald-800 text-center">
               ✨ Booking confirmed — worker will arrive in ~10 mins
             </p>
           </div>
-        ) : booking.status === "pending" ? (
-          <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-100 rounded-2xl px-4 py-3">
-            <p className="text-sm font-medium text-amber-800 text-center">
-              ⏳ We're assigning a worker…
-            </p>
-          </div>
-        ) : booking.status === "completed" ? (
+        ) : row.status === "completed" ? (
           <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-100 rounded-2xl px-4 py-3">
             <p className="text-sm font-medium text-green-800 text-center">
               ✅ Service completed
@@ -148,7 +152,7 @@ export function BookingCard({
         ) : (
           <div className="bg-gradient-to-r from-gray-50 to-gray-50 border border-gray-100 rounded-2xl px-4 py-3">
             <p className="text-sm font-medium text-gray-800 text-center">
-              Status: {booking.status}
+              Status: {row.status}
             </p>
           </div>
         )}
@@ -170,7 +174,7 @@ export function BookingCard({
       
 
       {/* CTA Button */}
-      {(booking.status === 'pending' || booking.status === 'assigned') && <div className="relative pt-2">
+      {(row.status === 'pending' || row.status === 'assigned') && <div className="relative pt-2">
           <Button asChild className="h-12 rounded-2xl bg-gradient-to-r from-[#ff007a] via-[#e6006a] to-[#d9006a] hover:from-[#e6006a] hover:to-[#cc005f] text-white font-bold w-full shadow-lg hover:shadow-xl transition-all duration-300 border-0">
             <a href="tel:+918008180018" target="_self" rel="noopener" aria-label="Call Support +91 8008180018">
               <span className="inline-flex items-center gap-3">
