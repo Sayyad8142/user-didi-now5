@@ -141,6 +141,11 @@ export type Database = {
           status: string
           updated_at: string
           user_id: string
+          worker_id: string | null
+          worker_name: string | null
+          worker_phone: string | null
+          worker_photo_url: string | null
+          worker_upi: string | null
         }
         Insert: {
           assigned_at?: string | null
@@ -167,6 +172,11 @@ export type Database = {
           status?: string
           updated_at?: string
           user_id: string
+          worker_id?: string | null
+          worker_name?: string | null
+          worker_phone?: string | null
+          worker_photo_url?: string | null
+          worker_upi?: string | null
         }
         Update: {
           assigned_at?: string | null
@@ -193,8 +203,21 @@ export type Database = {
           status?: string
           updated_at?: string
           user_id?: string
+          worker_id?: string | null
+          worker_name?: string | null
+          worker_phone?: string | null
+          worker_photo_url?: string | null
+          worker_upi?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "bookings_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "workers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       cook_pricing_settings: {
         Row: {
@@ -376,6 +399,10 @@ export type Database = {
         Args: { p_booking_id: string; p_new_status: string; p_note?: string }
         Returns: undefined
       }
+      assign_worker_to_booking: {
+        Args: { p_booking_id: string; p_worker_id: string }
+        Returns: undefined
+      }
       auto_complete_assigned: {
         Args: Record<PropertyKey, never>
         Returns: undefined
@@ -399,6 +426,26 @@ export type Database = {
       get_setting: {
         Args: { p_default: string; p_key: string }
         Returns: string
+      }
+      gtrgm_compress: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      gtrgm_decompress: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      gtrgm_in: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      gtrgm_options: {
+        Args: { "": unknown }
+        Returns: undefined
+      }
+      gtrgm_out: {
+        Args: { "": unknown }
+        Returns: unknown
       }
       http: {
         Args: { request: Database["public"]["CompositeTypes"]["http_request"] }
@@ -470,6 +517,18 @@ export type Database = {
       run_scheduled_prealerts: {
         Args: { p_window_minutes?: number }
         Returns: undefined
+      }
+      set_limit: {
+        Args: { "": number }
+        Returns: number
+      }
+      show_limit: {
+        Args: Record<PropertyKey, never>
+        Returns: number
+      }
+      show_trgm: {
+        Args: { "": string }
+        Returns: string[]
       }
       text_to_bytea: {
         Args: { data: string }
