@@ -404,6 +404,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      _sla_core_work: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       admin_set_booking_status: {
         Args: { p_booking_id: string; p_new_status: string; p_note?: string }
         Returns: undefined
@@ -544,6 +548,10 @@ export type Database = {
       }
       run_scheduled_prealerts: {
         Args: { p_window_minutes?: number }
+        Returns: undefined
+      }
+      run_sla_with_secret: {
+        Args: { p_secret: string }
         Returns: undefined
       }
       set_limit: {
