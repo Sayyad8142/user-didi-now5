@@ -19,6 +19,7 @@ import { AdminGate } from "./features/admin/AdminGate";
 import AdminLayout from "./routes/admin/AdminLayout";
 import AdminPricing from "./routes/admin/AdminPricing";
 import AdminSettings from "./routes/admin/AdminSettings";
+import AdminDailyBookings from "./routes/admin/AdminDailyBookings";
 import AdminLogin from "./routes/auth/AdminLogin";
 import AdminVerify from "./routes/auth/AdminVerify";
 
@@ -115,6 +116,14 @@ const App = () => (
               element={
                 <AdminGate>
                   <AdminSettings />
+                </AdminGate>
+              } 
+            />
+            <Route 
+              path="/admin/daily-bookings" 
+              element={
+                <AdminGate>
+                  <AdminDailyBookings />
                 </AdminGate>
               } 
             />

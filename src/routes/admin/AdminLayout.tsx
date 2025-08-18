@@ -103,6 +103,12 @@ export default function AdminLayout() {
       </header>
 
       <main className="w-full px-4 pb-24 pt-4 space-y-5">
+        {/* Quick Stats - Moved to top */}
+        <section className="rounded-2xl border border-pink-50 bg-white shadow p-4">
+          <div className="font-semibold mb-3">Quick Stats</div>
+          <QuickStats/>
+        </section>
+
         <section className="rounded-2xl border border-pink-50 bg-white shadow p-4">
           <div className="font-semibold mb-4">Live Queue</div>
           
@@ -149,11 +155,6 @@ export default function AdminLayout() {
               ))}
             </div>
           )}
-        </section>
-
-        <section className="rounded-2xl border border-pink-50 bg-white shadow p-4">
-          <div className="font-semibold mb-3">Quick Stats</div>
-          <QuickStats/>
         </section>
       </main>
 
