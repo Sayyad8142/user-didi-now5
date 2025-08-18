@@ -5,21 +5,18 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { AdminBottomNav } from '@/components/AdminBottomNav';
 import { useNewBookingAlert } from '@/features/admin/useNewBookingAlert';
-
 export default function AdminSettings() {
-  const { enabled: soundOn, toggle: toggleSound, play: testSound } = useNewBookingAlert();
-
-  return (
-    <div className="min-h-screen bg-gray-50 pb-20">
+  const {
+    enabled: soundOn,
+    toggle: toggleSound,
+    play: testSound
+  } = useNewBookingAlert();
+  return <div className="min-h-screen bg-gray-50 pb-20">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
         <div className="px-4 py-4">
           <div className="flex items-center gap-3">
-            <Link
-              to="/admin"
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-              title="Back to Admin Dashboard"
-            >
+            <Link to="/admin" className="p-2 hover:bg-gray-100 rounded-lg transition-colors" title="Back to Admin Dashboard">
               <ArrowLeft className="h-5 w-5 text-gray-600" />
             </Link>
             <div>
@@ -56,37 +53,14 @@ export default function AdminSettings() {
                   </p>
                 </div>
               </div>
-              <Button
-                onClick={toggleSound}
-                variant={soundOn ? "default" : "outline"}
-                className="w-full h-11 text-base"
-              >
+              <Button onClick={toggleSound} variant={soundOn ? "default" : "outline"} className="w-full h-11 text-base">
                 {soundOn ? <Bell className="h-4 w-4 mr-2" /> : <BellOff className="h-4 w-4 mr-2" />}
                 {soundOn ? "Sound Enabled" : "Sound Disabled"}
               </Button>
             </div>
 
             {/* Test Sound - Only show if enabled */}
-            {soundOn && (
-              <div className="p-4 bg-blue-50 rounded-xl space-y-3">
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <Volume2 className="h-4 w-4 text-blue-600" />
-                    <h3 className="font-medium text-blue-900">Test Sound</h3>
-                  </div>
-                  <p className="text-sm text-blue-700">
-                    Check if your notification sound is working properly
-                  </p>
-                </div>
-                <Button
-                  onClick={testSound}
-                  variant="outline"
-                  className="w-full h-11 text-blue-700 border-blue-300 hover:bg-blue-100"
-                >
-                  🔊 Test Notification Sound
-                </Button>
-              </div>
-            )}
+            {soundOn}
           </CardContent>
         </Card>
 
@@ -153,6 +127,5 @@ export default function AdminSettings() {
       </div>
 
       <AdminBottomNav />
-    </div>
-  );
+    </div>;
 }
