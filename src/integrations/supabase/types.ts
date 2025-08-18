@@ -131,6 +131,7 @@ export type Database = {
           id: string
           maid_tasks: Database["public"]["Enums"]["maid_task"][] | null
           notes: string | null
+          prealert_sent: boolean
           price_inr: number | null
           scheduled_date: string | null
           scheduled_time: string | null
@@ -154,6 +155,7 @@ export type Database = {
           id?: string
           maid_tasks?: Database["public"]["Enums"]["maid_task"][] | null
           notes?: string | null
+          prealert_sent?: boolean
           price_inr?: number | null
           scheduled_date?: string | null
           scheduled_time?: string | null
@@ -177,6 +179,7 @@ export type Database = {
           id?: string
           maid_tasks?: Database["public"]["Enums"]["maid_task"][] | null
           notes?: string | null
+          prealert_sent?: boolean
           price_inr?: number | null
           scheduled_date?: string | null
           scheduled_time?: string | null
@@ -453,6 +456,10 @@ export type Database = {
       pending_sla_minutes: {
         Args: Record<PropertyKey, never>
         Returns: number
+      }
+      run_scheduled_prealerts: {
+        Args: { p_window_minutes?: number }
+        Returns: undefined
       }
       text_to_bytea: {
         Args: { data: string }
