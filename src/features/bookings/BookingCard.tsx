@@ -2,13 +2,17 @@ import React, { useEffect, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { prettyServiceName } from '@/features/booking/utils';
 import { formatDateTime } from '@/features/bookings/dt';
 import { format } from 'date-fns';
-import { PhoneCall, Sparkles, ChefHat, ShowerHead, Clock, User, MapPin, Timer } from 'lucide-react';
+import { PhoneCall, Sparkles, ChefHat, ShowerHead, Clock, User, MapPin, Timer, CreditCard } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import AssigningProgress from '@/features/bookings/AssigningProgress';
 import { useBookingRealtime } from '@/features/bookings/useBookingRealtime';
+import { buildUpiUrl, openUpi } from '@/lib/upi';
+import { toast } from 'sonner';
+
 interface Booking {
   id: string;
   service_type: string;
@@ -19,6 +23,11 @@ interface Booking {
   community: string;
   flat_no: string;
   created_at: string;
+  price_inr?: number | null;
+  worker_name?: string | null;
+  worker_phone?: string | null;
+  worker_upi?: string | null;
+  worker_photo_url?: string | null;
 }
 interface BookingCardProps {
   booking: Booking;
@@ -106,6 +115,28 @@ export function BookingCard({
     }
   };
 
+  const handlePayWorker = () => {
+    if (!row.worker_upi || !row.worker_name) {
+      toast.error("Worker payment details not available");
+      return;
+    }
+
+    const note = `Didi Now ${row.service_type} • ${row.community} • ${row.flat_no}`;
+    const upiUrl = buildUpiUrl({
+      pa: row.worker_upi,
+      pn: row.worker_name,
+      am: row.price_inr || undefined,
+      tn: note
+    });
+
+    try {
+      openUpi(upiUrl);
+      toast.success("Opening UPI app...");
+    } catch (error) {
+      toast.error("Please ensure a UPI app (GPay/PhonePe/Paytm) is installed");
+    }
+  };
+
   return (
     <Card className="overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300">
       {/* Header with service and status */}
@@ -138,21 +169,28 @@ export function BookingCard({
           </div>
         </div>
 
-        {/* Worker info and phone */}
-        {!loadingWorker && assignedWorker?.worker && (
+        {/* Worker info */}
+        {(assignedWorker?.worker || row.worker_name) && (
           <div className="flex items-start gap-3 p-3 bg-blue-50 rounded-xl">
-            <User className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+            <Avatar className="w-10 h-10 mt-0.5">
+              <AvatarImage src={assignedWorker?.worker?.avatar_url || row.worker_photo_url || undefined} />
+              <AvatarFallback>
+                <User className="w-5 h-5" />
+              </AvatarFallback>
+            </Avatar>
             <div className="flex-1 min-w-0">
               <p className="text-xs font-medium text-blue-600 uppercase tracking-wide mb-1">Worker</p>
-              <p className="font-semibold text-blue-900">{assignedWorker.worker.full_name}</p>
+              <p className="font-semibold text-blue-900">
+                {assignedWorker?.worker?.full_name || row.worker_name}
+              </p>
               <Button 
                 variant="link" 
                 className="p-0 h-auto text-blue-700 hover:text-blue-900 font-medium"
                 asChild
               >
-                <a href={`tel:${assignedWorker.worker.phone}`}>
+                <a href={`tel:${assignedWorker?.worker?.phone || row.worker_phone}`}>
                   <PhoneCall className="h-4 w-4 mr-1" />
-                  {assignedWorker.worker.phone}
+                  {assignedWorker?.worker?.phone || row.worker_phone}
                 </a>
               </Button>
             </div>
@@ -190,18 +228,35 @@ export function BookingCard({
           </div>
         )}
 
-        {/* Support button */}
-        {(row.status === 'pending' || row.status === 'assigned') && (
-          <Button 
-            asChild 
-            className="w-full h-12 bg-gradient-to-r from-[#ff007a] to-[#e6006a] hover:from-[#e6006a] hover:to-[#cc005f] text-white font-semibold rounded-xl shadow-md"
-          >
-            <a href="tel:+918008180018">
-              <PhoneCall className="h-4 w-4 mr-2" />
-              Need Help? Call Support
-            </a>
-          </Button>
-        )}
+        {/* Action buttons */}
+        <div className="space-y-2">
+          {/* Pay to Worker Button */}
+          {(row.status === 'assigned' || row.status === 'completed') && row.worker_upi && (
+            <Button 
+              onClick={handlePayWorker}
+              className="w-full h-12 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-semibold rounded-xl shadow-md"
+            >
+              <CreditCard className="h-4 w-4 mr-2" />
+              Pay to Worker (UPI)
+              {row.price_inr && (
+                <span className="ml-1 font-medium">₹{row.price_inr}</span>
+              )}
+            </Button>
+          )}
+
+          {/* Support button */}
+          {(row.status === 'pending' || row.status === 'assigned') && (
+            <Button 
+              asChild 
+              className="w-full h-12 bg-gradient-to-r from-[#ff007a] to-[#e6006a] hover:from-[#e6006a] hover:to-[#cc005f] text-white font-semibold rounded-xl shadow-md"
+            >
+              <a href="tel:+918008180018">
+                <PhoneCall className="h-4 w-4 mr-2" />
+                Need Help? Call Support
+              </a>
+            </Button>
+          )}
+        </div>
       </div>
     </Card>
   );

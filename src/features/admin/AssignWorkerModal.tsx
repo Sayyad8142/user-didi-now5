@@ -1,21 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { supabaseAdmin as supabase } from "@/lib/supabase-admin";
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, UserRound } from "lucide-react";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Loader2, User } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-
-type Worker = {
-  id: string;
-  full_name: string;
-  phone: string;
-  service_types: string[];
-  community: string | null;
-  is_active: boolean;
-};
+import { listWorkers, assignWorkerToBooking, Worker } from "@/features/admin/workers/api";
 
 interface AssignWorkerModalProps {
   open: boolean;
@@ -35,41 +25,27 @@ export function AssignWorkerModal({
   const service = booking?.service_type;
 
   useEffect(() => {
-    let active = true;
+    if (!open || !service) return;
     
-    const loadWorkers = async () => {
-      if (!open || !service) return;
-      
+    const fetchWorkers = async () => {
       setLoading(true);
       try {
-        const { data, error } = await supabase
-          .from("workers")
-          .select("*")
-          .eq("is_active", true);
-          
-        if (!active) return;
-        
-        if (error) {
-          console.error("Error loading workers:", error);
-          setWorkers([]);
-          return;
-        }
-        
-        setWorkers(data as Worker[]);
-      } catch (err) {
-        console.error("Error in loadWorkers:", err);
-        setWorkers([]);
+        const data = await listWorkers('', service);
+        setWorkers(data.filter(w => w.is_active));
+      } catch (error) {
+        console.error('Error fetching workers:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load workers",
+          variant: "destructive"
+        });
       } finally {
-        if (active) setLoading(false);
+        setLoading(false);
       }
     };
 
-    loadWorkers();
-    
-    return () => {
-      active = false;
-    };
-  }, [open, service]);
+    fetchWorkers();
+  }, [open, service, toast]);
 
   const filteredWorkers = useMemo(() => {
     const query = searchQuery.toLowerCase();
@@ -89,48 +65,30 @@ export function AssignWorkerModal({
       );
   }, [workers, searchQuery, service, booking]);
 
-  const handleAssignWorker = async (worker: Worker) => {
+  const handleAssignWorker = async (workerId: string) => {
     if (!booking) return;
     
     setSaving(true);
     try {
-      // Create assignment row
-      const { error: assignmentError } = await supabase
-        .from("assignments")
-        .insert({
-          booking_id: booking.id,
-          worker_id: worker.id,
-          status: "assigned",
-          notes: null
-        });
-        
-      if (assignmentError) throw assignmentError;
+      await assignWorkerToBooking(booking.id, workerId);
 
-      // Update booking status to assigned with confirmed_at timestamp
-      const { error: bookingError } = await supabase
-        .from("bookings")
-        .update({ 
-          status: "assigned", 
-          confirmed_at: new Date().toISOString() 
-        })
-        .eq("id", booking.id);
-        
-      if (bookingError) throw bookingError;
+      const worker = workers.find(w => w.id === workerId);
+      if (worker) {
+        onAssigned?.({ worker });
+      }
 
-      toast({ 
-        title: "Worker assigned successfully!",
-        description: `${worker.full_name} has been assigned to this booking.`
+      toast({
+        title: "Success",
+        description: "Worker assigned successfully"
       });
-      
-      onAssigned?.({ worker });
+
       onOpenChange(false);
-      setSearchQuery("");
-    } catch (error: any) {
-      console.error("Error assigning worker:", error);
-      toast({ 
-        title: "Failed to assign worker", 
-        description: error.message || "An error occurred while assigning the worker.",
-        variant: "destructive" 
+    } catch (error) {
+      console.error('Error assigning worker:', error);
+      toast({
+        title: "Error",
+        description: "Failed to assign worker",
+        variant: "destructive"
       });
     } finally {
       setSaving(false);
@@ -171,9 +129,12 @@ export function AssignWorkerModal({
               {filteredWorkers.map(worker => (
                 <div key={worker.id} className="flex items-center justify-between rounded-xl border p-3 hover:bg-muted/50">
                   <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-full bg-primary/10 text-primary flex items-center justify-center">
-                      <UserRound className="h-5 w-5"/>
-                    </div>
+                    <Avatar className="w-10 h-10">
+                      <AvatarImage src={worker.photo_url || undefined} />
+                      <AvatarFallback>
+                        <User className="w-5 h-5" />
+                      </AvatarFallback>
+                    </Avatar>
                     <div className="text-sm">
                       <div className="font-medium">{worker.full_name}</div>
                       <div className="text-xs text-muted-foreground">
@@ -184,7 +145,7 @@ export function AssignWorkerModal({
                   </div>
                   <Button 
                     disabled={saving} 
-                    onClick={() => handleAssignWorker(worker)}
+                    onClick={() => handleAssignWorker(worker.id)}
                     size="sm"
                   >
                     {saving ? "Assigning..." : "Assign"}
