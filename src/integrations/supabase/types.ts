@@ -408,6 +408,21 @@ export type Database = {
         Args: { p_booking_id: string; p_new_status: string; p_note?: string }
         Returns: undefined
       }
+      admin_upsert_worker: {
+        Args: { p_worker: Json }
+        Returns: {
+          community: string | null
+          created_at: string
+          full_name: string
+          id: string
+          is_active: boolean
+          phone: string
+          photo_url: string | null
+          service_types: string[]
+          updated_at: string
+          upi_id: string
+        }
+      }
       assign_worker_to_booking: {
         Args: { p_booking_id: string; p_worker_id: string }
         Returns: undefined

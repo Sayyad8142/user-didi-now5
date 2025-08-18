@@ -34,10 +34,7 @@ export async function listWorkers(query: string = '', serviceType?: string): Pro
 
 export async function upsertWorker(payload: Omit<Worker, 'created_at' | 'updated_at'> & { id?: string }): Promise<Worker> {
   const { data, error } = await supabase
-    .from('workers')
-    .upsert(payload)
-    .select('*')
-    .single();
+    .rpc('admin_upsert_worker', { p_worker: payload });
   if (error) throw error;
   return data as Worker;
 }
