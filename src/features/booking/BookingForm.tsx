@@ -441,24 +441,6 @@ export function BookingForm() {
                 How many bathrooms? <span className="text-destructive">*</span>
               </h2>
               
-              {/* quick chips 1..5 */}
-              <div className="grid grid-cols-3 gap-3 mb-3">
-                {[1,2,3,4,5].map(n => (
-                  <Button
-                    key={n}
-                    variant="outline"
-                    onClick={() => setBathroomCount(n)}
-                    className={cn(
-                      "h-12 font-medium rounded-2xl border-2",
-                      bathroomCount === n ? "border-primary bg-primary/5 text-primary" 
-                                          : "border-border bg-background text-foreground hover:border-primary/50"
-                    )}
-                  >
-                    {n} {n === 1 ? "Bathroom" : "Bathrooms"}
-                  </Button>
-                ))}
-              </div>
-
               {/* stepper */}
               <div className="flex items-center justify-center gap-4 mt-4">
                 <Button 
