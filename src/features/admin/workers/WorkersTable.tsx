@@ -14,7 +14,7 @@ export function WorkersTable() {
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [serviceFilter, setServiceFilter] = useState<string>("");
+  const [serviceFilter, setServiceFilter] = useState<string>("all");
   const [selectedWorker, setSelectedWorker] = useState<Worker | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -22,7 +22,7 @@ export function WorkersTable() {
   const fetchWorkers = async () => {
     try {
       setLoading(true);
-      const data = await listWorkers(searchQuery, serviceFilter || undefined);
+      const data = await listWorkers(searchQuery, serviceFilter === "all" ? undefined : serviceFilter);
       setWorkers(data);
     } catch (error) {
       toast.error("Failed to load workers");
@@ -100,7 +100,7 @@ export function WorkersTable() {
             <SelectValue placeholder="Filter by service" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">All Services</SelectItem>
+            <SelectItem value="all">All Services</SelectItem>
             <SelectItem value="maid">Maid</SelectItem>
             <SelectItem value="cook">Cook</SelectItem>
             <SelectItem value="bathroom_cleaning">Bathroom</SelectItem>
