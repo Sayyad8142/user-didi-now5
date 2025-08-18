@@ -368,7 +368,10 @@ export type Database = {
           id: string
           is_active: boolean
           phone: string
+          photo_url: string | null
           service_types: string[]
+          updated_at: string
+          upi_id: string
         }
         Insert: {
           community?: string | null
@@ -377,7 +380,10 @@ export type Database = {
           id?: string
           is_active?: boolean
           phone: string
+          photo_url?: string | null
           service_types?: string[]
+          updated_at?: string
+          upi_id: string
         }
         Update: {
           community?: string | null
@@ -386,7 +392,10 @@ export type Database = {
           id?: string
           is_active?: boolean
           phone?: string
+          photo_url?: string | null
           service_types?: string[]
+          updated_at?: string
+          upi_id?: string
         }
         Relationships: []
       }

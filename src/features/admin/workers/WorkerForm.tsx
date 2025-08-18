@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Camera, Upload } from "lucide-react";
 import { toast } from "sonner";
@@ -118,6 +118,9 @@ export function WorkerForm({ worker, open, onOpenChange, onSaved }: WorkerFormPr
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>{worker ? 'Edit Worker' : 'Add Worker'}</DialogTitle>
+          <DialogDescription>
+            {worker ? 'Update worker information and settings' : 'Add a new worker to the system'}
+          </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
