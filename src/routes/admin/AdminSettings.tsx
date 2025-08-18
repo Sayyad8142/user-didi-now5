@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Settings, Bell, BellOff, DollarSign, ArrowLeft } from 'lucide-react';
+import { Settings, Bell, BellOff, DollarSign, ArrowLeft, Info, Volume2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { AdminBottomNav } from '@/components/AdminBottomNav';
@@ -10,79 +10,90 @@ export default function AdminSettings() {
   const { enabled: soundOn, toggle: toggleSound, play: testSound } = useNewBookingAlert();
 
   return (
-    <div className="min-h-dvh bg-rose-50/40 pb-20">
-      <header className="sticky top-0 z-10 bg-white/90 backdrop-blur border-b border-pink-50">
-        <div className="w-full px-4 h-14 flex items-center justify-between">
+    <div className="min-h-screen bg-gray-50 pb-20">
+      {/* Header */}
+      <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
+        <div className="px-4 py-4">
           <div className="flex items-center gap-3">
             <Link
               to="/admin"
-              className="h-9 w-9 rounded-full border border-gray-300 text-gray-700 hover:border-pink-300 hover:text-[#ff007a] hover:bg-pink-50 inline-flex items-center justify-center transition-colors"
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
               title="Back to Admin Dashboard"
             >
-              <ArrowLeft className="h-4 w-4" />
+              <ArrowLeft className="h-5 w-5 text-gray-600" />
             </Link>
-            <div className="flex flex-col">
-              <h1 className="text-lg sm:text-2xl font-bold">
-                <span className="text-[#ff007a]">Admin</span> — <span className="text-gray-700">Settings</span>
-              </h1>
-              <span className="text-xs text-gray-500 hidden sm:block">Configure system preferences</span>
+            <div>
+              <h1 className="text-lg font-semibold text-gray-900">Settings</h1>
+              <p className="text-sm text-gray-500">Configure system preferences</p>
             </div>
           </div>
         </div>
-      </header>
+      </div>
 
-      <main className="w-full px-4 pb-24 pt-6 space-y-6">
+      <div className="px-4 py-6 space-y-4 max-w-2xl mx-auto">
         {/* Notifications Settings */}
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+          <CardHeader className="pb-4">
+            <CardTitle className="flex items-center gap-2 text-lg">
               <Bell className="h-5 w-5 text-[#ff007a]" />
-              Notification Settings
+              Notifications
             </CardTitle>
             <CardDescription>
-              Configure sound alerts and notification preferences
+              Manage sound alerts and notification preferences
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-              <div>
-                <h3 className="font-medium text-gray-900">Sound Notifications</h3>
-                <p className="text-sm text-gray-600">Play sound alerts for new bookings and overdue items</p>
+          <CardContent className="space-y-3">
+            {/* Sound Toggle */}
+            <div className="p-4 bg-gray-50 rounded-xl space-y-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Volume2 className="h-4 w-4 text-gray-600 flex-shrink-0" />
+                    <h3 className="font-medium text-gray-900">Sound Alerts</h3>
+                  </div>
+                  <p className="text-sm text-gray-600 leading-relaxed">
+                    Play audio notifications for new bookings and overdue items
+                  </p>
+                </div>
               </div>
               <Button
                 onClick={toggleSound}
                 variant={soundOn ? "default" : "outline"}
-                size="sm"
-                className="flex items-center gap-2"
+                className="w-full h-11 text-base"
               >
-                {soundOn ? <Bell className="h-4 w-4" /> : <BellOff className="h-4 w-4" />}
-                {soundOn ? "Enabled" : "Disabled"}
+                {soundOn ? <Bell className="h-4 w-4 mr-2" /> : <BellOff className="h-4 w-4 mr-2" />}
+                {soundOn ? "Sound Enabled" : "Sound Disabled"}
               </Button>
             </div>
 
+            {/* Test Sound - Only show if enabled */}
             {soundOn && (
-              <div className="flex items-center justify-between p-4 bg-blue-50 rounded-lg">
+              <div className="p-4 bg-blue-50 rounded-xl space-y-3">
                 <div>
-                  <h3 className="font-medium text-gray-900">Test Sound</h3>
-                  <p className="text-sm text-gray-600">Check if your notification sound is working</p>
+                  <div className="flex items-center gap-2 mb-1">
+                    <Volume2 className="h-4 w-4 text-blue-600" />
+                    <h3 className="font-medium text-blue-900">Test Sound</h3>
+                  </div>
+                  <p className="text-sm text-blue-700">
+                    Check if your notification sound is working properly
+                  </p>
                 </div>
                 <Button
                   onClick={testSound}
                   variant="outline"
-                  size="sm"
-                  className="text-blue-700 border-blue-300 hover:bg-blue-100"
+                  className="w-full h-11 text-blue-700 border-blue-300 hover:bg-blue-100"
                 >
-                  🔊 Test Sound
+                  🔊 Test Notification Sound
                 </Button>
               </div>
             )}
           </CardContent>
         </Card>
 
-        {/* Pricing Settings */}
+        {/* Pricing Management */}
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+          <CardHeader className="pb-4">
+            <CardTitle className="flex items-center gap-2 text-lg">
               <DollarSign className="h-5 w-5 text-[#ff007a]" />
               Pricing Management
             </CardTitle>
@@ -91,16 +102,15 @@ export default function AdminSettings() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+            <div className="p-4 bg-gray-50 rounded-xl space-y-3">
               <div>
-                <h3 className="font-medium text-gray-900">Service Pricing</h3>
-                <p className="text-sm text-gray-600">Set prices for maid, cook, and bathroom cleaning services</p>
+                <h3 className="font-medium text-gray-900 mb-1">Service Pricing</h3>
+                <p className="text-sm text-gray-600 leading-relaxed">
+                  Set prices for maid, cook, and bathroom cleaning services
+                </p>
               </div>
-              <Button asChild>
-                <Link
-                  to="/admin/pricing"
-                  className="flex items-center gap-2"
-                >
+              <Button asChild className="w-full h-11">
+                <Link to="/admin/pricing" className="flex items-center justify-center gap-2">
                   <Settings className="h-4 w-4" />
                   Configure Pricing
                 </Link>
@@ -111,29 +121,36 @@ export default function AdminSettings() {
 
         {/* System Information */}
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Settings className="h-5 w-5 text-[#ff007a]" />
+          <CardHeader className="pb-4">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Info className="h-5 w-5 text-[#ff007a]" />
               System Information
             </CardTitle>
             <CardDescription>
               Application status and system details
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div className="p-3 bg-gray-50 rounded-lg">
-                <div className="font-medium text-gray-900">Version</div>
-                <div className="text-gray-600">Admin Console v1.0</div>
-              </div>
-              <div className="p-3 bg-gray-50 rounded-lg">
-                <div className="font-medium text-gray-900">Status</div>
-                <div className="text-green-600 font-medium">● Active</div>
+          <CardContent>
+            <div className="space-y-3">
+              <div className="p-4 bg-gray-50 rounded-xl">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <div className="text-sm font-medium text-gray-500 mb-1">Version</div>
+                    <div className="text-base font-semibold text-gray-900">v1.0</div>
+                  </div>
+                  <div>
+                    <div className="text-sm font-medium text-gray-500 mb-1">Status</div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                      <span className="text-base font-semibold text-green-600">Active</span>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </CardContent>
         </Card>
-      </main>
+      </div>
 
       <AdminBottomNav />
     </div>
