@@ -109,52 +109,110 @@ export default function AdminLayout() {
           <QuickStats/>
         </section>
 
-        <section className="rounded-2xl border border-pink-50 bg-white shadow p-4">
-          <div className="font-semibold mb-4">Live Queue</div>
+        <section className="space-y-6">
+          {/* Live Queue Header */}
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-bold text-gray-900">Live Queue</h2>
+            <div className="flex items-center gap-2 text-sm text-gray-500">
+              <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+              Real-time updates
+            </div>
+          </div>
           
-          {/* Filter Chips */}
-          <div className="flex gap-2 mb-4">
-            {(['all', 'pending', 'assigned'] as const).map((status) => (
-              <Button
-                key={status}
-                variant={filterStatus === status ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => handleFilterChange(status)}
-                className="capitalize"
-              >
-                {status === 'all' ? 'All' : status}
-              </Button>
-            ))}
-          </div>
-
-          {/* Search Input */}
-          <div className="relative mb-4">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-            <Input
-              placeholder="Search by service, community, flat, name, or phone..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-
-          {filteredRows.length === 0 ? (
-            <div className="text-sm text-gray-600">
-              {rows.length === 0 ? 'No active bookings yet' : 'No bookings match your search'}
+          {/* Modern Filter Tabs */}
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="flex bg-gray-50/50">
+              {(['all', 'pending', 'assigned'] as const).map((status, index) => {
+                const isActive = filterStatus === status;
+                const count = status === 'all' 
+                  ? rows.filter(r => ['pending', 'assigned'].includes(r.status)).length
+                  : rows.filter(r => r.status === status).length;
+                
+                return (
+                  <button
+                    key={status}
+                    onClick={() => handleFilterChange(status)}
+                    className={`flex-1 px-4 py-3 text-sm font-medium transition-all relative ${
+                      isActive 
+                        ? 'text-[#ff007a] bg-white shadow-sm' 
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                    }`}
+                  >
+                    <div className="flex items-center justify-center gap-2">
+                      <span className="capitalize">
+                        {status === 'all' ? 'All Active' : status}
+                      </span>
+                      {count > 0 && (
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                          isActive 
+                            ? 'bg-[#ff007a] text-white' 
+                            : 'bg-gray-200 text-gray-600'
+                        }`}>
+                          {count}
+                        </span>
+                      )}
+                    </div>
+                    {isActive && (
+                      <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#ff007a]"></div>
+                    )}
+                  </button>
+                );
+              })}
             </div>
-          ) : (
-            <div className="space-y-3">
-              {filteredRows.map(b => (
-                <BookingRow 
-                  key={b.id} 
-                  b={b} 
-                  onClick={() => { setActive(b); setOpen(true); }} 
-                  onInteracted={() => { snooze(4000); stopSound(); }}
-                  slaMinutes={slaMinutes}
+
+            {/* Enhanced Search Bar */}
+            <div className="p-4 border-t border-gray-100">
+              <div className="relative">
+                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+                <Input
+                  placeholder="Search by service, community, flat number..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-12 pr-4 py-3 border-gray-200 rounded-xl bg-gray-50/50 focus:bg-white transition-colors"
                 />
-              ))}
+                {searchTerm && (
+                  <button
+                    onClick={() => setSearchTerm('')}
+                    className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
             </div>
-          )}
+
+            {/* Results Section */}
+            <div className="p-4 pt-0">
+              {filteredRows.length === 0 ? (
+                <div className="text-center py-12">
+                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Search className="h-6 w-6 text-gray-400" />
+                  </div>
+                  <h3 className="font-medium text-gray-900 mb-1">
+                    {rows.length === 0 ? 'No Active Bookings' : 'No Results Found'}
+                  </h3>
+                  <p className="text-sm text-gray-500">
+                    {rows.length === 0 
+                      ? 'New bookings will appear here automatically' 
+                      : 'Try adjusting your search or filter'
+                    }
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {filteredRows.map(b => (
+                    <BookingRow 
+                      key={b.id} 
+                      b={b} 
+                      onClick={() => { setActive(b); setOpen(true); }} 
+                      onInteracted={() => { snooze(4000); stopSound(); }}
+                      slaMinutes={slaMinutes}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
         </section>
       </main>
 

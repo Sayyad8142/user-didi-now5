@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { supabaseAdmin as supabase } from "@/lib/supabase-admin";
-import { Phone, CalendarClock, Sparkles, ChefHat, ShowerHead, Check } from "lucide-react";
+import { Phone, CalendarClock, Sparkles, ChefHat, ShowerHead, Check, MapPin, User, Clock, AlertCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import Timer from "@/components/Timer";
 import { useToast } from "@/hooks/use-toast";
 import { useNewBookingAlert } from "./useNewBookingAlert";
@@ -34,10 +36,7 @@ export default function BookingRow({
   const createdAt = b.created_at;
   const overdue = pending && (Date.now() - new Date(createdAt).getTime()) > (slaMinutes * 60 * 1000);
   
-  const pill = b.status==='completed'?'bg-green-100 text-green-700':
-               b.status==='assigned' ?'bg-blue-100 text-blue-700':
-               b.status==='cancelled'?'bg-rose-100 text-rose-700':'bg-gray-100 text-gray-700';
-  const when = b.booking_type==='instant'
+  const when = b.booking_type === 'instant'
     ? 'Instant (arrive ~10 mins)'
     : `${b.scheduled_date ?? ''} ${b.scheduled_time?.slice(0,5) ?? ''}`.trim();
 
@@ -67,64 +66,173 @@ export default function BookingRow({
     }
   }
 
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return (
+          <Badge variant="secondary" className="bg-amber-100 text-amber-800 border-amber-200">
+            Finding Worker
+          </Badge>
+        );
+      case 'assigned':
+        return (
+          <Badge variant="secondary" className="bg-emerald-100 text-emerald-800 border-emerald-200">
+            Worker Assigned
+          </Badge>
+        );
+      case 'completed':
+        return (
+          <Badge variant="secondary" className="bg-green-100 text-green-800 border-green-200">
+            Completed
+          </Badge>
+        );
+      default:
+        return (
+          <Badge variant="outline" className="capitalize">
+            {status}
+          </Badge>
+        );
+    }
+  };
+
   return (
     <div
       onClick={onClick}
-      className={`w-full text-left rounded-2xl border bg-white shadow p-4 space-y-2 active:scale-[.99] transition cursor-pointer ${
-        overdue ? "border-red-300 ring-1 ring-red-200 bg-red-50/30" : "border-pink-50"
+      className={`group relative overflow-hidden rounded-2xl border bg-white hover:shadow-md transition-all duration-200 cursor-pointer ${
+        overdue 
+          ? "border-red-200 ring-2 ring-red-100 bg-red-50/50 shadow-red-100/50" 
+          : "border-gray-200 hover:border-gray-300"
       }`}
     >
-      <div className="flex items-start gap-3">
-        <div className="h-10 w-10 shrink-0 rounded-xl bg-pink-100 text-[#ff007a] grid place-items-center">
-          <ServiceIcon t={b.service_type}/>
-        </div>
-        <div className="flex-1">
-          <div className="flex items-center gap-2">
-            <div className="font-semibold">{prettyService(b.service_type)}</div>
-            <span className={`px-2 py-1 rounded-full text-xs ${pill}`}>{b.status}</span>
-            {b.status === "pending" && (
-              <button
-                onClick={confirmBooking}
-                disabled={saving}
-                className="ml-auto inline-flex items-center gap-1 rounded-full bg-[#ff007a] text-white text-xs px-3 py-1 disabled:opacity-60 hover:bg-[#e6006a] transition-colors"
-                title="Confirm this booking"
-              >
-                <Check className="h-3.5 w-3.5" /> {saving ? "Confirming..." : "Confirm"}
-              </button>
-            )}
-          </div>
-          <div className="text-xs text-gray-600 flex items-center gap-1">
-            <CalendarClock className="h-3.5 w-3.5"/> {when}
-          </div>
-          <div className="text-sm text-gray-700 mt-1">
-            {b.community} • {b.flat_no}
-          </div>
-          {b.service_type === 'maid' && b.maid_tasks?.length && (
-            <div className="text-xs text-gray-500 mt-1">
-              Tasks: {b.maid_tasks.map((t: string) => 
-                t === 'floor_cleaning' ? 'Floor' : 'Dish'
-              ).join(' + ')}
+      {/* Header Section */}
+      <div className={`p-4 ${overdue ? 'bg-red-50/50' : 'bg-gray-50/50'}`}>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className={`h-12 w-12 rounded-xl flex items-center justify-center shadow-sm ${
+              overdue 
+                ? 'bg-red-100 text-red-600' 
+                : 'bg-gradient-to-br from-[#ff007a] to-[#e6006a] text-white'
+            }`}>
+              <ServiceIcon t={b.service_type} />
             </div>
-          )}
-          <div className="text-xs text-gray-500 flex items-center gap-2 mt-1">
-            <Phone className="h-3.5 w-3.5"/> {b.cust_name} ({b.cust_phone})
-            <div className="ml-auto">
-              <Timer since={b.created_at} />
+            <div>
+              <h3 className="font-semibold text-gray-900 text-base">
+                {prettyService(b.service_type)}
+              </h3>
+              <p className="text-sm text-gray-600">
+                {b.booking_type === 'instant' ? 'Instant Service' : 'Scheduled'}
+              </p>
             </div>
           </div>
           
-          {/* SLA Clock for pending bookings */}
-          {pending && (
-            <div className="mt-2 pt-2 border-t border-gray-100">
-              <SLAClock 
-                createdAt={createdAt} 
-                slaMinutes={slaMinutes} 
-                pending={pending} 
-              />
-            </div>
-          )}
+          <div className="flex items-center gap-2">
+            {overdue && (
+              <div className="flex items-center gap-1 text-red-600">
+                <AlertCircle className="h-4 w-4" />
+                <span className="text-xs font-medium">Overdue</span>
+              </div>
+            )}
+            {getStatusBadge(b.status)}
+          </div>
         </div>
       </div>
+
+      {/* Content Section */}
+      <div className="p-4 space-y-4">
+        {/* Location & Timing */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-xl">
+            <MapPin className="h-5 w-5 text-gray-600 mt-0.5 flex-shrink-0" />
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Location</p>
+              <p className="font-semibold text-gray-900 truncate">{b.community}</p>
+              <p className="text-sm text-gray-600">Flat {b.flat_no}</p>
+            </div>
+          </div>
+          
+          <div className="flex items-start gap-3 p-3 bg-blue-50 rounded-xl">
+            <Clock className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-medium text-blue-600 uppercase tracking-wide mb-1">Timing</p>
+              <p className="font-semibold text-blue-900 text-sm">
+                {b.booking_type === 'instant' ? 'Arrive ~10 mins' : when}
+              </p>
+              <div className="mt-1">
+                <Timer since={b.created_at} />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Customer Info */}
+        <div className="flex items-start gap-3 p-3 bg-purple-50 rounded-xl">
+          <User className="h-5 w-5 text-purple-600 mt-0.5 flex-shrink-0" />
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-medium text-purple-600 uppercase tracking-wide mb-1">Customer</p>
+            <p className="font-semibold text-purple-900">{b.cust_name}</p>
+            <Button 
+              variant="link" 
+              className="p-0 h-auto text-purple-700 hover:text-purple-900 font-medium text-sm"
+              asChild
+              onClick={(e) => e.stopPropagation()}
+            >
+              <a href={`tel:${b.cust_phone}`}>
+                <Phone className="h-4 w-4 mr-1" />
+                {b.cust_phone}
+              </a>
+            </Button>
+          </div>
+        </div>
+
+        {/* Maid Tasks */}
+        {b.service_type === 'maid' && b.maid_tasks?.length > 0 && (
+          <div className="flex items-start gap-3 p-3 bg-green-50 rounded-xl">
+            <Sparkles className="h-5 w-5 text-green-600 mt-0.5" />
+            <div>
+              <p className="text-xs font-medium text-green-600 uppercase tracking-wide mb-1">Tasks</p>
+              <p className="text-sm font-semibold text-green-900">
+                {b.maid_tasks.map((t: string) => 
+                  t === 'floor_cleaning' ? 'Floor Cleaning' : 'Dish Washing'
+                ).join(' + ')}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* SLA Clock for pending bookings */}
+        {pending && (
+          <div className="p-3 bg-amber-50 border border-amber-100 rounded-xl">
+            <SLAClock 
+              createdAt={createdAt} 
+              slaMinutes={slaMinutes} 
+              pending={pending} 
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Action Section */}
+      {b.status === "pending" && (
+        <div className="px-4 pb-4">
+          <Button
+            onClick={confirmBooking}
+            disabled={saving}
+            className="w-full h-12 bg-gradient-to-r from-[#ff007a] to-[#e6006a] hover:from-[#e6006a] hover:to-[#cc005f] text-white font-semibold rounded-xl shadow-md disabled:opacity-60"
+          >
+            {saving ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
+                Confirming...
+              </>
+            ) : (
+              <>
+                <Check className="h-4 w-4 mr-2" />
+                Confirm Assignment
+              </>
+            )}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
