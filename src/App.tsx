@@ -22,6 +22,7 @@ import AdminSettings from "./routes/admin/AdminSettings";
 import AdminDailyBookings from "./routes/admin/AdminDailyBookings";
 import AdminLogin from "./routes/auth/AdminLogin";
 import AdminVerify from "./routes/auth/AdminVerify";
+import LegalCenter from "./routes/LegalCenter";
 
 const queryClient = new QueryClient();
 
@@ -45,6 +46,7 @@ const App = () => (
             <Route path="/auth/verify" element={<VerifyOTP />} />
             <Route path="/admin-login" element={<AdminLogin />} />
             <Route path="/admin-verify" element={<AdminVerify />} />
+            <Route path="/legal" element={<LegalCenter />} />
             <Route 
               path="/home" 
               element={

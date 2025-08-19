@@ -6,7 +6,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useProfile } from '@/features/profile/useProfile';
 import { supabase } from '@/integrations/supabase/client';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { User, Phone, Building, Home, LogOut, Settings, Bell, Shield, Edit3, Save, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 export default function Profile() {
@@ -241,11 +241,34 @@ export default function Profile() {
           </CardContent>
         </Card>
 
-        {/* Quick Actions Card */}
-        <Card className="gradient-card shadow-card border-0 overflow-hidden transition-spring hover:shadow-button">
+        {/* Legal Links */}
+        <div className="space-y-3">
+          <Link 
+            to="/legal?tab=privacy" 
+            className="flex items-center justify-between h-14 px-4 bg-white/80 rounded-2xl border border-gray-100 hover:bg-white transition-spring hover:scale-[0.98] shadow-input"
+          >
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 bg-blue-100 rounded-xl flex items-center justify-center">
+                <Shield className="w-5 h-5 text-blue-600" />
+              </div>
+              <span className="font-medium text-gray-700">Privacy Policy</span>
+            </div>
+            <div className="text-gray-400">›</div>
+          </Link>
           
-          
-        </Card>
+          <Link 
+            to="/legal?tab=terms" 
+            className="flex items-center justify-between h-14 px-4 bg-white/80 rounded-2xl border border-gray-100 hover:bg-white transition-spring hover:scale-[0.98] shadow-input"
+          >
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 bg-purple-100 rounded-xl flex items-center justify-center">
+                <Settings className="w-5 h-5 text-purple-600" />
+              </div>
+              <span className="font-medium text-gray-700">Terms of Service</span>
+            </div>
+            <div className="text-gray-400">›</div>
+          </Link>
+        </div>
 
         {/* Sign Out Button */}
         <Button onClick={handleSignOut} variant="outline" className="w-full h-14 rounded-2xl border-2 border-red-200 bg-white/80 hover:bg-red-50 text-red-600 font-semibold transition-spring hover:scale-[0.98] shadow-input">
