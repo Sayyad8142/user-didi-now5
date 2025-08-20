@@ -9,6 +9,7 @@ import { format } from 'date-fns';
 import { PhoneCall, Sparkles, ChefHat, ShowerHead, Clock, User, MapPin, Timer, CreditCard } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import AssigningProgress from '@/features/bookings/AssigningProgress';
+import AutoCompleteCountdown from '@/components/AutoCompleteCountdown';
 import { useBookingRealtime } from '@/features/bookings/useBookingRealtime';
 import { buildUpiUrl, openUpi } from '@/lib/upi';
 import { toast } from 'sonner';
@@ -30,6 +31,7 @@ interface Booking {
   worker_phone?: string | null;
   worker_upi?: string | null;
   worker_photo_url?: string | null;
+  auto_complete_at?: string | null;
 }
 interface BookingCardProps {
   booking: Booking;
@@ -201,14 +203,15 @@ export function BookingCard({
           </div>
         )}
 
-        {/* Time info */}
+        {/* Time info and auto-complete countdown */}
         {row.status === 'assigned' && (
           <div className="flex items-center gap-3 p-3 bg-emerald-50 rounded-xl border border-emerald-100">
             <Timer className="h-5 w-5 text-emerald-600" />
-            <div>
+            <div className="flex-1">
               <p className="text-xs font-medium text-emerald-600 uppercase tracking-wide mb-1">Arrival</p>
               <p className="font-semibold text-emerald-900">~10 minutes</p>
             </div>
+            <AutoCompleteCountdown autoCompleteAt={row.auto_complete_at} />
           </div>
         )}
 

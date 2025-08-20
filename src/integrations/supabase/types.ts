@@ -118,6 +118,8 @@ export type Database = {
       bookings: {
         Row: {
           assigned_at: string | null
+          auto_complete_after_minutes: number | null
+          auto_complete_at: string | null
           bathroom_count: number | null
           booking_type: string
           can_cancel_until: string | null
@@ -153,6 +155,8 @@ export type Database = {
         }
         Insert: {
           assigned_at?: string | null
+          auto_complete_after_minutes?: number | null
+          auto_complete_at?: string | null
           bathroom_count?: number | null
           booking_type: string
           can_cancel_until?: string | null
@@ -188,6 +192,8 @@ export type Database = {
         }
         Update: {
           assigned_at?: string | null
+          auto_complete_after_minutes?: number | null
+          auto_complete_at?: string | null
           bathroom_count?: number | null
           booking_type?: string
           can_cancel_until?: string | null
@@ -516,7 +522,13 @@ export type Database = {
         Returns: undefined
       }
       assign_worker_to_booking: {
-        Args: { p_booking_id: string; p_worker_id: string }
+        Args:
+          | {
+              p_assigned_by?: string
+              p_booking_id: string
+              p_worker_id: string
+            }
+          | { p_booking_id: string; p_worker_id: string }
         Returns: undefined
       }
       auto_complete_assigned: {
@@ -550,6 +562,10 @@ export type Database = {
       get_setting: {
         Args: { p_default: string; p_key: string }
         Returns: string
+      }
+      get_setting_int: {
+        Args: { p_default: number; p_key: string }
+        Returns: number
       }
       gtrgm_compress: {
         Args: { "": unknown }
