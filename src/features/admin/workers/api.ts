@@ -1,4 +1,4 @@
-import { supabaseAdmin as supabase } from "@/lib/supabase-admin";
+import { supabase } from "@/integrations/supabase/client";
 
 export interface Worker {
   id: string;
