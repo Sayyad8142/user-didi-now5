@@ -47,21 +47,28 @@ export function AssignWorkerSheet({
     const fetchWorkers = async () => {
       setLoading(true);
       try {
+        console.log('Fetching workers...');
         const { data, error } = await supabaseAdmin
           .from('workers')
           .select('*')
           .eq('is_active', true)
           .order('full_name');
         
-        if (error) throw error;
+        if (error) {
+          console.error('Supabase error:', error);
+          throw error;
+        }
+        
+        console.log('Workers fetched:', data?.length || 0);
         setWorkers(data || []);
       } catch (error) {
         console.error('Error fetching workers:', error);
         toast({
           title: "Error",
-          description: "Failed to load workers",
+          description: "Failed to load workers. Please try again.",
           variant: "destructive"
         });
+        setWorkers([]); // Set empty array on error
       } finally {
         setLoading(false);
       }
