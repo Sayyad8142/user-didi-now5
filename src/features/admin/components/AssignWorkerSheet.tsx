@@ -36,8 +36,8 @@ export function AssignWorkerSheet({
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [assigning, setAssigning] = useState<string | null>(null);
-  const [sameCommunity, setSameCommunity] = useState(true);
-  const [sameService, setSameService] = useState(true);
+  const [sameCommunity, setSameCommunity] = useState(false);
+  const [sameService, setSameService] = useState(false);
   const { toast } = useToast();
 
   // Fetch workers when sheet opens
@@ -81,8 +81,8 @@ export function AssignWorkerSheet({
   useEffect(() => {
     if (open) {
       setSearchQuery("");
-      setSameCommunity(true);
-      setSameService(true);
+      setSameCommunity(false);
+      setSameService(false);
     }
   }, [open]);
 
