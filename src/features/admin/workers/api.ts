@@ -97,7 +97,7 @@ export async function deleteWorker(id: string): Promise<void> {
 
 export async function uploadWorkerPhoto(file: File): Promise<string> {
   const path = `w_${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
-  const { error } = await supabase.storage
+  const { error } = await supabaseAdmin.storage
     .from('worker-photos')
     .upload(path, file, { 
       upsert: false, 
@@ -106,7 +106,7 @@ export async function uploadWorkerPhoto(file: File): Promise<string> {
   
   if (error) throw error;
   
-  const { data: pub } = supabase.storage
+  const { data: pub } = supabaseAdmin.storage
     .from('worker-photos')
     .getPublicUrl(path);
   
