@@ -9,6 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useNavigate, Link } from 'react-router-dom';
 import { User, Phone, Building, Home, LogOut, Settings, Bell, Shield, Edit3, Save, X, HelpCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { AppVersionDisplay } from '@/components/AppVersionDisplay';
 export default function Profile() {
   const { profile, loading } = useProfile();
   const navigate = useNavigate();
@@ -301,6 +302,9 @@ export default function Profile() {
           <LogOut className="w-5 h-5 mr-3" />
           Sign Out
         </Button>
+
+        {/* App Version */}
+        <AppVersionDisplay />
       </div>
     </div>;
 }
