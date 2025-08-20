@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Camera, Upload } from "lucide-react";
 import { toast } from "sonner";
-import { Worker, upsertWorker, uploadWorkerPhoto } from "./api";
+import { Worker, adminUpsertWorker, uploadWorkerPhoto } from "./api";
 
 interface WorkerFormProps {
   worker?: Worker | null;
@@ -86,20 +86,23 @@ export function WorkerForm({ worker, open, onOpenChange, onSaved }: WorkerFormPr
 
     try {
       setLoading(true);
-      const payload = {
-        ...data,
+      
+      await adminUpsertWorker({
+        full_name: data.full_name,
+        phone: data.phone,
+        upi_id: data.upi_id,
         service_types: serviceTypes,
-        photo_url: photoUrl,
-        ...(worker?.id && { id: worker.id })
-      };
-
-      await upsertWorker(payload);
+        community: data.community,
+        photo_url: photoUrl ?? null,
+        is_active: data.is_active ?? true,
+      });
+      
       toast.success(worker ? "Worker updated" : "Worker created");
       onSaved();
       onOpenChange(false);
-    } catch (error) {
-      toast.error("Failed to save worker");
-      console.error(error);
+    } catch (error: any) {
+      console.error('Save worker failed:', error);
+      toast.error(error?.message ?? 'Failed to save worker');
     } finally {
       setLoading(false);
     }

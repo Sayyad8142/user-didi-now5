@@ -32,11 +32,48 @@ export async function listWorkers(query: string = '', serviceType?: string): Pro
   return (data ?? []) as Worker[];
 }
 
-export async function upsertWorker(payload: Omit<Worker, 'created_at' | 'updated_at'> & { id?: string }): Promise<Worker> {
-  const { data, error } = await supabase
-    .rpc('admin_upsert_worker', { p_worker: payload });
+export type UpsertWorkerInput = {
+  full_name: string;
+  phone: string;
+  upi_id: string;
+  service_types: string[];
+  community?: string;
+  photo_url?: string | null;
+  is_active?: boolean;
+};
+
+export async function adminUpsertWorker(input: UpsertWorkerInput): Promise<Worker> {
+  // Normalize service types to backend values
+  const svc = (input.service_types || []).map(s => {
+    if (s.toLowerCase() === 'bathroom' || s === 'bathroomCleaning' || s === 'bathroom_cleaning') return 'bathroom_cleaning';
+    return s.toLowerCase();
+  });
+
+  const { data, error } = await supabase.rpc('admin_upsert_worker', {
+    p_full_name: input.full_name,
+    p_phone: input.phone,
+    p_upi_id: input.upi_id,
+    p_service_types: svc,
+    p_community: input.community ?? null,
+    p_photo_url: input.photo_url ?? null,
+    p_is_active: input.is_active ?? true,
+  });
+
   if (error) throw error;
   return data as Worker;
+}
+
+// Keep the old function for backward compatibility but mark deprecated
+export async function upsertWorker(payload: Omit<Worker, 'created_at' | 'updated_at'> & { id?: string }): Promise<Worker> {
+  return adminUpsertWorker({
+    full_name: payload.full_name,
+    phone: payload.phone,
+    upi_id: payload.upi_id,
+    service_types: payload.service_types,
+    community: payload.community ?? undefined,
+    photo_url: payload.photo_url,
+    is_active: payload.is_active
+  });
 }
 
 export async function deleteWorker(id: string): Promise<void> {
