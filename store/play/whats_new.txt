@@ -1,0 +1,4 @@
+- Legal PDFs viewer (in-app)
+- Account deletion & data export
+- Worker assignment and UPI "Pay to Worker"
+- Realtime booking updates & siren alerts (admin)
