@@ -129,9 +129,10 @@ export function AssignWorkerSheet({
     
     setAssigning(worker.id);
     try {
-      const { error } = await supabaseAdmin.rpc('assign_worker_to_booking', {
+      const { data, error } = await supabaseAdmin.rpc('assign_worker_to_booking', {
         p_booking_id: booking.id,
-        p_worker_id: worker.id
+        p_worker_id: worker.id,
+        p_assigned_by: null // Use the 3-parameter version to avoid ambiguity
       });
 
       if (error) throw error;
