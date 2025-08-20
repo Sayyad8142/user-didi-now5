@@ -268,6 +268,19 @@ export default function Profile() {
             </div>
             <div className="text-gray-400">›</div>
           </Link>
+
+          <Link 
+            to="/profile/account" 
+            className="flex items-center justify-between h-14 px-4 bg-white/80 rounded-2xl border border-gray-100 hover:bg-white transition-spring hover:scale-[0.98] shadow-input"
+          >
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 bg-orange-100 rounded-xl flex items-center justify-center">
+                <Settings className="w-5 h-5 text-orange-600" />
+              </div>
+              <span className="font-medium text-gray-700">Account & Data</span>
+            </div>
+            <div className="text-gray-400">›</div>
+          </Link>
         </div>
 
         {/* Sign Out Button */}

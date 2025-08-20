@@ -23,6 +23,7 @@ import AdminDailyBookings from "./routes/admin/AdminDailyBookings";
 import AdminLogin from "./routes/auth/AdminLogin";
 import AdminVerify from "./routes/auth/AdminVerify";
 import LegalCenter from "./routes/LegalCenter";
+import AccountSettings from "./routes/profile/AccountSettings";
 
 const queryClient = new QueryClient();
 
@@ -73,6 +74,16 @@ const App = () => (
                 <ProtectedRoute>
                   <ProtectedLayout>
                     <Profile />
+                  </ProtectedLayout>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/profile/account" 
+              element={
+                <ProtectedRoute>
+                  <ProtectedLayout>
+                    <AccountSettings />
                   </ProtectedLayout>
                 </ProtectedRoute>
               } 

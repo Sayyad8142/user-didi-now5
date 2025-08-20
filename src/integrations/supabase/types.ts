@@ -451,9 +451,17 @@ export type Database = {
         Args: { data: string }
         Returns: string
       }
+      delete_my_data: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       escalate_overdue_bookings: {
         Args: Record<PropertyKey, never>
         Returns: undefined
+      }
+      export_my_data: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
       }
       get_setting: {
         Args: { p_default: string; p_key: string }
