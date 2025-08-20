@@ -117,7 +117,7 @@ function StatusChip({ status, overdue }: { status: string; overdue?: boolean }) 
   }
 }
 
-// Modern info card with glassmorphism effect
+// Modern info card with compact design
 function InfoCard({ 
   icon: Icon, 
   title, 
@@ -139,23 +139,23 @@ function InfoCard({
   };
 
   return (
-    <div className="group relative overflow-hidden rounded-2xl bg-white/80 backdrop-blur-sm border border-gray-200/50 p-4 transition-all duration-300 hover:shadow-lg hover:scale-[1.02] hover:bg-white">
-      <div className="flex items-start gap-4">
+    <div className="group relative overflow-hidden rounded-xl bg-white/80 backdrop-blur-sm border border-gray-200/50 p-3 transition-all duration-200 hover:shadow-md hover:bg-white">
+      <div className="flex items-start gap-3">
         <div className={cn(
-          "w-12 h-12 rounded-xl bg-gradient-to-br flex items-center justify-center shadow-lg flex-shrink-0 transition-transform group-hover:scale-110",
+          "w-8 h-8 rounded-lg bg-gradient-to-br flex items-center justify-center shadow-md flex-shrink-0 transition-transform group-hover:scale-105",
           accentGradients[accent as keyof typeof accentGradients] || accentGradients.purple
         )}>
-          <Icon className="w-5 h-5 text-white" />
+          <Icon className="w-4 h-4 text-white" />
         </div>
         <div className="min-w-0 flex-1">
-          <div className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+          <div className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">
             {title}
           </div>
-          <div className="font-bold text-gray-900 text-sm leading-snug mb-1">
+          <div className="font-bold text-gray-900 text-sm leading-tight mb-0.5">
             {value}
           </div>
           {sub && (
-            <div className="text-xs text-gray-600 leading-relaxed">
+            <div className="text-xs text-gray-600 leading-snug">
               {sub}
             </div>
           )}
@@ -165,7 +165,7 @@ function InfoCard({
   );
 }
 
-// Enhanced SLA progress with better visual feedback
+// Compact SLA progress with better visual feedback
 function SlaProgress({ booking, pending }: { booking: any; pending: boolean }) {
   if (!pending) return null;
 
@@ -186,33 +186,27 @@ function SlaProgress({ booking, pending }: { booking: any; pending: boolean }) {
   const timeRemaining = Math.max(0, 12 - (elapsed / (60 * 1000)));
 
   return (
-    <div className={cn("mt-4 p-4 rounded-2xl border transition-all duration-300", state.bgColor)}>
-      <div className="flex justify-between items-center mb-3">
-        <div className="flex items-center gap-2">
-          <TrendingUp className="w-4 h-4 text-gray-600" />
-          <span className="text-xs font-bold text-gray-700 uppercase tracking-wider">SLA Monitor</span>
-        </div>
+    <div className={cn("mt-3 p-3 rounded-xl border transition-all duration-200", state.bgColor)}>
+      <div className="flex justify-between items-center mb-2">
+        <span className="text-xs font-bold text-gray-700 uppercase tracking-wide">SLA</span>
         <div className={cn(
-          "px-3 py-1 rounded-full text-xs font-bold text-white shadow-lg",
+          "px-2 py-0.5 rounded-full text-xs font-bold text-white shadow-md",
           `bg-gradient-to-r ${state.color}`
         )}>
           {state.text}
         </div>
       </div>
       
-      <div className="relative h-3 bg-gray-200/60 rounded-full overflow-hidden mb-2">
+      <div className="relative h-2 bg-gray-200/60 rounded-full overflow-hidden mb-1.5">
         <div 
           className={cn("h-full bg-gradient-to-r transition-all duration-500", state.color)}
           style={{ width: `${progress}%` }}
         />
-        {progress >= 80 && (
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent animate-pulse" />
-        )}
       </div>
       
       <div className="flex justify-between text-xs text-gray-600">
-        <span className="font-semibold">{Math.round(elapsed / (60 * 1000))}m elapsed</span>
-        <span className="font-semibold">
+        <span>{Math.round(elapsed / (60 * 1000))}m</span>
+        <span>
           {timeRemaining > 0 ? `${Math.round(timeRemaining)}m left` : 'Overdue'}
         </span>
       </div>
@@ -304,31 +298,31 @@ export function AdminBookingCard({
 
   return (
     <>
-      <Card className="group relative overflow-hidden rounded-3xl border-0 shadow-xl hover:shadow-2xl transition-all duration-500 hover:scale-[1.02] bg-white">
+      <Card className="group relative overflow-hidden rounded-2xl border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.01] bg-white">
         {/* Gradient background overlay */}
         <div className={cn("absolute inset-0 bg-gradient-to-br opacity-5", serviceConfig.bgGradient)} />
         
-        <CardContent className="relative p-6">
-          {/* Header with enhanced styling */}
-          <div className="flex items-start justify-between mb-6">
-            <div className="flex gap-4">
+        <CardContent className="relative p-4">
+          {/* Compact header */}
+          <div className="flex items-start justify-between mb-4">
+            <div className="flex gap-3">
               <div className={cn(
-                "w-14 h-14 rounded-2xl bg-gradient-to-br flex items-center justify-center shadow-xl flex-shrink-0 transition-transform group-hover:scale-110",
+                "w-10 h-10 rounded-xl bg-gradient-to-br flex items-center justify-center shadow-lg flex-shrink-0 transition-transform group-hover:scale-105",
                 serviceConfig.gradient
               )}>
-                <serviceConfig.icon className="w-7 h-7 text-white" />
+                <serviceConfig.icon className="w-5 h-5 text-white" />
               </div>
               <div className="min-w-0">
-                <h3 className="text-xl font-bold text-gray-900 mb-2">
+                <h3 className="text-base font-bold text-gray-900 mb-1">
                   {serviceConfig.name}
                 </h3>
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <Calendar className="w-4 h-4" />
+                <div className="flex items-center gap-2 text-xs text-gray-600">
+                  <Calendar className="w-3 h-3" />
                   <span className="font-medium">
-                    {booking.booking_type === 'instant' ? 'Instant Service' : 'Scheduled Service'}
+                    {booking.booking_type === 'instant' ? 'Instant' : 'Scheduled'}
                   </span>
                   {booking.booking_type === 'instant' && (
-                    <div className="flex items-center gap-1 ml-2">
+                    <div className="flex items-center gap-1 ml-1">
                       <Zap className="w-3 h-3 text-amber-500" />
                       <span className="text-xs font-bold text-amber-600">RUSH</span>
                     </div>
@@ -339,8 +333,8 @@ export function AdminBookingCard({
             <StatusChip status={booking.status} overdue={overdue} />
           </div>
 
-          {/* Info grid with modern cards */}
-          <div className="grid grid-cols-1 gap-4 mb-6">
+          {/* Compact info grid */}
+          <div className="grid grid-cols-1 gap-2 mb-3">
             <InfoCard 
               icon={Building2} 
               title="LOCATION" 
@@ -354,7 +348,7 @@ export function AdminBookingCard({
               title="TIMING & STATUS" 
               value={humanEta(booking)} 
               sub={
-                <div className="flex items-center gap-2 mt-1">
+                <div className="flex items-center gap-1 mt-0.5">
                   <span className="text-gray-400">•</span>
                   <TimerComponent since={booking.created_at} />
                 </div>
@@ -373,9 +367,9 @@ export function AdminBookingCard({
                     e.stopPropagation();
                     openExternalUrl(`tel:${booking.cust_phone}`);
                   }}
-                  className="flex items-center gap-2 text-blue-600 hover:text-blue-700 transition-colors font-semibold mt-1 group/phone"
+                  className="flex items-center gap-1 text-blue-600 hover:text-blue-700 transition-colors font-semibold mt-0.5 group/phone"
                 >
-                  <Phone className="h-3 w-3 group-hover/phone:scale-110 transition-transform" />
+                  <Phone className="h-3 w-3 group-hover/phone:scale-105 transition-transform" />
                   {booking.cust_phone}
                 </a>
               }
@@ -392,69 +386,69 @@ export function AdminBookingCard({
             )}
           </div>
 
-          {/* Enhanced SLA Progress */}
+          {/* SLA Progress */}
           <SlaProgress booking={booking} pending={isPending} />
 
-          {/* Worker assignment card with rich styling */}
+          {/* Worker assignment card */}
           {isAssigned && booking.worker_name && (
-            <div className="mt-6">
-              <button 
-                className="w-full group/worker rounded-2xl bg-gradient-to-r from-emerald-50 to-green-50 border border-emerald-200 p-5 hover:from-emerald-100 hover:to-green-100 transition-all duration-300 text-left hover:shadow-lg"
+            <div className="mt-3">
+              <button
+                className="w-full group/worker rounded-xl bg-gradient-to-r from-emerald-50 to-green-50 border border-emerald-200 p-3 hover:from-emerald-100 hover:to-green-100 transition-all duration-200 text-left hover:shadow-md"
                 onClick={() => setSheetOpen(true)}
               >
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-green-500 flex items-center justify-center shadow-lg">
-                    <Users className="w-6 h-6 text-white" />
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-green-500 flex items-center justify-center shadow-md">
+                    <Users className="w-4 h-4 text-white" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="font-bold text-emerald-900 text-base">
+                    <div className="font-bold text-emerald-900 text-sm">
                       {booking.worker_name}
                     </div>
-                    <div className="text-sm text-emerald-700 font-medium">
-                      Assigned Worker • Tap to reassign
+                    <div className="text-xs text-emerald-700 font-medium">
+                      Assigned • Tap to reassign
                     </div>
                   </div>
-                  <ArrowRight className="w-5 h-5 text-emerald-600 group-hover/worker:translate-x-1 transition-transform" />
+                  <ArrowRight className="w-4 h-4 text-emerald-600 group-hover/worker:translate-x-0.5 transition-transform" />
                 </div>
               </button>
             </div>
           )}
 
-          {/* Enhanced action buttons */}
-          <div className="mt-6 grid grid-cols-2 gap-4">
+          {/* Compact action buttons */}
+          <div className="mt-4 grid grid-cols-2 gap-3">
             <Button
               variant="outline"
-              size="lg"
-              className="rounded-2xl border-2 border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400 font-bold h-14 transition-all hover:scale-[1.02] hover:shadow-lg"
+              size="sm"
+              className="rounded-xl border-2 border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400 font-bold h-10 transition-all hover:scale-[1.01]"
               onClick={handleCancel}
               disabled={saving}
             >
               {saving ? (
-                <div className="flex items-center gap-3">
-                  <div className="w-4 h-4 border-2 border-gray-400 border-t-gray-600 rounded-full animate-spin" />
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 border-2 border-gray-400 border-t-gray-600 rounded-full animate-spin" />
                   <span className="hidden sm:inline">Cancelling...</span>
                   <span className="sm:hidden">...</span>
                 </div>
               ) : (
-                <div className="flex items-center gap-3">
-                  <XCircle className="h-5 w-5" />
-                  <span className="hidden sm:inline">Cancel Booking</span>
+                <div className="flex items-center gap-2">
+                  <XCircle className="h-4 w-4" />
+                  <span className="hidden sm:inline">Cancel</span>
                   <span className="sm:hidden">Cancel</span>
                 </div>
               )}
             </Button>
             
             <Button
-              size="lg"
+              size="sm"
               className={cn(
-                "rounded-2xl font-bold h-14 text-white shadow-lg transition-all hover:scale-[1.02] hover:shadow-xl bg-gradient-to-r",
+                "rounded-xl font-bold h-10 text-white shadow-md transition-all hover:scale-[1.01] bg-gradient-to-r",
                 serviceConfig.gradient
               )}
               onClick={() => setSheetOpen(true)}
               disabled={saving}
             >
-              <div className="flex items-center gap-3">
-                <UserCheck className="h-5 w-5" />
+              <div className="flex items-center gap-2">
+                <UserCheck className="h-4 w-4" />
                 <span className="hidden sm:inline">
                   {isAssigned ? 'Reassign Worker' : 'Assign Worker'}
                 </span>
