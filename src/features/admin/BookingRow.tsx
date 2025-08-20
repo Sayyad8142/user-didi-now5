@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { supabaseAdmin as supabase } from "@/lib/supabase-admin";
-import { Phone, CalendarClock, Sparkles, ChefHat, ShowerHead, Check, MapPin, User, Clock, AlertCircle } from "lucide-react";
+import { Phone, CalendarClock, Sparkles, ChefHat, ShowerHead, Check, MapPin, User, Clock, AlertCircle, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import Timer from "@/components/Timer";
@@ -66,6 +66,30 @@ export default function BookingRow({
     }
   }
 
+  async function cancelBooking(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (saving) return;
+    if (!confirm("Cancel this booking? This action cannot be undone.")) return;
+    
+    setSaving(true);
+    try {
+      const { error } = await supabase.rpc("admin_cancel_booking", {
+        p_booking_id: b.id,
+        p_reason: "admin_cancel"
+      });
+      if (error) throw error;
+      toast({ title: "Booking cancelled successfully" });
+    } catch (err: any) {
+      toast({ 
+        title: "Failed to cancel booking", 
+        description: err.message,
+        variant: "destructive" 
+      });
+    } finally {
+      setSaving(false);
+    }
+  }
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'pending':
@@ -80,18 +104,24 @@ export default function BookingRow({
             Worker Assigned
           </Badge>
         );
-      case 'completed':
-        return (
-          <Badge variant="secondary" className="bg-green-100 text-green-800 border-green-200">
-            Completed
-          </Badge>
-        );
-      default:
-        return (
-          <Badge variant="outline" className="capitalize">
-            {status}
-          </Badge>
-        );
+       case 'completed':
+         return (
+           <Badge variant="secondary" className="bg-green-100 text-green-800 border-green-200">
+             Completed
+           </Badge>
+         );
+       case 'cancelled':
+         return (
+           <Badge variant="secondary" className="bg-red-100 text-red-800 border-red-200">
+             Cancelled
+           </Badge>
+         );
+       default:
+         return (
+           <Badge variant="outline" className="capitalize">
+             {status}
+           </Badge>
+         );
     }
   };
 
@@ -211,28 +241,51 @@ export default function BookingRow({
         )}
       </div>
 
-      {/* Action Section */}
-      {b.status === "pending" && (
-        <div className="px-4 pb-4">
-          <Button
-            onClick={confirmBooking}
-            disabled={saving}
-            className="w-full h-12 bg-gradient-to-r from-[#ff007a] to-[#e6006a] hover:from-[#e6006a] hover:to-[#cc005f] text-white font-semibold rounded-xl shadow-md disabled:opacity-60"
-          >
-            {saving ? (
-              <>
-                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
-                Confirming...
-              </>
-            ) : (
-              <>
-                <Check className="h-4 w-4 mr-2" />
-                Confirm Assignment
-              </>
-            )}
-          </Button>
-        </div>
-      )}
+       {/* Action Section */}
+       <div className="px-4 pb-4">
+         <div className="flex gap-2">
+           {b.status === "pending" && (
+             <Button
+               onClick={confirmBooking}
+               disabled={saving}
+               className="flex-1 h-12 bg-gradient-to-r from-[#ff007a] to-[#e6006a] hover:from-[#e6006a] hover:to-[#cc005f] text-white font-semibold rounded-xl shadow-md disabled:opacity-60"
+             >
+               {saving ? (
+                 <>
+                   <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
+                   Confirming...
+                 </>
+               ) : (
+                 <>
+                   <Check className="h-4 w-4 mr-2" />
+                   Confirm Assignment
+                 </>
+               )}
+             </Button>
+           )}
+           
+           {(b.status === "pending" || b.status === "assigned") && (
+             <Button
+               onClick={cancelBooking}
+               disabled={saving}
+               variant="destructive"
+               className={`${b.status === "pending" ? "h-12" : "flex-1 h-12"} font-semibold rounded-xl shadow-md disabled:opacity-60`}
+             >
+               {saving ? (
+                 <>
+                   <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
+                   Cancelling...
+                 </>
+               ) : (
+                 <>
+                   <X className="h-4 w-4 mr-2" />
+                   Cancel
+                 </>
+               )}
+             </Button>
+           )}
+         </div>
+       </div>
     </div>
   );
 }

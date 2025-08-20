@@ -120,6 +120,10 @@ export type Database = {
           assigned_at: string | null
           bathroom_count: number | null
           booking_type: string
+          can_cancel_until: string | null
+          cancel_reason: string | null
+          cancel_source: string | null
+          cancelled_at: string | null
           community: string
           completed_at: string | null
           confirmed_at: string | null
@@ -151,6 +155,10 @@ export type Database = {
           assigned_at?: string | null
           bathroom_count?: number | null
           booking_type: string
+          can_cancel_until?: string | null
+          cancel_reason?: string | null
+          cancel_source?: string | null
+          cancelled_at?: string | null
           community: string
           completed_at?: string | null
           confirmed_at?: string | null
@@ -182,6 +190,10 @@ export type Database = {
           assigned_at?: string | null
           bathroom_count?: number | null
           booking_type?: string
+          can_cancel_until?: string | null
+          cancel_reason?: string | null
+          cancel_source?: string | null
+          cancelled_at?: string | null
           community?: string
           completed_at?: string | null
           confirmed_at?: string | null
@@ -458,8 +470,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      _get_int_setting: {
+        Args: { default_val: number; k: string }
+        Returns: number
+      }
       _sla_core_work: {
         Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      admin_cancel_booking: {
+        Args: { p_booking_id: string; p_reason: string }
         Returns: undefined
       }
       admin_set_booking_status: {
@@ -635,6 +655,10 @@ export type Database = {
       urlencode: {
         Args: { data: Json } | { string: string } | { string: string }
         Returns: string
+      }
+      user_cancel_booking: {
+        Args: { p_booking_id: string; p_reason: string }
+        Returns: undefined
       }
     }
     Enums: {

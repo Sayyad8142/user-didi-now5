@@ -12,6 +12,7 @@ import AssigningProgress from '@/features/bookings/AssigningProgress';
 import { useBookingRealtime } from '@/features/bookings/useBookingRealtime';
 import { buildUpiUrl, openUpi } from '@/lib/upi';
 import { toast } from 'sonner';
+import CancelAction from './CancelAction';
 
 interface Booking {
   id: string;
@@ -106,12 +107,16 @@ export function BookingCard({
         return <Badge variant="secondary" className="bg-emerald-100 text-emerald-800 border-emerald-200">
           Assigned
         </Badge>;
-      case 'completed':
-        return <Badge variant="secondary" className="bg-green-100 text-green-800 border-green-200">
-          Completed
-        </Badge>;
-      default:
-        return <Badge variant="outline">{status}</Badge>;
+       case 'completed':
+         return <Badge variant="secondary" className="bg-green-100 text-green-800 border-green-200">
+           Completed
+         </Badge>;
+       case 'cancelled':
+         return <Badge variant="secondary" className="bg-red-100 text-red-800 border-red-200">
+           Cancelled
+         </Badge>;
+       default:
+         return <Badge variant="outline">{status}</Badge>;
     }
   };
 
@@ -255,6 +260,17 @@ export function BookingCard({
                 Need Help? Call Support
               </a>
             </Button>
+          )}
+
+          {/* Cancellation component for pending/assigned bookings */}
+          {(row.status === 'pending' || row.status === 'assigned') && (
+            <CancelAction 
+              booking={row} 
+              onCancel={() => {
+                // The real-time subscription will update the booking status
+                // No need for manual refresh
+              }} 
+            />
           )}
         </div>
       </div>
