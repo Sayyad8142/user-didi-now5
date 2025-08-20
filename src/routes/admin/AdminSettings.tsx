@@ -7,7 +7,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AdminBottomNav } from '@/components/AdminBottomNav';
 import { useNewBookingAlert } from '@/features/admin/useNewBookingAlert';
 import { WorkersTable } from '@/features/admin/workers/WorkersTable';
-import SettingsLegal from '@/routes/admin/SettingsLegal';
 import SettingsLegalPDF from '@/routes/admin/SettingsLegalPDF';
 
 export default function AdminSettings() {
@@ -37,7 +36,7 @@ export default function AdminSettings() {
 
       <div className="px-4 py-6 space-y-4 max-w-4xl mx-auto">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="general" className="flex items-center gap-2">
               <Settings className="w-4 h-4" />
               General
@@ -50,13 +49,9 @@ export default function AdminSettings() {
               <Users className="w-4 h-4" />
               Workers
             </TabsTrigger>
-            <TabsTrigger value="legal" className="flex items-center gap-2">
-              <FileText className="w-4 h-4" />
-              Legal
-            </TabsTrigger>
             <TabsTrigger value="legal-pdf" className="flex items-center gap-2">
               <FileText className="w-4 h-4" />
-              PDFs
+              Legal
             </TabsTrigger>
           </TabsList>
 
@@ -158,10 +153,6 @@ export default function AdminSettings() {
 
           <TabsContent value="workers" className="mt-6">
             <WorkersTable />
-          </TabsContent>
-
-          <TabsContent value="legal" className="mt-6">
-            <SettingsLegal />
           </TabsContent>
 
           <TabsContent value="legal-pdf" className="mt-6">
