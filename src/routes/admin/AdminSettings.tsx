@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Settings, Bell, BellOff, DollarSign, ArrowLeft, Info, Volume2, Users } from 'lucide-react';
+import { Settings, Bell, BellOff, DollarSign, ArrowLeft, Info, Volume2, Users, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AdminBottomNav } from '@/components/AdminBottomNav';
 import { useNewBookingAlert } from '@/features/admin/useNewBookingAlert';
 import { WorkersTable } from '@/features/admin/workers/WorkersTable';
+import SettingsLegal from '@/routes/admin/SettingsLegal';
 
 export default function AdminSettings() {
   const {
@@ -35,7 +36,7 @@ export default function AdminSettings() {
 
       <div className="px-4 py-6 space-y-4 max-w-4xl mx-auto">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="general" className="flex items-center gap-2">
               <Settings className="w-4 h-4" />
               General
@@ -47,6 +48,10 @@ export default function AdminSettings() {
             <TabsTrigger value="workers" className="flex items-center gap-2">
               <Users className="w-4 h-4" />
               Workers
+            </TabsTrigger>
+            <TabsTrigger value="legal" className="flex items-center gap-2">
+              <FileText className="w-4 h-4" />
+              Legal
             </TabsTrigger>
           </TabsList>
 
@@ -148,6 +153,10 @@ export default function AdminSettings() {
 
           <TabsContent value="workers" className="mt-6">
             <WorkersTable />
+          </TabsContent>
+
+          <TabsContent value="legal" className="mt-6">
+            <SettingsLegal />
           </TabsContent>
         </Tabs>
       </div>
