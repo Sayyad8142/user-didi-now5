@@ -487,7 +487,17 @@ export type Database = {
         Returns: undefined
       }
       admin_upsert_worker: {
-        Args: { p_worker: Json }
+        Args:
+          | {
+              p_community: string
+              p_full_name: string
+              p_is_active?: boolean
+              p_phone: string
+              p_photo_url?: string
+              p_service_types: string[]
+              p_upi_id: string
+            }
+          | { p_worker: Json }
         Returns: {
           community: string | null
           created_at: string
