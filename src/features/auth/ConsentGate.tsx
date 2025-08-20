@@ -57,17 +57,43 @@ export default function ConsentGate({ children }: { children: React.ReactNode })
     if (!profile?.id || !ver) return;
     if (!agreeTos || !agreePriv) return;
     setBusy(true);
-    const now = new Date().toISOString();
-    const { error } = await supabase
-      .from("profiles")
-      .update({
-        tos_accepted_at: now,
-        privacy_accepted_at: now,
-        legal_version: ver,
-      })
-      .eq("id", profile.id);
-    setBusy(false);
-    if (!error) setState("ok");
+    
+    try {
+      // Ensure we have a valid session first
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session) {
+        console.error('Session error:', sessionError);
+        // Redirect to auth if session is invalid
+        window.location.href = '/auth';
+        return;
+      }
+
+      const now = new Date().toISOString();
+      const { error } = await supabase
+        .from("profiles")
+        .update({
+          tos_accepted_at: now,
+          privacy_accepted_at: now,
+          legal_version: ver,
+        })
+        .eq("id", profile.id);
+      
+      if (error) {
+        console.error('Profile update error:', error);
+        // If it's an auth error, redirect to login
+        if (error.code === 'PGRST301' || error.message?.includes('JWT')) {
+          window.location.href = '/auth';
+          return;
+        }
+      } else {
+        setState("ok");
+      }
+    } catch (err) {
+      console.error('Consent accept error:', err);
+    } finally {
+      setBusy(false);
+    }
   }
 
   if (state === "loading") {
