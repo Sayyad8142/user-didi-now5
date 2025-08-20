@@ -24,6 +24,8 @@ import AdminLogin from "./routes/auth/AdminLogin";
 import AdminVerify from "./routes/auth/AdminVerify";
 import LegalCenter from "./routes/LegalCenter";
 import AccountSettings from "./routes/profile/AccountSettings";
+import SupportScreen from "./routes/support/SupportScreen";
+import AdminFeedback from "./routes/admin/AdminFeedback";
 
 const queryClient = new QueryClient();
 
@@ -89,6 +91,16 @@ const App = () => (
               } 
             />
             <Route 
+              path="/support" 
+              element={
+                <ProtectedRoute>
+                  <ProtectedLayout>
+                    <SupportScreen />
+                  </ProtectedLayout>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
               path="/book/:service_type" 
               element={
                 <ProtectedRoute>
@@ -137,6 +149,14 @@ const App = () => (
               element={
                 <AdminGate>
                   <AdminDailyBookings />
+                </AdminGate>
+              } 
+            />
+            <Route 
+              path="/admin/feedback" 
+              element={
+                <AdminGate>
+                  <AdminFeedback />
                 </AdminGate>
               } 
             />

@@ -1,12 +1,13 @@
 import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Home, Calendar, User, LogOut, Settings } from 'lucide-react';
+import { Home, Calendar, User, LogOut, Settings, MessageSquare } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabaseAdmin as supabase } from "@/lib/supabase-admin";
 import { toast } from 'sonner';
 
 const adminTabs = [
   { to: '/admin', label: 'Dashboard', icon: Calendar },
+  { to: '/admin/feedback', label: 'Feedback', icon: MessageSquare },
   { to: '/admin/settings', label: 'Settings', icon: Settings },
 ];
 
