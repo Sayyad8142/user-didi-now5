@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 
 export interface Worker {
   id: string;
@@ -59,7 +60,7 @@ export async function adminUpsertWorker(input: UpsertWorkerInput): Promise<Worke
     is_active: input.is_active ?? true,
   };
 
-  const { data, error } = await supabase.rpc('admin_upsert_worker', {
+  const { data, error } = await supabaseAdmin.rpc('admin_upsert_worker', {
     p_full_name: input.full_name,
     p_phone: input.phone,
     p_upi_id: input.upi_id,
