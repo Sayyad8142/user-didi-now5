@@ -7,6 +7,7 @@ import { HeroCarousel } from './HeroCarousel';
 import { ServicesRow } from './ServicesRow';
 import { ServiceHours } from './ServiceHours';
 import { FeatureCarousel } from './FeatureCarousel';
+import { openExternalUrl } from '@/lib/nativeOpen';
 
 export function HomeScreen() {
   const navigate = useNavigate();
@@ -25,7 +26,7 @@ export function HomeScreen() {
         {/* Contact Manager Button */}
         <div className="pt-4">
           <Button
-            onClick={() => window.open('tel:8008180018')}
+            onClick={() => openExternalUrl('tel:8008180018')}
             className="w-full h-12 rounded-full gradient-primary shadow-button transition-spring hover:scale-[1.02] flex items-center justify-center gap-3"
           >
             <Phone className="w-5 h-5" />

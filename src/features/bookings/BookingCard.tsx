@@ -13,6 +13,7 @@ import { useBookingRealtime } from '@/features/bookings/useBookingRealtime';
 import { buildUpiUrl, openUpi } from '@/lib/upi';
 import { toast } from 'sonner';
 import CancelAction from './CancelAction';
+import { openExternalUrl } from '@/lib/nativeOpen';
 
 interface Booking {
   id: string;
@@ -191,12 +192,10 @@ export function BookingCard({
               <Button 
                 variant="link" 
                 className="p-0 h-auto text-blue-700 hover:text-blue-900 font-medium"
-                asChild
+                onClick={() => openExternalUrl(`tel:${assignedWorker?.worker?.phone || row.worker_phone}`)}
               >
-                <a href={`tel:${assignedWorker?.worker?.phone || row.worker_phone}`}>
-                  <PhoneCall className="h-4 w-4 mr-1" />
-                  {assignedWorker?.worker?.phone || row.worker_phone}
-                </a>
+                <PhoneCall className="h-4 w-4 mr-1" />
+                {assignedWorker?.worker?.phone || row.worker_phone}
               </Button>
             </div>
           </div>
@@ -252,13 +251,11 @@ export function BookingCard({
           {/* Support button */}
           {(row.status === 'pending' || row.status === 'assigned') && (
             <Button 
-              asChild 
+              onClick={() => openExternalUrl("tel:+918008180018")}
               className="w-full h-12 bg-gradient-to-r from-[#ff007a] to-[#e6006a] hover:from-[#e6006a] hover:to-[#cc005f] text-white font-semibold rounded-xl shadow-md"
             >
-              <a href="tel:+918008180018">
-                <PhoneCall className="h-4 w-4 mr-2" />
-                Need Help? Call Support
-              </a>
+              <PhoneCall className="h-4 w-4 mr-2" />
+              Need Help? Call Support
             </Button>
           )}
 

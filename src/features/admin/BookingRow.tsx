@@ -7,6 +7,7 @@ import Timer from "@/components/Timer";
 import { useToast } from "@/hooks/use-toast";
 import { useNewBookingAlert } from "./useNewBookingAlert";
 import { SLAClock } from "./SLAClock";
+import { openExternalUrl } from "@/lib/nativeOpen";
 function ServiceIcon({ t}:{t:string}) {
   return t==='cook' ? <ChefHat className="h-5 w-5"/> :
          t==='bathroom_cleaning' ? <ShowerHead className="h-5 w-5"/> :
@@ -203,13 +204,13 @@ export default function BookingRow({
             <Button 
               variant="link" 
               className="p-0 h-auto text-purple-700 hover:text-purple-900 font-medium text-sm"
-              asChild
-              onClick={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                openExternalUrl(`tel:${b.cust_phone}`);
+              }}
             >
-              <a href={`tel:${b.cust_phone}`}>
-                <Phone className="h-4 w-4 mr-1" />
-                {b.cust_phone}
-              </a>
+              <Phone className="h-4 w-4 mr-1" />
+              {b.cust_phone}
             </Button>
           </div>
         </div>

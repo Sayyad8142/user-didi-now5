@@ -15,7 +15,8 @@ export function buildUpiUrl({ pa, pn, am, tn }: UpiParams): string {
   return `upi://pay?${params.toString()}`;
 }
 
+import { openExternalUrl } from '@/lib/nativeOpen';
+
 export function openUpi(url: string): void {
-  // Most mobile browsers hand off to installed UPI apps
-  window.location.href = url;
+  openExternalUrl(url);
 }

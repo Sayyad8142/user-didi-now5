@@ -11,6 +11,7 @@ import { useNewBookingAlert } from "./useNewBookingAlert";
 import { HistoryList } from "./HistoryList";
 import { AssignWorkerModal } from "./AssignWorkerModal";
 import { useState, useEffect } from "react";
+import { openExternalUrl } from "@/lib/nativeOpen";
 
 type Worker = {
   id: string;
@@ -211,12 +212,12 @@ export default function BookingDrawer({open,onOpenChange,booking}:{open:boolean;
 
           {/* Communication Actions */}
           <div className="space-y-2 pt-2">
-            <a href={`tel:${booking.cust_phone}`} className="inline-flex items-center justify-center h-11 w-full rounded-full bg-gray-900 text-white gap-2">
+            <button onClick={() => openExternalUrl(`tel:${booking.cust_phone}`)} className="inline-flex items-center justify-center h-11 w-full rounded-full bg-gray-900 text-white gap-2">
               <PhoneCall className="h-4 w-4"/> Call Customer
-            </a>
-            <a href="tel:+918008180018" className="inline-flex items-center justify-center h-11 w-full rounded-full bg-pink-600 text-white">
+            </button>
+            <button onClick={() => openExternalUrl("tel:+918008180018")} className="inline-flex items-center justify-center h-11 w-full rounded-full bg-pink-600 text-white">
               Call Support (8008180018)
-            </a>
+            </button>
           </div>
 
           {/* Status History */}

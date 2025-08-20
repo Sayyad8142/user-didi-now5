@@ -2,6 +2,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Phone, MessageCircle, Mail, HeadphonesIcon } from "lucide-react";
 import FeedbackForm from "./components/FeedbackForm";
+import { openExternalUrl } from "@/lib/nativeOpen";
 
 const SUPPORT_PHONE = "+918008180018";
 const SUPPORT_WHATSAPP = "918008180018";
@@ -51,9 +52,9 @@ export default function SupportScreen() {
       <div className="space-y-3">
         <h2 className="text-lg font-semibold text-foreground">Contact Support</h2>
         
-        <a 
-          href={telHref} 
-          className="flex items-center gap-4 p-4 rounded-2xl bg-card border shadow-sm hover:shadow-md transition-shadow"
+        <button 
+          onClick={() => openExternalUrl(telHref)}
+          className="flex items-center gap-4 p-4 rounded-2xl bg-card border shadow-sm hover:shadow-md transition-shadow w-full text-left"
         >
           <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
             <Phone className="h-6 w-6 text-green-600" />
@@ -63,7 +64,7 @@ export default function SupportScreen() {
             <div className="text-sm text-muted-foreground">{SUPPORT_PHONE}</div>
             <div className="text-xs text-muted-foreground">Available 24/7 • ~10 mins response</div>
           </div>
-        </a>
+        </button>
         
         <a 
           href={waHref} 
