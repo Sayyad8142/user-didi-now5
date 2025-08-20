@@ -291,32 +291,38 @@ export function AdminBookingCard({
         )}
 
         {/* Actions */}
-        <div className="mt-4 grid grid-cols-2 gap-2">
+        <div className="mt-4 flex gap-2">
           <Button
             variant="outline"
-            className="rounded-full border-slate-200 text-slate-700 py-3 h-11"
+            className="flex-1 rounded-full border-slate-200 text-slate-700 py-3 h-11 min-w-0"
             onClick={handleCancel}
             disabled={saving}
           >
             {saving ? (
               <>
                 <div className="w-4 h-4 border-2 border-slate-400 border-t-slate-600 rounded-full animate-spin mr-2" />
-                Cancelling...
+                <span className="hidden sm:inline">Cancelling...</span>
+                <span className="sm:hidden">...</span>
               </>
             ) : (
               <>
-                <X className="h-4 w-4 mr-2" />
-                Cancel
+                <X className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Cancel</span>
               </>
             )}
           </Button>
           
           <Button
-            className="rounded-full bg-pink-600 text-white py-3 h-11 hover:bg-pink-700"
+            className="flex-1 rounded-full bg-pink-600 text-white py-3 h-11 hover:bg-pink-700 min-w-0"
             onClick={() => setSheetOpen(true)}
             disabled={saving}
           >
-            {isAssigned ? 'Reassign Worker' : 'Confirm Assignment'}
+            <span className="hidden sm:inline">
+              {isAssigned ? 'Reassign Worker' : 'Confirm Assignment'}
+            </span>
+            <span className="sm:hidden text-xs">
+              {isAssigned ? 'Reassign' : 'Confirm'}
+            </span>
           </Button>
         </div>
       </div>
