@@ -6,14 +6,16 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { prettyServiceName } from '@/features/booking/utils';
 import { formatDateTime } from '@/features/bookings/dt';
 import { format } from 'date-fns';
-import { PhoneCall, Sparkles, ChefHat, ShowerHead, Clock, User, MapPin, Timer, CreditCard } from 'lucide-react';
+import { PhoneCall, Sparkles, ChefHat, ShowerHead, Clock, User, MapPin, Timer, CreditCard, Star } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import AssigningProgress from '@/features/bookings/AssigningProgress';
 import AutoCompleteCountdown from '@/components/AutoCompleteCountdown';
 import { useBookingRealtime } from '@/features/bookings/useBookingRealtime';
 import { buildUpiUrl, openUpi } from '@/lib/upi';
+import { useNow } from '@/hooks/useNow';
 import { toast } from 'sonner';
 import CancelAction from './CancelAction';
+import { RateWorker } from './RateWorker';
 import { openExternalUrl } from '@/lib/nativeOpen';
 
 interface Booking {
@@ -27,11 +29,14 @@ interface Booking {
   flat_no: string;
   created_at: string;
   price_inr?: number | null;
+  worker_id?: string | null;
   worker_name?: string | null;
   worker_phone?: string | null;
   worker_upi?: string | null;
   worker_photo_url?: string | null;
   auto_complete_at?: string | null;
+  assigned_at?: string | null;
+  pay_enabled_at?: string | null;
 }
 interface BookingCardProps {
   booking: Booking;
@@ -54,11 +59,28 @@ export function BookingCard({
   const [assignedWorker, setAssignedWorker] = useState<any>(null);
   const [loadingWorker, setLoadingWorker] = useState(true);
   const [row, setRow] = useState(booking);
+  const [workerStats, setWorkerStats] = useState<{ avg_rating: number; ratings_count: number } | null>(null);
+  const now = useNow(); // ticks every 30s
   
   // Subscribe to real-time updates for this specific booking
   useBookingRealtime(booking.id, (updatedBooking) => setRow(updatedBooking));
   
-  // Load assigned worker
+  // Load worker rating stats
+  useEffect(() => {
+    if (!row.worker_id) {
+      setWorkerStats(null);
+      return;
+    }
+    
+    supabase
+      .from('worker_rating_stats')
+      .select('avg_rating, ratings_count')
+      .eq('worker_id', row.worker_id)
+      .maybeSingle()
+      .then(({ data }) => setWorkerStats(data ?? null));
+  }, [row.worker_id]);
+
+  // Load assigned worker (for fallback compatibility)
   useEffect(() => {
     let active = true;
     
@@ -123,7 +145,15 @@ export function BookingCard({
     }
   };
 
-  const handlePayWorker = () => {
+  // Check if payment should be enabled (30 minutes after assignment)
+  const isAssigned = row.status === 'assigned';
+  const assignedAtMs = row.assigned_at ? new Date(row.assigned_at).getTime() : 0;
+  const paymentReady = isAssigned 
+    && row.worker_upi 
+    && assignedAtMs > 0 
+    && now >= (assignedAtMs + 30 * 60 * 1000); // 30 minutes
+
+  const handlePayWorker = async () => {
     if (!row.worker_upi || !row.worker_name) {
       toast.error("Worker payment details not available");
       return;
@@ -138,12 +168,36 @@ export function BookingCard({
     });
 
     try {
+      // Mark that user tapped pay
+      await supabase
+        .from('bookings')
+        .update({ user_marked_paid_at: new Date().toISOString() })
+        .eq('id', row.id);
+      
       openUpi(upiUrl);
       toast.success("Opening UPI app...");
     } catch (error) {
       toast.error("Please ensure a UPI app (GPay/PhonePe/Paytm) is installed");
     }
   };
+
+  const handleSubmitRating = async (rating: number, comment?: string) => {
+    const user = (await supabase.auth.getUser()).data.user;
+    if (!user) return;
+
+    await supabase.from('worker_ratings').insert({
+      booking_id: row.id,
+      worker_id: row.worker_id,
+      user_id: user.id,
+      rating,
+      comment: comment ?? null,
+    });
+  };
+
+  // Display rating stars
+  const avgRating = workerStats?.avg_rating ?? 0;
+  const ratingsCount = workerStats?.ratings_count ?? 0;
+  const stars = Math.round(avgRating);
 
   return (
     <Card className="overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300">
@@ -191,9 +245,28 @@ export function BookingCard({
               <p className="font-semibold text-blue-900">
                 {assignedWorker?.worker?.full_name || row.worker_name}
               </p>
+              
+              {/* Rating display */}
+              {stars > 0 && (
+                <div className="flex items-center gap-1 mt-1">
+                  <div className="flex">
+                    {[1, 2, 3, 4, 5].map((i) => (
+                      <Star
+                        key={i}
+                        className={`w-4 h-4 ${i <= stars ? 'text-yellow-500' : 'text-gray-300'}`}
+                        fill={i <= stars ? 'currentColor' : 'none'}
+                      />
+                    ))}
+                  </div>
+                  <span className="text-sm text-gray-600">
+                    {avgRating.toFixed(1)} ({ratingsCount})
+                  </span>
+                </div>
+              )}
+              
               <Button 
                 variant="link" 
-                className="p-0 h-auto text-blue-700 hover:text-blue-900 font-medium"
+                className="p-0 h-auto text-blue-700 hover:text-blue-900 font-medium mt-1"
                 onClick={() => openExternalUrl(`tel:${assignedWorker?.worker?.phone || row.worker_phone}`)}
               >
                 <PhoneCall className="h-4 w-4 mr-1" />
@@ -237,18 +310,27 @@ export function BookingCard({
 
         {/* Action buttons */}
         <div className="space-y-2">
-          {/* Pay to Worker Button */}
-          {(row.status === 'assigned' || row.status === 'completed') && row.worker_upi && (
+          {/* Pay Now Button - shows after 30 minutes from assignment */}
+          {paymentReady && (
             <Button 
               onClick={handlePayWorker}
               className="w-full h-12 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-semibold rounded-xl shadow-md"
             >
               <CreditCard className="h-4 w-4 mr-2" />
-              Pay to Worker (UPI)
+              Pay Now (UPI)
               {row.price_inr && (
                 <span className="ml-1 font-medium">₹{row.price_inr}</span>
               )}
             </Button>
+          )}
+
+          {/* Rate Worker - show for assigned/completed bookings */}
+          {(row.status === 'assigned' || row.status === 'completed') && row.worker_id && (
+            <RateWorker 
+              bookingId={row.id}
+              workerId={row.worker_id}
+              onSubmit={handleSubmitRating}
+            />
           )}
 
           {/* Support button */}

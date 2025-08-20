@@ -139,6 +139,7 @@ export type Database = {
           id: string
           maid_tasks: Database["public"]["Enums"]["maid_task"][] | null
           notes: string | null
+          pay_enabled_at: string | null
           prealert_sent: boolean
           price_inr: number | null
           scheduled_date: string | null
@@ -147,6 +148,7 @@ export type Database = {
           status: string
           updated_at: string
           user_id: string
+          user_marked_paid_at: string | null
           worker_id: string | null
           worker_name: string | null
           worker_phone: string | null
@@ -176,6 +178,7 @@ export type Database = {
           id?: string
           maid_tasks?: Database["public"]["Enums"]["maid_task"][] | null
           notes?: string | null
+          pay_enabled_at?: string | null
           prealert_sent?: boolean
           price_inr?: number | null
           scheduled_date?: string | null
@@ -184,6 +187,7 @@ export type Database = {
           status?: string
           updated_at?: string
           user_id: string
+          user_marked_paid_at?: string | null
           worker_id?: string | null
           worker_name?: string | null
           worker_phone?: string | null
@@ -213,6 +217,7 @@ export type Database = {
           id?: string
           maid_tasks?: Database["public"]["Enums"]["maid_task"][] | null
           notes?: string | null
+          pay_enabled_at?: string | null
           prealert_sent?: boolean
           price_inr?: number | null
           scheduled_date?: string | null
@@ -221,6 +226,7 @@ export type Database = {
           status?: string
           updated_at?: string
           user_id?: string
+          user_marked_paid_at?: string | null
           worker_id?: string | null
           worker_name?: string | null
           worker_phone?: string | null
@@ -432,6 +438,51 @@ export type Database = {
         }
         Relationships: []
       }
+      worker_ratings: {
+        Row: {
+          booking_id: string
+          comment: string | null
+          created_at: string
+          id: string
+          rating: number
+          user_id: string
+          worker_id: string | null
+        }
+        Insert: {
+          booking_id: string
+          comment?: string | null
+          created_at?: string
+          id?: string
+          rating: number
+          user_id: string
+          worker_id?: string | null
+        }
+        Update: {
+          booking_id?: string
+          comment?: string | null
+          created_at?: string
+          id?: string
+          rating?: number
+          user_id?: string
+          worker_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "worker_ratings_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: true
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "worker_ratings_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "workers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       workers: {
         Row: {
           community: string | null
@@ -473,7 +524,22 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      worker_rating_stats: {
+        Row: {
+          avg_rating: number | null
+          ratings_count: number | null
+          worker_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "worker_ratings_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "workers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       _get_int_setting: {
