@@ -8,6 +8,7 @@ import { AdminBottomNav } from '@/components/AdminBottomNav';
 import { useNewBookingAlert } from '@/features/admin/useNewBookingAlert';
 import { WorkersTable } from '@/features/admin/workers/WorkersTable';
 import SettingsLegalPDF from '@/routes/admin/SettingsLegalPDF';
+import { WebVersionControl } from '@/components/WebVersionControl';
 
 export default function AdminSettings() {
   const {
@@ -87,6 +88,9 @@ export default function AdminSettings() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Web Version Control */}
+            <WebVersionControl />
 
             {/* System Information */}
             <Card>

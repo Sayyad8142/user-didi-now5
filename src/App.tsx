@@ -3,6 +3,11 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { UpdateBanner } from "@/components/UpdateBanner";
+import { OfflineScreen } from "@/components/OfflineScreen";
+import { useWebVersion } from "@/hooks/useWebVersion";
+import { supabase } from "@/integrations/supabase/client";
 import { AuthProvider } from "@/components/auth/AuthProvider";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { BottomTabs } from "@/components/BottomTabs";
@@ -36,13 +41,66 @@ const ProtectedLayout = ({ children }: { children: React.ReactNode }) => (
   </div>
 );
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
+const App = () => {
+  const [isOnline, setIsOnline] = useState(true);
+  const [bootFailed, setBootFailed] = useState(false);
+  const { updateAvailable, handleRefresh, dismissUpdate } = useWebVersion();
+
+  const checkConnectivity = async () => {
+    try {
+      // Check if we can reach the app
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 5000);
+
+      await Promise.race([
+        fetch('/', { signal: controller.signal }),
+        supabase.from('ops_settings').select('key').limit(1)
+      ]);
+
+      clearTimeout(timeout);
+      setIsOnline(true);
+      setBootFailed(false);
+    } catch (error) {
+      console.error('Connectivity check failed:', error);
+      setIsOnline(false);
+      setBootFailed(true);
+    }
+  };
+
+  useEffect(() => {
+    // Initial connectivity check
+    checkConnectivity();
+
+    // Listen to online/offline events
+    const handleOnline = () => {
+      setIsOnline(true);
+      setBootFailed(false);
+    };
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  if (!isOnline || bootFailed) {
+    return <OfflineScreen onRetry={checkConnectivity} />;
+  }
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <TooltipProvider>
+          {updateAvailable && (
+            <UpdateBanner onRefresh={handleRefresh} onDismiss={dismissUpdate} />
+          )}
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
@@ -167,6 +225,7 @@ const App = () => (
       </TooltipProvider>
     </AuthProvider>
   </QueryClientProvider>
-);
+  );
+};
 
 export default App;
