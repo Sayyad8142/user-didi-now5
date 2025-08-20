@@ -2,6 +2,7 @@ import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './AuthProvider';
 import { Loader2 } from 'lucide-react';
+import ConsentGate from '@/features/auth/ConsentGate';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -28,5 +29,9 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     return <Navigate to="/auth" state={{ from: location }} replace />;
   }
 
-  return <>{children}</>;
+  return (
+    <ConsentGate>
+      {children}
+    </ConsentGate>
+  );
 }

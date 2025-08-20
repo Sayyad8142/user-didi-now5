@@ -335,7 +335,10 @@ export type Database = {
           full_name: string
           id: string
           is_admin: boolean
+          legal_version: string | null
           phone: string
+          privacy_accepted_at: string | null
+          tos_accepted_at: string | null
           updated_at: string
         }
         Insert: {
@@ -345,7 +348,10 @@ export type Database = {
           full_name: string
           id?: string
           is_admin?: boolean
+          legal_version?: string | null
           phone: string
+          privacy_accepted_at?: string | null
+          tos_accepted_at?: string | null
           updated_at?: string
         }
         Update: {
@@ -355,7 +361,10 @@ export type Database = {
           full_name?: string
           id?: string
           is_admin?: boolean
+          legal_version?: string | null
           phone?: string
+          privacy_accepted_at?: string | null
+          tos_accepted_at?: string | null
           updated_at?: string
         }
         Relationships: []
