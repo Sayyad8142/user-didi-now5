@@ -96,23 +96,44 @@ export async function deleteWorker(id: string): Promise<void> {
 }
 
 export async function uploadWorkerPhoto(file: File): Promise<string> {
-  const filename = file.name.replace(/\s+/g, '_');
-  const arrayBuffer = await file.arrayBuffer();
-  const bytes = new Uint8Array(arrayBuffer);
-  let binary = '';
-  for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
-  const base64 = btoa(binary);
+  try {
+    console.log('Starting photo upload for file:', file.name, 'size:', file.size);
+    
+    const filename = file.name.replace(/\s+/g, '_');
+    const arrayBuffer = await file.arrayBuffer();
+    const bytes = new Uint8Array(arrayBuffer);
+    let binary = '';
+    for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+    const base64 = btoa(binary);
 
-  const { data, error } = await supabaseAdmin.functions.invoke('admin-upload-worker-photo', {
-    body: {
-      filename,
-      contentType: file.type,
-      base64,
-    },
-  });
+    console.log('Calling edge function with payload size:', base64.length);
 
-  if (error) throw error;
-  return (data as any).url as string;
+    const { data, error } = await supabaseAdmin.functions.invoke('admin-upload-worker-photo', {
+      body: {
+        filename,
+        contentType: file.type,
+        base64,
+      },
+    });
+
+    console.log('Edge function response:', { data, error });
+
+    if (error) {
+      console.error('Edge function error:', error);
+      throw new Error(error.message || 'Upload failed');
+    }
+    
+    if (!data?.url) {
+      console.error('No URL in response:', data);
+      throw new Error('No URL returned from upload');
+    }
+
+    console.log('Upload successful, URL:', data.url);
+    return data.url;
+  } catch (err) {
+    console.error('Upload error:', err);
+    throw err;
+  }
 }
 
 export async function assignWorkerToBooking(bookingId: string, workerId: string): Promise<void> {
