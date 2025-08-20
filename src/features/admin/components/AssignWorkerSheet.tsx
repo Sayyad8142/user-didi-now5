@@ -159,10 +159,10 @@ export function AssignWorkerSheet({
     <Sheet open={open} onOpenChange={(open) => !open && onClose()}>
       <SheetContent 
         side="bottom" 
-        className="rounded-t-3xl p-0 max-h-[80vh] flex flex-col"
+        className="h-[92svh] rounded-t-3xl p-0 flex flex-col"
       >
-        <SheetHeader className="p-4 pb-2 border-b border-slate-100">
-          <SheetTitle className="text-left">Assign Worker</SheetTitle>
+        <SheetHeader className="p-4 pb-3 border-b border-slate-100">
+          <SheetTitle className="text-left text-lg font-semibold">Assign Worker</SheetTitle>
           {booking && (
             <div className="text-sm text-slate-600">
               {booking.service_type && `Service: ${booking.service_type}`}
@@ -175,24 +175,24 @@ export function AssignWorkerSheet({
           {/* Search */}
           <div className="p-4 pb-2">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
+              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
               <Input
                 placeholder="Search by name or phone…"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 rounded-full border-slate-200"
+                className="pl-12 h-11 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white transition-colors"
               />
             </div>
           </div>
 
           {/* Filters */}
-          <div className="px-4 pb-2">
-            <div className="flex gap-2">
+          <div className="px-4 pb-3">
+            <div className="flex gap-2 overflow-x-auto no-scrollbar">
               <Button
                 variant={sameService ? "default" : "outline"}
                 size="sm"
                 onClick={() => setSameService(!sameService)}
-                className="rounded-full text-xs"
+                className="rounded-full text-xs px-4 flex-shrink-0"
               >
                 This Service
               </Button>
@@ -201,7 +201,7 @@ export function AssignWorkerSheet({
                   variant={sameCommunity ? "default" : "outline"}
                   size="sm"
                   onClick={() => setSameCommunity(!sameCommunity)}
-                  className="rounded-full text-xs"
+                  className="rounded-full text-xs px-4 flex-shrink-0"
                 >
                   Same Community
                 </Button>
@@ -212,7 +212,7 @@ export function AssignWorkerSheet({
           {/* Workers List */}
           <div className="flex-1 overflow-auto">
             {loading ? (
-              <div className="flex items-center justify-center py-8">
+              <div className="flex items-center justify-center py-12">
                 <div className="flex items-center gap-2 text-sm text-slate-500">
                   <Loader2 className="h-4 w-4 animate-spin" />
                   Loading workers...
@@ -220,7 +220,7 @@ export function AssignWorkerSheet({
               </div>
             ) : filteredWorkers.length === 0 ? (
               <div className="p-4">
-                <div className="text-center py-8">
+                <div className="text-center py-12">
                   <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
                     <User className="h-6 w-6 text-slate-400" />
                   </div>
@@ -245,16 +245,16 @@ export function AssignWorkerSheet({
                 </div>
               </div>
             ) : (
-              <div className="p-4 space-y-3">
+              <div className="p-4 space-y-3 pb-24">
                 {filteredWorkers.map(worker => (
                   <div 
                     key={worker.id} 
-                    className="flex items-center justify-between p-3 rounded-xl border border-slate-100 hover:bg-slate-50 transition-colors"
+                    className="flex items-center justify-between p-3 rounded-xl border border-slate-100 hover:bg-slate-50 transition-colors bg-white"
                   >
                     <div className="flex items-center gap-3 flex-1 min-w-0">
                       <Avatar className="w-10 h-10 flex-shrink-0">
                         <AvatarImage src={worker.photo_url || undefined} />
-                        <AvatarFallback className="bg-slate-100 text-slate-600">
+                        <AvatarFallback className="bg-slate-100 text-slate-600 font-medium">
                           {worker.full_name.charAt(0).toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
@@ -293,7 +293,7 @@ export function AssignWorkerSheet({
                     </div>
                     <Button 
                       size="sm"
-                      className="rounded-full bg-pink-600 hover:bg-pink-700 text-white ml-3"
+                      className="rounded-xl bg-pink-600 hover:bg-pink-700 text-white ml-3 h-10 px-4"
                       onClick={() => handleAssignWorker(worker)}
                       disabled={assigning === worker.id}
                     >
@@ -311,6 +311,13 @@ export function AssignWorkerSheet({
               </div>
             )}
           </div>
+        </div>
+
+        {/* Sticky bottom close button */}
+        <div className="sticky bottom-0 bg-white/95 backdrop-blur border-t border-slate-100 p-4 safe-bottom">
+          <Button variant="outline" className="w-full h-11 rounded-xl" onClick={onClose}>
+            Done
+          </Button>
         </div>
       </SheetContent>
     </Sheet>

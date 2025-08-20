@@ -19,151 +19,151 @@ export default function AdminSettings() {
   const [activeTab, setActiveTab] = useState("general");
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div className="px-4 py-4">
-          <div className="flex items-center gap-3">
-            <Link to="/admin" className="p-2 hover:bg-gray-100 rounded-lg transition-colors" title="Back to Admin Dashboard">
-              <ArrowLeft className="h-5 w-5 text-gray-600" />
-            </Link>
-            <div>
-              <h1 className="text-lg font-semibold text-gray-900">Settings</h1>
-              <p className="text-sm text-gray-500">Configure system preferences</p>
-            </div>
+    <div className="min-h-[100svh] max-w-screen-sm mx-auto bg-background text-foreground flex flex-col">
+      {/* Mobile-optimized header */}
+      <header className="sticky top-0 z-40 bg-background/80 backdrop-blur border-b safe-top">
+        <div className="flex items-center gap-2 px-3 py-2">
+          <Link to="/admin" className="p-2 hover:bg-muted rounded-xl transition-colors" title="Back to Admin Dashboard">
+            <ArrowLeft className="h-5 w-5 text-muted-foreground" />
+          </Link>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-lg font-semibold">Settings</h1>
+            <p className="text-xs text-muted-foreground hidden sm:block">Configure system preferences</p>
           </div>
         </div>
-      </div>
+      </header>
 
-      <div className="px-4 py-6 space-y-4 max-w-4xl mx-auto">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="general" className="flex items-center gap-2">
-              <Settings className="w-4 h-4" />
-              General
-            </TabsTrigger>
-            <TabsTrigger value="pricing" className="flex items-center gap-2">
-              <DollarSign className="w-4 h-4" />
-              Pricing
-            </TabsTrigger>
-            <TabsTrigger value="workers" className="flex items-center gap-2">
-              <Users className="w-4 h-4" />
-              Workers
-            </TabsTrigger>
-            <TabsTrigger value="legal-pdf" className="flex items-center gap-2">
-              <FileText className="w-4 h-4" />
-              Legal
-            </TabsTrigger>
-          </TabsList>
+      <main className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 overflow-y-auto px-3 py-4 space-y-4 pb-24 md:pb-6">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="grid w-full grid-cols-4 h-auto p-1">
+              <TabsTrigger value="general" className="flex flex-col items-center gap-1 px-2 py-2 text-xs">
+                <Settings className="w-4 h-4" />
+                <span className="hidden sm:inline">General</span>
+              </TabsTrigger>
+              <TabsTrigger value="pricing" className="flex flex-col items-center gap-1 px-2 py-2 text-xs">
+                <DollarSign className="w-4 h-4" />
+                <span className="hidden sm:inline">Pricing</span>
+              </TabsTrigger>
+              <TabsTrigger value="workers" className="flex flex-col items-center gap-1 px-2 py-2 text-xs">
+                <Users className="w-4 h-4" />
+                <span className="hidden sm:inline">Workers</span>
+              </TabsTrigger>
+              <TabsTrigger value="legal-pdf" className="flex flex-col items-center gap-1 px-2 py-2 text-xs">
+                <FileText className="w-4 h-4" />
+                <span className="hidden sm:inline">Legal</span>
+              </TabsTrigger>
+            </TabsList>
 
-          <TabsContent value="general" className="space-y-4 mt-6">
-            {/* Notifications Settings */}
-            <Card>
-              <CardHeader className="pb-4">
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <Bell className="h-5 w-5 text-[#ff007a]" />
-                  Notifications
-                </CardTitle>
-                <CardDescription>
-                  Manage sound alerts and notification preferences
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="p-4 bg-gray-50 rounded-xl space-y-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Volume2 className="h-4 w-4 text-gray-600 flex-shrink-0" />
-                        <h3 className="font-medium text-gray-900">Sound Alerts</h3>
+            <TabsContent value="general" className="space-y-4 mt-4">
+              {/* Notifications Settings */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Bell className="h-5 w-5 text-[#ff007a]" />
+                    Notifications
+                  </CardTitle>
+                  <CardDescription className="text-sm">
+                    Manage sound alerts and notification preferences
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="p-3 bg-muted/50 rounded-xl space-y-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Volume2 className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                          <h3 className="font-medium">Sound Alerts</h3>
+                        </div>
+                        <p className="text-sm text-muted-foreground leading-relaxed">
+                          Play audio notifications for new bookings and overdue items
+                        </p>
                       </div>
-                      <p className="text-sm text-gray-600 leading-relaxed">
-                        Play audio notifications for new bookings and overdue items
-                      </p>
                     </div>
+                    <Button onClick={toggleSound} variant={soundOn ? "default" : "outline"} className="w-full h-10 text-sm">
+                      {soundOn ? <Bell className="h-4 w-4 mr-2" /> : <BellOff className="h-4 w-4 mr-2" />}
+                      {soundOn ? "Sound Enabled" : "Sound Disabled"}
+                    </Button>
                   </div>
-                  <Button onClick={toggleSound} variant={soundOn ? "default" : "outline"} className="w-full h-11 text-base">
-                    {soundOn ? <Bell className="h-4 w-4 mr-2" /> : <BellOff className="h-4 w-4 mr-2" />}
-                    {soundOn ? "Sound Enabled" : "Sound Disabled"}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
 
-            {/* Web Version Control */}
-            <WebVersionControl />
+              {/* Web Version Control */}
+              <WebVersionControl />
 
-            {/* System Information */}
-            <Card>
-              <CardHeader className="pb-4">
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <Info className="h-5 w-5 text-[#ff007a]" />
-                  System Information
-                </CardTitle>
-                <CardDescription>
-                  Application status and system details
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  <div className="p-4 bg-gray-50 rounded-xl">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <div className="text-sm font-medium text-gray-500 mb-1">Version</div>
-                        <div className="text-base font-semibold text-gray-900">v1.0</div>
-                      </div>
-                      <div>
-                        <div className="text-sm font-medium text-gray-500 mb-1">Status</div>
-                        <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                          <span className="text-base font-semibold text-green-600">Active</span>
+              {/* System Information */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Info className="h-5 w-5 text-[#ff007a]" />
+                    System Information
+                  </CardTitle>
+                  <CardDescription className="text-sm">
+                    Application status and system details
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    <div className="p-3 bg-muted/50 rounded-xl">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <div className="text-sm font-medium text-muted-foreground mb-1">Version</div>
+                          <div className="text-base font-semibold">v1.0</div>
+                        </div>
+                        <div>
+                          <div className="text-sm font-medium text-muted-foreground mb-1">Status</div>
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                            <span className="text-base font-semibold text-green-600">Active</span>
+                          </div>
                         </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+                </CardContent>
+              </Card>
+            </TabsContent>
 
-          <TabsContent value="pricing" className="mt-6">
-            <Card>
-              <CardHeader className="pb-4">
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <DollarSign className="h-5 w-5 text-[#ff007a]" />
-                  Pricing Management
-                </CardTitle>
-                <CardDescription>
-                  Configure service pricing for different communities and services
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="p-4 bg-gray-50 rounded-xl space-y-3">
-                  <div>
-                    <h3 className="font-medium text-gray-900 mb-1">Service Pricing</h3>
-                    <p className="text-sm text-gray-600 leading-relaxed">
-                      Set prices for maid, cook, and bathroom cleaning services
-                    </p>
+            <TabsContent value="pricing" className="mt-4">
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <DollarSign className="h-5 w-5 text-[#ff007a]" />
+                    Pricing Management
+                  </CardTitle>
+                  <CardDescription className="text-sm">
+                    Configure service pricing for different communities and services
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="p-3 bg-muted/50 rounded-xl space-y-3">
+                    <div>
+                      <h3 className="font-medium mb-1">Service Pricing</h3>
+                      <p className="text-sm text-muted-foreground leading-relaxed">
+                        Set prices for maid, cook, and bathroom cleaning services
+                      </p>
+                    </div>
+                    <Button asChild className="w-full h-10">
+                      <Link to="/admin/pricing" className="flex items-center justify-center gap-2">
+                        <Settings className="h-4 w-4" />
+                        Configure Pricing
+                      </Link>
+                    </Button>
                   </div>
-                  <Button asChild className="w-full h-11">
-                    <Link to="/admin/pricing" className="flex items-center justify-center gap-2">
-                      <Settings className="h-4 w-4" />
-                      Configure Pricing
-                    </Link>
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+                </CardContent>
+              </Card>
+            </TabsContent>
 
-          <TabsContent value="workers" className="mt-6">
-            <WorkersTable />
-          </TabsContent>
+            <TabsContent value="workers" className="mt-4">
+              <WorkersTable />
+            </TabsContent>
 
-          <TabsContent value="legal-pdf" className="mt-6">
-            <SettingsLegalPDF />
-          </TabsContent>
-        </Tabs>
-      </div>
+            <TabsContent value="legal-pdf" className="mt-4">
+              <SettingsLegalPDF />
+            </TabsContent>
+          </Tabs>
+        </div>
+      </main>
 
       <AdminBottomNav />
     </div>

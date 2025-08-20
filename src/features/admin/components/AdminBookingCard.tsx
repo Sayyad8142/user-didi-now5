@@ -298,91 +298,120 @@ export function AdminBookingCard({
 
   return (
     <>
-      <Card className="group relative overflow-hidden rounded-2xl border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.01] bg-white">
+      <Card className="group relative overflow-hidden rounded-2xl border-0 shadow-sm hover:shadow-md transition-all duration-300 bg-white">
         {/* Gradient background overlay */}
         <div className={cn("absolute inset-0 bg-gradient-to-br opacity-5", serviceConfig.bgGradient)} />
         
-        <CardContent className="relative p-4">
-          {/* Compact header */}
-          <div className="flex items-start justify-between mb-4">
-            <div className="flex gap-3">
+        <CardContent className="relative p-3">
+          {/* Mobile-optimized header */}
+          <div className="flex items-start gap-3 mb-3">
+            <div className={cn(
+              "w-10 h-10 rounded-xl bg-gradient-to-br flex items-center justify-center shadow-md flex-shrink-0",
+              serviceConfig.gradient
+            )}>
+              <serviceConfig.icon className="w-5 h-5 text-white" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <h3 className="text-base font-bold text-gray-900 leading-tight">
+                    {serviceConfig.name}
+                  </h3>
+                  <div className="flex items-center gap-2 text-xs text-gray-600 mt-1">
+                    <Calendar className="w-3 h-3" />
+                    <span className="font-medium">
+                      {booking.booking_type === 'instant' ? 'Instant' : 'Scheduled'}
+                    </span>
+                    {booking.booking_type === 'instant' && (
+                      <div className="flex items-center gap-1">
+                        <Zap className="w-3 h-3 text-amber-500" />
+                        <span className="text-xs font-bold text-amber-600">RUSH</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <StatusChip status={booking.status} overdue={overdue} />
+              </div>
+            </div>
+          </div>
+
+          {/* Compact info grid - Mobile stacked */}
+          <div className="space-y-2 mb-3">
+            <div className="flex items-center gap-3 p-2 bg-gray-50/60 rounded-xl">
               <div className={cn(
-                "w-10 h-10 rounded-xl bg-gradient-to-br flex items-center justify-center shadow-lg flex-shrink-0 transition-transform group-hover:scale-105",
+                "w-6 h-6 rounded-lg bg-gradient-to-br flex items-center justify-center flex-shrink-0",
                 serviceConfig.gradient
               )}>
-                <serviceConfig.icon className="w-5 h-5 text-white" />
+                <Building2 className="w-3 h-3 text-white" />
               </div>
-              <div className="min-w-0">
-                <h3 className="text-base font-bold text-gray-900 mb-1">
-                  {serviceConfig.name}
-                </h3>
-                <div className="flex items-center gap-2 text-xs text-gray-600">
-                  <Calendar className="w-3 h-3" />
-                  <span className="font-medium">
-                    {booking.booking_type === 'instant' ? 'Instant' : 'Scheduled'}
-                  </span>
-                  {booking.booking_type === 'instant' && (
-                    <div className="flex items-center gap-1 ml-1">
-                      <Zap className="w-3 h-3 text-amber-500" />
-                      <span className="text-xs font-bold text-amber-600">RUSH</span>
-                    </div>
-                  )}
+              <div className="flex-1 min-w-0">
+                <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">Location</div>
+                <div className="font-semibold text-sm text-gray-900 truncate">
+                  {booking.community} • Flat {booking.flat_no}
                 </div>
               </div>
             </div>
-            <StatusChip status={booking.status} overdue={overdue} />
-          </div>
-
-          {/* Compact info grid */}
-          <div className="grid grid-cols-1 gap-2 mb-3">
-            <InfoCard 
-              icon={Building2} 
-              title="LOCATION" 
-              value={booking.community} 
-              sub={`Flat ${booking.flat_no}`}
-              accent={serviceConfig.accentColor}
-            />
             
-            <InfoCard 
-              icon={Clock} 
-              title="TIMING & STATUS" 
-              value={humanEta(booking)} 
-              sub={
+            <div className="flex items-center gap-3 p-2 bg-gray-50/60 rounded-xl">
+              <div className={cn(
+                "w-6 h-6 rounded-lg bg-gradient-to-br flex items-center justify-center flex-shrink-0",
+                serviceConfig.gradient
+              )}>
+                <Clock className="w-3 h-3 text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">Timing</div>
+                <div className="font-semibold text-sm text-gray-900">
+                  {humanEta(booking)}
+                </div>
                 <div className="flex items-center gap-1 mt-0.5">
                   <span className="text-gray-400">•</span>
                   <TimerComponent since={booking.created_at} />
                 </div>
-              }
-              accent={serviceConfig.accentColor}
-            />
+              </div>
+            </div>
             
-            <InfoCard 
-              icon={User} 
-              title="CUSTOMER INFO" 
-              value={booking.cust_name} 
-              sub={
+            <div className="flex items-center gap-3 p-2 bg-gray-50/60 rounded-xl">
+              <div className={cn(
+                "w-6 h-6 rounded-lg bg-gradient-to-br flex items-center justify-center flex-shrink-0",
+                serviceConfig.gradient
+              )}>
+                <User className="w-3 h-3 text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">Customer</div>
+                <div className="font-semibold text-sm text-gray-900 truncate">
+                  {booking.cust_name}
+                </div>
                 <a 
                   href={`tel:${booking.cust_phone}`}
                   onClick={(e) => {
                     e.stopPropagation();
                     openExternalUrl(`tel:${booking.cust_phone}`);
                   }}
-                  className="flex items-center gap-1 text-blue-600 hover:text-blue-700 transition-colors font-semibold mt-0.5 group/phone"
+                  className="flex items-center gap-1 text-blue-600 hover:text-blue-700 transition-colors text-xs font-medium mt-0.5"
                 >
-                  <Phone className="h-3 w-3 group-hover/phone:scale-105 transition-transform" />
+                  <Phone className="h-3 w-3" />
                   {booking.cust_phone}
                 </a>
-              }
-              accent={serviceConfig.accentColor}
-            />
+              </div>
+            </div>
 
             {booking.service_type === 'maid' && booking.maid_tasks?.length > 0 && (
-              <InfoCard 
-                icon={Sparkles} 
-                title="TASKS ASSIGNED" 
-                value={formatMaidTasks(booking)}
-                accent={serviceConfig.accentColor}
-              />
+              <div className="flex items-center gap-3 p-2 bg-gray-50/60 rounded-xl">
+                <div className={cn(
+                  "w-6 h-6 rounded-lg bg-gradient-to-br flex items-center justify-center flex-shrink-0",
+                  serviceConfig.gradient
+                )}>
+                  <Sparkles className="w-3 h-3 text-white" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">Tasks</div>
+                  <div className="font-semibold text-sm text-gray-900">
+                    {formatMaidTasks(booking)}
+                  </div>
+                </div>
+              </div>
             )}
           </div>
 
@@ -397,8 +426,8 @@ export function AdminBookingCard({
                 onClick={() => setSheetOpen(true)}
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-green-500 flex items-center justify-center shadow-md">
-                    <Users className="w-4 h-4 text-white" />
+                  <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-emerald-500 to-green-500 flex items-center justify-center shadow-md">
+                    <Users className="w-3 h-3 text-white" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="font-bold text-emerald-900 text-sm">
@@ -414,26 +443,24 @@ export function AdminBookingCard({
             </div>
           )}
 
-          {/* Compact action buttons */}
-          <div className="mt-4 grid grid-cols-2 gap-3">
+          {/* Mobile: Hide in-card buttons, use sticky bar instead */}
+          <div className="mt-4 grid grid-cols-2 gap-2 md:grid">
             <Button
               variant="outline"
               size="sm"
-              className="rounded-xl border-2 border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400 font-bold h-10 transition-all hover:scale-[1.01]"
+              className="hidden md:flex rounded-xl border-2 border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400 font-medium h-10 transition-all"
               onClick={handleCancel}
               disabled={saving}
             >
               {saving ? (
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 border-2 border-gray-400 border-t-gray-600 rounded-full animate-spin" />
-                  <span className="hidden sm:inline">Cancelling...</span>
-                  <span className="sm:hidden">...</span>
+                  <span>Cancelling...</span>
                 </div>
               ) : (
                 <div className="flex items-center gap-2">
                   <XCircle className="h-4 w-4" />
-                  <span className="hidden sm:inline">Cancel</span>
-                  <span className="sm:hidden">Cancel</span>
+                  <span>Cancel</span>
                 </div>
               )}
             </Button>
@@ -441,7 +468,7 @@ export function AdminBookingCard({
             <Button
               size="sm"
               className={cn(
-                "rounded-xl font-bold h-10 text-white shadow-md transition-all hover:scale-[1.01] bg-gradient-to-r",
+                "hidden md:flex rounded-xl font-medium h-10 text-white shadow-md transition-all bg-gradient-to-r",
                 serviceConfig.gradient
               )}
               onClick={() => setSheetOpen(true)}
@@ -449,16 +476,53 @@ export function AdminBookingCard({
             >
               <div className="flex items-center gap-2">
                 <UserCheck className="h-4 w-4" />
-                <span className="hidden sm:inline">
+                <span>
                   {isAssigned ? 'Reassign Worker' : 'Assign Worker'}
-                </span>
-                <span className="sm:hidden">
-                  {isAssigned ? 'Reassign' : 'Assign'}
                 </span>
               </div>
             </Button>
           </div>
         </CardContent>
+
+        {/* Mobile: Sticky action bar */}
+        <div className="md:hidden sticky bottom-0 z-30 bg-white/95 backdrop-blur border-t border-gray-100 p-3 safe-bottom">
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              variant="destructive"
+              className="h-11 rounded-xl font-medium"
+              onClick={handleCancel}
+              disabled={saving}
+            >
+              {saving ? (
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <span>Cancelling...</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <XCircle className="h-4 w-4" />
+                  <span>Cancel</span>
+                </div>
+              )}
+            </Button>
+            
+            <Button
+              className={cn(
+                "h-11 rounded-xl font-medium text-white shadow-md bg-gradient-to-r",
+                serviceConfig.gradient
+              )}
+              onClick={() => setSheetOpen(true)}
+              disabled={saving}
+            >
+              <div className="flex items-center gap-2">
+                <UserCheck className="h-4 w-4" />
+                <span>
+                  {isAssigned ? 'Reassign' : 'Assign'}
+                </span>
+              </div>
+            </Button>
+          </div>
+        </div>
       </Card>
 
       <AssignWorkerSheet
