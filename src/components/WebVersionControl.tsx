@@ -1,34 +1,69 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { RefreshCw, Globe } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { RefreshCw, Globe, AlertTriangle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
 export function WebVersionControl() {
   const [currentVersion, setCurrentVersion] = useState<string>('');
+  const [updateMode, setUpdateMode] = useState<'soft' | 'force'>('soft');
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
-  const loadCurrentVersion = async () => {
+  const loadCurrentSettings = async () => {
     try {
       const { data } = await supabase
         .from('ops_settings')
-        .select('value')
-        .eq('key', 'web_version')
-        .single();
+        .select('key, value')
+        .in('key', ['web_version', 'web_update_mode']);
       
-      if (data?.value) {
-        setCurrentVersion(data.value);
+      if (data) {
+        const versionRow = data.find(row => row.key === 'web_version');
+        const modeRow = data.find(row => row.key === 'web_update_mode');
+        
+        if (versionRow?.value) setCurrentVersion(versionRow.value);
+        if (modeRow?.value) setUpdateMode(modeRow.value as 'soft' | 'force');
       }
     } catch (error) {
-      console.error('Failed to load version:', error);
+      console.error('Failed to load settings:', error);
     }
   };
 
   useEffect(() => {
-    loadCurrentVersion();
+    loadCurrentSettings();
   }, []);
+
+  const toggleUpdateMode = async () => {
+    setLoading(true);
+    try {
+      const newMode = updateMode === 'soft' ? 'force' : 'soft';
+      
+      const { error } = await supabase
+        .from('ops_settings')
+        .update({ value: newMode })
+        .eq('key', 'web_update_mode');
+
+      if (error) throw error;
+
+      setUpdateMode(newMode);
+      toast({
+        title: "Update mode changed",
+        description: `Updates will now be ${newMode === 'force' ? 'forced immediately' : 'shown as notifications'}`,
+      });
+    } catch (error) {
+      console.error('Failed to toggle update mode:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update mode",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const bumpVersion = async () => {
     setLoading(true);
@@ -60,9 +95,11 @@ export function WebVersionControl() {
       if (error) throw error;
 
       setCurrentVersion(newVersion);
+      
+      const modeText = updateMode === 'force' ? 'Users will be updated immediately.' : 'Users will see update notification.';
       toast({
         title: "Version updated",
-        description: `Web version bumped to ${newVersion}. Users will see update notification.`,
+        description: `Web version bumped to ${newVersion}. ${modeText}`,
       });
     } catch (error) {
       console.error('Failed to bump version:', error);
@@ -88,22 +125,45 @@ export function WebVersionControl() {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="p-4 bg-gray-50 rounded-xl space-y-3">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="font-medium text-gray-900">Current Version</h3>
-              <p className="text-sm text-gray-600">v{currentVersion || '1.0.0'}</p>
+        <div className="space-y-4">
+          <div className="p-4 bg-gray-50 rounded-xl space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-medium text-gray-900">Current Version</h3>
+                <p className="text-sm text-gray-600">v{currentVersion || '1.0.0'}</p>
+              </div>
             </div>
+            
+            {/* Update Mode Toggle */}
+            <div className="flex items-center justify-between p-3 bg-white rounded-lg border">
+              <div className="flex items-center space-x-3">
+                <AlertTriangle className={`h-4 w-4 ${updateMode === 'force' ? 'text-orange-500' : 'text-gray-400'}`} />
+                <div>
+                  <Label htmlFor="force-mode" className="text-sm font-medium">
+                    Force Updates
+                  </Label>
+                  <p className="text-xs text-gray-500">
+                    {updateMode === 'force' ? 'Users will update immediately' : 'Users see notification banner'}
+                  </p>
+                </div>
+              </div>
+              <Switch
+                id="force-mode"
+                checked={updateMode === 'force'}
+                onCheckedChange={toggleUpdateMode}
+                disabled={loading}
+              />
+            </div>
+            
+            <Button 
+              onClick={bumpVersion} 
+              disabled={loading}
+              className="w-full h-11"
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+              {loading ? 'Updating...' : 'Bump Patch Version'}
+            </Button>
           </div>
-          
-          <Button 
-            onClick={bumpVersion} 
-            disabled={loading}
-            className="w-full h-11"
-          >
-            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-            {loading ? 'Updating...' : 'Bump Patch Version'}
-          </Button>
         </div>
       </CardContent>
     </Card>

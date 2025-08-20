@@ -4,23 +4,37 @@ import { supabase } from '@/integrations/supabase/client';
 export function useWebVersion() {
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const [currentVersion, setCurrentVersion] = useState<string>('');
+  const [updateMode, setUpdateMode] = useState<'soft' | 'force'>('soft');
 
   const checkVersion = async () => {
     try {
+      // Fetch both version and update mode
       const { data } = await supabase
         .from('ops_settings')
-        .select('value')
-        .eq('key', 'web_version')
-        .single();
+        .select('key, value')
+        .in('key', ['web_version', 'web_update_mode']);
 
-      if (data?.value) {
-        const remoteVersion = data.value;
-        const localVersion = localStorage.getItem('webVersion');
+      if (data) {
+        const versionRow = data.find(row => row.key === 'web_version');
+        const modeRow = data.find(row => row.key === 'web_update_mode');
+        
+        const remoteVersion = versionRow?.value || '1.0.0';
+        const remoteMode = (modeRow?.value as 'soft' | 'force') || 'soft';
         
         setCurrentVersion(remoteVersion);
+        setUpdateMode(remoteMode);
+        
+        const localVersion = localStorage.getItem('webVersion');
         
         if (localVersion && localVersion !== remoteVersion) {
-          setUpdateAvailable(true);
+          if (remoteMode === 'force') {
+            // Force update - skip banner and reload immediately
+            await handleRefresh();
+            return;
+          } else {
+            // Soft update - show banner
+            setUpdateAvailable(true);
+          }
         } else if (!localVersion) {
           // First run - store current version
           localStorage.setItem('webVersion', remoteVersion);
@@ -66,6 +80,7 @@ export function useWebVersion() {
   return {
     updateAvailable,
     currentVersion,
+    updateMode,
     handleRefresh,
     dismissUpdate: () => setUpdateAvailable(false)
   };
