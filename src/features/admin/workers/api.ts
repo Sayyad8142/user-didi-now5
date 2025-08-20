@@ -96,21 +96,23 @@ export async function deleteWorker(id: string): Promise<void> {
 }
 
 export async function uploadWorkerPhoto(file: File): Promise<string> {
-  const path = `w_${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
-  const { error } = await supabaseAdmin.storage
-    .from('worker-photos')
-    .upload(path, file, { 
-      upsert: false, 
-      cacheControl: '3600' 
-    });
-  
+  const filename = file.name.replace(/\s+/g, '_');
+  const arrayBuffer = await file.arrayBuffer();
+  const bytes = new Uint8Array(arrayBuffer);
+  let binary = '';
+  for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+  const base64 = btoa(binary);
+
+  const { data, error } = await supabaseAdmin.functions.invoke('admin-upload-worker-photo', {
+    body: {
+      filename,
+      contentType: file.type,
+      base64,
+    },
+  });
+
   if (error) throw error;
-  
-  const { data: pub } = supabaseAdmin.storage
-    .from('worker-photos')
-    .getPublicUrl(path);
-  
-  return pub.publicUrl;
+  return (data as any).url as string;
 }
 
 export async function assignWorkerToBooking(bookingId: string, workerId: string): Promise<void> {

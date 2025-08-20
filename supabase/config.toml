@@ -1,1 +1,5 @@
 project_id = "paywwbuqycovjopryele"
+
+[functions]
+[functions.admin-upload-worker-photo]
+verify_jwt = true

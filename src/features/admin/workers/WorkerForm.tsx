@@ -135,10 +135,10 @@ export function WorkerForm({ worker, open, onOpenChange, onSaved }: WorkerFormPr
                 <Camera className="w-8 h-8" />
               </AvatarFallback>
             </Avatar>
-            <Label htmlFor="photo" className="cursor-pointer flex items-center gap-2 text-sm text-muted-foreground">
-              <Upload className="w-4 h-4" />
-              {uploading ? 'Uploading...' : 'Upload Photo'}
-            </Label>
+              <Label htmlFor="photo" className="cursor-pointer flex items-center gap-2 text-sm text-muted-foreground">
+                <Upload className="w-4 h-4" />
+                {uploading ? 'Uploading…' : 'Upload Photo'}
+              </Label>
             <Input
               id="photo"
               type="file"
