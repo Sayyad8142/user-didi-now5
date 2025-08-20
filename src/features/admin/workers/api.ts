@@ -60,7 +60,13 @@ export async function adminUpsertWorker(input: UpsertWorkerInput): Promise<Worke
   };
 
   const { data, error } = await supabase.rpc('admin_upsert_worker', {
-    p_worker: payload as any,
+    p_full_name: input.full_name,
+    p_phone: input.phone,
+    p_upi_id: input.upi_id,
+    p_service_types: svc,
+    p_community: input.community ?? null,
+    p_photo_url: input.photo_url ?? null,
+    p_is_active: input.is_active ?? true,
   });
 
   if (error) throw error;
