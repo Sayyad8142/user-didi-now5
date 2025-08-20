@@ -17,7 +17,7 @@ export default function AdminLayout() {
   const [rows,setRows] = useState<any[]>([]);
   const [open,setOpen] = useState(false);
   const [active,setActive] = useState<any>(null);
-  const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'assigned' | 'cancelled'>('all');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'assigned' | 'cancelled' | 'completed'>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const { enabled: soundOn, toggle: toggleSound, snooze, stopSound, play: testSound } = useNewBookingAlert();
   
@@ -28,7 +28,7 @@ export default function AdminLayout() {
   useOverdueAlert(rows, slaMinutes);
 
   // initial load with filter
-  async function load(statusFilter: 'all' | 'pending' | 'assigned' | 'cancelled' = 'all') {
+  async function load(statusFilter: 'all' | 'pending' | 'assigned' | 'cancelled' | 'completed' = 'all') {
     let query = supabase
       .from("bookings")
       .select("*");
@@ -37,6 +37,8 @@ export default function AdminLayout() {
       query = query.in("status", ["pending","assigned"]);
     } else if (statusFilter === 'cancelled') {
       query = query.eq("status", "cancelled");
+    } else if (statusFilter === 'completed') {
+      query = query.eq("status", "completed");
     } else {
       query = query.eq("status", statusFilter);
     }
@@ -76,7 +78,7 @@ export default function AdminLayout() {
     return filtered;
   }, [rows, searchTerm]);
 
-  const handleFilterChange = (status: 'all' | 'pending' | 'assigned' | 'cancelled') => {
+  const handleFilterChange = (status: 'all' | 'pending' | 'assigned' | 'cancelled' | 'completed') => {
     setFilterStatus(status);
   };
 
@@ -124,7 +126,7 @@ export default function AdminLayout() {
           {/* Modern Filter Tabs */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
             <div className="flex bg-gray-50/50">
-              {(['all', 'pending', 'assigned', 'cancelled'] as const).map((status, index) => {
+              {(['all', 'pending', 'assigned', 'completed', 'cancelled'] as const).map((status, index) => {
                 const isActive = filterStatus === status;
                 const count = status === 'all' 
                   ? rows.filter(r => ['pending', 'assigned'].includes(r.status)).length
