@@ -54,7 +54,7 @@ export default function ConsentGate({ children }: { children: React.ReactNode })
   }, []);
 
   async function accept() {
-    if (!profile?.id || !ver) return;
+    if (!profile?.id) return;
     if (!agreeTos || !agreePriv) return;
     setBusy(true);
     
@@ -70,13 +70,15 @@ export default function ConsentGate({ children }: { children: React.ReactNode })
       }
 
       const now = new Date().toISOString();
+      const updateData: Record<string, any> = {
+        tos_accepted_at: now,
+        privacy_accepted_at: now,
+      };
+      if (ver) updateData.legal_version = ver;
+
       const { error } = await supabase
         .from("profiles")
-        .update({
-          tos_accepted_at: now,
-          privacy_accepted_at: now,
-          legal_version: ver,
-        })
+        .update(updateData)
         .eq("id", profile.id);
       
       if (error) {
