@@ -15,7 +15,7 @@ export interface Worker {
 }
 
 export async function listWorkers(query: string = '', serviceType?: string): Promise<Worker[]> {
-  let supabaseQuery = supabase
+  let supabaseQuery = supabaseAdmin
     .from('workers')
     .select('*')
     .order('created_at', { ascending: false });
@@ -88,7 +88,7 @@ export async function upsertWorker(payload: Omit<Worker, 'created_at' | 'updated
 }
 
 export async function deleteWorker(id: string): Promise<void> {
-  const { error } = await supabase
+  const { error } = await supabaseAdmin
     .from('workers')
     .delete()
     .eq('id', id);
@@ -114,7 +114,7 @@ export async function uploadWorkerPhoto(file: File): Promise<string> {
 }
 
 export async function assignWorkerToBooking(bookingId: string, workerId: string): Promise<void> {
-  const { error } = await supabase.rpc('assign_worker_to_booking', {
+  const { error } = await supabaseAdmin.rpc('assign_worker_to_booking', {
     p_booking_id: bookingId,
     p_worker_id: workerId
   });
