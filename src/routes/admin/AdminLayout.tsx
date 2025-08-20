@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
 import { supabaseAdmin as supabase } from "@/lib/supabase-admin";
-import BookingRow from "@/features/admin/BookingRow";
+import { AdminBookingCard } from "@/features/admin/components/AdminBookingCard";
 import BookingDrawer from "@/features/admin/BookingDrawer";
 import { useBookingsRealtime } from "@/features/admin/useRealtime";
 import QuickStats from "@/features/admin/QuickStats";
@@ -203,12 +203,20 @@ export default function AdminLayout() {
               ) : (
                 <div className="space-y-3">
                   {filteredRows.map(b => (
-                    <BookingRow 
+                    <AdminBookingCard 
                       key={b.id} 
-                      b={b} 
-                      onClick={() => { setActive(b); setOpen(true); }} 
-                      onInteracted={() => { snooze(4000); stopSound(); }}
+                      booking={b}
                       slaMinutes={slaMinutes}
+                      onCancel={() => {
+                        // Remove from local state immediately
+                        setRows(prev => prev.filter(row => row.id !== b.id));
+                      }}
+                      onUpdate={(updatedBooking) => {
+                        // Update local state immediately for optimistic UI
+                        setRows(prev => prev.map(row => 
+                          row.id === updatedBooking.id ? updatedBooking : row
+                        ));
+                      }}
                     />
                   ))}
                 </div>
