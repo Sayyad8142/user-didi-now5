@@ -1,6 +1,7 @@
-import { useMemo } from "react";
+import { useMemo, useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
 
 const PP = `
 # Privacy Policy
@@ -88,6 +89,19 @@ export default function LegalCenter() {
   const q = useQuery();
   const nav = useNavigate();
   const tab = (q.get("tab") || "privacy") as "privacy" | "terms";
+  const [pdfUrl, setPdfUrl] = useState<string>("");
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      const key = tab === "privacy" ? "privacy.pdf" : "terms.pdf";
+      // create a signed URL valid for 10 minutes
+      const { data, error } = await supabase.storage.from("legal-pdfs").createSignedUrl(key, 600);
+      if (!cancelled) setPdfUrl(error ? "" : (data?.signedUrl || ""));
+    }
+    load();
+    return () => { cancelled = true; };
+  }, [tab]);
 
   return (
     <div className="min-h-dvh bg-rose-50/40 p-4">
@@ -120,11 +134,22 @@ export default function LegalCenter() {
         </button>
       </nav>
 
-      <article className="bg-white rounded-2xl shadow p-4 prose prose-sm max-w-none">
-        <pre className="whitespace-pre-wrap leading-relaxed text-gray-800">
+      {pdfUrl ? (
+        <div className="bg-white rounded-2xl shadow overflow-hidden">
+          <iframe
+            title={tab === "privacy" ? "Privacy Policy" : "Terms of Service"}
+            src={pdfUrl}
+            className="w-full"
+            style={{ height: "80vh", border: "0" }}
+          />
+        </div>
+      ) : (
+        <article className="bg-white rounded-2xl shadow p-4 prose prose-sm max-w-none">
+          <pre className="whitespace-pre-wrap leading-relaxed text-gray-800">
 {tab === "privacy" ? PP : TOS}
-        </pre>
-      </article>
+          </pre>
+        </article>
+      )}
     </div>
   );
 }
