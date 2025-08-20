@@ -1,18 +1,18 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabaseAdmin as supabase } from "@/lib/supabase-admin";
-import { normalizePhone } from "@/features/profile/ensureProfile";
+import { formatPhoneIN, isValidINPhone, extractCleanPhone } from "@/lib/auth-helpers";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent } from "@/components/ui/card";
-import { Loader2 } from "lucide-react";
+import { PhoneInputIN } from "@/components/auth/PhoneInputIN";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+import { Shield, ArrowLeft } from "lucide-react";
 
 const ADMIN_PHONE = (import.meta.env.VITE_ADMIN_PHONE || "+919000666986").replace(/\s/g,"");
 
 export default function AdminLogin() {
   const nav = useNavigate();
-  const [phone, setPhone] = useState("+91");
+  const [phone, setPhone] = useState("");
   const [otpSent, setOtpSent] = useState(false);
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
@@ -22,10 +22,15 @@ export default function AdminLogin() {
     setErr(null); 
     setBusy(true);
     try {
-      const e164 = normalizePhone(phone);
-      if (e164 !== normalizePhone(ADMIN_PHONE)) {
+      if (!isValidINPhone(phone)) {
+        throw new Error("Please enter a valid 10-digit mobile number");
+      }
+      
+      const e164 = formatPhoneIN(phone);
+      if (e164 !== formatPhoneIN(extractCleanPhone(ADMIN_PHONE))) {
         throw new Error("Not an authorized admin number");
       }
+      
       const { error } = await supabase.auth.signInWithOtp({ 
         phone: e164, 
         options: { shouldCreateUser: true } 
@@ -43,14 +48,13 @@ export default function AdminLogin() {
     setErr(null); 
     setBusy(true);
     try {
-      const e164 = normalizePhone(phone);
+      const e164 = formatPhoneIN(phone);
       const { data, error } = await supabase.auth.verifyOtp({ 
         phone: e164, 
         token: code, 
         type: "sms" 
       });
       if (error) throw error;
-      // persist session handled by client config
       nav("/admin", { replace: true });
     } catch (e: any) { 
       setErr(e.message || "Invalid code"); 
@@ -60,51 +64,105 @@ export default function AdminLogin() {
   }
 
   return (
-    <div className="min-h-dvh grid place-items-center p-4 bg-rose-50/50">
-      <div className="w-full max-w-sm bg-white rounded-2xl shadow p-5 space-y-3">
-        <h1 className="text-2xl font-bold text-[#ff007a]">Admin Login</h1>
-        {!otpSent ? (
-          <>
-            <Input 
-              className="w-full border rounded p-2" 
-              value={phone} 
-              onChange={e => setPhone(e.target.value)} 
-            />
-            {err && <div className="text-sm text-rose-600">{err}</div>}
-            <Button 
-              onClick={sendOtp} 
-              disabled={busy} 
-              className="w-full h-10 rounded bg-[#ff007a] text-white"
-            >
-              {busy ? "Sending..." : "Send OTP"}
-            </Button>
-          </>
-        ) : (
-          <>
-            <Input 
-              className="w-full border rounded p-2" 
-              value={code} 
-              onChange={e => setCode(e.target.value.replace(/\D/g,""))} 
-              placeholder="Enter 6-digit OTP" 
-            />
-            {err && <div className="text-sm text-rose-600">{err}</div>}
-            <Button 
-              onClick={verify} 
-              disabled={busy || code.length < 4} 
-              className="w-full h-10 rounded bg-[#ff007a] text-white"
-            >
-              {busy ? "Verifying..." : "Verify & Continue"}
-            </Button>
-          </>
-        )}
-        <Button 
-          onClick={() => nav("/")} 
-          variant="outline"
-          className="w-full h-10 rounded border"
-        >
-          Back
-        </Button>
-      </div>
+    <div className="min-h-dvh bg-gradient-to-br from-background to-muted/20 flex items-center justify-center p-4">
+      <Card className="w-full max-w-md shadow-xl border-0 bg-card/95 backdrop-blur">
+        <CardHeader className="text-center space-y-4">
+          <div className="mx-auto w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
+            <Shield className="w-8 h-8 text-primary" />
+          </div>
+          <CardTitle className="text-2xl font-bold text-primary">Admin Login</CardTitle>
+        </CardHeader>
+        
+        <CardContent className="space-y-6">
+          {!otpSent ? (
+            <>
+              <PhoneInputIN
+                value={phone}
+                onChange={setPhone}
+                placeholder="Enter mobile number"
+                error={err || undefined}
+                required
+              />
+              
+              <Button 
+                onClick={sendOtp} 
+                disabled={busy || !phone.trim()} 
+                className="w-full h-12 text-base font-medium"
+                size="lg"
+              >
+                {busy ? "Sending OTP..." : "Send OTP"}
+              </Button>
+            </>
+          ) : (
+            <>
+              <div className="space-y-3">
+                <div className="text-center">
+                  <p className="text-sm text-muted-foreground">
+                    Enter the 6-digit OTP sent to
+                  </p>
+                  <p className="font-medium text-foreground">
+                    +91 {phone}
+                  </p>
+                </div>
+                
+                <div className="flex justify-center">
+                  <InputOTP
+                    maxLength={6}
+                    value={code}
+                    onChange={setCode}
+                  >
+                    <InputOTPGroup>
+                      <InputOTPSlot index={0} />
+                      <InputOTPSlot index={1} />
+                      <InputOTPSlot index={2} />
+                      <InputOTPSlot index={3} />
+                      <InputOTPSlot index={4} />
+                      <InputOTPSlot index={5} />
+                    </InputOTPGroup>
+                  </InputOTP>
+                </div>
+                
+                {err && (
+                  <p className="text-sm text-destructive text-center animate-in slide-in-from-top-1 duration-200">
+                    {err}
+                  </p>
+                )}
+              </div>
+              
+              <Button 
+                onClick={verify} 
+                disabled={busy || code.length < 6} 
+                className="w-full h-12 text-base font-medium"
+                size="lg"
+              >
+                {busy ? "Verifying..." : "Verify & Continue"}
+              </Button>
+              
+              <Button 
+                onClick={() => {
+                  setOtpSent(false);
+                  setCode("");
+                  setErr(null);
+                }} 
+                variant="ghost"
+                className="w-full text-muted-foreground hover:text-foreground"
+              >
+                Change number
+              </Button>
+            </>
+          )}
+          
+          <Button 
+            onClick={() => nav("/")} 
+            variant="outline"
+            className="w-full h-12 text-base font-medium"
+            size="lg"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Home
+          </Button>
+        </CardContent>
+      </Card>
     </div>
   );
 }
