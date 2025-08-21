@@ -30,6 +30,7 @@ import { openExternalUrl } from "@/lib/nativeOpen";
 import TimerComponent from "@/components/Timer";
 import { AssignWorkerSheet } from "./AssignWorkerSheet";
 import { cn } from "@/lib/utils";
+import { formatTime } from "@/features/bookings/dt";
 
 interface AdminBookingCardProps {
   booking: any;
@@ -235,7 +236,8 @@ function humanEta(booking: any) {
     return 'Arrive ~10 mins';
   }
   if (booking.scheduled_date && booking.scheduled_time) {
-    return `${booking.scheduled_date} at ${booking.scheduled_time.slice(0, 5)}`;
+    const timeFormatted = formatTime(booking.scheduled_time.slice(0, 5));
+    return `${booking.scheduled_date} at ${timeFormatted}`;
   }
   return 'Scheduled';
 }
