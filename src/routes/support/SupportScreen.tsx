@@ -5,8 +5,8 @@ import FeedbackForm from "./components/FeedbackForm";
 import { openExternalUrl } from "@/lib/nativeOpen";
 
 const SUPPORT_PHONE = "+918008180018";
-const SUPPORT_WHATSAPP = "918008180018";
-const SUPPORT_EMAIL = "support@didinow.com";
+const SUPPORT_WHATSAPP = "+918008180018";
+const SUPPORT_EMAIL = "team@didisnow.com";
 
 export default function SupportScreen() {
   const location = useLocation();
