@@ -21,7 +21,7 @@ const Index = () => {
   }
 
   return (
-    <div className="min-h-screen gradient-bg flex items-center justify-center p-4">
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="text-center max-w-sm">
         <div className="mb-6">
           <img
