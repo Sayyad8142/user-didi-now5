@@ -23,12 +23,12 @@ const Index = () => {
   return (
     <div className="min-h-screen gradient-bg flex items-center justify-center p-4">
       <div className="text-center max-w-sm">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-primary mb-4">Didi Now</h1>
-          <p className="text-xl text-muted-foreground mb-2">in 10Mins</p>
-          <p className="text-sm text-muted-foreground">
-            Your neighborhood delivery service
-          </p>
+        <div className="mb-6">
+          <img
+            src="/lovable-uploads/99eb2646-dd7d-41ce-929e-7d27abfe2f37.png"
+            alt="Didi Now - Your maid on leave today? No worry, we will send maid in 10mins"
+            className="w-full rounded-2xl shadow-card mb-6"
+          />
         </div>
         
         <Button 
