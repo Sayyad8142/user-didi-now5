@@ -554,8 +554,19 @@ export type Database = {
         Args: { p_booking_id: string; p_reason: string }
         Returns: undefined
       }
+      admin_get_web_version: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          force: boolean
+          web_version: string
+        }[]
+      }
       admin_set_booking_status: {
         Args: { p_booking_id: string; p_new_status: string; p_note?: string }
+        Returns: undefined
+      }
+      admin_set_web_version: {
+        Args: { force?: boolean; new_version: string }
         Returns: undefined
       }
       admin_upsert_worker: {
