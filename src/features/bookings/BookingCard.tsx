@@ -92,7 +92,7 @@ export function BookingCard({
             id,
             status,
             created_at,
-            worker:workers(id, full_name, phone)
+            worker:workers(id, full_name, phone, upi_id, photo_url)
           `)
           .eq("booking_id", booking.id)
           .order("created_at", { ascending: false })
@@ -147,18 +147,21 @@ export function BookingCard({
 
   // Check if payment should be enabled (show immediately when assigned)
   const isAssigned = row.status === 'assigned';
-  const paymentReady = isAssigned && row.worker_upi;
+  const paymentReady = isAssigned && (row.worker_upi || assignedWorker?.worker?.upi_id);
 
   const handlePayWorker = async () => {
-    if (!row.worker_upi || !row.worker_name) {
+    const workerUpi = row.worker_upi || assignedWorker?.worker?.upi_id;
+    const workerName = row.worker_name || assignedWorker?.worker?.full_name || 'Worker';
+
+    if (!workerUpi) {
       toast.error("Worker payment details not available");
       return;
     }
 
     const note = `Didi Now ${row.service_type} • ${row.community} • ${row.flat_no}`;
     const upiUrl = buildUpiUrl({
-      pa: row.worker_upi,
-      pn: row.worker_name,
+      pa: workerUpi,
+      pn: workerName,
       am: row.price_inr || undefined,
       tn: note
     });
@@ -231,7 +234,7 @@ export function BookingCard({
         {(assignedWorker?.worker || row.worker_name) && (
           <div className="flex items-start gap-3 p-3 bg-blue-50 rounded-xl">
             <Avatar className="w-10 h-10 mt-0.5">
-              <AvatarImage src={assignedWorker?.worker?.avatar_url || row.worker_photo_url || undefined} />
+              <AvatarImage src={assignedWorker?.worker?.photo_url || row.worker_photo_url || undefined} />
               <AvatarFallback>
                 <User className="w-5 h-5" />
               </AvatarFallback>
