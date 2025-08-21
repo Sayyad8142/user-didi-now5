@@ -7,7 +7,6 @@ import { toast } from 'sonner';
 
 const adminTabs = [
   { to: '/admin', label: 'Dashboard', icon: Calendar },
-  { to: '/admin/feedback', label: 'Feedback', icon: MessageSquare },
   { to: '/admin/settings', label: 'Settings', icon: Settings },
 ];
 
