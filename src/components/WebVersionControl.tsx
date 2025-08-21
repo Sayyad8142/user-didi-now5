@@ -75,12 +75,27 @@ export function WebVersionControl() {
         .eq('key', 'web_version')
         .single();
 
+      let currentVersion = current?.value || '1.0.0';
+      
+      // If no version exists, create it first
       if (!current?.value) {
-        throw new Error('No current version found');
+        const { error: insertError } = await supabase
+          .from('ops_settings')
+          .insert({ key: 'web_version', value: '1.0.0' });
+        
+        if (insertError) {
+          // If insert fails, try upsert instead
+          const { error: upsertError } = await supabase
+            .from('ops_settings')
+            .upsert({ key: 'web_version', value: '1.0.0' });
+          
+          if (upsertError) throw upsertError;
+        }
+        currentVersion = '1.0.0';
       }
 
       // Parse and increment patch version
-      const versionParts = current.value.split('.');
+      const versionParts = currentVersion.split('.');
       const major = parseInt(versionParts[0] || '1');
       const minor = parseInt(versionParts[1] || '0');
       const patch = parseInt(versionParts[2] || '0');
@@ -89,8 +104,7 @@ export function WebVersionControl() {
       // Update version
       const { error } = await supabase
         .from('ops_settings')
-        .update({ value: newVersion })
-        .eq('key', 'web_version');
+        .upsert({ key: 'web_version', value: newVersion });
 
       if (error) throw error;
 
