@@ -727,6 +727,10 @@ export type Database = {
         }
         Returns: number
       }
+      norm_phone: {
+        Args: { p: string }
+        Returns: string
+      }
       pending_sla_minutes: {
         Args: Record<PropertyKey, never>
         Returns: number
