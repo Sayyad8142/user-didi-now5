@@ -1,14 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Settings, Bell, BellOff, DollarSign, ArrowLeft, Info, Volume2, Users, FileText } from 'lucide-react';
+import { Settings, Bell, BellOff, DollarSign, ArrowLeft, Info, Volume2, Users, FileText, Globe, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import { AdminBottomNav } from '@/components/AdminBottomNav';
 import { useNewBookingAlert } from '@/features/admin/useNewBookingAlert';
 import { WorkersTable } from '@/features/admin/workers/WorkersTable';
 import SettingsLegalPDF from '@/routes/admin/SettingsLegalPDF';
-import { WebVersionControl } from '@/components/WebVersionControl';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 export default function AdminSettings() {
   const {
@@ -17,6 +20,52 @@ export default function AdminSettings() {
     play: testSound
   } = useNewBookingAlert();
   const [activeTab, setActiveTab] = useState("general");
+  const [loading, setLoading] = useState(false);
+  const [currentVersion, setCurrentVersion] = useState<string>('v1.0.0');
+  const [forceUpdates, setForceUpdates] = useState<boolean>(false);
+  const { toast } = useToast();
+
+  // Load from RPC (admin_get_web_version)
+  async function loadVersion() {
+    const { data, error } = await supabase.rpc('admin_get_web_version');
+    if (error) {
+      console.error(error);
+      toast({ variant: 'destructive', title: 'Error', description: 'Failed to load web version' });
+      return;
+    }
+    if (data && data.length > 0) {
+      setCurrentVersion(data[0].web_version ?? 'v1.0.0');
+      setForceUpdates(Boolean(data[0].force));
+    }
+  }
+
+  useEffect(() => { loadVersion(); }, []);
+
+  // Helper: bump patch (vX.Y.Z -> vX.Y.(Z+1))
+  function bumpPatchString(v: string) {
+    const clean = v.startsWith('v') ? v.slice(1) : v;
+    const [maj = 1, min = 0, pat = 0] = clean.split('.').map(n => Number(n));
+    return `v${maj}.${min}.${pat + 1}`;
+  }
+
+  // Save via RPC (admin_set_web_version)
+  async function onBumpPatch() {
+    setLoading(true);
+    const next = bumpPatchString(currentVersion);
+    const { error } = await supabase.rpc('admin_set_web_version', {
+      new_version: next,
+      force: forceUpdates,
+    });
+    setLoading(false);
+
+    if (error) {
+      console.error(error);
+      toast({ variant: 'destructive', title: 'Error', description: error.message || 'Failed to update web version' });
+      return;
+    }
+    setCurrentVersion(next);
+    toast({ title: 'Updated', description: `Web version set to ${next}${forceUpdates ? ' (forced)' : ''}` });
+  }
 
   return (
     <div className="min-h-[100svh] max-w-screen-sm mx-auto bg-background text-foreground flex flex-col">
@@ -89,7 +138,58 @@ export default function AdminSettings() {
               </Card>
 
               {/* Web Version Control */}
-              <WebVersionControl />
+              <Card>
+                <CardHeader className="pb-4">
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <Globe className="h-5 w-5 text-[#ff007a]" />
+                    Publish Web Update
+                  </CardTitle>
+                  <CardDescription>
+                    Bump version so users refresh to the newest build
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="p-4 bg-gray-50 rounded-xl space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h3 className="font-medium text-gray-900">Current Version</h3>
+                          <p className="text-sm text-gray-600">{currentVersion}</p>
+                        </div>
+                      </div>
+                      
+                      {/* Force Updates Toggle */}
+                      <div className="flex items-center justify-between p-3 bg-white rounded-lg border">
+                        <div className="flex items-center space-x-3">
+                          <div>
+                            <Label htmlFor="force-mode" className="text-sm font-medium">
+                              Force Updates
+                            </Label>
+                            <p className="text-xs text-gray-500">
+                              {forceUpdates ? 'Users will update immediately' : 'Users see notification banner'}
+                            </p>
+                          </div>
+                        </div>
+                        <Switch
+                          id="force-mode"
+                          checked={forceUpdates}
+                          onCheckedChange={setForceUpdates}
+                          disabled={loading}
+                        />
+                      </div>
+                      
+                      <Button 
+                        onClick={onBumpPatch} 
+                        disabled={loading}
+                        className="w-full h-11"
+                      >
+                        <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+                        {loading ? 'Updating...' : 'Bump Patch Version'}
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
 
               {/* System Information */}
               <Card>
