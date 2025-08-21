@@ -262,15 +262,6 @@ export function BookingCard({
                   </span>
                 </div>
               )}
-              
-              <Button 
-                variant="link" 
-                className="p-0 h-auto text-blue-700 hover:text-blue-900 font-medium mt-1"
-                onClick={() => openExternalUrl(`tel:${assignedWorker?.worker?.phone || row.worker_phone}`)}
-              >
-                <PhoneCall className="h-4 w-4 mr-1" />
-                {assignedWorker?.worker?.phone || row.worker_phone}
-              </Button>
             </div>
           </div>
         )}
@@ -317,9 +308,6 @@ export function BookingCard({
             >
               <CreditCard className="h-4 w-4 mr-2" />
               Pay Now (UPI)
-              {row.price_inr && (
-                <span className="ml-1 font-medium">₹{row.price_inr}</span>
-              )}
             </Button>
           )}
 
