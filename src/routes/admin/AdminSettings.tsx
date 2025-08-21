@@ -10,7 +10,7 @@ import { AdminBottomNav } from '@/components/AdminBottomNav';
 import { useNewBookingAlert } from '@/features/admin/useNewBookingAlert';
 import { WorkersTable } from '@/features/admin/workers/WorkersTable';
 import SettingsLegalPDF from '@/routes/admin/SettingsLegalPDF';
-import { supabase } from '@/integrations/supabase/client';
+import { supabaseAdmin as supabase } from '@/lib/supabase-admin';
 import { useToast } from '@/hooks/use-toast';
 
 export default function AdminSettings() {
