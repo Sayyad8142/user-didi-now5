@@ -199,17 +199,17 @@ export function BookingCard({
   const stars = Math.round(avgRating);
 
   return (
-    <Card className="overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300">
+    <Card className="overflow-hidden border-0 shadow-md hover:shadow-lg transition-all duration-300">
       {/* Header with service and status */}
-      <div className="bg-gradient-to-r from-pink-50 to-purple-50 p-4 border-b border-gray-100">
+      <div className="bg-gradient-to-r from-pink-50 to-purple-50 p-3 border-b border-gray-100">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-[#ff007a] to-[#e6006a] text-white flex items-center justify-center shadow-md">
+          <div className="flex items-center gap-2">
+            <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-[#ff007a] to-[#e6006a] text-white flex items-center justify-center shadow-sm">
               {getServiceIcon(booking.service_type)}
             </div>
             <div>
-              <h3 className="font-semibold text-gray-900 text-lg">{title}</h3>
-              <p className="text-sm text-gray-600">
+              <h3 className="font-semibold text-gray-900 text-base">{title}</h3>
+              <p className="text-xs text-gray-600">
                 {booking.booking_type === 'instant' ? 'Instant' : 'Scheduled'}
               </p>
             </div>
@@ -219,45 +219,45 @@ export function BookingCard({
       </div>
 
       {/* Main content */}
-      <div className="p-4 space-y-4">
+      <div className="p-3 space-y-3">
         {/* Location */}
-        <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-xl">
-          <MapPin className="h-5 w-5 text-gray-600 mt-0.5 flex-shrink-0" />
+        <div className="flex items-start gap-2 p-2 bg-gray-50 rounded-lg">
+          <MapPin className="h-4 w-4 text-gray-600 mt-0.5 flex-shrink-0" />
           <div className="flex-1 min-w-0">
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Location</p>
-            <p className="font-semibold text-gray-900">{booking.community}</p>
-            <p className="text-sm text-gray-600">Flat {booking.flat_no}</p>
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Location</p>
+            <p className="font-semibold text-gray-900 text-sm">{booking.community}</p>
+            <p className="text-xs text-gray-600">Flat {booking.flat_no}</p>
           </div>
         </div>
 
         {/* Worker info */}
         {(assignedWorker?.worker || row.worker_name) && (
-          <div className="flex items-start gap-3 p-3 bg-blue-50 rounded-xl">
-            <Avatar className="w-10 h-10 mt-0.5">
+          <div className="flex items-start gap-2 p-2 bg-blue-50 rounded-lg">
+            <Avatar className="w-8 h-8 mt-0.5">
               <AvatarImage src={assignedWorker?.worker?.photo_url || row.worker_photo_url || undefined} />
               <AvatarFallback>
-                <User className="w-5 h-5" />
+                <User className="w-4 h-4" />
               </AvatarFallback>
             </Avatar>
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium text-blue-600 uppercase tracking-wide mb-1">Worker</p>
-              <p className="font-semibold text-blue-900">
+              <p className="text-xs font-medium text-blue-600 uppercase tracking-wide">Worker</p>
+              <p className="font-semibold text-blue-900 text-sm">
                 {assignedWorker?.worker?.full_name || row.worker_name}
               </p>
               
               {/* Rating display */}
               {stars > 0 && (
-                <div className="flex items-center gap-1 mt-1">
+                <div className="flex items-center gap-1 mt-0.5">
                   <div className="flex">
                     {[1, 2, 3, 4, 5].map((i) => (
                       <Star
                         key={i}
-                        className={`w-4 h-4 ${i <= stars ? 'text-yellow-500' : 'text-gray-300'}`}
+                        className={`w-3 h-3 ${i <= stars ? 'text-yellow-500' : 'text-gray-300'}`}
                         fill={i <= stars ? 'currentColor' : 'none'}
                       />
                     ))}
                   </div>
-                  <span className="text-sm text-gray-600">
+                  <span className="text-xs text-gray-600">
                     {avgRating.toFixed(1)} ({ratingsCount})
                   </span>
                 </div>
@@ -268,11 +268,11 @@ export function BookingCard({
 
         {/* Time info and auto-complete countdown */}
         {row.status === 'assigned' && (
-          <div className="flex items-center gap-3 p-3 bg-emerald-50 rounded-xl border border-emerald-100">
-            <Timer className="h-5 w-5 text-emerald-600" />
+          <div className="flex items-center gap-2 p-2 bg-emerald-50 rounded-lg border border-emerald-100">
+            <Timer className="h-4 w-4 text-emerald-600" />
             <div className="flex-1">
-              <p className="text-xs font-medium text-emerald-600 uppercase tracking-wide mb-1">Arrival</p>
-              <p className="font-semibold text-emerald-900">~10 minutes</p>
+              <p className="text-xs font-medium text-emerald-600 uppercase tracking-wide">Arrival</p>
+              <p className="font-semibold text-emerald-900 text-sm">~10 minutes</p>
             </div>
             <AutoCompleteCountdown autoCompleteAt={row.auto_complete_at} />
           </div>
@@ -280,11 +280,11 @@ export function BookingCard({
 
         {/* Scheduled time */}
         {booking.scheduled_date && booking.scheduled_time && (
-          <div className="flex items-start gap-3 p-3 bg-blue-50 rounded-xl">
-            <Clock className="h-5 w-5 text-blue-600 mt-0.5" />
+          <div className="flex items-start gap-2 p-2 bg-blue-50 rounded-lg">
+            <Clock className="h-4 w-4 text-blue-600 mt-0.5" />
             <div>
-              <p className="text-xs font-medium text-blue-600 uppercase tracking-wide mb-1">Scheduled</p>
-              <p className="font-semibold text-blue-900">
+              <p className="text-xs font-medium text-blue-600 uppercase tracking-wide">Scheduled</p>
+              <p className="font-semibold text-blue-900 text-sm">
                 {formatDateTime(booking.scheduled_date, booking.scheduled_time)}
               </p>
             </div>
@@ -293,7 +293,7 @@ export function BookingCard({
 
         {/* Status content */}
         {row.status === "pending" && (
-          <div className="bg-amber-50 border border-amber-100 rounded-xl p-4">
+          <div className="bg-amber-50 border border-amber-100 rounded-lg p-3">
             <AssigningProgress booking={row} />
           </div>
         )}
@@ -304,7 +304,7 @@ export function BookingCard({
           {paymentReady && (
             <Button 
               onClick={handlePayWorker}
-              className="w-full h-12 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-semibold rounded-xl shadow-md"
+              className="w-full h-10 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-semibold rounded-lg shadow-sm"
             >
               <CreditCard className="h-4 w-4 mr-2" />
               Pay Now (UPI)
@@ -324,7 +324,7 @@ export function BookingCard({
           {(row.status === 'pending' || row.status === 'assigned') && (
             <Button 
               onClick={() => openExternalUrl("tel:+918008180018")}
-              className="w-full h-12 bg-gradient-to-r from-[#ff007a] to-[#e6006a] hover:from-[#e6006a] hover:to-[#cc005f] text-white font-semibold rounded-xl shadow-md"
+              className="w-full h-10 bg-gradient-to-r from-[#ff007a] to-[#e6006a] hover:from-[#e6006a] hover:to-[#cc005f] text-white font-semibold rounded-lg shadow-sm"
             >
               <PhoneCall className="h-4 w-4 mr-2" />
               Need Help? Call Support
