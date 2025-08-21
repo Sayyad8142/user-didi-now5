@@ -60,8 +60,8 @@ export async function ensureProfile() {
           id: uid,
           full_name: phone || "User",
           phone: phone || null,
-          community: null,
-          flat_no: null,
+          community: "other", // Default community to satisfy NOT NULL constraint
+          flat_no: "",
         },
         { onConflict: "id" }
       )
