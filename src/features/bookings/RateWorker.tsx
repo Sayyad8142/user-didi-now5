@@ -33,7 +33,6 @@ function StarRating({ value, onChange }: { value: number; onChange: (value: numb
 
 export function RateWorker({ bookingId, workerId, onSubmit }: RateWorkerProps) {
   const [myRating, setMyRating] = useState<{ rating: number; comment?: string } | null>(null);
-  const [open, setOpen] = useState(false);
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
   const [loading, setLoading] = useState(false);
@@ -57,20 +56,25 @@ export function RateWorker({ bookingId, workerId, onSubmit }: RateWorkerProps) {
   
   if (myRating) {
     return (
-      <div className="mt-2 text-sm text-gray-600 flex items-center gap-1">
-        <span>You rated:</span>
-        <div className="flex">
-          {[1, 2, 3, 4, 5].map((star) => (
-            <Star
-              key={star}
-              className={`w-4 h-4 ${
-                star <= myRating.rating ? 'text-yellow-500' : 'text-gray-300'
-              }`}
-              fill={star <= myRating.rating ? 'currentColor' : 'none'}
-            />
-          ))}
+      <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+        <div className="text-sm text-gray-600 flex items-center gap-2 mb-2">
+          <span>Your rating:</span>
+          <div className="flex">
+            {[1, 2, 3, 4, 5].map((star) => (
+              <Star
+                key={star}
+                className={`w-4 h-4 ${
+                  star <= myRating.rating ? 'text-yellow-500' : 'text-gray-300'
+                }`}
+                fill={star <= myRating.rating ? 'currentColor' : 'none'}
+              />
+            ))}
+          </div>
+          <span>({myRating.rating}/5)</span>
         </div>
-        <span>({myRating.rating})</span>
+        {myRating.comment && (
+          <p className="text-sm text-gray-700 italic">"{myRating.comment}"</p>
+        )}
       </div>
     );
   }
@@ -82,7 +86,6 @@ export function RateWorker({ bookingId, workerId, onSubmit }: RateWorkerProps) {
     try {
       await onSubmit(rating, comment || undefined);
       setMyRating({ rating, comment });
-      setOpen(false);
       setRating(0);
       setComment('');
       toast.success('Rating submitted successfully!');
@@ -94,50 +97,27 @@ export function RateWorker({ bookingId, workerId, onSubmit }: RateWorkerProps) {
   };
 
   return (
-    <>
-      <Button
-        variant="outline"
-        onClick={() => setOpen(true)}
-        className="mt-2 w-full border-pink-200 text-pink-700 hover:bg-pink-50"
-      >
-        Rate Worker
-      </Button>
+    <div className="mt-4 p-4 bg-gray-50 rounded-lg space-y-4">
+      <div className="text-center">
+        <p className="text-sm font-medium text-gray-700 mb-2">Rate your experience</p>
+        <StarRating value={rating} onChange={setRating} />
+      </div>
       
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-center">Rate your experience</DialogTitle>
-          </DialogHeader>
-          
-          <div className="space-y-4">
-            <StarRating value={rating} onChange={setRating} />
-            
-            <Textarea
-              placeholder="Share your experience (optional)"
-              value={comment}
-              onChange={(e) => setComment(e.target.value)}
-              rows={3}
-            />
-            
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                onClick={() => setOpen(false)}
-                className="flex-1"
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleSubmit}
-                disabled={!rating || loading}
-                className="flex-1 bg-pink-600 hover:bg-pink-700"
-              >
-                Submit
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-    </>
+      <Textarea
+        placeholder="Share your experience (optional)"
+        value={comment}
+        onChange={(e) => setComment(e.target.value)}
+        rows={3}
+        className="text-sm"
+      />
+      
+      <Button
+        onClick={handleSubmit}
+        disabled={!rating || loading}
+        className="w-full bg-pink-600 hover:bg-pink-700 text-white"
+      >
+        {loading ? 'Submitting...' : 'Submit Rating'}
+      </Button>
+    </div>
   );
 }
