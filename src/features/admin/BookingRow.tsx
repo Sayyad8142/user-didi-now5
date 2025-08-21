@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useNewBookingAlert } from "./useNewBookingAlert";
 import { SLAClock } from "./SLAClock";
 import { openExternalUrl } from "@/lib/nativeOpen";
+import { AssignWorkerSheet } from "./components/AssignWorkerSheet";
 function ServiceIcon({ t}:{t:string}) {
   return t==='cook' ? <ChefHat className="h-5 w-5"/> :
          t==='bathroom_cleaning' ? <ShowerHead className="h-5 w-5"/> :
@@ -30,6 +31,7 @@ export default function BookingRow({
   slaMinutes?: number;
 }) {
   const [saving, setSaving] = useState(false);
+  const [assignSheetOpen, setAssignSheetOpen] = useState(false);
   const { toast } = useToast();
   const { stopSound } = useNewBookingAlert();
   
@@ -41,30 +43,19 @@ export default function BookingRow({
     ? 'Instant (arrive ~10 mins)'
     : `${b.scheduled_date ?? ''} ${b.scheduled_time?.slice(0,5) ?? ''}`.trim();
 
-  async function confirmBooking(e: React.MouseEvent) {
+  function openAssignWorker(e: React.MouseEvent) {
     e.stopPropagation();
-    // Immediately stop any playing notification sound on confirm
+    // Immediately stop any playing notification sound
     try { onInteracted?.(); } catch {}
     try { stopSound(); } catch {}
-    if (saving) return;
-    setSaving(true);
-    try {
-      const { error } = await supabase.rpc("admin_set_booking_status", {
-        p_booking_id: b.id,
-        p_new_status: "assigned",
-        p_note: "Confirmed by admin"
-      });
-      if (error) throw error;
-      toast({ title: "Booking confirmed successfully" });
-    } catch (err:any) {
-      toast({ 
-        title: "Failed to confirm booking", 
-        description: err.message,
-        variant: "destructive" 
-      });
-    } finally {
-      setSaving(false);
-    }
+    setAssignSheetOpen(true);
+  }
+
+  function handleWorkerAssigned() {
+    setAssignSheetOpen(false);
+    toast({ title: "Worker assigned successfully" });
+    // Refresh the page data if needed
+    if (onInteracted) onInteracted();
   }
 
   async function cancelBooking(e: React.MouseEvent) {
@@ -246,24 +237,15 @@ export default function BookingRow({
        <div className="px-4 pb-4">
          <div className="flex gap-2">
            {b.status === "pending" && (
-             <Button
-               onClick={confirmBooking}
-               disabled={saving}
-               className="flex-1 h-12 bg-gradient-to-r from-[#ff007a] to-[#e6006a] hover:from-[#e6006a] hover:to-[#cc005f] text-white font-semibold rounded-xl shadow-md disabled:opacity-60"
-             >
-               {saving ? (
-                 <>
-                   <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
-                   Confirming...
-                 </>
-               ) : (
-                 <>
-                   <Check className="h-4 w-4 mr-2" />
-                   Confirm Assignment
-                 </>
-               )}
-             </Button>
-           )}
+              <Button
+                onClick={openAssignWorker}
+                disabled={saving}
+                className="flex-1 h-12 bg-gradient-to-r from-[#ff007a] to-[#e6006a] hover:from-[#e6006a] hover:to-[#cc005f] text-white font-semibold rounded-xl shadow-md disabled:opacity-60"
+              >
+                <Check className="h-4 w-4 mr-2" />
+                Assign Worker
+              </Button>
+            )}
            
            {(b.status === "pending" || b.status === "assigned") && (
              <Button
@@ -285,8 +267,16 @@ export default function BookingRow({
                )}
              </Button>
            )}
-         </div>
+        </div>
        </div>
-    </div>
-  );
-}
+
+       {/* Worker Assignment Sheet */}
+       <AssignWorkerSheet
+         open={assignSheetOpen}
+         onClose={() => setAssignSheetOpen(false)}
+         booking={b}
+         onWorkerAssigned={handleWorkerAssigned}
+       />
+     </div>
+   );
+ }
