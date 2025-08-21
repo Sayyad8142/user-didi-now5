@@ -145,13 +145,9 @@ export function BookingCard({
     }
   };
 
-  // Check if payment should be enabled (30 minutes after assignment)
+  // Check if payment should be enabled (show immediately when assigned)
   const isAssigned = row.status === 'assigned';
-  const assignedAtMs = row.assigned_at ? new Date(row.assigned_at).getTime() : 0;
-  const paymentReady = isAssigned 
-    && row.worker_upi 
-    && assignedAtMs > 0 
-    && now >= (assignedAtMs + 30 * 60 * 1000); // 30 minutes
+  const paymentReady = isAssigned && row.worker_upi;
 
   const handlePayWorker = async () => {
     if (!row.worker_upi || !row.worker_name) {
