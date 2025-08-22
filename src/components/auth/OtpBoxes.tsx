@@ -35,33 +35,52 @@ export function OtpBoxes({
     }
   }, [value, length]);
 
-  // SMS auto-detection setup
+  // Enhanced SMS auto-detection and browser auto-fill
   useEffect(() => {
-    // WebOTP API for SMS auto-detection (experimental)
-    if (typeof window !== 'undefined' && 'OTPCredential' in window) {
-      const ac = new AbortController();
-      
-      try {
-        // @ts-ignore - WebOTP API is experimental
-        (navigator.credentials as any).get({
-          otp: { transport: ['sms'] },
-          signal: ac.signal
-        }).then((otp: any) => {
-          if (otp?.code) {
-            const code = otp.code.replace(/\D/g, '').slice(0, length);
-            onChange(code);
-          }
-        }).catch((err: any) => {
-          // Silently handle errors - user can still enter manually
-          console.log('Auto OTP detection not available:', err);
-        });
-      } catch (err) {
-        // WebOTP not supported
-        console.log('WebOTP API not supported');
+    // Multiple approaches for auto-fill
+    const setupAutoFill = () => {
+      // Approach 1: Enhanced hidden input monitoring
+      const hiddenInput = hiddenInputRef.current;
+      if (hiddenInput) {
+        // Focus hidden input briefly to trigger browser auto-fill
+        setTimeout(() => {
+          hiddenInput.focus();
+          setTimeout(() => {
+            if (inputRefs.current[0]) {
+              inputRefs.current[0].focus();
+            }
+          }, 100);
+        }, 50);
       }
 
-      return () => ac.abort();
-    }
+      // Approach 2: WebOTP API (experimental)
+      if (typeof window !== 'undefined' && 'OTPCredential' in window) {
+        const ac = new AbortController();
+        
+        try {
+          // @ts-ignore - WebOTP API is experimental
+          (navigator.credentials as any).get({
+            otp: { transport: ['sms'] },
+            signal: ac.signal
+          }).then((otp: any) => {
+            if (otp?.code) {
+              const code = otp.code.replace(/\D/g, '').slice(0, length);
+              onChange(code);
+            }
+          }).catch((err: any) => {
+            // Silently handle errors - user can still enter manually
+            console.log('Auto OTP detection not available:', err);
+          });
+        } catch (err) {
+          // WebOTP not supported
+          console.log('WebOTP API not supported');
+        }
+
+        return () => ac.abort();
+      }
+    };
+
+    setupAutoFill();
   }, [length, onChange]);
 
   const handleChange = (index: number, inputValue: string) => {
@@ -119,21 +138,39 @@ export function OtpBoxes({
 
   return (
     <div className="space-y-4">
-      {/* Hidden input for SMS auto-fill */}
+      {/* Enhanced hidden input for SMS auto-fill */}
       <input
         ref={hiddenInputRef}
-        type="text"
+        type="tel"
         autoComplete="one-time-code"
         inputMode="numeric"
+        maxLength={length}
+        placeholder="123456"
         style={{ 
           position: 'absolute', 
           left: '-9999px', 
           opacity: 0,
-          pointerEvents: 'none' 
+          pointerEvents: 'none',
+          width: '1px',
+          height: '1px'
         }}
         onChange={(e) => {
           const code = e.target.value.replace(/\D/g, '').slice(0, length);
-          if (code.length <= length) {
+          if (code.length > 0) {
+            onChange(code);
+            // Focus first visible input after auto-fill
+            setTimeout(() => {
+              if (inputRefs.current[Math.min(code.length, length - 1)]) {
+                inputRefs.current[Math.min(code.length, length - 1)]?.focus();
+              }
+            }, 50);
+          }
+        }}
+        onInput={(e) => {
+          // Handle immediate input events as well
+          const target = e.target as HTMLInputElement;
+          const code = target.value.replace(/\D/g, '').slice(0, length);
+          if (code.length > 0) {
             onChange(code);
           }
         }}
@@ -154,16 +191,33 @@ export function OtpBoxes({
           >
             <Input
               ref={(el) => (inputRefs.current[index] = el)}
-              type="text"
+              type="tel"
               inputMode="numeric"
               pattern="[0-9]*"
-              maxLength={1}
+              maxLength={6}
               autoComplete={index === 0 ? "one-time-code" : "off"}
               value={value[index] || ''}
-              onChange={(e) => handleChange(index, e.target.value)}
+              onChange={(e) => {
+                const inputValue = e.target.value;
+                // Handle multi-digit paste or auto-fill
+                if (inputValue.length > 1) {
+                  const digits = inputValue.replace(/\D/g, '').slice(0, length);
+                  onChange(digits);
+                } else {
+                  handleChange(index, inputValue);
+                }
+              }}
               onKeyDown={(e) => handleKeyDown(index, e)}
               onPaste={handlePaste}
               onFocus={() => handleFocus(index)}
+              onInput={(e) => {
+                // Additional handler for auto-fill detection
+                const target = e.target as HTMLInputElement;
+                if (target.value.length > 1) {
+                  const digits = target.value.replace(/\D/g, '').slice(0, length);
+                  onChange(digits);
+                }
+              }}
               disabled={disabled}
               className={cn(
                 "w-full h-full text-center text-xl font-bold bg-transparent border-0",
