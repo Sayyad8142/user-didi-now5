@@ -7,6 +7,7 @@ import { HeroCarousel } from './HeroCarousel';
 import { ServicesRow } from './ServicesRow';
 import { ServiceHours } from './ServiceHours';
 import { FeatureCarousel } from './FeatureCarousel';
+import { ActiveBookingCard } from './ActiveBookingCard';
 import { openExternalUrl } from '@/lib/nativeOpen';
 
 export function HomeScreen() {
@@ -20,6 +21,7 @@ export function HomeScreen() {
         <HomeHeader />
         <HeroCarousel />
         <ServicesRow onServiceSelect={handleServiceSelect} />
+        <ActiveBookingCard />
         <ServiceHours />
         <FeatureCarousel />
         
