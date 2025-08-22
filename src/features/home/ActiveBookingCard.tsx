@@ -7,7 +7,6 @@ import { Sparkles, ChefHat, ShowerHead, ArrowRight } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { prettyServiceName } from '@/features/booking/utils';
-import { useMyBookingsRealtime } from '@/features/bookings/useMyBookingsRealtime';
 import AssigningProgress from '@/features/bookings/AssigningProgress';
 
 interface Booking {
@@ -42,7 +41,7 @@ const getStatusColor = (status: string) => {
     case 'pending':
       return 'bg-yellow-100 text-yellow-800';
     case 'assigned':
-      return 'bg-blue-100 text-blue-800';
+      return 'bg-green-100 text-green-800';
     default:
       return 'bg-gray-100 text-gray-800';
   }
@@ -53,9 +52,6 @@ export function ActiveBookingCard() {
   const navigate = useNavigate();
   const [activeBooking, setActiveBooking] = useState<Booking | null>(null);
   const [loading, setLoading] = useState(true);
-
-  // Enable live updates for user bookings
-  useMyBookingsRealtime();
 
   const fetchActiveBooking = async () => {
     if (!user) return;
@@ -88,6 +84,26 @@ export function ActiveBookingCard() {
     fetchActiveBooking();
   }, [user]);
 
+  // Set up real-time updates
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel("active-booking-updates")
+      .on("postgres_changes", 
+        { event: "UPDATE", schema: "public", table: "bookings" },
+        (payload) => {
+          // Refetch active booking when any booking is updated
+          fetchActiveBooking();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
+
   if (loading || !activeBooking) {
     return null;
   }
@@ -97,10 +113,16 @@ export function ActiveBookingCard() {
   };
 
   return (
-    <Card className="p-4 bg-gradient-to-r from-primary/5 to-primary/10 border-primary/20">
+    <Card className={`p-4 border-2 ${
+      activeBooking.status === 'assigned' 
+        ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-200' 
+        : 'bg-gradient-to-r from-primary/5 to-primary/10 border-primary/20'
+    }`}>
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-primary/10">
+          <div className={`p-2 rounded-lg ${
+            activeBooking.status === 'assigned' ? 'bg-green-100' : 'bg-primary/10'
+          }`}>
             {getServiceIcon(activeBooking.service_type)}
           </div>
           <div>
@@ -114,7 +136,7 @@ export function ActiveBookingCard() {
         </div>
         <Badge className={`text-xs ${getStatusColor(activeBooking.status)}`}>
           {activeBooking.status === 'pending' ? 'Finding Worker' : 
-           activeBooking.status === 'assigned' ? 'Worker Assigned' : 
+           activeBooking.status === 'assigned' ? '✓ Worker Assigned' : 
            activeBooking.status}
         </Badge>
       </div>
