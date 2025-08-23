@@ -59,7 +59,7 @@ export default function Profile() {
         description: 'Your profile information has been updated successfully'
       });
       
-      // Refresh the page to show updated data
+      // Refresh profile data instead of reloading the entire page
       window.location.reload();
     } catch (error) {
       console.error('Error updating profile:', error);
