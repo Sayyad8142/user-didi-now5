@@ -134,8 +134,30 @@ export default function SettingsLegalPDF() {
         </div>
       </section>
 
+      {/* Public Links Section */}
+      <section className="rounded-2xl bg-card border shadow-sm p-4 space-y-3">
+        <div className="font-semibold text-card-foreground">Public Links</div>
+        <div className="text-xs text-muted-foreground">Share these links in app stores and websites</div>
+        
+        <div className="space-y-3">
+          <div className="bg-muted/50 rounded-lg p-3">
+            <div className="text-sm font-medium text-foreground mb-1">Privacy Policy URL:</div>
+            <code className="text-xs text-muted-foreground break-all">
+              {`${window.location.origin}/legal/privacy`}
+            </code>
+          </div>
+          
+          <div className="bg-muted/50 rounded-lg p-3">
+            <div className="text-sm font-medium text-foreground mb-1">Terms of Service URL:</div>
+            <code className="text-xs text-muted-foreground break-all">
+              {`${window.location.origin}/legal/terms`}
+            </code>
+          </div>
+        </div>
+      </section>
+
       <p className="text-xs text-muted-foreground">
-        Users will view these PDFs inside the app (short-lived signed links). Only admins can upload/replace/delete.
+        PDFs are served with signed URLs for security. Public pages are accessible without login and optimized for SEO.
       </p>
     </div>
   );

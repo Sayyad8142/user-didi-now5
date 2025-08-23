@@ -265,7 +265,7 @@ export default function Profile() {
         {/* Legal Links */}
         <div className="space-y-3">
           <Link 
-            to="/legal?tab=privacy" 
+            to="/legal/privacy" 
             className="flex items-center justify-between h-14 px-4 bg-white/80 rounded-2xl border border-gray-100 hover:bg-white transition-spring hover:scale-[0.98] shadow-input"
           >
             <div className="flex items-center gap-3">
@@ -278,7 +278,7 @@ export default function Profile() {
           </Link>
           
           <Link 
-            to="/legal?tab=terms" 
+            to="/legal/terms" 
             className="flex items-center justify-between h-14 px-4 bg-white/80 rounded-2xl border border-gray-100 hover:bg-white transition-spring hover:scale-[0.98] shadow-input"
           >
             <div className="flex items-center gap-3">

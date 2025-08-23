@@ -3,6 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { HelmetProvider } from "react-helmet-async";
 import { useState, useEffect } from "react";
 import { UpdateBanner } from "@/components/UpdateBanner";
 import { OfflineScreen } from "@/components/OfflineScreen";
@@ -28,6 +29,8 @@ import AdminDailyBookings from "./routes/admin/AdminDailyBookings";
 import AdminLogin from "./routes/auth/AdminLogin";
 import AdminVerify from "./routes/auth/AdminVerify";
 import LegalCenter from "./routes/LegalCenter";
+import PrivacyPolicy from "./routes/legal/PrivacyPolicy";
+import TermsOfService from "./routes/legal/TermsOfService";
 import AccountSettings from "./routes/profile/AccountSettings";
 import SupportScreen from "./routes/support/SupportScreen";
 import AdminFeedback from "./routes/admin/AdminFeedback";
@@ -92,9 +95,10 @@ const App = () => {
   }
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <TooltipProvider>
+    <HelmetProvider>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <TooltipProvider>
           {updateAvailable && (
             <UpdateBanner onRefresh={handleRefresh} onDismiss={dismissUpdate} />
           )}
@@ -108,6 +112,8 @@ const App = () => {
             <Route path="/admin-login" element={<AdminLogin />} />
             <Route path="/admin-verify" element={<AdminVerify />} />
             <Route path="/legal" element={<LegalCenter />} />
+            <Route path="/legal/privacy" element={<PrivacyPolicy />} />
+            <Route path="/legal/terms" element={<TermsOfService />} />
             <Route 
               path="/home" 
               element={
@@ -225,6 +231,7 @@ const App = () => {
       </TooltipProvider>
     </AuthProvider>
   </QueryClientProvider>
+</HelmetProvider>
   );
 };
 
