@@ -73,6 +73,29 @@ export function AuthCard() {
     return Object.keys(newErrors).length === 0;
   };
 
+  const checkIfUserExists = async (phone: string): Promise<boolean> => {
+    try {
+      const formattedPhone = formatPhoneIN(phone);
+      
+      // Check if user exists in profiles table
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('phone', formattedPhone)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Error checking user existence:', error);
+        return false;
+      }
+
+      return !!data;
+    } catch (error) {
+      console.error('Error checking user existence:', error);
+      return false;
+    }
+  };
+
   const handleSendOTP = async () => {
     const isSignUp = activeTab === 'signup';
     const phone = isSignUp ? signUpData.phone : signInPhone;
@@ -86,6 +109,26 @@ export function AuthCard() {
 
     try {
       const formattedPhone = formatPhoneIN(phone);
+      
+      // For sign-in, check if user exists first
+      if (!isSignUp) {
+        const userExists = await checkIfUserExists(phone);
+        if (!userExists) {
+          setErrors({ phone: "You don't have an account with this mobile number. Please sign up first." });
+          setLoading(false);
+          return;
+        }
+      }
+      
+      // For sign-up, check if user already exists
+      if (isSignUp) {
+        const userExists = await checkIfUserExists(phone);
+        if (userExists) {
+          setErrors({ phone: "An account with this mobile number already exists. Please sign in instead." });
+          setLoading(false);
+          return;
+        }
+      }
       
       const { error } = await supabase.auth.signInWithOtp({
         phone: formattedPhone,
