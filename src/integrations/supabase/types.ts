@@ -129,6 +129,8 @@ export type Database = {
           community: string
           completed_at: string | null
           confirmed_at: string | null
+          cook_cuisine_pref: string | null
+          cook_gender_pref: string | null
           created_at: string
           cust_name: string
           cust_phone: string
@@ -168,6 +170,8 @@ export type Database = {
           community: string
           completed_at?: string | null
           confirmed_at?: string | null
+          cook_cuisine_pref?: string | null
+          cook_gender_pref?: string | null
           created_at?: string
           cust_name: string
           cust_phone: string
@@ -207,6 +211,8 @@ export type Database = {
           community?: string
           completed_at?: string | null
           confirmed_at?: string | null
+          cook_cuisine_pref?: string | null
+          cook_gender_pref?: string | null
           created_at?: string
           cust_name?: string
           cust_phone?: string

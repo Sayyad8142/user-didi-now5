@@ -39,6 +39,8 @@ export function ScheduleScreen() {
   const priceParam = searchParams.get('price');
   const familyCount = searchParams.get('family');
   const foodPreference = searchParams.get('food') as 'veg' | 'non_veg' | null;
+  const cuisinePref = searchParams.get('cuisine') as 'north' | 'south' | 'any' | null;
+  const genderPref = searchParams.get('gender') as 'male' | 'female' | 'any' | null;
   const bathroomCount = searchParams.get('bathrooms');
 
   useEffect(() => {
@@ -100,6 +102,8 @@ export function ScheduleScreen() {
         flat_size: service_type === 'cook' || service_type === 'bathroom_cleaning' ? null : flatSize,
         family_count: service_type === 'cook' ? parseInt(familyCount!) : null,
         food_pref: service_type === 'cook' ? foodPreference : null,
+        cook_cuisine_pref: service_type === 'cook' ? (cuisinePref || 'any') : null,
+        cook_gender_pref: service_type === 'cook' ? (genderPref || 'any') : null,
         bathroom_count: service_type === 'bathroom_cleaning' ? parseInt(bathroomCount!) : null,
         price_inr: price,
         cust_name: profile.full_name,

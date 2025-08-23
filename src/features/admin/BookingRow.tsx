@@ -221,6 +221,20 @@ export default function BookingRow({
           </div>
         )}
 
+        {/* Cook Preferences */}
+        {b.service_type === 'cook' && (
+          <div className="flex items-start gap-3 p-3 bg-orange-50 rounded-xl">
+            <ChefHat className="h-5 w-5 text-orange-600 mt-0.5" />
+            <div>
+              <p className="text-xs font-medium text-orange-600 uppercase tracking-wide mb-1">Preferences</p>
+              <p className="text-sm font-semibold text-orange-900">
+                Cuisine: {b.cook_cuisine_pref === 'any' ? 'Any' : b.cook_cuisine_pref === 'north' ? 'North Indian' : 'South Indian'} •{' '}
+                Gender: {b.cook_gender_pref === 'any' ? 'Any' : b.cook_gender_pref === 'male' ? 'Male' : 'Female'}
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* SLA Clock for pending bookings */}
         {pending && (
           <div className="p-3 bg-amber-50 border border-amber-100 rounded-xl">

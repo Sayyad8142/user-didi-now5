@@ -53,6 +53,8 @@ export function BookingForm() {
   // Cook service specific state
   const [familyCount, setFamilyCount] = useState(1);
   const [foodPreference, setFoodPreference] = useState<'veg' | 'non_veg' | null>(null);
+  const [cuisinePref, setCuisinePref] = useState<'north' | 'south' | 'any'>('any');
+  const [genderPref, setGenderPref] = useState<'male' | 'female' | 'any'>('any');
 
   // Maid service specific state
   const [selectedTasks, setSelectedTasks] = useState<MaidTask[]>(["floor_cleaning", "dish_washing"]); // Multiple task selection with checkboxes
@@ -206,17 +208,41 @@ export function BookingForm() {
       await createBooking('instant', null, null, price);
     }
   };
-  const handleSchedule = async (date: Date, time: string) => {
+  const handleSchedule = () => {
     if (!profile || !service_type) return;
+    
+    // Build query parameters for ScheduleScreen
+    const params = new URLSearchParams();
+    
     if (service_type === 'cook') {
-      if (!foodPreference) return;
+      if (!foodPreference) {
+        toast({
+          title: "Please select food preference",
+          description: "Choose vegetarian or non-vegetarian option.",
+          variant: "destructive"
+        });
+        return;
+      }
+      params.set('family', familyCount.toString());
+      params.set('food', foodPreference);
+      params.set('cuisine', cuisinePref);
+      params.set('gender', genderPref);
       const price = calculateCookPrice(familyCount, foodPreference);
-      await createBooking('scheduled', date.toISOString().split('T')[0], time, price);
+      params.set('price', price.toString());
     } else if (service_type === 'maid') {
-      if (!selectedFlatSize || selectedTasks.length === 0) return;
-      await createBooking('scheduled', date.toISOString().split('T')[0], time, totalPrice);
+      if (!selectedFlatSize || selectedTasks.length === 0) {
+        toast({
+          title: "Please complete maid booking details",
+          description: "Select flat size and at least one task before scheduling.",
+          variant: "destructive"
+        });
+        return;
+      }
+      params.set('flat', selectedFlatSize);
+      params.set('price', totalPrice.toString());
     } else if (service_type === 'bathroom_cleaning') {
-      await createBooking('scheduled', date.toISOString().split('T')[0], time, bathroomTotalPrice);
+      params.set('bathrooms', bathroomCount.toString());
+      params.set('price', bathroomTotalPrice.toString());
     } else {
       if (!selectedFlatSize) return;
       const price = pricingMap[selectedFlatSize];
@@ -228,8 +254,11 @@ export function BookingForm() {
         });
         return;
       }
-      await createBooking('scheduled', date.toISOString().split('T')[0], time, price);
+      params.set('flat', selectedFlatSize);
+      params.set('price', price.toString());
     }
+    
+    navigate(`/schedule/${service_type}?${params.toString()}`);
   };
   const createBooking = async (bookingType: 'instant' | 'scheduled', scheduledDate: string | null, scheduledTime: string | null, price: number) => {
     if (!profile || !user || !service_type) return;
@@ -248,6 +277,8 @@ export function BookingForm() {
         price_inr: price,
         family_count: service_type === 'cook' ? familyCount : null,
         food_pref: service_type === 'cook' ? foodPreference : null,
+        cook_cuisine_pref: service_type === 'cook' ? cuisinePref : null,
+        cook_gender_pref: service_type === 'cook' ? genderPref : null,
         maid_tasks: service_type === 'maid' ? selectedTasks : null,
         bathroom_count: service_type === 'bathroom_cleaning' ? bathroomCount : null,
         cust_name: profile.full_name,
@@ -414,6 +445,64 @@ export function BookingForm() {
                   </button>
                 </div>
               </div>
+
+              {/* Cuisine Preference */}
+              <div className="space-y-6">
+                <h2 className="text-lg font-semibold text-gray-900">
+                  Cuisine Preference <span className="text-[#ff007a]">*</span>
+                </h2>
+                <div className="grid grid-cols-3 gap-3">
+                  {[
+                    { key: 'north', label: 'North Indian' },
+                    { key: 'south', label: 'South Indian' },
+                    { key: 'any', label: 'Anyone is fine' },
+                  ].map(opt => (
+                    <button
+                      key={opt.key}
+                      type="button"
+                      onClick={() => setCuisinePref(opt.key as 'north' | 'south' | 'any')}
+                      className={cn(
+                        "px-3 py-3 rounded-xl border text-sm font-medium transition-all",
+                        cuisinePref === opt.key
+                          ? "border-[#ff007a] text-[#ff007a] bg-[#ff007a]/10"
+                          : "border-gray-200 text-gray-700 bg-white hover:border-gray-300"
+                      )}
+                      aria-pressed={cuisinePref === opt.key}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Gender Preference */}
+              <div className="space-y-6">
+                <h2 className="text-lg font-semibold text-gray-900">
+                  Cook Gender Preference <span className="text-[#ff007a]">*</span>
+                </h2>
+                <div className="grid grid-cols-3 gap-3">
+                  {[
+                    { key: 'male', label: 'Male' },
+                    { key: 'female', label: 'Female' },
+                    { key: 'any', label: 'Anyone is fine' },
+                  ].map(opt => (
+                    <button
+                      key={opt.key}
+                      type="button"
+                      onClick={() => setGenderPref(opt.key as 'male' | 'female' | 'any')}
+                      className={cn(
+                        "px-3 py-3 rounded-xl border text-sm font-medium transition-all",
+                        genderPref === opt.key
+                          ? "border-[#ff007a] text-[#ff007a] bg-[#ff007a]/10"
+                          : "border-gray-200 text-gray-700 bg-white hover:border-gray-300"
+                      )}
+                      aria-pressed={genderPref === opt.key}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </>}
 
           {/* Select Flat Size for other services */}
@@ -573,7 +662,7 @@ export function BookingForm() {
                         return;
                       }
                       const price = calculateCookPrice(familyCount, foodPreference);
-                      navigate(`/book/${service_type}/schedule?family=${familyCount}&food=${foodPreference}&price=${price}`);
+                      navigate(`/book/${service_type}/schedule?family=${familyCount}&food=${foodPreference}&cuisine=${cuisinePref}&gender=${genderPref}&price=${price}`);
                     } else if (service_type === 'maid') {
                       if (!selectedFlatSize || selectedTasks.length === 0) {
                         toast({

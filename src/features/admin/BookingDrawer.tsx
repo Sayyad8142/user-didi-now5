@@ -150,7 +150,19 @@ export default function BookingDrawer({open,onOpenChange,booking}:{open:boolean;
           <div className="text-sm">Customer: <b>{booking.cust_name}</b> ({booking.cust_phone})</div>
           <div className="text-sm">Address: {booking.community} • {booking.flat_no}</div>
           {booking.service_type==='cook' ? (
-            <div className="text-sm">Family: {booking.family_count ?? '-'} • Food: {booking.food_pref ?? '-'}</div>
+            <div className="space-y-1">
+              <div className="text-sm">Family: {booking.family_count ?? '-'} • Food: {booking.food_pref ?? '-'}</div>
+              <div className="text-sm">
+                <span className="font-medium">Cuisine Pref:</span>{' '}
+                {booking.cook_cuisine_pref === 'any' ? 'Anyone is fine'
+                  : booking.cook_cuisine_pref === 'north' ? 'North Indian' : 'South Indian'}
+              </div>
+              <div className="text-sm">
+                <span className="font-medium">Gender Pref:</span>{' '}
+                {booking.cook_gender_pref === 'any' ? 'Anyone is fine'
+                  : booking.cook_gender_pref === 'male' ? 'Male' : 'Female'}
+              </div>
+            </div>
           ) : (
             <div className="text-sm">Flat Size: {booking.flat_size ?? '-'}</div>
           )}
