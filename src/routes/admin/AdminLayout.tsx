@@ -12,6 +12,8 @@ import { AdminBottomNav } from "@/components/AdminBottomNav";
 import { useSLASettings } from "@/features/admin/useSLASettings";
 import { useOverdueAlert } from "@/features/admin/useOverdueAlert";
 import { useNavigate } from "react-router-dom";
+import { Routes, Route } from "react-router-dom";
+import AdminCommunities from "./AdminCommunities";
 
 export default function AdminLayout() {
   const navigate = useNavigate();
@@ -84,27 +86,30 @@ export default function AdminLayout() {
   };
 
   return (
-    <div className="min-h-[100svh] max-w-screen-sm mx-auto bg-background text-foreground flex flex-col">
-      {/* Mobile-optimized header */}
-      <header className="sticky top-0 z-40 bg-background/80 backdrop-blur border-b safe-top">
-        <div className="flex items-center gap-2 px-3 py-2">
-          <div className="flex-1 min-w-0">
-            <h1 className="font-semibold text-lg">
-              <span className="text-[#ff007a]">Didi Now</span> — <span className="text-[#ff007a]">Admin</span>
-            </h1>
-          </div>
-          <span className="text-xs text-muted-foreground hidden sm:block">Administrative Console</span>
-          <Button 
-            variant="ghost" 
-            size="icon"
-            className="h-8 w-8 rounded-xl"
-            aria-label="Settings" 
-            onClick={() => navigate('/admin/settings')}
-          >
-            <Settings className="h-5 w-5"/>
-          </Button>
-        </div>
-      </header>
+    <Routes>
+      <Route path="/communities" element={<AdminCommunities />} />
+      <Route path="/*" element={
+        <div className="min-h-[100svh] max-w-screen-sm mx-auto bg-background text-foreground flex flex-col">
+          {/* Mobile-optimized header */}
+          <header className="sticky top-0 z-40 bg-background/80 backdrop-blur border-b safe-top">
+            <div className="flex items-center gap-2 px-3 py-2">
+              <div className="flex-1 min-w-0">
+                <h1 className="font-semibold text-lg">
+                  <span className="text-[#ff007a]">Didi Now</span> — <span className="text-[#ff007a]">Admin</span>
+                </h1>
+              </div>
+              <span className="text-xs text-muted-foreground hidden sm:block">Administrative Console</span>
+              <Button 
+                variant="ghost" 
+                size="icon"
+                className="h-8 w-8 rounded-xl"
+                aria-label="Settings" 
+                onClick={() => navigate('/admin/settings')}
+              >
+                <Settings className="h-5 w-5"/>
+              </Button>
+            </div>
+          </header>
 
       {/* Main content with mobile layout */}
       <main className="flex-1 flex flex-col overflow-hidden">
@@ -205,8 +210,10 @@ export default function AdminLayout() {
         </section>
       </main>
 
-      <AdminBottomNav />
-      <BookingDrawer open={open} onOpenChange={setOpen} booking={active}/>
-    </div>
+          <AdminBottomNav />
+          <BookingDrawer open={open} onOpenChange={setOpen} booking={active}/>
+        </div>
+      } />
+    </Routes>
   );
 }

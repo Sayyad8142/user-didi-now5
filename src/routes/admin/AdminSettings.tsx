@@ -85,7 +85,7 @@ export default function AdminSettings() {
       <main className="flex-1 flex flex-col overflow-hidden">
         <div className="flex-1 overflow-y-auto px-3 py-4 space-y-4 pb-24 md:pb-6">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-5 h-auto p-1">
+            <TabsList className="grid w-full grid-cols-6 h-auto p-1">
               <TabsTrigger value="general" className="flex flex-col items-center gap-1 px-2 py-2 text-xs">
                 <Settings className="w-4 h-4" />
                 <span className="hidden sm:inline">General</span>
@@ -97,6 +97,10 @@ export default function AdminSettings() {
               <TabsTrigger value="workers" className="flex flex-col items-center gap-1 px-2 py-2 text-xs">
                 <Users className="w-4 h-4" />
                 <span className="hidden sm:inline">Workers</span>
+              </TabsTrigger>
+              <TabsTrigger value="communities" className="flex flex-col items-center gap-1 px-2 py-2 text-xs">
+                <Globe className="w-4 h-4" />
+                <span className="hidden sm:inline">Communities</span>
               </TabsTrigger>
               <TabsTrigger value="feedback" className="flex flex-col items-center gap-1 px-2 py-2 text-xs">
                 <MessageSquare className="w-4 h-4" />
@@ -260,6 +264,36 @@ export default function AdminSettings() {
 
             <TabsContent value="workers" className="mt-4">
               <WorkersTable />
+            </TabsContent>
+
+            <TabsContent value="communities" className="mt-4">
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Globe className="h-5 w-5 text-[#ff007a]" />
+                    Community Management
+                  </CardTitle>
+                  <CardDescription className="text-sm">
+                    Add, edit, or remove community options for user profiles
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="p-3 bg-muted/50 rounded-xl space-y-3">
+                    <div>
+                      <h3 className="font-medium mb-1">Community Options</h3>
+                      <p className="text-sm text-muted-foreground leading-relaxed">
+                        Manage the list of communities available for users to select
+                      </p>
+                    </div>
+                    <Button asChild className="w-full h-10">
+                      <Link to="/admin/communities" className="flex items-center justify-center gap-2">
+                        <Globe className="h-4 w-4" />
+                        Manage Communities
+                      </Link>
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
             </TabsContent>
 
             <TabsContent value="feedback" className="mt-4">

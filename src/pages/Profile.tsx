@@ -10,8 +10,11 @@ import { useNavigate, Link } from 'react-router-dom';
 import { User, Phone, Building, Home, LogOut, Settings, Bell, Shield, Edit3, Save, X, HelpCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { AppVersionDisplay } from '@/components/AppVersionDisplay';
+import { useCommunities } from '@/hooks/useCommunities';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 export default function Profile() {
   const { profile, loading } = useProfile();
+  const { communities, loading: communitiesLoading } = useCommunities();
   const navigate = useNavigate();
   const { toast } = useToast();
   
@@ -96,7 +99,7 @@ export default function Profile() {
       });
     }
   };
-  if (loading) {
+  if (loading || communitiesLoading) {
     return <div className="min-h-screen gradient-bg pb-24">
         <div className="max-w-md mx-auto px-4 py-8 space-y-6">
           <div className="text-center space-y-4">
@@ -209,14 +212,22 @@ export default function Profile() {
               <div className="flex-1">
                 <p className="text-sm font-medium text-muted-foreground">Community</p>
                 {!isEditing ? (
-                  <p className="text-base font-semibold">{profile?.community || 'Not provided'}</p>
+                  <p className="text-base font-semibold">
+                    {communities.find(c => c.value === profile?.community)?.name || profile?.community || 'Not provided'}
+                  </p>
                 ) : (
-                  <Input
-                    value={editForm.community}
-                    onChange={(e) => setEditForm(prev => ({...prev, community: e.target.value}))}
-                    className="mt-1 border-0 bg-transparent p-0 text-base font-semibold focus-visible:ring-0"
-                    placeholder="Enter community"
-                  />
+                  <Select value={editForm.community} onValueChange={(value) => setEditForm(prev => ({ ...prev, community: value }))}>
+                    <SelectTrigger className="mt-1 border-0 bg-transparent p-0 text-base font-semibold focus-visible:ring-0 h-auto">
+                      <SelectValue placeholder="Select community" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {communities.map((community) => (
+                        <SelectItem key={community.value} value={community.value}>
+                          {community.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 )}
               </div>
             </div>
