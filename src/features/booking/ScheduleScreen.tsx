@@ -207,8 +207,8 @@ export function ScheduleScreen() {
   const canConfirm = selectedDate && selectedTime && !submitting;
 
   return (
-    <div className="min-h-screen bg-background pb-40">
-      <div className="max-w-md mx-auto px-3 py-4">
+    <div className="min-h-screen bg-background">
+      <div className="max-w-md mx-auto px-3 py-4 pb-24">
         {/* Header */}
         <div className="flex items-center mb-4">
           <Button variant="ghost" size="sm" onClick={() => navigate(`/book/${service_type}`)} className="p-2 -ml-2">
@@ -292,25 +292,25 @@ export function ScheduleScreen() {
             </Tabs>
           </Card>
         </div>
+      </div>
 
-        {/* Sticky Bottom Button */}
-        <div className="fixed bottom-32 left-0 right-0 px-3">
-          <div className="max-w-md mx-auto">
-            <Button
-              onClick={handleConfirmSchedule}
-              disabled={!canConfirm}
-              className="w-full h-12 rounded-full bg-gradient-to-r from-[#ff007a] to-[#d9006a] text-white font-semibold text-sm disabled:opacity-50"
-            >
-              {submitting ? (
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                  <span>Confirming...</span>
-                </div>
-              ) : (
-                'Confirm Schedule'
-              )}
-            </Button>
-          </div>
+      {/* Sticky Bottom Button */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 p-4 pb-6">
+        <div className="max-w-md mx-auto">
+          <Button
+            onClick={handleConfirmSchedule}
+            disabled={!canConfirm}
+            className="w-full h-12 rounded-full bg-gradient-to-r from-[#ff007a] to-[#d9006a] text-white font-semibold text-sm disabled:opacity-50"
+          >
+            {submitting ? (
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                <span>Confirming...</span>
+              </div>
+            ) : (
+              'Confirm Schedule'
+            )}
+          </Button>
         </div>
       </div>
     </div>
