@@ -1,64 +1,80 @@
 import React from 'react';
-import { Clock, AlertCircle } from 'lucide-react';
+import { Clock, Moon, Sun } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { isOpenNow, getOpenStatusText } from './time';
 
 export function ServiceHours() {
   const isOpen = isOpenNow();
   
   if (!isOpen) {
-    // Closed state - hanging board design
+    // Closed state - elegant and classic design
     return (
-      <Card className="shadow-card border-red-200 bg-gradient-to-br from-red-500 to-red-600 relative overflow-hidden">
-        {/* Hanging chain effect */}
-        <div className="absolute top-0 left-1/2 transform -translate-x-1/2">
-          <div className="w-0.5 h-4 bg-gray-300"></div>
-          <div className="w-2 h-2 bg-gray-300 rounded-full -mt-1 -ml-0.5"></div>
-        </div>
-        
-        <CardContent className="p-4 text-center text-white">
-          <div className="mb-2">
-            <AlertCircle className="w-8 h-8 mx-auto mb-2 text-white" />
+      <Card className="shadow-sm border border-slate-200 bg-gradient-to-br from-slate-50 to-slate-100 relative">
+        <CardContent className="p-3">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center border-2 border-slate-300">
+              <Moon className="w-4 h-4 text-slate-600" />
+            </div>
+            
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1">
+                <h3 className="font-medium text-slate-800 text-sm">Service Hours</h3>
+                <Badge variant="secondary" className="bg-slate-200 text-slate-700 text-xs px-2 py-0.5 font-medium">
+                  Closed
+                </Badge>
+              </div>
+              
+              <p className="text-xs text-slate-600 leading-relaxed">
+                6AM - 7PM Daily
+              </p>
+              
+              <div className="mt-2 pt-2 border-t border-slate-200">
+                <p className="text-xs font-medium text-primary">
+                  {getOpenStatusText()}
+                </p>
+              </div>
+            </div>
           </div>
           
-          <div className="space-y-1">
-            <h3 className="text-lg font-bold italic transform -rotate-1">Sorry We're</h3>
-            <h2 className="text-2xl font-black tracking-wider transform rotate-1">CLOSED</h2>
-          </div>
-          
-          <div className="mt-3 pt-3 border-t border-white/30">
-            <p className="text-sm font-medium text-white/90">
-              {getOpenStatusText()}
-            </p>
-            <p className="text-xs text-white/70 mt-1">
-              Service Hours: 6AM - 7PM Daily
-            </p>
-          </div>
-          
-          {/* Decorative corner elements */}
-          <div className="absolute top-2 left-2 w-3 h-3 border-2 border-white/40 rounded-full"></div>
-          <div className="absolute top-2 right-2 w-3 h-3 border-2 border-white/40 rounded-full"></div>
-          <div className="absolute bottom-2 left-2 w-3 h-3 border-2 border-white/40 rounded-full"></div>
-          <div className="absolute bottom-2 right-2 w-3 h-3 border-2 border-white/40 rounded-full"></div>
+          {/* Subtle decorative accent */}
+          <div className="absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r from-primary/20 via-primary/40 to-primary/20"></div>
         </CardContent>
       </Card>
     );
   }
 
-  // Open state - original design
+  // Open state - classic design with brand colors
   return (
-    <Card className="shadow-card border-green-200 bg-gradient-to-r from-green-50 to-green-100">
-      <CardContent className="p-4 flex items-center gap-4">
-        <div className="w-12 h-12 rounded-full bg-green-500/10 flex items-center justify-center">
-          <Clock className="w-6 h-6 text-green-600" />
+    <Card className="shadow-sm border border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10">
+      <CardContent className="p-3">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center border-2 border-primary/20">
+            <Sun className="w-4 h-4 text-primary" />
+          </div>
+          
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1">
+              <h3 className="font-medium text-slate-800 text-sm">Service Hours</h3>
+              <Badge className="bg-primary text-white text-xs px-2 py-0.5 font-medium">
+                Open
+              </Badge>
+            </div>
+            
+            <p className="text-xs text-slate-600 leading-relaxed">
+              6AM - 7PM Daily
+            </p>
+            
+            <div className="mt-2 pt-2 border-t border-primary/20">
+              <p className="text-xs font-medium text-primary">
+                Available now
+              </p>
+            </div>
+          </div>
         </div>
-        <div className="flex-1">
-          <h3 className="font-semibold text-foreground">Service Hours</h3>
-          <p className="text-sm font-medium text-green-600">6AM - 7PM Daily</p>
-          <p className="text-xs text-green-700 mt-1 font-medium">
-            ✓ Open now
-          </p>
-        </div>
+        
+        {/* Decorative accent */}
+        <div className="absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r from-primary/30 via-primary to-primary/30"></div>
       </CardContent>
     </Card>
   );
