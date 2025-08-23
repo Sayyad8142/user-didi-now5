@@ -125,24 +125,24 @@ export default function Profile() {
         
 
         {/* Personal Information Card */}
-        <Card className="gradient-card shadow-card border-0 overflow-hidden transition-spring hover:shadow-button">
-          <CardHeader className="pb-3">
+        <div className="bg-white rounded-3xl shadow-lg border border-gray-100 overflow-hidden">
+          <div className="bg-gradient-to-r from-primary to-primary/80 p-6">
             <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-3 text-lg">
-                <div className="h-10 w-10 gradient-primary rounded-xl flex items-center justify-center">
-                  <User className="w-5 h-5 text-white" />
+              <div className="flex items-center gap-3">
+                <div className="h-12 w-12 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm">
+                  <User className="w-6 h-6 text-white" />
                 </div>
-                Personal Information
-              </CardTitle>
+                <h2 className="text-xl font-semibold text-white">Personal Information</h2>
+              </div>
               
               {!isEditing ? (
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => setIsEditing(true)}
-                  className="h-8 w-8 p-0 text-muted-foreground hover:text-primary"
+                  className="h-10 w-10 p-0 text-white/80 hover:text-white hover:bg-white/10"
                 >
-                  <Edit3 className="w-4 h-4" />
+                  <Edit3 className="w-5 h-5" />
                 </Button>
               ) : (
                 <div className="flex gap-2">
@@ -150,108 +150,117 @@ export default function Profile() {
                     variant="ghost"
                     size="sm"
                     onClick={handleSave}
-                    className="h-8 w-8 p-0 text-green-600 hover:text-green-700"
+                    className="h-10 w-10 p-0 text-white/80 hover:text-white hover:bg-white/10"
                   >
-                    <Save className="w-4 h-4" />
+                    <Save className="w-5 h-5" />
                   </Button>
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={handleCancel}
-                    className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
+                    className="h-10 w-10 p-0 text-white/80 hover:text-white hover:bg-white/10"
                   >
-                    <X className="w-4 h-4" />
+                    <X className="w-5 h-5" />
                   </Button>
                 </div>
               )}
             </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center gap-4 p-4 bg-white/60 backdrop-blur-sm rounded-2xl transition-smooth hover:bg-white/80">
-              <div className="h-10 w-10 bg-indigo-100 rounded-xl flex items-center justify-center">
-                <User className="w-5 h-5 text-indigo-600" />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-medium text-muted-foreground">Full Name</p>
-                {!isEditing ? (
-                  <p className="text-base font-semibold">{profile?.full_name || 'Not provided'}</p>
-                ) : (
-                  <Input
-                    value={editForm.full_name}
-                    onChange={(e) => setEditForm(prev => ({...prev, full_name: e.target.value}))}
-                    className="mt-1 border-0 bg-transparent p-0 text-base font-semibold focus-visible:ring-0"
-                    placeholder="Enter full name"
-                  />
-                )}
-              </div>
-            </div>
-
-            <div className="flex items-center gap-4 p-4 bg-white/60 backdrop-blur-sm rounded-2xl transition-smooth hover:bg-white/80">
-              <div className="h-10 w-10 bg-blue-100 rounded-xl flex items-center justify-center">
-                <Phone className="w-5 h-5 text-blue-600" />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-medium text-muted-foreground">Phone Number</p>
-                {!isEditing ? (
-                  <p className="text-base font-semibold">{profile?.phone || 'Not provided'}</p>
-                ) : (
-                  <Input
-                    value={editForm.phone}
-                    onChange={(e) => setEditForm(prev => ({...prev, phone: e.target.value}))}
-                    className="mt-1 border-0 bg-transparent p-0 text-base font-semibold focus-visible:ring-0"
-                    placeholder="Enter phone number"
-                  />
-                )}
+          </div>
+          
+          <div className="p-6 space-y-6">
+            <div className="group">
+              <div className="flex items-start gap-4">
+                <div className="h-12 w-12 bg-blue-50 rounded-2xl flex items-center justify-center group-hover:bg-blue-100 transition-colors">
+                  <User className="w-6 h-6 text-blue-600" />
+                </div>
+                <div className="flex-1 space-y-1">
+                  <p className="text-sm font-medium text-gray-500 uppercase tracking-wide">Full Name</p>
+                  {!isEditing ? (
+                    <p className="text-lg font-semibold text-gray-900">{profile?.full_name || 'Not provided'}</p>
+                  ) : (
+                    <Input
+                      value={editForm.full_name}
+                      onChange={(e) => setEditForm(prev => ({...prev, full_name: e.target.value}))}
+                      className="text-lg font-semibold border-0 bg-gray-50 rounded-xl p-3 focus-visible:ring-2 focus-visible:ring-primary/20"
+                      placeholder="Enter full name"
+                    />
+                  )}
+                </div>
               </div>
             </div>
 
-            <div className="flex items-center gap-4 p-4 bg-white/60 backdrop-blur-sm rounded-2xl transition-smooth hover:bg-white/80">
-              <div className="h-10 w-10 bg-purple-100 rounded-xl flex items-center justify-center">
-                <Building className="w-5 h-5 text-purple-600" />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-medium text-muted-foreground">Community</p>
-                {!isEditing ? (
-                  <p className="text-base font-semibold">
-                    {communities.find(c => c.value === profile?.community)?.name || profile?.community || 'Not provided'}
-                  </p>
-                ) : (
-                  <Select value={editForm.community} onValueChange={(value) => setEditForm(prev => ({ ...prev, community: value }))}>
-                    <SelectTrigger className="mt-1 border-0 bg-transparent p-0 text-base font-semibold focus-visible:ring-0 h-auto">
-                      <SelectValue placeholder="Select community" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {communities.map((community) => (
-                        <SelectItem key={community.value} value={community.value}>
-                          {community.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
+            <div className="group">
+              <div className="flex items-start gap-4">
+                <div className="h-12 w-12 bg-emerald-50 rounded-2xl flex items-center justify-center group-hover:bg-emerald-100 transition-colors">
+                  <Phone className="w-6 h-6 text-emerald-600" />
+                </div>
+                <div className="flex-1 space-y-1">
+                  <p className="text-sm font-medium text-gray-500 uppercase tracking-wide">Phone Number</p>
+                  {!isEditing ? (
+                    <p className="text-lg font-semibold text-gray-900">{profile?.phone || 'Not provided'}</p>
+                  ) : (
+                    <Input
+                      value={editForm.phone}
+                      onChange={(e) => setEditForm(prev => ({...prev, phone: e.target.value}))}
+                      className="text-lg font-semibold border-0 bg-gray-50 rounded-xl p-3 focus-visible:ring-2 focus-visible:ring-primary/20"
+                      placeholder="Enter phone number"
+                    />
+                  )}
+                </div>
               </div>
             </div>
 
-            <div className="flex items-center gap-4 p-4 bg-white/60 backdrop-blur-sm rounded-2xl transition-smooth hover:bg-white/80">
-              <div className="h-10 w-10 bg-green-100 rounded-xl flex items-center justify-center">
-                <Home className="w-5 h-5 text-green-600" />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-medium text-muted-foreground">Flat Number</p>
-                {!isEditing ? (
-                  <p className="text-base font-semibold">{profile?.flat_no || 'Not provided'}</p>
-                ) : (
-                  <Input
-                    value={editForm.flat_no}
-                    onChange={(e) => setEditForm(prev => ({...prev, flat_no: e.target.value}))}
-                    className="mt-1 border-0 bg-transparent p-0 text-base font-semibold focus-visible:ring-0"
-                    placeholder="Enter flat number"
-                  />
-                )}
+            <div className="group">
+              <div className="flex items-start gap-4">
+                <div className="h-12 w-12 bg-purple-50 rounded-2xl flex items-center justify-center group-hover:bg-purple-100 transition-colors">
+                  <Building className="w-6 h-6 text-purple-600" />
+                </div>
+                <div className="flex-1 space-y-1">
+                  <p className="text-sm font-medium text-gray-500 uppercase tracking-wide">Community</p>
+                  {!isEditing ? (
+                    <p className="text-lg font-semibold text-gray-900">
+                      {communities.find(c => c.value === profile?.community)?.name || profile?.community || 'Not provided'}
+                    </p>
+                  ) : (
+                    <Select value={editForm.community} onValueChange={(value) => setEditForm(prev => ({ ...prev, community: value }))}>
+                      <SelectTrigger className="text-lg font-semibold border-0 bg-gray-50 rounded-xl p-3 focus-visible:ring-2 focus-visible:ring-primary/20 h-auto">
+                        <SelectValue placeholder="Select community" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-white border border-gray-200 rounded-xl shadow-lg z-50">
+                        {communities.map((community) => (
+                          <SelectItem key={community.value} value={community.value}>
+                            {community.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                </div>
               </div>
             </div>
-          </CardContent>
-        </Card>
+
+            <div className="group">
+              <div className="flex items-start gap-4">
+                <div className="h-12 w-12 bg-orange-50 rounded-2xl flex items-center justify-center group-hover:bg-orange-100 transition-colors">
+                  <Home className="w-6 h-6 text-orange-600" />
+                </div>
+                <div className="flex-1 space-y-1">
+                  <p className="text-sm font-medium text-gray-500 uppercase tracking-wide">Flat Number</p>
+                  {!isEditing ? (
+                    <p className="text-lg font-semibold text-gray-900">{profile?.flat_no || 'Not provided'}</p>
+                  ) : (
+                    <Input
+                      value={editForm.flat_no}
+                      onChange={(e) => setEditForm(prev => ({...prev, flat_no: e.target.value}))}
+                      className="text-lg font-semibold border-0 bg-gray-50 rounded-xl p-3 focus-visible:ring-2 focus-visible:ring-primary/20"
+                      placeholder="Enter flat number"
+                    />
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
 
         {/* Legal Links */}
         <div className="space-y-3">
