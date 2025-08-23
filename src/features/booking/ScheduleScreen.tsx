@@ -208,7 +208,7 @@ export function ScheduleScreen() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="max-w-md mx-auto px-3 py-4 pb-24">
+      <div className="max-w-md mx-auto px-3 py-4 pb-28">
         {/* Header */}
         <div className="flex items-center mb-4">
           <Button variant="ghost" size="sm" onClick={() => navigate(`/book/${service_type}`)} className="p-2 -ml-2">
@@ -292,11 +292,9 @@ export function ScheduleScreen() {
             </Tabs>
           </Card>
         </div>
-      </div>
 
-      {/* Sticky Bottom Button */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 p-4 pb-6">
-        <div className="max-w-md mx-auto">
+        {/* Confirm Schedule Button */}
+        <div className="mt-6">
           <Button
             onClick={handleConfirmSchedule}
             disabled={!canConfirm}
