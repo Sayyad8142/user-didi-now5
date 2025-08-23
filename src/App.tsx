@@ -3,7 +3,6 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { HelmetProvider } from "react-helmet-async";
 import { useState, useEffect } from "react";
 import { UpdateBanner } from "@/components/UpdateBanner";
 import { OfflineScreen } from "@/components/OfflineScreen";
@@ -45,9 +44,11 @@ const ProtectedLayout = ({ children }: { children: React.ReactNode }) => (
 );
 
 const App = () => {
+  console.log("App component starting...");
   const [isOnline, setIsOnline] = useState(true);
   const [bootFailed, setBootFailed] = useState(false);
   const { updateAvailable, handleRefresh, dismissUpdate } = useWebVersion();
+  console.log("App state initialized...");
 
   const checkConnectivity = async () => {
     try {
@@ -95,9 +96,8 @@ const App = () => {
   }
 
   return (
-    <HelmetProvider>
-      <QueryClientProvider client={queryClient}>
-        <AuthProvider>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
           <TooltipProvider>
           {updateAvailable && (
             <UpdateBanner onRefresh={handleRefresh} onDismiss={dismissUpdate} />
@@ -231,7 +231,6 @@ const App = () => {
       </TooltipProvider>
     </AuthProvider>
   </QueryClientProvider>
-</HelmetProvider>
   );
 };
 

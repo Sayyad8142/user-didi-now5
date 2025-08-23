@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { Helmet } from "react-helmet-async";
 import { Button } from "@/components/ui/button";
 import { Download, FileText, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -58,12 +57,7 @@ export default function PrivacyPolicy() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Helmet>
-        <title>Privacy Policy - Didi Now</title>
-        <meta name="description" content="Read Didi Now's Privacy Policy to understand how we collect, use, and protect your personal information." />
-        <link rel="canonical" href={`${window.location.origin}/legal/privacy`} />
-        <meta name="robots" content="index, follow" />
-      </Helmet>
+      {/* SEO Meta Tags - handled by index.html for now */}
       
       <header className="border-b bg-white shadow-sm">
         <div className="max-w-4xl mx-auto px-4 py-6">
