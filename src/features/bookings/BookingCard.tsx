@@ -6,7 +6,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { prettyServiceName } from '@/features/booking/utils';
 import { formatDateTime } from '@/features/bookings/dt';
 import { format } from 'date-fns';
-import { PhoneCall, Sparkles, ChefHat, ShowerHead, Clock, User, MapPin, Timer, CreditCard, Star } from 'lucide-react';
+import { PhoneCall, Sparkles, ChefHat, ShowerHead, Clock, User, MapPin, Timer, CreditCard, Star, MessageCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import AssigningProgress from '@/features/bookings/AssigningProgress';
 import AutoCompleteCountdown from '@/components/AutoCompleteCountdown';
@@ -17,6 +17,7 @@ import { toast } from 'sonner';
 import CancelAction from './CancelAction';
 import { RateWorker } from './RateWorker';
 import { openExternalUrl } from '@/lib/nativeOpen';
+import ChatSheet from '@/features/chat/ChatSheet';
 
 interface Booking {
   id: string;
@@ -60,6 +61,7 @@ export function BookingCard({
   const [loadingWorker, setLoadingWorker] = useState(true);
   const [row, setRow] = useState(booking);
   const [workerStats, setWorkerStats] = useState<{ avg_rating: number; ratings_count: number } | null>(null);
+  const [openChat, setOpenChat] = useState(false);
   const now = useNow(); // ticks every 30s
   
   // Subscribe to real-time updates for this specific booking
@@ -331,6 +333,18 @@ export function BookingCard({
             </Button>
           )}
 
+          {/* Chat with Support button */}
+          {(row.status === 'pending' || row.status === 'assigned') && (
+            <Button 
+              onClick={() => setOpenChat(true)}
+              variant="outline"
+              className="w-full h-10 border-[#ff007a] text-[#ff007a] hover:bg-[#ff007a] hover:text-white font-semibold rounded-lg shadow-sm"
+            >
+              <MessageCircle className="h-4 w-4 mr-2" />
+              Chat with Support
+            </Button>
+          )}
+
           {/* Cancellation component for pending/assigned bookings */}
           {(row.status === 'pending' || row.status === 'assigned') && (
             <CancelAction 
@@ -343,6 +357,13 @@ export function BookingCard({
           )}
         </div>
       </div>
+
+      <ChatSheet 
+        open={openChat} 
+        onOpenChange={setOpenChat} 
+        booking={row} 
+        mode="user" 
+      />
     </Card>
   );
 }

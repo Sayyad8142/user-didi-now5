@@ -3,13 +3,15 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { PhoneCall, UserPlus, CheckCircle, XCircle } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { PhoneCall, UserPlus, CheckCircle, XCircle, MessageCircle } from "lucide-react";
 import { prettyService } from "./BookingRow";
 import { supabaseAdmin as supabase } from "@/lib/supabase-admin";
 import { useToast } from "@/hooks/use-toast";
 import { useNewBookingAlert } from "./useNewBookingAlert";
 import { HistoryList } from "./HistoryList";
 import { AssignWorkerModal } from "./AssignWorkerModal";
+import AdminChatPanel from "@/features/chat/AdminChatPanel";
 import { useState, useEffect } from "react";
 import { openExternalUrl } from "@/lib/nativeOpen";
 
@@ -29,6 +31,7 @@ export default function BookingDrawer({open,onOpenChange,booking}:{open:boolean;
   const [isMarkingComplete, setIsMarkingComplete] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
   const [latestAssignment, setLatestAssignment] = useState<any>(null);
+  const [activeTab, setActiveTab] = useState("details");
   const { toast } = useToast();
   const { stopSound } = useNewBookingAlert();
 
@@ -141,11 +144,22 @@ export default function BookingDrawer({open,onOpenChange,booking}:{open:boolean;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="max-w-2xl mx-auto">
+      <SheetContent side="bottom" className="max-w-2xl mx-auto h-[90vh] flex flex-col">
         <SheetHeader>
           <SheetTitle>{prettyService(booking.service_type)}</SheetTitle>
         </SheetHeader>
-        <div className="space-y-3 py-3">
+        
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="details">Details</TabsTrigger>
+            <TabsTrigger value="chat" className="flex items-center gap-2">
+              <MessageCircle className="h-4 w-4" />
+              Chat
+            </TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="details" className="flex-1 overflow-y-auto">
+            <div className="space-y-3 py-3">
           <div className="text-sm">When: <b>{when}</b></div>
           <div className="text-sm">Customer: <b>{booking.cust_name}</b> ({booking.cust_phone})</div>
           <div className="text-sm">Address: {booking.community} • {booking.flat_no}</div>
@@ -232,12 +246,20 @@ export default function BookingDrawer({open,onOpenChange,booking}:{open:boolean;
             </button>
           </div>
 
-          {/* Status History */}
-          <div className="border-t pt-3 mt-4">
-            <div className="text-sm font-semibold mb-3">Status History</div>
-            <HistoryList bookingId={booking.id} />
-          </div>
-        </div>
+              {/* Status History */}
+              <div className="border-t pt-3 mt-4">
+                <div className="text-sm font-semibold mb-3">Status History</div>
+                <HistoryList bookingId={booking.id} />
+              </div>
+            </div>
+          </TabsContent>
+          
+          <TabsContent value="chat" className="flex-1 flex flex-col">
+            <div className="flex-1 border rounded-xl overflow-hidden">
+              <AdminChatPanel booking={booking} />
+            </div>
+          </TabsContent>
+        </Tabs>
       </SheetContent>
 
       {/* Assign Worker Modal */}
