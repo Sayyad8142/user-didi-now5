@@ -127,7 +127,7 @@ export function ScheduleScreen() {
         description: "Your booking has been scheduled successfully."
       });
 
-      navigate('/bookings');
+      navigate('/home');
     } catch (err) {
       console.error('Booking error:', err);
       toast({
