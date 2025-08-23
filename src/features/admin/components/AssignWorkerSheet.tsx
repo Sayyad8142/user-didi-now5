@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import SmartImage from "@/components/SmartImage";
 import { Loader2, User, Search, UserPlus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabaseAdmin } from "@/lib/supabase-admin";
@@ -254,21 +253,10 @@ export function AssignWorkerSheet({
                   >
                     <div className="flex items-center gap-3 flex-1 min-w-0">
                       <Avatar className="w-10 h-10 flex-shrink-0">
-                        {worker.photo_url ? (
-                          <SmartImage
-                            src={worker.photo_url}
-                            bucket="worker-photos"
-                            alt={worker.full_name}
-                            width={40}
-                            height={40}
-                            className="w-full h-full object-cover"
-                            sizes="40px"
-                          />
-                        ) : (
-                          <AvatarFallback className="bg-slate-100 text-slate-600 font-medium">
-                            {worker.full_name.charAt(0).toUpperCase()}
-                          </AvatarFallback>
-                        )}
+                        <AvatarImage src={worker.photo_url || undefined} />
+                        <AvatarFallback className="bg-slate-100 text-slate-600 font-medium">
+                          {worker.full_name.charAt(0).toUpperCase()}
+                        </AvatarFallback>
                       </Avatar>
                       <div className="min-w-0 flex-1">
                         <div className="font-medium text-slate-900 truncate">
