@@ -447,7 +447,8 @@ export function BookingForm() {
                 </div>
               </div>
 
-              {/* Cuisine Preference */}
+              {/* Cuisine Preference - Only show after food preference is selected */}
+              {foodPreference && (
               <div className="space-y-6">
                 <h2 className="text-lg font-semibold text-foreground">
                   Cuisine Preference <span className="text-destructive">*</span>
@@ -493,8 +494,10 @@ export function BookingForm() {
                   </ToggleGroupItem>
                 </ToggleGroup>
               </div>
+              )}
 
-              {/* Gender Preference */}
+              {/* Gender Preference - Only show after food preference is selected */}
+              {foodPreference && (
               <div className="space-y-6">
                 <h2 className="text-lg font-semibold text-foreground">
                   Cook Gender Preference <span className="text-destructive">*</span>
@@ -540,6 +543,7 @@ export function BookingForm() {
                   </ToggleGroupItem>
                 </ToggleGroup>
               </div>
+              )}
             </>}
 
           {/* Select Flat Size for other services */}
