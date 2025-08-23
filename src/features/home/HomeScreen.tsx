@@ -9,6 +9,7 @@ import { ServiceHours } from './ServiceHours';
 import { FeatureCarousel } from './FeatureCarousel';
 import { ActiveBookingCard } from './ActiveBookingCard';
 import { openExternalUrl } from '@/lib/nativeOpen';
+import FaqSection from './FaqSection';
 
 export function HomeScreen() {
   const navigate = useNavigate();
@@ -35,6 +36,8 @@ export function HomeScreen() {
             <span className="font-semibold">Contact Manager</span>
           </Button>
         </div>
+
+        <FaqSection />
       </div>
     </div>;
 }
