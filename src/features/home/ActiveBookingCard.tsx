@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Sparkles, ChefHat, ShowerHead, ArrowRight } from 'lucide-react';
+import { Sparkles, ChefHat, ShowerHead, ArrowRight, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { prettyServiceName } from '@/features/booking/utils';
@@ -57,6 +57,7 @@ export function ActiveBookingCard() {
   const navigate = useNavigate();
   const [activeBooking, setActiveBooking] = useState<Booking | null>(null);
   const [loading, setLoading] = useState(true);
+  const [dismissedBookings, setDismissedBookings] = useState<Set<string>>(new Set());
 
   const fetchActiveBooking = async () => {
     if (!user) return;
@@ -86,6 +87,14 @@ export function ActiveBookingCard() {
     }
   };
 
+  // Load dismissed bookings from localStorage
+  useEffect(() => {
+    const dismissed = localStorage.getItem('dismissedBookings');
+    if (dismissed) {
+      setDismissedBookings(new Set(JSON.parse(dismissed)));
+    }
+  }, []);
+
   useEffect(() => {
     fetchActiveBooking();
   }, [user]);
@@ -110,12 +119,19 @@ export function ActiveBookingCard() {
     };
   }, [user]);
 
-  if (loading || !activeBooking) {
+  if (loading || !activeBooking || dismissedBookings.has(activeBooking.id)) {
     return null;
   }
 
   const handleViewDetails = () => {
     navigate('/bookings');
+  };
+
+  const handleDismiss = () => {
+    const newDismissed = new Set(dismissedBookings);
+    newDismissed.add(activeBooking.id);
+    setDismissedBookings(newDismissed);
+    localStorage.setItem('dismissedBookings', JSON.stringify([...newDismissed]));
   };
 
   return (
@@ -140,11 +156,23 @@ export function ActiveBookingCard() {
             </p>
           </div>
         </div>
-        <Badge className={`text-xs ${getStatusColor(activeBooking.status)}`}>
-          {activeBooking.status === 'pending' ? 'Finding Worker' : 
-           activeBooking.status === 'assigned' ? '✓ Worker Assigned' : 
-           activeBooking.status}
-        </Badge>
+        <div className="flex items-center gap-2">
+          <Badge className={`text-xs ${getStatusColor(activeBooking.status)}`}>
+            {activeBooking.status === 'pending' ? 'Finding Worker' : 
+             activeBooking.status === 'assigned' ? '✓ Worker Assigned' : 
+             activeBooking.status}
+          </Badge>
+          {activeBooking.status === "cancelled" && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleDismiss}
+              className="p-1 h-6 w-6 text-muted-foreground hover:text-foreground"
+            >
+              <X className="w-4 h-4" />
+            </Button>
+          )}
+        </div>
       </div>
 
       {activeBooking.worker_name && (
