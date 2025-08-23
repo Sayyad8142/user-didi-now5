@@ -9,7 +9,7 @@ export function useWebVersionQuery() {
         .from('ops_settings')
         .select('value')
         .eq('key', 'web_version')
-        .maybeSingle();
+        .single();
 
       if (error) {
         console.error('Failed to fetch web version:', error);
@@ -18,9 +18,8 @@ export function useWebVersionQuery() {
 
       return data?.value || '1.0.0';
     },
-    staleTime: 5 * 60 * 1000, // 5 minutes - data is considered fresh
-    refetchInterval: 10 * 60 * 1000, // Check every 10 minutes
+    staleTime: 60 * 1000, // 60 seconds
+    refetchInterval: 60 * 1000, // Refetch every 60 seconds
     retry: 1,
-    refetchOnWindowFocus: false, // Don't refetch on window focus to improve performance
   });
 }

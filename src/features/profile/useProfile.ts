@@ -32,7 +32,7 @@ export function useProfile() {
         .from('profiles')
         .select('id, full_name, phone, community, flat_no')
         .eq('id', user.id)
-        .maybeSingle();
+        .single();
 
       if (fetchError) {
         console.error('Error fetching profile:', fetchError);

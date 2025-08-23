@@ -84,28 +84,22 @@ export function ActiveBookingCard() {
     fetchActiveBooking();
   }, [user]);
 
-  // Set up real-time updates with debouncing to prevent excessive refetches
+  // Set up real-time updates
   useEffect(() => {
     if (!user) return;
-
-    let timeoutId: NodeJS.Timeout;
 
     const channel = supabase
       .channel("active-booking-updates")
       .on("postgres_changes", 
         { event: "UPDATE", schema: "public", table: "bookings" },
         (payload) => {
-          // Debounce refetch to avoid excessive calls
-          clearTimeout(timeoutId);
-          timeoutId = setTimeout(() => {
-            fetchActiveBooking();
-          }, 500);
+          // Refetch active booking when any booking is updated
+          fetchActiveBooking();
         }
       )
       .subscribe();
 
     return () => {
-      clearTimeout(timeoutId);
       supabase.removeChannel(channel);
     };
   }, [user]);
