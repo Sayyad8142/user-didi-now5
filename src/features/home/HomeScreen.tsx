@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Phone } from 'lucide-react';
+import { Phone, MessageCircle } from 'lucide-react';
 import { HomeHeader } from './HomeHeader';
 import { HeroCarousel } from './HeroCarousel';
 import { ServicesRow } from './ServicesRow';
@@ -27,13 +27,22 @@ export function HomeScreen() {
         <FeatureCarousel />
         
         {/* Contact Manager Button */}
-        <div className="pt-4">
+        <div className="pt-4 space-y-3">
           <Button
             onClick={() => openExternalUrl('tel:8008180018')}
             className="w-full h-12 rounded-full gradient-primary shadow-button transition-spring hover:scale-[1.02] flex items-center justify-center gap-3"
           >
             <Phone className="w-5 h-5" />
             <span className="font-semibold">Contact Manager</span>
+          </Button>
+          
+          <Button
+            onClick={() => navigate('/support')}
+            variant="outline"
+            className="w-full h-12 rounded-full border-2 border-primary/20 bg-white/90 hover:bg-primary/5 text-primary font-semibold transition-spring hover:scale-[1.02] flex items-center justify-center gap-3"
+          >
+            <MessageCircle className="w-5 h-5" />
+            <span>Chat Support</span>
           </Button>
         </div>
 
