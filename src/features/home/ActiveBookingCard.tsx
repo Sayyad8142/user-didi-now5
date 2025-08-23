@@ -21,6 +21,9 @@ interface Booking {
   created_at: string;
   worker_name?: string | null;
   assigned_at?: string | null;
+  cancel_source?: string | null;
+  cancel_reason?: string | null;
+  cancelled_at?: string | null;
 }
 
 const getServiceIcon = (serviceType: string) => {
@@ -42,6 +45,8 @@ const getStatusColor = (status: string) => {
       return 'bg-yellow-100 text-yellow-800';
     case 'assigned':
       return 'bg-green-100 text-green-800';
+    case 'cancelled':
+      return 'bg-red-100 text-red-800';
     default:
       return 'bg-gray-100 text-gray-800';
   }
@@ -58,12 +63,13 @@ export function ActiveBookingCard() {
 
     try {
       const today = new Date().toISOString().split('T')[0];
+      const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
       
       const { data, error } = await supabase
         .from('bookings')
         .select('*')
         .eq('user_id', user.id)
-        .or(`and(status.in.(pending,assigned),booking_type.eq.instant),and(status.in.(pending,assigned),booking_type.eq.scheduled,scheduled_date.gte.${today})`)
+        .or(`and(status.in.(pending,assigned),booking_type.eq.instant),and(status.in.(pending,assigned),booking_type.eq.scheduled,scheduled_date.gte.${today}),and(status.eq.cancelled,cancel_source.eq.admin,cancelled_at.gte.${thirtyMinutesAgo})`)
         .order('created_at', { ascending: false })
         .limit(1)
         .single();
@@ -149,6 +155,15 @@ export function ActiveBookingCard() {
 
       {activeBooking.status === 'pending' && (
         <AssigningProgress booking={activeBooking} />
+      )}
+
+      {/* Admin cancellation message */}
+      {activeBooking.status === "cancelled" && activeBooking.cancel_source === "admin" && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-3">
+          <p className="text-red-800 font-medium text-sm">
+            Booking cancelled by admin - we are unable to provide helper this time. Please try again next time.
+          </p>
+        </div>
       )}
 
       <div className="flex items-center justify-between mt-4">
