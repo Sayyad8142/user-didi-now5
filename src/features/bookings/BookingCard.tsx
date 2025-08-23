@@ -38,6 +38,8 @@ interface Booking {
   auto_complete_at?: string | null;
   assigned_at?: string | null;
   pay_enabled_at?: string | null;
+  cancel_source?: string | null;
+  cancel_reason?: string | null;
 }
 interface BookingCardProps {
   booking: Booking;
@@ -297,6 +299,15 @@ export function BookingCard({
         {row.status === "pending" && (
           <div className="bg-amber-50 border border-amber-100 rounded-lg p-3">
             <AssigningProgress booking={row} />
+          </div>
+        )}
+
+        {/* Admin cancellation message */}
+        {row.status === "cancelled" && row.cancel_source === "admin" && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+            <p className="text-red-800 font-medium text-sm">
+              Booking cancelled by admin - we are unable to provide helper this time. Please try again next time.
+            </p>
           </div>
         )}
 
