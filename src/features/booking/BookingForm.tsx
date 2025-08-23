@@ -12,6 +12,7 @@ import { useProfile } from '@/features/profile/useProfile';
 import { prettyServiceName, serviceIcon, isValidServiceType, getPricingMap, FLAT_SIZES, type FlatSize, type PricingMap, calculateCookPrice } from './pricing';
 import { ScheduleSheet } from './ScheduleSheet';
 import { cn } from '@/lib/utils';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 
 // Maid task types and constants
 type MaidTask = "floor_cleaning" | "dish_washing";
@@ -448,60 +449,96 @@ export function BookingForm() {
 
               {/* Cuisine Preference */}
               <div className="space-y-6">
-                <h2 className="text-lg font-semibold text-gray-900">
-                  Cuisine Preference <span className="text-[#ff007a]">*</span>
+                <h2 className="text-lg font-semibold text-foreground">
+                  Cuisine Preference <span className="text-destructive">*</span>
                 </h2>
-                <div className="grid grid-cols-3 gap-3">
-                  {[
-                    { key: 'north', label: 'North Indian' },
-                    { key: 'south', label: 'South Indian' },
-                    { key: 'any', label: 'Anyone is fine' },
-                  ].map(opt => (
-                    <button
-                      key={opt.key}
-                      type="button"
-                      onClick={() => setCuisinePref(opt.key as 'north' | 'south' | 'any')}
-                      className={cn(
-                        "px-3 py-3 rounded-xl border text-sm font-medium transition-all",
-                        cuisinePref === opt.key
-                          ? "border-[#ff007a] text-[#ff007a] bg-[#ff007a]/10"
-                          : "border-gray-200 text-gray-700 bg-white hover:border-gray-300"
-                      )}
-                      aria-pressed={cuisinePref === opt.key}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
+                <ToggleGroup
+                  type="single"
+                  value={cuisinePref}
+                  onValueChange={(v) => v && setCuisinePref(v as 'north' | 'south' | 'any')}
+                  className="grid grid-cols-3 gap-3"
+                >
+                  <ToggleGroupItem
+                    value="north"
+                    className={cn(
+                      "h-12 rounded-xl border-2",
+                      cuisinePref === 'north'
+                        ? "border-primary bg-primary/5 text-primary"
+                        : "border-border bg-background text-foreground hover:border-primary/50"
+                    )}
+                  >
+                    North Indian
+                  </ToggleGroupItem>
+                  <ToggleGroupItem
+                    value="south"
+                    className={cn(
+                      "h-12 rounded-xl border-2",
+                      cuisinePref === 'south'
+                        ? "border-primary bg-primary/5 text-primary"
+                        : "border-border bg-background text-foreground hover:border-primary/50"
+                    )}
+                  >
+                    South Indian
+                  </ToggleGroupItem>
+                  <ToggleGroupItem
+                    value="any"
+                    className={cn(
+                      "h-12 rounded-xl border-2",
+                      cuisinePref === 'any'
+                        ? "border-primary bg-primary/5 text-primary"
+                        : "border-border bg-background text-foreground hover:border-primary/50"
+                    )}
+                  >
+                    Anyone is fine
+                  </ToggleGroupItem>
+                </ToggleGroup>
               </div>
 
               {/* Gender Preference */}
               <div className="space-y-6">
-                <h2 className="text-lg font-semibold text-gray-900">
-                  Cook Gender Preference <span className="text-[#ff007a]">*</span>
+                <h2 className="text-lg font-semibold text-foreground">
+                  Cook Gender Preference <span className="text-destructive">*</span>
                 </h2>
-                <div className="grid grid-cols-3 gap-3">
-                  {[
-                    { key: 'male', label: 'Male' },
-                    { key: 'female', label: 'Female' },
-                    { key: 'any', label: 'Anyone is fine' },
-                  ].map(opt => (
-                    <button
-                      key={opt.key}
-                      type="button"
-                      onClick={() => setGenderPref(opt.key as 'male' | 'female' | 'any')}
-                      className={cn(
-                        "px-3 py-3 rounded-xl border text-sm font-medium transition-all",
-                        genderPref === opt.key
-                          ? "border-[#ff007a] text-[#ff007a] bg-[#ff007a]/10"
-                          : "border-gray-200 text-gray-700 bg-white hover:border-gray-300"
-                      )}
-                      aria-pressed={genderPref === opt.key}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
+                <ToggleGroup
+                  type="single"
+                  value={genderPref}
+                  onValueChange={(v) => v && setGenderPref(v as 'male' | 'female' | 'any')}
+                  className="grid grid-cols-3 gap-3"
+                >
+                  <ToggleGroupItem
+                    value="male"
+                    className={cn(
+                      "h-12 rounded-xl border-2",
+                      genderPref === 'male'
+                        ? "border-primary bg-primary/5 text-primary"
+                        : "border-border bg-background text-foreground hover:border-primary/50"
+                    )}
+                  >
+                    Male
+                  </ToggleGroupItem>
+                  <ToggleGroupItem
+                    value="female"
+                    className={cn(
+                      "h-12 rounded-xl border-2",
+                      genderPref === 'female'
+                        ? "border-primary bg-primary/5 text-primary"
+                        : "border-border bg-background text-foreground hover:border-primary/50"
+                    )}
+                  >
+                    Female
+                  </ToggleGroupItem>
+                  <ToggleGroupItem
+                    value="any"
+                    className={cn(
+                      "h-12 rounded-xl border-2",
+                      genderPref === 'any'
+                        ? "border-primary bg-primary/5 text-primary"
+                        : "border-border bg-background text-foreground hover:border-primary/50"
+                    )}
+                  >
+                    Anyone is fine
+                  </ToggleGroupItem>
+                </ToggleGroup>
               </div>
             </>}
 
