@@ -3,6 +3,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import SmartImage from '@/components/SmartImage';
 import { prettyServiceName } from '@/features/booking/utils';
 import { formatDateTime } from '@/features/bookings/dt';
 import { format } from 'date-fns';
@@ -234,10 +235,21 @@ export function BookingCard({
         {(assignedWorker?.worker || row.worker_name) && (
           <div className="flex items-start gap-2 p-2 bg-blue-50 rounded-lg">
             <Avatar className="w-8 h-8 mt-0.5">
-              <AvatarImage src={assignedWorker?.worker?.photo_url || row.worker_photo_url || undefined} />
-              <AvatarFallback>
-                <User className="w-4 h-4" />
-              </AvatarFallback>
+              {(assignedWorker?.worker?.photo_url || row.worker_photo_url) ? (
+                <SmartImage
+                  src={assignedWorker?.worker?.photo_url || row.worker_photo_url || ''}
+                  bucket="worker-photos"
+                  alt={assignedWorker?.worker?.full_name || row.worker_name || 'Worker'}
+                  width={32}
+                  height={32}
+                  className="w-full h-full object-cover"
+                  sizes="32px"
+                />
+              ) : (
+                <AvatarFallback>
+                  <User className="w-4 h-4" />
+                </AvatarFallback>
+              )}
             </Avatar>
             <div className="flex-1 min-w-0">
               <p className="text-xs font-medium text-blue-600 uppercase tracking-wide">Worker</p>

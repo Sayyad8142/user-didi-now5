@@ -96,7 +96,7 @@ export async function serve(req: Request): Promise<Response> {
       .upload(path, bytes, {
         contentType: body.contentType || 'application/octet-stream',
         upsert: false,
-        cacheControl: '3600',
+        cacheControl: '31536000, public, immutable',
       });
 
     if (upErr) {

@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import SmartImage from "@/components/SmartImage";
 import { Loader2, User } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { listWorkers, assignWorkerToBooking, Worker } from "@/features/admin/workers/api";
@@ -130,10 +131,21 @@ export function AssignWorkerModal({
                 <div key={worker.id} className="flex items-center justify-between rounded-xl border p-3 hover:bg-muted/50">
                   <div className="flex items-center gap-3">
                     <Avatar className="w-10 h-10">
-                      <AvatarImage src={worker.photo_url || undefined} />
-                      <AvatarFallback>
-                        <User className="w-5 h-5" />
-                      </AvatarFallback>
+                      {worker.photo_url ? (
+                        <SmartImage
+                          src={worker.photo_url}
+                          bucket="worker-photos"
+                          alt={worker.full_name}
+                          width={40}
+                          height={40}
+                          className="w-full h-full object-cover"
+                          sizes="40px"
+                        />
+                      ) : (
+                        <AvatarFallback>
+                          <User className="w-5 h-5" />
+                        </AvatarFallback>
+                      )}
                     </Avatar>
                     <div className="text-sm">
                       <div className="font-medium">{worker.full_name}</div>

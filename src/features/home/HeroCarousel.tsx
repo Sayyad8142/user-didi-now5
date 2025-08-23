@@ -1,6 +1,7 @@
 import React from 'react';
 import { Carousel, CarouselContent, CarouselItem } from '@/components/ui/carousel';
 import Autoplay from 'embla-carousel-autoplay';
+import SmartImage from '@/components/SmartImage';
 import bannerCook1 from '@/assets/banner-cook-1.webp';
 import bannerMaid1 from '@/assets/banner-maid-1.webp';
 import bannerCook2 from '@/assets/banner-cook-2.webp';
@@ -47,10 +48,14 @@ export function HeroCarousel() {
           {carouselImages.map((image, index) => (
             <CarouselItem key={index}>
               <div className="relative rounded-2xl overflow-hidden shadow-card aspect-video">
-                <img
+                <SmartImage
                   src={image.url}
                   alt={image.alt}
+                  priority={index === 0}
+                  sizes="(max-width: 420px) 100vw, 420px"
                   className="w-full h-full object-cover"
+                  width={420}
+                  height={220}
                 />
               </div>
             </CarouselItem>

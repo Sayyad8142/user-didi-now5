@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import SmartImage from "@/components/SmartImage";
 import { Search, Plus, Edit, Trash2, User } from "lucide-react";
 import { toast } from "sonner";
 import { Worker, listWorkers, deleteWorker } from "./api";
@@ -126,10 +127,21 @@ export function WorkersTable() {
             >
               <div className="flex items-start gap-3">
                 <Avatar className="w-12 h-12">
-                  <AvatarImage src={worker.photo_url} />
-                  <AvatarFallback>
-                    <User className="w-6 h-6" />
-                  </AvatarFallback>
+                  {worker.photo_url ? (
+                    <SmartImage
+                      src={worker.photo_url}
+                      bucket="worker-photos"
+                      alt={worker.full_name}
+                      width={48}
+                      height={48}
+                      className="w-full h-full object-cover"
+                      sizes="48px"
+                    />
+                  ) : (
+                    <AvatarFallback>
+                      <User className="w-6 h-6" />
+                    </AvatarFallback>
+                  )}
                 </Avatar>
 
                 <div className="flex-1 min-w-0">

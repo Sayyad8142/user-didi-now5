@@ -1,4 +1,5 @@
 import React from 'react';
+import SmartImage from '@/components/SmartImage';
 import femaleMaidImage from '@/assets/female-maid.webp';
 import femaleCookImage from '@/assets/female-cook.webp';
 import femaleBathroomCleanerImage from '@/assets/female-bathroom-cleaner.webp';
@@ -35,10 +36,13 @@ export function ServicesRow({ onServiceSelect }: ServicesRowProps) {
           className="flex flex-col items-center gap-2 flex-1"
         >
           <div className="w-20 h-20 rounded-full shadow-md overflow-hidden hover:scale-105 transition-transform">
-            <img
+            <SmartImage
               src={service.image}
               alt={service.title}
               className="w-full h-full object-cover"
+              width={80}
+              height={80}
+              sizes="80px"
             />
           </div>
           <span className="text-sm font-medium text-center leading-tight">
