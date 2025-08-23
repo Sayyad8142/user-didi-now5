@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Settings, Bell, BellOff, DollarSign, ArrowLeft, Info, Volume2, Users, FileText, Globe, RefreshCw, MessageSquare } from 'lucide-react';
+import { Settings, Bell, BellOff, DollarSign, ArrowLeft, Info, Volume2, Users, FileText, Globe, RefreshCw, MessageSquare, HelpCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -10,6 +10,7 @@ import { AdminBottomNav } from '@/components/AdminBottomNav';
 import { useNewBookingAlert } from '@/features/admin/useNewBookingAlert';
 import { WorkersTable } from '@/features/admin/workers/WorkersTable';
 import SettingsLegalPDF from '@/routes/admin/SettingsLegalPDF';
+import AdminFaqsTab from '@/features/admin/settings/AdminFaqsTab';
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin';
 import { useToast } from '@/hooks/use-toast';
 
@@ -85,7 +86,7 @@ export default function AdminSettings() {
       <main className="flex-1 flex flex-col overflow-hidden">
         <div className="flex-1 overflow-y-auto px-3 py-4 space-y-4 pb-24 md:pb-6">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-6 h-auto p-1">
+            <TabsList className="grid w-full grid-cols-7 h-auto p-1">
               <TabsTrigger value="general" className="flex flex-col items-center gap-1 px-2 py-2 text-xs">
                 <Settings className="w-4 h-4" />
                 <span className="hidden sm:inline">General</span>
@@ -101,6 +102,10 @@ export default function AdminSettings() {
               <TabsTrigger value="communities" className="flex flex-col items-center gap-1 px-2 py-2 text-xs">
                 <Globe className="w-4 h-4" />
                 <span className="hidden sm:inline">Communities</span>
+              </TabsTrigger>
+              <TabsTrigger value="faqs" className="flex flex-col items-center gap-1 px-2 py-2 text-xs">
+                <HelpCircle className="w-4 h-4" />
+                <span className="hidden sm:inline">FAQs</span>
               </TabsTrigger>
               <TabsTrigger value="feedback" className="flex flex-col items-center gap-1 px-2 py-2 text-xs">
                 <MessageSquare className="w-4 h-4" />
@@ -294,6 +299,10 @@ export default function AdminSettings() {
                   </div>
                 </CardContent>
               </Card>
+            </TabsContent>
+
+            <TabsContent value="faqs" className="mt-4">
+              <AdminFaqsTab />
             </TabsContent>
 
             <TabsContent value="feedback" className="mt-4">

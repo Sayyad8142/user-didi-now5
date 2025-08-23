@@ -1,13 +1,31 @@
-import { useMemo, useState } from "react";
-import { FAQS } from "@/content/faqs";
+import { useMemo, useState, useEffect } from "react";
+import { getPublicFaqs } from "@/lib/data/faqs";
+import { FAQS as FALLBACK } from "@/content/faqs";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
+type FaqUI = { id: string; q: string; a: React.ReactNode };
+
 export default function FaqSection() {
   const [openAll, setOpenAll] = useState(false);
-  const top = FAQS.slice(0, 6);
+  const [items, setItems] = useState<FaqUI[] | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      const rows = await getPublicFaqs();
+      if (rows.length) {
+        setItems(rows.map(r => ({ id: r.id, q: r.question, a: r.answer })));
+      } else {
+        setItems(FALLBACK.map(x => ({ id: x.id, q: x.q, a: x.a })));
+      }
+    })();
+  }, []);
+
+  if (!items) return null;
+
+  const top = items.slice(0, 6);
 
   return (
     <section className="mt-4">
@@ -35,10 +53,24 @@ export default function FaqSection() {
 
 function FaqSheet() {
   const [q, setQ] = useState("");
+  const [items, setItems] = useState<FaqUI[] | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      const rows = await getPublicFaqs();
+      if (rows.length) {
+        setItems(rows.map(r => ({ id: r.id, q: r.question, a: r.answer })));
+      } else {
+        setItems(FALLBACK.map(x => ({ id: x.id, q: x.q, a: x.a })));
+      }
+    })();
+  }, []);
+
   const filtered = useMemo(() => {
+    if (!items) return [];
     const s = q.toLowerCase();
-    return FAQS.filter(item => item.q.toLowerCase().includes(s) || String(item.a).toLowerCase().includes(s));
-  }, [q]);
+    return items.filter(item => item.q.toLowerCase().includes(s) || String(item.a).toLowerCase().includes(s));
+  }, [items, q]);
 
   return (
     <SheetContent side="bottom" className="h-[80vh] overflow-y-auto">
