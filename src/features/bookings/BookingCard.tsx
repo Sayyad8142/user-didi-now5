@@ -271,8 +271,8 @@ export function BookingCard({
           <div className="flex items-center gap-2 p-2 bg-emerald-50 rounded-lg border border-emerald-100">
             <Timer className="h-4 w-4 text-emerald-600" />
             <div className="flex-1">
-              <p className="text-xs font-medium text-emerald-600 uppercase tracking-wide">Arrival</p>
-              <p className="font-semibold text-emerald-900 text-sm">~10 minutes</p>
+              <p className="text-xs font-medium text-emerald-600 uppercase tracking-wide">Status</p>
+              <p className="font-semibold text-emerald-900 text-sm">Worker assigned reaching in 10mins</p>
             </div>
             <AutoCompleteCountdown autoCompleteAt={row.auto_complete_at} />
           </div>
