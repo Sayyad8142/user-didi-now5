@@ -1,12 +1,14 @@
 import { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.didinow.app',
+  appId: 'com.didisnow.app',
   appName: 'Didi Now',
   webDir: 'dist',
   bundledWebRuntime: false,
   server: {
-    androidScheme: 'https'
+    url: 'https://user-didi-now5.lovable.app',
+    cleartext: true,
+    allowNavigation: ['*.lovable.app', 'didisnow.com', '*.didisnow.com']
   },
   plugins: {
     SplashScreen: {
