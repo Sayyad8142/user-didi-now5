@@ -1,10 +1,11 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Calendar, Settings, MessageSquare } from 'lucide-react';
+import { BarChart3, Settings, MessageSquare, Calendar } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const adminTabs = [
-  { to: '/admin', label: 'Dashboard', icon: Calendar },
+  { to: '/admin', label: 'Dashboard', icon: BarChart3 },
+  { to: '/admin/bookings', label: 'Bookings', icon: Calendar },
   { to: '/admin/chat', label: 'Messages', icon: MessageSquare },
   { to: '/admin/settings', label: 'Settings', icon: Settings },
 ];

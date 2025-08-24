@@ -115,107 +115,49 @@ export default function AdminLayout() {
             </div>
           </header>
 
-      {/* Main content with mobile layout */}
-      <main className="flex-1 flex flex-col overflow-hidden">
-        {/* Quick Stats - Compact */}
-        <section className="px-3 py-3 border-b bg-muted/30">
-          <div className="bg-white rounded-2xl p-3 shadow-sm">
-            <div className="font-semibold text-sm mb-2">Quick Stats</div>
-            <QuickStats/>
-          </div>
-        </section>
-
-        {/* Tab filters - Mobile scroll */}
-        <div className="px-3 pt-3 flex gap-2 overflow-x-auto no-scrollbar">
-          {(['all', 'pending', 'assigned', 'completed', 'cancelled'] as const).map((status) => {
-            const isActive = filterStatus === status;
-            const count = status === 'all' 
-              ? rows.filter(r => ['pending', 'assigned'].includes(r.status)).length
-              : rows.filter(r => r.status === status).length;
-            
-            return (
-              <Button
-                key={status}
-                variant={isActive ? "default" : "secondary"}
-                size="sm"
-                onClick={() => handleFilterChange(status)}
-                className="rounded-full px-4 flex-shrink-0 h-9"
-              >
-                <span className="capitalize">
-                  {status === 'all' ? 'All Active' : status}
-                </span>
-                {count > 0 && (
-                  <span className="ml-2 px-1.5 py-0.5 rounded-full text-xs bg-background/80 text-foreground">
-                    {count}
-                  </span>
-                )}
-              </Button>
-            );
-          })}
-        </div>
-
-        {/* Search bar - Mobile friendly */}
-        <div className="px-3 pt-2">
-          <div className="relative">
-            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-            <Input
-              placeholder="Search by service, community, flat, phone…"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-12 pr-4 h-11 rounded-xl bg-muted/50 border-muted focus:bg-background transition-colors"
-            />
-            {searchTerm && (
-              <button
-                onClick={() => setSearchTerm('')}
-                className="absolute right-4 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              >
-                ✕
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Booking cards - Mobile optimized grid */}
-        <section className="flex-1 overflow-y-auto px-3 py-3 space-y-3 pb-24 md:pb-6">
-          {filteredRows.length === 0 ? (
-            <div className="text-center py-12">
-              <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
-                <Search className="h-6 w-6 text-muted-foreground" />
+          {/* Main content with mobile layout */}
+          <main className="flex-1 flex flex-col overflow-hidden">
+            {/* Quick Stats - Compact */}
+            <section className="px-3 py-3 border-b bg-muted/30">
+              <div className="bg-white rounded-2xl p-3 shadow-sm">
+                <div className="font-semibold text-sm mb-2">Quick Stats</div>
+                <QuickStats/>
               </div>
-              <h3 className="font-medium text-foreground mb-1">
-                {rows.length === 0 ? 'No Active Bookings' : 'No Results Found'}
-              </h3>
-              <p className="text-sm text-muted-foreground">
-                {rows.length === 0 
-                  ? 'New bookings will appear here automatically' 
-                  : 'Try adjusting your search or filter'
-                }
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {filteredRows.map(booking => (
-                <AdminBookingCard 
-                  key={booking.id} 
-                  booking={booking}
-                  slaMinutes={slaMinutes}
-                  onCancel={() => {
-                    setRows(prev => prev.filter(row => row.id !== booking.id));
-                  }}
-                  onUpdate={(updatedBooking) => {
-                    setRows(prev => prev.map(row => 
-                      row.id === updatedBooking.id ? updatedBooking : row
-                    ));
-                  }}
-                />
-              ))}
-            </div>
-          )}
-        </section>
-      </main>
+            </section>
+
+            {/* Dashboard content area */}
+            <section className="flex-1 overflow-y-auto px-3 py-3 space-y-3 pb-24 md:pb-6">
+              <div className="text-center py-12">
+                <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Settings className="h-6 w-6 text-muted-foreground" />
+                </div>
+                <h3 className="font-medium text-foreground mb-1">
+                  Admin Dashboard
+                </h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Use the navigation below to access different admin functions
+                </p>
+                <div className="grid grid-cols-2 gap-3 max-w-xs mx-auto">
+                  <Button 
+                    variant="outline"
+                    onClick={() => navigate('/admin/bookings')}
+                    className="rounded-xl h-12"
+                  >
+                    View Bookings
+                  </Button>
+                  <Button 
+                    variant="outline"
+                    onClick={() => navigate('/admin/workers')}
+                    className="rounded-xl h-12"
+                  >
+                    Manage Workers
+                  </Button>
+                </div>
+              </div>
+            </section>
+          </main>
 
           <AdminBottomNav />
-          <BookingDrawer open={open} onOpenChange={setOpen} booking={active}/>
         </div>
       } />
     </Routes>
