@@ -115,6 +115,56 @@ export default function AdminChat() {
     loadThreads();
   }, []);
 
+  // Set up real-time subscriptions
+  useEffect(() => {
+    // Listen for new threads
+    const threadsChannel = supabase
+      .channel('support_threads_admin')
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'support_threads',
+      }, () => {
+        loadThreads();
+      })
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'support_threads',
+      }, () => {
+        loadThreads();
+      })
+      .subscribe();
+
+    // Listen for new messages
+    const messagesChannel = supabase
+      .channel('support_messages_admin')
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'support_messages',
+      }, (payload) => {
+        const newMessage = payload.new as SupportMessage;
+        
+        // If we're viewing this thread, add the message
+        if (selectedThread && newMessage.thread_id === selectedThread.id) {
+          setMessages(prev => {
+            if (prev.some(msg => msg.id === newMessage.id)) return prev;
+            return [...prev, newMessage];
+          });
+        }
+        
+        // Refresh threads to update last message
+        loadThreads();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(threadsChannel);
+      supabase.removeChannel(messagesChannel);
+    };
+  }, [selectedThread]);
+
   const formatTime = (dateString: string) => {
     return format(new Date(dateString), 'h:mm a');
   };
