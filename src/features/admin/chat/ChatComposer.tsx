@@ -64,31 +64,33 @@ export function ChatComposer({ onSend, disabled }: ChatComposerProps) {
         <div className="bg-background border rounded-lg shadow-lg p-3">
           <div className="flex items-end gap-2">
             <button
-              className="p-2 text-muted-foreground hover:text-foreground transition-colors opacity-50 cursor-not-allowed"
+              className="p-2 text-muted-foreground hover:text-foreground transition-colors opacity-50 cursor-not-allowed flex-shrink-0"
               disabled
             >
               <Paperclip className="w-5 h-5" />
             </button>
             
-            <Textarea
-              ref={textareaRef}
-              value={message}
-              onChange={handleInputChange}
-              onKeyDown={handleKeyDown}
-              placeholder="Type a message..."
-              className={cn(
-                "flex-1 min-h-[40px] max-h-[120px] resize-none border-0 bg-transparent",
-                "focus-visible:ring-0 focus-visible:ring-offset-0 px-0 py-2"
-              )}
-              disabled={disabled || sending}
-            />
+            <div className="flex-1 min-w-0">
+              <Textarea
+                ref={textareaRef}
+                value={message}
+                onChange={handleInputChange}
+                onKeyDown={handleKeyDown}
+                placeholder="Type a message..."
+                className={cn(
+                  "min-h-[40px] max-h-[120px] resize-none border-0 bg-transparent",
+                  "focus-visible:ring-0 focus-visible:ring-offset-0 px-3 py-2"
+                )}
+                disabled={disabled || sending}
+              />
+            </div>
             
             <Button
               onClick={handleSend}
               disabled={!canSend}
               size="sm"
               className={cn(
-                "p-2 h-10 w-10 rounded-full",
+                "p-2 h-10 w-10 rounded-full flex-shrink-0",
                 canSend 
                   ? "bg-[#F70E79] hover:bg-[#F70E79]/90 text-white" 
                   : "bg-muted text-muted-foreground"
