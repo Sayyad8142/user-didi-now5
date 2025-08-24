@@ -16,30 +16,34 @@ import { Routes, Route } from "react-router-dom";
 import AdminCommunities from "./AdminCommunities";
 import AdminChat from "./AdminChat";
 import AdminUsers from "./AdminUsers";
-
 export default function AdminLayout() {
   const navigate = useNavigate();
-  const [rows,setRows] = useState<any[]>([]);
-  const [open,setOpen] = useState(false);
-  const [active,setActive] = useState<any>(null);
+  const [rows, setRows] = useState<any[]>([]);
+  const [open, setOpen] = useState(false);
+  const [active, setActive] = useState<any>(null);
   const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'assigned' | 'cancelled' | 'completed'>('all');
   const [searchTerm, setSearchTerm] = useState('');
-  const { enabled: soundOn, toggle: toggleSound, snooze, stopSound, play: testSound } = useNewBookingAlert();
-  
+  const {
+    enabled: soundOn,
+    toggle: toggleSound,
+    snooze,
+    stopSound,
+    play: testSound
+  } = useNewBookingAlert();
+
   // Load SLA settings
-  const { slaMinutes } = useSLASettings();
-  
+  const {
+    slaMinutes
+  } = useSLASettings();
+
   // Enable overdue alerts - plays a beep when bookings become overdue
   useOverdueAlert(rows, slaMinutes);
 
   // initial load with filter
   async function load(statusFilter: 'all' | 'pending' | 'assigned' | 'cancelled' | 'completed' = 'all') {
-    let query = supabase
-      .from("bookings")
-      .select("*");
-    
+    let query = supabase.from("bookings").select("*");
     if (statusFilter === 'all') {
-      query = query.in("status", ["pending","assigned"]);
+      query = query.in("status", ["pending", "assigned"]);
     } else if (statusFilter === 'cancelled') {
       query = query.eq("status", "cancelled");
     } else if (statusFilter === 'completed') {
@@ -47,53 +51,43 @@ export default function AdminLayout() {
     } else {
       query = query.eq("status", statusFilter);
     }
-    
-    const { data } = await query
-      .order("created_at", { ascending:false })
-      .limit(100);
+    const {
+      data
+    } = await query.order("created_at", {
+      ascending: false
+    }).limit(100);
     setRows(data ?? []);
   }
-  
-  useEffect(()=>{ load(filterStatus); },[filterStatus]);
+  useEffect(() => {
+    load(filterStatus);
+  }, [filterStatus]);
 
   // realtime
-  useBookingsRealtime(
-    (row)=>{ 
-      setRows(prev => [row, ...prev]); 
-    },
-    (row)=>{ setRows(prev => prev.map(r => r.id===row.id ? row : r)); }
-  );
+  useBookingsRealtime(row => {
+    setRows(prev => [row, ...prev]);
+  }, row => {
+    setRows(prev => prev.map(r => r.id === row.id ? row : r));
+  });
 
   // client-side filtering
   const filteredRows = useMemo(() => {
     let filtered = rows;
-    
+
     // Apply search filter
     if (searchTerm.trim()) {
       const search = searchTerm.toLowerCase();
-      filtered = filtered.filter(booking => 
-        booking.service_type?.toLowerCase().includes(search) ||
-        booking.community?.toLowerCase().includes(search) ||
-        booking.flat_no?.toLowerCase().includes(search) ||
-        booking.cust_name?.toLowerCase().includes(search) ||
-        booking.cust_phone?.toLowerCase().includes(search)
-      );
+      filtered = filtered.filter(booking => booking.service_type?.toLowerCase().includes(search) || booking.community?.toLowerCase().includes(search) || booking.flat_no?.toLowerCase().includes(search) || booking.cust_name?.toLowerCase().includes(search) || booking.cust_phone?.toLowerCase().includes(search));
     }
-    
     return filtered;
   }, [rows, searchTerm]);
-
   const handleFilterChange = (status: 'all' | 'pending' | 'assigned' | 'cancelled' | 'completed') => {
     setFilterStatus(status);
   };
-
-  return (
-    <Routes>
+  return <Routes>
       <Route path="/communities" element={<AdminCommunities />} />
       <Route path="/chat" element={<AdminChat />} />
       <Route path="/users" element={<AdminUsers />} />
-      <Route path="/*" element={
-        <div className="min-h-[100svh] max-w-screen-sm mx-auto bg-background text-foreground flex flex-col">
+      <Route path="/*" element={<div className="min-h-[100svh] max-w-screen-sm mx-auto bg-background text-foreground flex flex-col">
           {/* Mobile-optimized header */}
           <header className="sticky top-0 z-40 bg-background/80 backdrop-blur border-b safe-top">
             <div className="flex items-center gap-2 px-3 py-2">
@@ -103,15 +97,7 @@ export default function AdminLayout() {
                 </h1>
               </div>
               <span className="text-xs text-muted-foreground hidden sm:block">Administrative Console</span>
-              <Button 
-                variant="ghost" 
-                size="icon"
-                className="h-8 w-8 rounded-xl"
-                aria-label="Settings" 
-                onClick={() => navigate('/admin/settings')}
-              >
-                <Settings className="h-5 w-5"/>
-              </Button>
+              
             </div>
           </header>
 
@@ -121,7 +107,7 @@ export default function AdminLayout() {
             <section className="px-3 py-3 border-b bg-muted/30">
               <div className="bg-white rounded-2xl p-3 shadow-sm">
                 <div className="font-semibold text-sm mb-2">Quick Stats</div>
-                <QuickStats/>
+                <QuickStats />
               </div>
             </section>
 
@@ -138,18 +124,10 @@ export default function AdminLayout() {
                   Use the navigation below to access different admin functions
                 </p>
                 <div className="grid grid-cols-2 gap-3 max-w-xs mx-auto">
-                  <Button 
-                    variant="outline"
-                    onClick={() => navigate('/admin/bookings')}
-                    className="rounded-xl h-12"
-                  >
+                  <Button variant="outline" onClick={() => navigate('/admin/bookings')} className="rounded-xl h-12">
                     View Bookings
                   </Button>
-                  <Button 
-                    variant="outline"
-                    onClick={() => navigate('/admin/workers')}
-                    className="rounded-xl h-12"
-                  >
+                  <Button variant="outline" onClick={() => navigate('/admin/workers')} className="rounded-xl h-12">
                     Manage Workers
                   </Button>
                 </div>
@@ -158,8 +136,6 @@ export default function AdminLayout() {
           </main>
 
           <AdminBottomNav />
-        </div>
-      } />
-    </Routes>
-  );
+        </div>} />
+    </Routes>;
 }
