@@ -57,10 +57,20 @@ export default function QuickStats(){
       
       <div className="grid grid-cols-2 gap-3">
         {statItems.map(({label, value, linkTo, clickable}) => {
+          const isPending = label === "Pending" && value > 0;
+          
           const content = (
-            <div className="rounded-2xl border border-pink-50 bg-white shadow p-4">
-              <div className="text-2xl font-bold text-[#ff007a]">{value}</div>
-              <div className="text-sm text-gray-700 flex items-center gap-1">
+            <div className={`rounded-2xl border shadow p-4 ${
+              isPending 
+                ? 'border-red-200 bg-red-50' 
+                : 'border-pink-50 bg-white'
+            }`}>
+              <div className={`text-2xl font-bold ${
+                isPending ? 'text-red-600' : 'text-[#ff007a]'
+              }`}>{value}</div>
+              <div className={`text-sm flex items-center gap-1 ${
+                isPending ? 'text-red-700' : 'text-gray-700'
+              }`}>
                 {clickable && <Calendar className="h-3 w-3" />}
                 {label}
               </div>
