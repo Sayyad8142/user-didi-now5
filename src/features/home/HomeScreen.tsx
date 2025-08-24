@@ -29,7 +29,7 @@ export function HomeScreen() {
         {/* Promotional Banner */}
         <div className="px-2">
           <img 
-            src="/lovable-uploads/a157d599-7225-4729-88f2-e0a3d7500d7b.png" 
+            src="/lovable-uploads/bef4f134-ec57-406f-a976-0a6f5c046f21.png" 
             alt="Didi Now - Quick maid service in 10 minutes"
             className="block w-full h-auto"
             loading="eager"
