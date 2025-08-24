@@ -64,12 +64,191 @@ const ProtectedLayout = ({ children }: { children: React.ReactNode }) => (
   </div>
 );
 
+const AppContent = () => {
+  // Handle hardware back button on mobile devices (inside Router context)
+  useBackButton();
+  
+  return (
+    <Suspense fallback={<PageLoader />}>
+      <Routes>
+        <Route path="/" element={<Index />} />
+        <Route path="/auth" element={<Auth />} />
+        <Route path="/auth/verify" element={<VerifyOTP />} />
+        <Route path="/admin-login" element={<AdminLogin />} />
+        <Route path="/admin-verify" element={<AdminVerify />} />
+        <Route path="/legal" element={<LegalCenter />} />
+        <Route path="/legal/privacy" element={<PrivacyPolicy />} />
+        <Route path="/legal/terms" element={<TermsOfService />} />
+        <Route 
+          path="/home" 
+          element={
+            <ProtectedRoute>
+              <ProtectedLayout>
+                <Home />
+              </ProtectedLayout>
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/bookings" 
+          element={
+            <ProtectedRoute>
+              <ProtectedLayout>
+                <Bookings />
+              </ProtectedLayout>
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/profile" 
+          element={
+            <ProtectedRoute>
+              <ProtectedLayout>
+                <Profile />
+              </ProtectedLayout>
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/profile/account" 
+          element={
+            <ProtectedRoute>
+              <ProtectedLayout>
+                <AccountSettings />
+              </ProtectedLayout>
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/support" 
+          element={
+            <ProtectedRoute>
+              <ProtectedLayout>
+                <SupportScreen />
+              </ProtectedLayout>
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/chat" 
+          element={
+            <ProtectedRoute>
+              <ChatScreen />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/faqs" 
+          element={
+            <ProtectedRoute>
+              <ProtectedLayout>
+                <FAQs />
+              </ProtectedLayout>
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/book/:service_type" 
+          element={
+            <ProtectedRoute>
+              <ProtectedLayout>
+                <BookingForm />
+              </ProtectedLayout>
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/book/:service_type/schedule" 
+          element={
+            <ProtectedRoute>
+              <ProtectedLayout>
+                <ScheduleScreen />
+              </ProtectedLayout>
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/admin/*" 
+          element={
+            <AdminGate>
+              <AdminLayout />
+            </AdminGate>
+          } 
+        />
+        <Route 
+          path="/admin/pricing" 
+          element={
+            <AdminGate>
+              <AdminPricing />
+            </AdminGate>
+          } 
+        />
+        <Route 
+          path="/admin/settings" 
+          element={
+            <AdminGate>
+              <AdminSettings />
+            </AdminGate>
+          } 
+        />
+        <Route 
+          path="/admin/daily-bookings" 
+          element={
+            <AdminGate>
+              <AdminDailyBookings />
+            </AdminGate>
+          } 
+        />
+        <Route 
+          path="/admin/feedback" 
+          element={
+            <AdminGate>
+              <AdminFeedback />
+            </AdminGate>
+          } 
+        />
+        <Route 
+          path="/admin/completed-bookings" 
+          element={
+            <AdminGate>
+              <AdminCompletedBookings />
+            </AdminGate>
+          } 
+        />
+        <Route 
+          path="/admin/workers" 
+          element={
+            <AdminGate>
+              <AdminWorkers />
+            </AdminGate>
+          } 
+        />
+        <Route 
+          path="/admin/chat" 
+          element={
+            <AdminGate>
+              <AdminChat />
+            </AdminGate>
+          } 
+        />
+        <Route 
+          path="/admin/bookings" 
+          element={
+            <AdminGate>
+              <AdminBookings />
+            </AdminGate>
+          } 
+        />
+        {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </Suspense>
+  );
+};
+
 const App = () => {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const { updateAvailable, handleRefresh, dismissUpdate } = useWebVersion();
-  
-  // Handle hardware back button on mobile devices
-  useBackButton();
 
   useEffect(() => {
     // Simple online/offline detection
@@ -99,180 +278,7 @@ const App = () => {
           <Toaster />
           <Sonner />
           <BrowserRouter>
-            <Suspense fallback={<PageLoader />}>
-              <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/auth/verify" element={<VerifyOTP />} />
-            <Route path="/admin-login" element={<AdminLogin />} />
-            <Route path="/admin-verify" element={<AdminVerify />} />
-            <Route path="/legal" element={<LegalCenter />} />
-            <Route path="/legal/privacy" element={<PrivacyPolicy />} />
-            <Route path="/legal/terms" element={<TermsOfService />} />
-            <Route 
-              path="/home" 
-              element={
-                <ProtectedRoute>
-                  <ProtectedLayout>
-                    <Home />
-                  </ProtectedLayout>
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/bookings" 
-              element={
-                <ProtectedRoute>
-                  <ProtectedLayout>
-                    <Bookings />
-                  </ProtectedLayout>
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/profile" 
-              element={
-                <ProtectedRoute>
-                  <ProtectedLayout>
-                    <Profile />
-                  </ProtectedLayout>
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/profile/account" 
-              element={
-                <ProtectedRoute>
-                  <ProtectedLayout>
-                    <AccountSettings />
-                  </ProtectedLayout>
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/support" 
-              element={
-                <ProtectedRoute>
-                  <ProtectedLayout>
-                    <SupportScreen />
-                  </ProtectedLayout>
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/chat" 
-              element={
-                <ProtectedRoute>
-                  <ChatScreen />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/faqs" 
-              element={
-                <ProtectedRoute>
-                  <ProtectedLayout>
-                    <FAQs />
-                  </ProtectedLayout>
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/book/:service_type" 
-              element={
-                <ProtectedRoute>
-                  <ProtectedLayout>
-                    <BookingForm />
-                  </ProtectedLayout>
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/book/:service_type/schedule" 
-              element={
-                <ProtectedRoute>
-                  <ProtectedLayout>
-                    <ScheduleScreen />
-                  </ProtectedLayout>
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/admin/*" 
-              element={
-                <AdminGate>
-                  <AdminLayout />
-                </AdminGate>
-              } 
-            />
-            <Route 
-              path="/admin/pricing" 
-              element={
-                <AdminGate>
-                  <AdminPricing />
-                </AdminGate>
-              } 
-            />
-            <Route 
-              path="/admin/settings" 
-              element={
-                <AdminGate>
-                  <AdminSettings />
-                </AdminGate>
-              } 
-            />
-            <Route 
-              path="/admin/daily-bookings" 
-              element={
-                <AdminGate>
-                  <AdminDailyBookings />
-                </AdminGate>
-              } 
-            />
-            <Route 
-              path="/admin/feedback" 
-              element={
-                <AdminGate>
-                  <AdminFeedback />
-                </AdminGate>
-              } 
-            />
-            <Route 
-              path="/admin/completed-bookings" 
-              element={
-                <AdminGate>
-                  <AdminCompletedBookings />
-                </AdminGate>
-              } 
-            />
-            <Route 
-              path="/admin/workers" 
-              element={
-                <AdminGate>
-                  <AdminWorkers />
-                </AdminGate>
-              } 
-            />
-            <Route 
-              path="/admin/chat" 
-              element={
-                <AdminGate>
-                  <AdminChat />
-                </AdminGate>
-              } 
-            />
-            <Route 
-              path="/admin/bookings" 
-              element={
-                <AdminGate>
-                  <AdminBookings />
-                </AdminGate>
-              } 
-            />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-              </Routes>
-            </Suspense>
+            <AppContent />
           </BrowserRouter>
         </TooltipProvider>
       </AuthProvider>
