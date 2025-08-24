@@ -1,11 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { User, MessageSquare } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useSupportChat } from '@/hooks/useSupportChat';
 import { cn } from '@/lib/utils';
-import { format } from 'date-fns';
+import { format, isSameDay } from 'date-fns';
 import { AdminBottomNav } from '@/components/AdminBottomNav';
+import { AdminChatHeader } from '@/features/admin/chat/AdminChatHeader';
+import { MessageBubble } from '@/features/admin/chat/MessageBubble';
+import { ChatComposer } from '@/features/admin/chat/ChatComposer';
+import { toast } from '@/hooks/use-toast';
 
 interface SupportThread {
   id: string;
@@ -48,6 +52,7 @@ export default function AdminChat() {
   const [threads, setThreads] = useState<ThreadWithProfile[]>([]);
   const [selectedThread, setSelectedThread] = useState<ThreadWithProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const { messages, sending, send, markSeen } = useSupportChat(selectedThread?.id);
 
@@ -139,9 +144,46 @@ export default function AdminChat() {
     }
   };
 
+  // Auto-scroll to bottom
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  // Scroll to bottom on new messages
+  useEffect(() => {
+    if (messages.length > 0) {
+      setTimeout(scrollToBottom, 100);
+    }
+  }, [messages]);
+
+  // Scroll to bottom when thread changes
+  useEffect(() => {
+    if (selectedThread && messages.length > 0) {
+      setTimeout(scrollToBottom, 100);
+    }
+  }, [selectedThread]);
+
   // Handle sending admin messages
   const handleSendMessage = async (message: string) => {
-    await send(message, 'admin');
+    try {
+      if (!selectedThread) return;
+      
+      await supabase.from('support_messages').insert({
+        thread_id: selectedThread.id,
+        sender: 'admin',
+        message: message.trim(),
+      });
+      
+      setTimeout(scrollToBottom, 100);
+    } catch (error) {
+      console.error('Failed to send message:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to send message. Please try again.',
+        variant: 'destructive',
+      });
+      throw error;
+    }
   };
 
   useEffect(() => {
@@ -179,6 +221,15 @@ export default function AdminChat() {
     return thread.profile?.full_name || thread.profile?.phone || 'Unknown User';
   };
 
+  // Group messages by day and add dividers
+  const messagesWithDividers = messages.map((message, index) => {
+    const showDayDivider = index === 0 || !isSameDay(
+      new Date(message.created_at),
+      new Date(messages[index - 1].created_at)
+    );
+    return { ...message, showDayDivider };
+  });
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -191,115 +242,67 @@ export default function AdminChat() {
   }
 
   return (
-    <div className="min-h-[100svh] max-w-screen-sm mx-auto bg-background text-foreground flex flex-col">
-      {/* Mobile-optimized header */}
-      <header className="sticky top-0 z-40 bg-background/80 backdrop-blur border-b safe-top">
-        <div className="flex items-center gap-2 px-3 py-2">
-          <div className="flex-1 min-w-0">
-            <h1 className="font-semibold text-lg">
-              <span className="text-[#ff007a]">Support</span> — <span className="text-[#ff007a]">Messages</span>
-            </h1>
-          </div>
-          <span className="text-xs text-muted-foreground hidden sm:block">
-            {threads.length} conversation{threads.length !== 1 ? 's' : ''}
-          </span>
-        </div>
-      </header>
-
-      <div className="flex-1 flex flex-col overflow-hidden pb-24 md:pb-6">
-        {selectedThread ? (
-          /* Chat View */
-          <div className="flex-1 flex flex-col">
-            {/* Chat Header */}
-            <div className="p-4 border-b border-border">
-              <button
-                onClick={() => setSelectedThread(null)}
-                className="mb-3 text-sm text-primary hover:underline"
-              >
-                ← Back to conversations
-              </button>
-                  <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                  <User className="w-5 h-5 text-primary" />
-                </div>
-                <div>
-                  <div className="font-medium">{getDisplayName(selectedThread)}</div>
-                  <div className="text-sm text-muted-foreground">
-                    {selectedThread.profile?.phone}
-                    {selectedThread.profile?.community && selectedThread.profile?.flat_no && (
-                      <span className="ml-2">• {selectedThread.profile.community} - {selectedThread.profile.flat_no}</span>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Messages */}
-            <div className="flex-1 overflow-y-auto px-4 py-4">
-              <div className="space-y-4">
-                {messages.map((message) => (
-                  <div
-                    key={message.id}
-                    className={cn(
-                      "flex",
-                      message.sender === 'admin' ? "justify-end" : "justify-start"
-                    )}
-                  >
-                    <div
-                      className={cn(
-                        "max-w-[70%] rounded-lg px-3 py-2",
-                        message.sender === 'admin'
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-muted text-foreground"
-                      )}
-                    >
-                      <div className="text-sm">{message.message}</div>
-                      <div className={cn(
-                        "text-xs mt-1",
-                        message.sender === 'admin' 
-                          ? "text-primary-foreground/70" 
-                          : "text-muted-foreground"
-                      )}>
-                        {format(new Date(message.created_at), 'h:mm a')}
-                        {message.sender === 'user' && message.seen && (
-                          <span className="ml-1">✓✓</span>
-                        )}
-                      </div>
+    <div className="min-h-[100vh] flex flex-col max-w-screen-sm mx-auto bg-background text-foreground">
+      {selectedThread ? (
+        /* Chat View */
+        <>
+          <AdminChatHeader
+            customerName={getDisplayName(selectedThread)}
+            customerPhone={selectedThread.profile?.phone}
+            community={selectedThread.profile?.community}
+            flatNo={selectedThread.profile?.flat_no}
+            onBack={() => setSelectedThread(null)}
+          />
+          
+          {/* Messages */}
+          <div className="flex-1 overflow-y-auto pt-16 pb-28 px-4">
+            {loading ? (
+              <div className="space-y-4 mt-4">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="flex justify-start">
+                    <div className="bg-muted/50 animate-pulse rounded-2xl px-3 py-2 max-w-[80%]">
+                      <div className="h-4 bg-muted rounded mb-1"></div>
+                      <div className="h-3 bg-muted rounded w-16"></div>
                     </div>
                   </div>
                 ))}
               </div>
-            </div>
-
-            {/* Message Input */}
-            <div className="p-4 border-t border-border">
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  placeholder="Type a message..."
-                  className="flex-1 px-3 py-2 border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      handleSendMessage(e.currentTarget.value);
-                      e.currentTarget.value = '';
-                    }
-                  }}
-                />
-                <Button onClick={() => {
-                  const input = document.querySelector('input[type="text"]') as HTMLInputElement;
-                  if (input?.value.trim()) {
-                    handleSendMessage(input.value);
-                    input.value = '';
-                  }
-                }} disabled={sending}>
-                  Send
-                </Button>
+            ) : (
+              <div className="space-y-1 mt-4">
+                {messagesWithDividers.map((message) => (
+                  <MessageBubble
+                    key={message.id}
+                    message={message}
+                    showDayDivider={message.showDayDivider}
+                  />
+                ))}
+                <div ref={messagesEndRef} />
               </div>
-            </div>
+            )}
           </div>
-        ) : (
-          /* Threads List */
-          <div className="flex-1 flex flex-col">
+
+          <ChatComposer
+            onSend={handleSendMessage}
+            disabled={sending}
+          />
+        </>
+      ) : (
+        /* Threads List */
+        <>
+          <header className="sticky top-0 z-40 bg-background/95 backdrop-blur border-b">
+            <div className="flex items-center gap-2 px-4 py-3">
+              <div className="flex-1 min-w-0">
+                <h1 className="font-semibold text-lg">
+                  <span className="text-[#F70E79]">Support</span> — <span className="text-[#F70E79]">Messages</span>
+                </h1>
+              </div>
+              <span className="text-xs text-muted-foreground hidden sm:block">
+                {threads.length} conversation{threads.length !== 1 ? 's' : ''}
+              </span>
+            </div>
+          </header>
+
+          <div className="flex-1 flex flex-col pb-24">
             <div className="p-4 border-b border-border">
               <h2 className="text-lg font-semibold">Conversations</h2>
             </div>
@@ -315,10 +318,7 @@ export default function AdminChat() {
                     <button
                       key={thread.id}
                       onClick={() => handleThreadSelect(thread)}
-                      className={cn(
-                        "w-full p-4 text-left hover:bg-muted/50 transition-colors",
-                        selectedThread?.id === thread.id && "bg-muted"
-                      )}
+                      className="w-full p-4 text-left hover:bg-muted/50 transition-colors"
                     >
                       <div className="flex items-start gap-3">
                         <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
@@ -357,8 +357,8 @@ export default function AdminChat() {
               )}
             </div>
           </div>
-        )}
-      </div>
+        </>
+      )}
       
       <AdminBottomNav />
     </div>
