@@ -73,7 +73,7 @@ function getServiceConfig(serviceType: string) {
 function StatusChip({ status, overdue }: { status: string; overdue?: boolean }) {
   if (overdue) {
     return (
-      <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs font-bold shadow-lg animate-pulse">
+      <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs font-bold shadow-lg animate-pulse">
         <AlertCircle className="w-3 h-3" />
         <span>SLA BREACH</span>
       </div>
@@ -83,28 +83,28 @@ function StatusChip({ status, overdue }: { status: string; overdue?: boolean }) 
   switch (status) {
     case 'pending':
       return (
-        <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-amber-400 to-orange-400 text-white text-xs font-bold shadow-lg">
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-amber-400 to-orange-400 text-white text-xs font-bold shadow-lg">
           <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
           <span>FINDING WORKER</span>
         </div>
       );
     case 'assigned':
       return (
-        <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-emerald-400 to-green-400 text-white text-xs font-bold shadow-lg">
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-emerald-400 to-green-400 text-white text-xs font-bold shadow-lg">
           <CheckCircle2 className="w-3 h-3" />
           <span>ASSIGNED</span>
         </div>
       );
     case 'completed':
       return (
-        <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-green-500 to-emerald-500 text-white text-xs font-bold shadow-lg">
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-green-500 to-emerald-500 text-white text-xs font-bold shadow-lg">
           <CheckCircle2 className="w-3 h-3" />
           <span>COMPLETED</span>
         </div>
       );
     case 'cancelled':
       return (
-        <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-gray-400 to-slate-400 text-white text-xs font-bold shadow-lg">
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-gray-400 to-slate-400 text-white text-xs font-bold shadow-lg">
           <XCircle className="w-3 h-3" />
           <span>CANCELLED</span>
         </div>
@@ -187,7 +187,7 @@ function SlaProgress({ booking, pending }: { booking: any; pending: boolean }) {
   const timeRemaining = Math.max(0, 12 - (elapsed / (60 * 1000)));
 
   return (
-    <div className={cn("mt-3 p-3 rounded-xl border transition-all duration-200", state.bgColor)}>
+    <div className={cn("mt-2 p-2 rounded-xl border transition-all duration-200", state.bgColor)}>
       <div className="flex justify-between items-center mb-2">
         <span className="text-xs font-bold text-gray-700 uppercase tracking-wide">SLA</span>
         <div className={cn(
@@ -198,7 +198,7 @@ function SlaProgress({ booking, pending }: { booking: any; pending: boolean }) {
         </div>
       </div>
       
-      <div className="relative h-2 bg-gray-200/60 rounded-full overflow-hidden mb-1.5">
+      <div className="relative h-1.5 bg-gray-200/60 rounded-full overflow-hidden mb-1.5">
         <div 
           className={cn("h-full bg-gradient-to-r transition-all duration-500", state.color)}
           style={{ width: `${progress}%` }}
@@ -304,11 +304,11 @@ export function AdminBookingCard({
         {/* Gradient background overlay */}
         <div className={cn("absolute inset-0 bg-gradient-to-br opacity-5", serviceConfig.bgGradient)} />
         
-        <CardContent className="relative p-3">
+        <CardContent className="relative p-2.5">
           {/* Mobile-optimized header */}
-          <div className="flex items-start gap-3 mb-3">
+          <div className="flex items-start gap-2.5 mb-2.5">
             <div className={cn(
-              "w-10 h-10 rounded-xl bg-gradient-to-br flex items-center justify-center shadow-md flex-shrink-0",
+              "w-9 h-9 rounded-xl bg-gradient-to-br flex items-center justify-center shadow-md flex-shrink-0",
               serviceConfig.gradient
             )}>
               <serviceConfig.icon className="w-5 h-5 text-white" />
@@ -316,7 +316,7 @@ export function AdminBookingCard({
             <div className="flex-1 min-w-0">
               <div className="flex items-start justify-between gap-2">
                 <div>
-                  <h3 className="text-base font-bold text-gray-900 leading-tight">
+                  <h3 className="text-sm font-bold text-gray-900 leading-tight">
                     {serviceConfig.name}
                   </h3>
                   <div className="flex items-center gap-2 text-xs text-gray-600 mt-1">
@@ -338,8 +338,8 @@ export function AdminBookingCard({
           </div>
 
           {/* Compact info grid - Mobile stacked */}
-          <div className="space-y-2 mb-3">
-            <div className="flex items-center gap-3 p-2 bg-gray-50/60 rounded-xl">
+          <div className="space-y-1.5 mb-2">
+            <div className="flex items-center gap-3 p-1.5 bg-gray-50/60 rounded-xl">
               <div className={cn(
                 "w-6 h-6 rounded-lg bg-gradient-to-br flex items-center justify-center flex-shrink-0",
                 serviceConfig.gradient
@@ -354,7 +354,7 @@ export function AdminBookingCard({
               </div>
             </div>
             
-            <div className="flex items-center gap-3 p-2 bg-gray-50/60 rounded-xl">
+            <div className="flex items-center gap-3 p-1.5 bg-gray-50/60 rounded-xl">
               <div className={cn(
                 "w-6 h-6 rounded-lg bg-gradient-to-br flex items-center justify-center flex-shrink-0",
                 serviceConfig.gradient
@@ -373,7 +373,7 @@ export function AdminBookingCard({
               </div>
             </div>
             
-            <div className="flex items-center gap-3 p-2 bg-gray-50/60 rounded-xl">
+            <div className="flex items-center gap-3 p-1.5 bg-gray-50/60 rounded-xl">
               <div className={cn(
                 "w-6 h-6 rounded-lg bg-gradient-to-br flex items-center justify-center flex-shrink-0",
                 serviceConfig.gradient
@@ -400,7 +400,7 @@ export function AdminBookingCard({
             </div>
 
             {booking.service_type === 'maid' && booking.maid_tasks?.length > 0 && (
-              <div className="flex items-center gap-3 p-2 bg-gray-50/60 rounded-xl">
+              <div className="flex items-center gap-3 p-1.5 bg-gray-50/60 rounded-xl">
                 <div className={cn(
                   "w-6 h-6 rounded-lg bg-gradient-to-br flex items-center justify-center flex-shrink-0",
                   serviceConfig.gradient
@@ -422,13 +422,13 @@ export function AdminBookingCard({
 
           {/* Worker assignment card */}
           {isAssigned && booking.worker_name && (
-            <div className="mt-3">
+            <div className="mt-2">
               <button
-                className="w-full group/worker rounded-xl bg-gradient-to-r from-emerald-50 to-green-50 border border-emerald-200 p-3 hover:from-emerald-100 hover:to-green-100 transition-all duration-200 text-left hover:shadow-md"
+                className="w-full group/worker rounded-xl bg-gradient-to-r from-emerald-50 to-green-50 border border-emerald-200 p-2 hover:from-emerald-100 hover:to-green-100 transition-all duration-200 text-left hover:shadow-md"
                 onClick={() => setSheetOpen(true)}
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-emerald-500 to-green-500 flex items-center justify-center shadow-md">
+                  <div className="w-5 h-5 rounded-lg bg-gradient-to-br from-emerald-500 to-green-500 flex items-center justify-center shadow-md">
                     <Users className="w-3 h-3 text-white" />
                   </div>
                   <div className="flex-1 min-w-0">
@@ -446,7 +446,7 @@ export function AdminBookingCard({
           )}
 
           {/* Mobile: Hide in-card buttons, use sticky bar instead */}
-          <div className="mt-4 grid grid-cols-2 gap-2 md:grid">
+          <div className="mt-3 grid grid-cols-2 gap-2 md:grid">
             <Button
               variant="outline"
               size="sm"
@@ -488,11 +488,11 @@ export function AdminBookingCard({
 
         {/* Integrated Action Buttons - Always part of the card */}
         {(isPending || isAssigned) && (
-          <div className="border-t border-gray-100 p-4 bg-gray-50/50">
+          <div className="md:hidden border-t border-gray-100 p-3 bg-gray-50/50">
             <div className="flex gap-3">
               <Button
                 variant="outline"
-                className="flex-1 border-2 border-red-300 text-red-700 hover:bg-red-50 hover:border-red-400 font-medium h-12 rounded-xl transition-all"
+                className="flex-1 border-2 border-red-300 text-red-700 hover:bg-red-50 hover:border-red-400 font-medium h-10 rounded-xl transition-all"
                 onClick={handleCancel}
                 disabled={saving}
               >
@@ -511,7 +511,7 @@ export function AdminBookingCard({
               
               <Button
                 className={cn(
-                  "flex-1 font-medium h-12 rounded-xl text-white transition-all bg-gradient-to-r",
+                  "flex-1 font-medium h-10 rounded-xl text-white transition-all bg-gradient-to-r",
                   isAssigned
                     ? "from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700"
                     : serviceConfig.gradient
