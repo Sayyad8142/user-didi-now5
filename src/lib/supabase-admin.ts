@@ -7,8 +7,8 @@ export const supabaseAdmin = createClient(
     auth: {
       persistSession: true,
       autoRefreshToken: true,
-      // IMPORTANT: distinct storage key so admin session doesn't overwrite user session
-      storageKey: "sb-admin-didinow",
+      // Use the SAME storage key as the user app so one login works everywhere
+      storageKey: "sb-user-didinow",
       storage: typeof window !== "undefined" ? window.localStorage : undefined,
     },
   }
