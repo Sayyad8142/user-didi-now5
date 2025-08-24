@@ -7,15 +7,17 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PhoneInputIN } from './PhoneInputIN';
-import { formatPhoneIN, isValidINPhone, COMMUNITY_OPTIONS } from '@/lib/auth-helpers';
+import { formatPhoneIN, isValidINPhone } from '@/lib/auth-helpers';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { normalizePhone } from '@/features/profile/ensureProfile';
+import { useCommunities } from '@/hooks/useCommunities';
 
 export function AuthCard() {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { communities, loading: communitiesLoading, error: communitiesError } = useCommunities();
   
   // Form states
   const [activeTab, setActiveTab] = useState<'signin' | 'signup'>('signin');
@@ -248,21 +250,32 @@ export function AuthCard() {
               <Select
                 value={signUpData.community}
                 onValueChange={(value) => setSignUpData(prev => ({ ...prev, community: value }))}
-                disabled={loading}
+                disabled={loading || communitiesLoading}
               >
                 <SelectTrigger className="rounded-xl shadow-input transition-smooth focus:ring-2 focus:ring-primary/20">
-                  <SelectValue placeholder="Select your community" />
+                  <SelectValue 
+                    placeholder={
+                      communitiesLoading 
+                        ? "Loading communities..." 
+                        : communitiesError 
+                        ? "Error loading communities" 
+                        : "Select your community"
+                    } 
+                  />
                 </SelectTrigger>
                 <SelectContent>
-                  {COMMUNITY_OPTIONS.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
+                  {communities.map((community) => (
+                    <SelectItem key={community.id} value={community.value}>
+                      {community.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
               {errors.community && (
                 <p className="text-sm text-destructive">{errors.community}</p>
+              )}
+              {communitiesError && (
+                <p className="text-sm text-destructive">Failed to load communities. Please try again.</p>
               )}
             </div>
 
