@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { User, MessageSquare } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabaseAdmin as supabase } from '@/lib/supabase-admin';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { AdminBottomNav } from '@/components/AdminBottomNav';
@@ -42,6 +42,7 @@ export default function AdminChat() {
   // Load threads
   const loadThreads = async () => {
     try {
+      console.log('🔍 Loading support threads...');
       const { data, error } = await supabase
         .from('support_threads')
         .select(`
@@ -55,7 +56,12 @@ export default function AdminChat() {
         `)
         .order('updated_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Error loading threads:', error);
+        throw error;
+      }
+      
+      console.log('✅ Loaded threads:', data);
       setThreads((data || []) as SupportThread[]);
     } catch (error) {
       console.error('Error loading threads:', error);
