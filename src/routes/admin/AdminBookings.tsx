@@ -10,6 +10,7 @@ import { useNewBookingAlert } from "@/features/admin/useNewBookingAlert";
 import { useSLASettings } from "@/features/admin/useSLASettings";
 import { useOverdueAlert } from "@/features/admin/useOverdueAlert";
 import { useNavigate } from "react-router-dom";
+import { AdminBottomNav } from "@/components/AdminBottomNav";
 
 export default function AdminBookings() {
   const navigate = useNavigate();
@@ -193,6 +194,7 @@ export default function AdminBookings() {
         </section>
       </main>
 
+      <AdminBottomNav />
       <BookingDrawer open={open} onOpenChange={setOpen} booking={active}/>
     </div>
   );
