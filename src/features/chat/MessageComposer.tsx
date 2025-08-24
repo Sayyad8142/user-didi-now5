@@ -66,19 +66,6 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
           <Send className="w-5 h-5 text-white" />
         </Button>
       </div>
-      
-      {/* Emergency call button */}
-      <div className="flex justify-center mt-2">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => window.open('tel:8008180018')}
-          className="text-xs text-muted-foreground hover:text-[#F70E79] hover:bg-[#F70E79]/5 rounded-full px-3 py-1"
-        >
-          <Phone className="w-3 h-3 mr-1" />
-          Emergency Call
-        </Button>
-      </div>
     </div>
   );
 };
