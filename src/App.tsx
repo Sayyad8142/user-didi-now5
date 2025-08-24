@@ -10,6 +10,7 @@ import { useWebVersion } from "@/hooks/useWebVersion";
 import { AuthProvider } from "@/components/auth/AuthProvider";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { BottomTabs } from "@/components/BottomTabs";
+import { useBackButton } from "@/hooks/useBackButton";
 
 // Immediate load for critical pages
 import Index from "./pages/Index";
@@ -65,6 +66,9 @@ const ProtectedLayout = ({ children }: { children: React.ReactNode }) => (
 const App = () => {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const { updateAvailable, handleRefresh, dismissUpdate } = useWebVersion();
+  
+  // Handle hardware back button on mobile devices
+  useBackButton();
 
   useEffect(() => {
     // Simple online/offline detection
