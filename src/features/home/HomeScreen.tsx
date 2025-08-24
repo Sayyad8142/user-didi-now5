@@ -10,10 +10,8 @@ import { FeatureCarousel } from './FeatureCarousel';
 import { ActiveBookingCard } from './ActiveBookingCard';
 import { openExternalUrl } from '@/lib/nativeOpen';
 import FaqSection from './FaqSection';
-
 export function HomeScreen() {
   const navigate = useNavigate();
-
   const handleServiceSelect = (service: 'maid' | 'cook' | 'bathroom_cleaning') => {
     navigate(`/book/${service}`);
   };
@@ -28,30 +26,17 @@ export function HomeScreen() {
         
         {/* Promotional Banner */}
         <div className="px-2">
-          <img 
-            src="/lovable-uploads/bef4f134-ec57-406f-a976-0a6f5c046f21.png" 
-            alt="Didi Now - Quick maid service in 10 minutes"
-            className="block w-full h-auto"
-            loading="eager"
-            decoding="async"
-          />
+          
         </div>
         
         {/* Contact Manager Button */}
         <div className="pt-4 space-y-3">
-          <Button
-            onClick={() => openExternalUrl('tel:8008180018')}
-            className="w-full h-12 rounded-full gradient-primary shadow-button transition-spring hover:scale-[1.02] flex items-center justify-center gap-3"
-          >
+          <Button onClick={() => openExternalUrl('tel:8008180018')} className="w-full h-12 rounded-full gradient-primary shadow-button transition-spring hover:scale-[1.02] flex items-center justify-center gap-3">
             <Phone className="w-5 h-5" />
             <span className="font-semibold">Call Manger</span>
           </Button>
           
-          <Button
-            onClick={() => navigate('/chat')}
-            variant="outline"
-            className="w-full h-12 rounded-full border-2 border-primary/20 bg-white/90 hover:bg-primary/5 text-primary font-semibold transition-spring hover:scale-[1.02] flex items-center justify-center gap-3"
-          >
+          <Button onClick={() => navigate('/chat')} variant="outline" className="w-full h-12 rounded-full border-2 border-primary/20 bg-white/90 hover:bg-primary/5 text-primary font-semibold transition-spring hover:scale-[1.02] flex items-center justify-center gap-3">
             <MessageCircle className="w-5 h-5" />
             <span>Chat Support</span>
           </Button>
