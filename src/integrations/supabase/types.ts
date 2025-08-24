@@ -816,6 +816,15 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: Json
       }
+      get_assigned_worker_info: {
+        Args: { booking_id: string }
+        Returns: {
+          is_active: boolean
+          service_types: string[]
+          worker_id: string
+          worker_name: string
+        }[]
+      }
       get_setting: {
         Args: { p_default: string; p_key: string }
         Returns: string
