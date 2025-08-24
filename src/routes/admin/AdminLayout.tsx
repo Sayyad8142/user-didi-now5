@@ -15,6 +15,7 @@ import { useNavigate } from "react-router-dom";
 import { Routes, Route } from "react-router-dom";
 import AdminCommunities from "./AdminCommunities";
 import AdminChat from "./AdminChat";
+import AdminUsers from "./AdminUsers";
 
 export default function AdminLayout() {
   const navigate = useNavigate();
@@ -90,6 +91,7 @@ export default function AdminLayout() {
     <Routes>
       <Route path="/communities" element={<AdminCommunities />} />
       <Route path="/chat" element={<AdminChat />} />
+      <Route path="/users" element={<AdminUsers />} />
       <Route path="/*" element={
         <div className="min-h-[100svh] max-w-screen-sm mx-auto bg-background text-foreground flex flex-col">
           {/* Mobile-optimized header */}
