@@ -10,6 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useProfile } from '@/features/profile/useProfile';
 import { prettyServiceName, serviceIcon, isValidServiceType, getPricingMap, FLAT_SIZES, type FlatSize, type PricingMap, calculateCookPrice } from './pricing';
+import { isOpenNow, getOpenStatusText } from '@/features/home/time';
 import { ScheduleSheet } from './ScheduleSheet';
 import { cn } from '@/lib/utils';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
@@ -335,10 +336,13 @@ export function BookingForm() {
     : service_type === 'maid' ? selectedFlatSize && selectedTasks.length > 0 ? totalPrice : null 
     : service_type === 'bathroom_cleaning' ? bathroomTotalPrice
     : selectedFlatSize ? pricingMap[selectedFlatSize] : null;
-  const canBook = service_type === 'cook' ? foodPreference && !submitting 
+  const isServiceOpen = isOpenNow();
+  const canBook = isServiceOpen && (
+    service_type === 'cook' ? foodPreference && !submitting 
     : service_type === 'maid' ? selectedFlatSize && selectedTasks.length > 0 && !submitting 
     : service_type === 'bathroom_cleaning' ? !submitting
-    : selectedFlatSize && currentPrice && !submitting;
+    : selectedFlatSize && currentPrice && !submitting
+  );
   return <div className="min-h-screen bg-background pb-24">
       <div className="max-w-md mx-auto px-4 py-6">
         {/* Header */}
@@ -665,10 +669,15 @@ export function BookingForm() {
                 ) : (
                   <div className="flex items-center gap-3">
                     <Clock className="w-5 h-5" />
-                    <span>Book Now - Instant Service</span>
+                    <span>{isServiceOpen ? "Book Now - Instant Service" : "Service Closed"}</span>
                   </div>
                 )}
               </Button>
+              {!isServiceOpen && (
+                <div className="mt-2 text-center text-sm text-muted-foreground">
+                  Service hours: 6:00 AM - 7:00 PM. {getOpenStatusText()}
+                </div>
+              )}
               {!canBook && (
                 <div className="absolute inset-0 bg-black/5 rounded-2xl pointer-events-none" />
               )}
