@@ -5,6 +5,7 @@ import { User, MessageSquare } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
+import { AdminBottomNav } from '@/components/AdminBottomNav';
 
 interface SupportThread {
   id: string;
@@ -17,6 +18,8 @@ interface SupportThread {
   profiles?: {
     full_name?: string;
     phone?: string;
+    community?: string;
+    flat_no?: string;
   };
 }
 
@@ -45,7 +48,9 @@ export default function AdminChat() {
           *,
           profiles!user_id (
             full_name,
-            phone
+            phone,
+            community,
+            flat_no
           )
         `)
         .order('updated_at', { ascending: false });
@@ -130,67 +135,33 @@ export default function AdminChat() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex">
-      {/* Threads List */}
-      <div className="w-80 border-r border-border flex flex-col">
-        <div className="p-4 border-b border-border">
-          <h1 className="text-xl font-semibold">Support Chats</h1>
-          <p className="text-sm text-muted-foreground mt-1">
+    <div className="min-h-[100svh] max-w-screen-sm mx-auto bg-background text-foreground flex flex-col">
+      {/* Mobile-optimized header */}
+      <header className="sticky top-0 z-40 bg-background/80 backdrop-blur border-b safe-top">
+        <div className="flex items-center gap-2 px-3 py-2">
+          <div className="flex-1 min-w-0">
+            <h1 className="font-semibold text-lg">
+              <span className="text-[#ff007a]">Support</span> — <span className="text-[#ff007a]">Messages</span>
+            </h1>
+          </div>
+          <span className="text-xs text-muted-foreground hidden sm:block">
             {threads.length} conversation{threads.length !== 1 ? 's' : ''}
-          </p>
+          </span>
         </div>
-        
-        <ScrollArea className="flex-1">
-          {threads.length === 0 ? (
-            <div className="p-4 text-center text-muted-foreground">
-              No conversations yet
-            </div>
-          ) : (
-            <div className="divide-y divide-border">
-              {threads.map((thread) => (
-                <button
-                  key={thread.id}
-                  onClick={() => {
-                    setSelectedThread(thread);
-                    loadMessages(thread.id);
-                  }}
-                  className={cn(
-                    "w-full p-4 text-left hover:bg-muted/50 transition-colors",
-                    selectedThread?.id === thread.id && "bg-muted"
-                  )}
-                >
-                  <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                      <User className="w-5 h-5 text-primary" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="font-medium text-sm truncate">
-                        {getDisplayName(thread)}
-                      </div>
-                      {thread.last_message && (
-                        <div className="text-xs text-muted-foreground truncate mt-1">
-                          {thread.last_sender === 'admin' ? 'You: ' : ''}
-                          {thread.last_message}
-                        </div>
-                      )}
-                      <div className="text-xs text-muted-foreground mt-1">
-                        {format(new Date(thread.updated_at), 'MMM d, h:mm a')}
-                      </div>
-                    </div>
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
-        </ScrollArea>
-      </div>
+      </header>
 
-      {/* Chat Area */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col overflow-hidden pb-24 md:pb-6">
         {selectedThread ? (
-          <>
+          /* Chat View */
+          <div className="flex-1 flex flex-col">
             {/* Chat Header */}
             <div className="p-4 border-b border-border">
+              <button
+                onClick={() => setSelectedThread(null)}
+                className="mb-3 text-sm text-primary hover:underline"
+              >
+                ← Back to conversations
+              </button>
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
                   <User className="w-5 h-5 text-primary" />
@@ -199,6 +170,9 @@ export default function AdminChat() {
                   <div className="font-medium">{getDisplayName(selectedThread)}</div>
                   <div className="text-sm text-muted-foreground">
                     {selectedThread.profiles?.phone}
+                    {selectedThread.profiles?.community && selectedThread.profiles?.flat_no && (
+                      <span className="ml-2">• {selectedThread.profiles.community} - {selectedThread.profiles.flat_no}</span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -258,19 +232,67 @@ export default function AdminChat() {
                 </Button>
               </div>
             </div>
-          </>
+          </div>
         ) : (
-          <div className="flex-1 flex items-center justify-center">
-            <div className="text-center">
-              <MessageSquare className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-              <div className="text-lg font-medium">Select a conversation</div>
-              <div className="text-sm text-muted-foreground">
-                Choose a chat from the sidebar to start messaging
-              </div>
+          /* Threads List */
+          <div className="flex-1 flex flex-col">
+            <div className="p-4 border-b border-border">
+              <h2 className="text-lg font-semibold">Conversations</h2>
             </div>
+            
+            <ScrollArea className="flex-1">
+              {threads.length === 0 ? (
+                <div className="p-4 text-center text-muted-foreground">
+                  No conversations yet
+                </div>
+              ) : (
+                <div className="divide-y divide-border">
+                  {threads.map((thread) => (
+                    <button
+                      key={thread.id}
+                      onClick={() => {
+                        setSelectedThread(thread);
+                        loadMessages(thread.id);
+                      }}
+                      className={cn(
+                        "w-full p-4 text-left hover:bg-muted/50 transition-colors",
+                        selectedThread?.id === thread.id && "bg-muted"
+                      )}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                          <User className="w-5 h-5 text-primary" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium text-sm truncate">
+                            {getDisplayName(thread)}
+                          </div>
+                          {thread.profiles?.community && thread.profiles?.flat_no && (
+                            <div className="text-xs text-muted-foreground truncate">
+                              {thread.profiles.community} - {thread.profiles.flat_no}
+                            </div>
+                          )}
+                          {thread.last_message && (
+                            <div className="text-xs text-muted-foreground truncate mt-1">
+                              {thread.last_sender === 'admin' ? 'You: ' : ''}
+                              {thread.last_message}
+                            </div>
+                          )}
+                          <div className="text-xs text-muted-foreground mt-1">
+                            {format(new Date(thread.updated_at), 'MMM d, h:mm a')}
+                          </div>
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </ScrollArea>
           </div>
         )}
       </div>
+      
+      <AdminBottomNav />
     </div>
   );
 }
