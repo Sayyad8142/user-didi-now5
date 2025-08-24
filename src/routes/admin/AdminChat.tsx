@@ -255,7 +255,7 @@ export default function AdminChat() {
           />
           
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto pt-16 pb-28 px-4">
+          <div className="flex-1 overflow-y-auto pt-16 pb-32 px-4">
             {loading ? (
               <div className="space-y-4 mt-4">
                 {[1, 2, 3].map((i) => (
@@ -302,7 +302,7 @@ export default function AdminChat() {
             </div>
           </header>
 
-          <div className="flex-1 flex flex-col pb-24">
+          <div className="flex-1 flex flex-col pb-20">
             <div className="p-4 border-b border-border">
               <h2 className="text-lg font-semibold">Conversations</h2>
             </div>

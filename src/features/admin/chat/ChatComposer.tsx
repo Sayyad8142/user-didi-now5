@@ -59,7 +59,7 @@ export function ChatComposer({ onSend, disabled }: ChatComposerProps) {
   const canSend = message.trim() && !sending && !disabled;
 
   return (
-    <div className="fixed bottom-20 left-0 right-0 md:bottom-4 z-50 px-3 pb-[calc(24px+env(safe-area-inset-bottom))]">
+    <div className="fixed bottom-24 left-0 right-0 md:bottom-4 z-50 px-3 pb-[calc(8px+env(safe-area-inset-bottom))]">
       <div className="max-w-screen-sm mx-auto">
         <div className="bg-background border rounded-lg shadow-lg p-3">
           <div className="flex items-end gap-2">
