@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { User, MessageSquare } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useSupportChat } from '@/hooks/useSupportChat';
@@ -305,7 +304,7 @@ export default function AdminChat() {
               <h2 className="text-lg font-semibold">Conversations</h2>
             </div>
             
-            <ScrollArea className="flex-1">
+            <div className="flex-1 overflow-y-auto">
               {threads.length === 0 ? (
                 <div className="p-4 text-center text-muted-foreground">
                   No conversations yet
@@ -356,7 +355,7 @@ export default function AdminChat() {
                   ))}
                 </div>
               )}
-            </ScrollArea>
+            </div>
           </div>
         )}
       </div>
