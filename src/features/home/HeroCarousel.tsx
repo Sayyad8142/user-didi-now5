@@ -46,11 +46,24 @@ export function HeroCarousel() {
         <CarouselContent>
           {carouselImages.map((image, index) => (
             <CarouselItem key={index}>
-              <div className="relative rounded-2xl overflow-hidden shadow-card aspect-video">
+              <div className="relative rounded-2xl overflow-hidden shadow-card aspect-video bg-gradient-to-br from-pink-100 to-purple-100">
                 <img
                   src={image.url}
                   alt={image.alt}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-cover transition-opacity duration-300"
+                  loading={index === 0 ? "eager" : "lazy"}
+                  decoding="async"
+                  onLoad={(e) => {
+                    e.currentTarget.style.opacity = '1';
+                  }}
+                  onError={(e) => {
+                    console.error('Banner image failed to load:', image.url);
+                    e.currentTarget.style.display = 'none';
+                  }}
+                  style={{
+                    opacity: '0',
+                    background: 'linear-gradient(135deg, #fdf2f8 0%, #f3e8ff 100%)'
+                  }}
                 />
               </div>
             </CarouselItem>
