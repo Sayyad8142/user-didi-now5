@@ -33,8 +33,7 @@ export function AdminBottomNav() {
                   )}
                 >
                   <div className={cn(
-                    "relative transition-all duration-300",
-                    isActive && "animate-pulse"
+                    "relative transition-all duration-300"
                   )}>
                     <Icon className={cn(
                       "w-6 h-6 transition-all duration-300",
