@@ -32,7 +32,10 @@ cd <YOUR_PROJECT_NAME>
 # Step 3: Install the necessary dependencies.
 npm i
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# Step 4: Generate assets (recommended for mobile development)
+npx capacitor-assets generate --android
+
+# Step 5: Start the development server with auto-reloading and an instant preview.
 npm run dev
 ```
 
@@ -71,3 +74,36 @@ Yes, you can!
 To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
 
 Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+
+## Build Android (Play Store)
+
+Before building, ensure you have Android Studio installed and `.env.production` configured with production Supabase credentials.
+
+```bash
+# 1) Install deps and build web
+npm install
+npm run build
+
+# 2) Generate Android assets (first time)
+npx capacitor-assets generate --android
+
+# 3) Sync & open Android Studio
+npm run android:prep
+npm run android:open
+
+# 4) Create signing keystore (first time in Android Studio: Build > Generate Signed Bundle/APK…)
+#    Save android/signing.properties (copy from signing.properties.example) – DO NOT COMMIT
+
+# 5) Make AAB for Play Store
+npm run android:aab
+# Output: android/app/build/outputs/bundle/release/app-release.aab
+```
+
+### Play Console Checklist
+- [ ] App icon (512×512) ready
+- [ ] Screenshots captured (phone + tablet)
+- [ ] Privacy Policy URL live and accessible
+- [ ] Data Safety form completed in Play Console
+- [ ] Content rating questionnaire completed
+
+See `docs/publish-android.md` for detailed publishing guide.

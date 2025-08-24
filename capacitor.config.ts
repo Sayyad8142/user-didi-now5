@@ -1,8 +1,8 @@
 import { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'app.lovable.2edd991f3825445a9485006dde036295',
-  appName: 'user-didi-now5',
+  appId: 'com.didisnow.app',
+  appName: 'Didi Now',
   webDir: 'dist',
   bundledWebRuntime: false,
   server: {
