@@ -485,51 +485,49 @@ export function AdminBookingCard({
             </Button>
           </div>
         </CardContent>
-      </Card>
 
-      {/* Mobile-Only: Fixed action buttons bar above nav */}
-      {(isPending || isAssigned) && (
-        <div className="md:hidden fixed bottom-24 left-0 right-0 bg-white border-t border-gray-200 p-4 z-30 shadow-lg">
-          <div className="max-w-sm mx-auto flex gap-3">
-            <Button
-              variant="outline"
-              size="lg"
-              className="flex-1 rounded-xl border-2 border-red-300 text-red-700 hover:bg-red-50 hover:border-red-400 font-bold h-14 transition-all shadow-sm"
-              onClick={handleCancel}
-              disabled={saving}
-            >
-              {saving ? (
-                <div className="flex flex-col items-center gap-1">
-                  <div className="w-4 h-4 border-2 border-red-400 border-t-red-600 rounded-full animate-spin" />
-                  <span className="text-xs">Cancelling...</span>
+        {/* Integrated Action Buttons - Always part of the card */}
+        {(isPending || isAssigned) && (
+          <div className="border-t border-gray-100 p-4 bg-gray-50/50">
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                className="flex-1 border-2 border-red-300 text-red-700 hover:bg-red-50 hover:border-red-400 font-medium h-12 rounded-xl transition-all"
+                onClick={handleCancel}
+                disabled={saving}
+              >
+                {saving ? (
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 border-2 border-red-400 border-t-red-600 rounded-full animate-spin" />
+                    <span>Cancelling...</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <XCircle className="h-4 w-4" />
+                    <span>Cancel</span>
+                  </div>
+                )}
+              </Button>
+              
+              <Button
+                className={cn(
+                  "flex-1 font-medium h-12 rounded-xl text-white transition-all bg-gradient-to-r",
+                  isAssigned
+                    ? "from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700"
+                    : serviceConfig.gradient
+                )}
+                onClick={() => setSheetOpen(true)}
+                disabled={saving}
+              >
+                <div className="flex items-center gap-2">
+                  <UserCheck className="h-4 w-4" />
+                  <span>{isAssigned ? 'Reassign' : 'Assign'}</span>
                 </div>
-              ) : (
-                <div className="flex flex-col items-center gap-1">
-                  <XCircle className="h-5 w-5" />
-                  <span className="text-xs font-bold">Cancel</span>
-                </div>
-              )}
-            </Button>
-            
-            <Button
-              size="lg"
-              className={cn(
-                "flex-1 rounded-xl font-bold h-14 shadow-sm transition-all text-white bg-gradient-to-r",
-                isAssigned
-                  ? "from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700"
-                  : serviceConfig.gradient
-              )}
-              onClick={() => setSheetOpen(true)}
-              disabled={saving}
-            >
-              <div className="flex flex-col items-center gap-1">
-                <UserCheck className="h-5 w-5" />
-                <span className="text-xs font-bold">{isAssigned ? 'Reassign' : 'Assign'}</span>
-              </div>
-            </Button>
+              </Button>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </Card>
 
       <AssignWorkerSheet
         open={sheetOpen}
