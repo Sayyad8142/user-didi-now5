@@ -210,7 +210,7 @@ export default function AdminCommunities() {
           <Button 
             variant="ghost" 
             size="icon"
-            onClick={() => navigate(-1)}
+            onClick={() => navigate('/admin')}
             className="h-9 w-9 rounded-full border"
           >
             <ArrowLeft className="h-4 w-4" />
