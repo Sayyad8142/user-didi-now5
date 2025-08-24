@@ -3,11 +3,19 @@ import { useNavigate } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Sparkles, ChefHat, ShowerHead, ArrowRight, X } from 'lucide-react';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { Sparkles, ChefHat, ShowerHead, ArrowRight, X, CreditCard, PhoneCall, MessageCircle, Star } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { prettyServiceName } from '@/features/booking/utils';
 import AssigningProgress from '@/features/bookings/AssigningProgress';
+import AutoCompleteCountdown from '@/components/AutoCompleteCountdown';
+import { buildUpiUrl, openUpi } from '@/lib/upi';
+import { useNow } from '@/hooks/useNow';
+import { toast } from 'sonner';
+import { RateWorker } from '@/features/bookings/RateWorker';
+import { openExternalUrl } from '@/lib/nativeOpen';
+import ChatSheet from '@/features/chat/ChatSheet';
 
 interface Booking {
   id: string;
@@ -19,8 +27,15 @@ interface Booking {
   community: string;
   flat_no: string;
   created_at: string;
+  price_inr?: number | null;
+  worker_id?: string | null;
   worker_name?: string | null;
+  worker_phone?: string | null;
+  worker_upi?: string | null;
+  worker_photo_url?: string | null;
+  auto_complete_at?: string | null;
   assigned_at?: string | null;
+  pay_enabled_at?: string | null;
   cancel_source?: string | null;
   cancel_reason?: string | null;
   cancelled_at?: string | null;
@@ -58,6 +73,8 @@ export function ActiveBookingCard() {
   const [activeBooking, setActiveBooking] = useState<Booking | null>(null);
   const [loading, setLoading] = useState(true);
   const [dismissedBookings, setDismissedBookings] = useState<Set<string>>(new Set());
+  const [openChat, setOpenChat] = useState(false);
+  const [workerStats, setWorkerStats] = useState<{ avg_rating: number; ratings_count: number } | null>(null);
 
   const fetchActiveBooking = async () => {
     if (!user) return;
@@ -99,6 +116,21 @@ export function ActiveBookingCard() {
     fetchActiveBooking();
   }, [user]);
 
+  // Load worker rating stats
+  useEffect(() => {
+    if (!activeBooking?.worker_id) {
+      setWorkerStats(null);
+      return;
+    }
+    
+    supabase
+      .from('worker_rating_stats')
+      .select('avg_rating, ratings_count')
+      .eq('worker_id', activeBooking.worker_id)
+      .maybeSingle()
+      .then(({ data }) => setWorkerStats(data ?? null));
+  }, [activeBooking?.worker_id]);
+
   // Set up real-time updates
   useEffect(() => {
     if (!user) return;
@@ -132,6 +164,54 @@ export function ActiveBookingCard() {
     newDismissed.add(activeBooking.id);
     setDismissedBookings(newDismissed);
     localStorage.setItem('dismissedBookings', JSON.stringify([...newDismissed]));
+  };
+
+  // Check if payment should be enabled (show immediately when assigned)
+  const isAssigned = activeBooking.status === 'assigned';
+  const paymentReady = isAssigned && activeBooking.worker_upi;
+
+  const handlePayWorker = async () => {
+    const workerUpi = activeBooking.worker_upi;
+    const workerName = activeBooking.worker_name || 'Worker';
+
+    if (!workerUpi) {
+      toast.error("Worker payment details not available");
+      return;
+    }
+
+    const note = `Didi Now ${activeBooking.service_type} • ${activeBooking.community} • ${activeBooking.flat_no}`;
+    const upiUrl = buildUpiUrl({
+      pa: workerUpi,
+      pn: workerName,
+      am: activeBooking.price_inr || undefined,
+      tn: note
+    });
+
+    try {
+      // Mark that user tapped pay
+      await supabase
+        .from('bookings')
+        .update({ user_marked_paid_at: new Date().toISOString() })
+        .eq('id', activeBooking.id);
+      
+      openUpi(upiUrl);
+      toast.success("Opening UPI app...");
+    } catch (error) {
+      toast.error("Please ensure a UPI app (GPay/PhonePe/Paytm) is installed");
+    }
+  };
+
+  const handleSubmitRating = async (rating: number, comment?: string) => {
+    const user = (await supabase.auth.getUser()).data.user;
+    if (!user) return;
+
+    await supabase.from('worker_ratings').insert({
+      booking_id: activeBooking.id,
+      worker_id: activeBooking.worker_id,
+      user_id: user.id,
+      rating,
+      comment: comment ?? null,
+    });
   };
 
   return (
@@ -194,6 +274,52 @@ export function ActiveBookingCard() {
         </div>
       )}
 
+      {/* Action buttons */}
+      <div className="space-y-2 mb-4">
+        {/* Pay Now Button - shows when assigned and has UPI */}
+        {paymentReady && (
+          <Button 
+            onClick={handlePayWorker}
+            className="w-full h-10 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-semibold rounded-lg shadow-sm"
+          >
+            <CreditCard className="h-4 w-4 mr-2" />
+            Pay to worker {activeBooking.worker_name || 'Worker'}
+          </Button>
+        )}
+
+        {/* Rate Worker - show for assigned/completed bookings */}
+        {(activeBooking.status === 'assigned' || activeBooking.status === 'completed') && activeBooking.worker_id && (
+          <RateWorker 
+            bookingId={activeBooking.id}
+            workerId={activeBooking.worker_id}
+            onSubmit={handleSubmitRating}
+          />
+        )}
+
+        {/* Support button */}
+        {(activeBooking.status === 'pending' || activeBooking.status === 'assigned') && (
+          <Button 
+            onClick={() => openExternalUrl("tel:+918008180018")}
+            className="w-full h-10 bg-gradient-to-r from-[#ff007a] to-[#e6006a] hover:from-[#e6006a] hover:to-[#cc005f] text-white font-semibold rounded-lg shadow-sm"
+          >
+            <PhoneCall className="h-4 w-4 mr-2" />
+            Need Help? Call Support
+          </Button>
+        )}
+
+        {/* Chat with Support button */}
+        {(activeBooking.status === 'pending' || activeBooking.status === 'assigned') && (
+          <Button 
+            onClick={() => setOpenChat(true)}
+            variant="outline"
+            className="w-full h-10 border-[#ff007a] text-[#ff007a] hover:bg-[#ff007a] hover:text-white font-semibold rounded-lg shadow-sm"
+          >
+            <MessageCircle className="h-4 w-4 mr-2" />
+            Chat with Support
+          </Button>
+        )}
+      </div>
+
       <div className="flex items-center justify-between mt-4">
         <p className="text-xs text-muted-foreground">
           {activeBooking.booking_type === 'instant' ? 'Instant Booking' : 'Scheduled Booking'}
@@ -208,6 +334,13 @@ export function ActiveBookingCard() {
           <ArrowRight className="w-4 h-4 ml-1" />
         </Button>
       </div>
+
+      <ChatSheet 
+        open={openChat} 
+        onOpenChange={setOpenChat} 
+        booking={activeBooking} 
+        mode="user" 
+      />
     </Card>
   );
 }
