@@ -7,7 +7,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useProfile } from '@/features/profile/useProfile';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate, Link } from 'react-router-dom';
-import { User, Phone, Building, Home, LogOut, Settings, Bell, Shield, Edit3, Save, X, HelpCircle } from 'lucide-react';
+import { User, Phone, Building, Home, LogOut, Settings, Bell, Shield, Edit3, Save, X, HelpCircle, Share2 } from 'lucide-react';
+import { openExternalUrl } from '@/lib/nativeOpen';
 import { useToast } from '@/hooks/use-toast';
 import { AppVersionDisplay } from '@/components/AppVersionDisplay';
 import { useCommunities } from '@/hooks/useCommunities';
@@ -315,6 +316,19 @@ export default function Profile() {
             </div>
             <div className="text-gray-400">›</div>
           </Link>
+
+          <button 
+            onClick={() => openExternalUrl('https://didinow.in')}
+            className="flex items-center justify-between h-14 px-4 bg-white/80 rounded-2xl border border-gray-100 hover:bg-white transition-spring hover:scale-[0.98] shadow-input w-full"
+          >
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 bg-pink-100 rounded-xl flex items-center justify-center">
+                <Share2 className="w-5 h-5 text-pink-600" />
+              </div>
+              <span className="font-medium text-gray-700">Refer Us</span>
+            </div>
+            <div className="text-gray-400">›</div>
+          </button>
         </div>
 
         {/* Sign Out Button */}
