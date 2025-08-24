@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { User, MessageSquare } from 'lucide-react';
-import { supabaseAdmin as supabase } from '@/lib/supabase-admin';
+import { supabase } from '@/integrations/supabase/client';
+import { useSupportChat } from '@/hooks/useSupportChat';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { AdminBottomNav } from '@/components/AdminBottomNav';
@@ -16,11 +17,23 @@ interface SupportThread {
   updated_at: string;
   created_at: string;
   profiles?: {
+    id: string;
     full_name?: string;
     phone?: string;
     community?: string;
     flat_no?: string;
   };
+  unread_count?: number;
+}
+
+interface ThreadWithProfile extends SupportThread {
+  profile: {
+    id: string;
+    full_name: string;
+    phone: string;
+    community: string;
+    flat_no: string;
+  } | null;
 }
 
 interface SupportMessage {
@@ -33,36 +46,78 @@ interface SupportMessage {
 }
 
 export default function AdminChat() {
-  const [threads, setThreads] = useState<SupportThread[]>([]);
-  const [selectedThread, setSelectedThread] = useState<SupportThread | null>(null);
-  const [messages, setMessages] = useState<SupportMessage[]>([]);
-  const [newMessage, setNewMessage] = useState('');
+  const [threads, setThreads] = useState<ThreadWithProfile[]>([]);
+  const [selectedThread, setSelectedThread] = useState<ThreadWithProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Load threads
+  const { messages, sending, send, markSeen } = useSupportChat(selectedThread?.id);
+
+  // Load threads with user profiles and unread counts
   const loadThreads = async () => {
     try {
       console.log('🔍 Loading support threads...');
-      const { data, error } = await supabase
+      
+      // Get all threads
+      const { data: threadsData, error: threadsError } = await supabase
         .from('support_threads')
-        .select(`
-          *,
-          profiles (
-            full_name,
-            phone,
-            community,
-            flat_no
-          )
-        `)
+        .select('*')
         .order('updated_at', { ascending: false });
 
-      if (error) {
-        console.error('❌ Error loading threads:', error);
-        throw error;
+      if (threadsError) {
+        console.error('❌ Error loading threads:', threadsError);
+        throw threadsError;
       }
+
+      console.log('✅ Loaded threads:', threadsData);
+
+      if (!threadsData || threadsData.length === 0) {
+        setThreads([]);
+        return;
+      }
+
+      // Get unique user IDs
+      const userIds = [...new Set(threadsData.map(t => t.user_id))];
       
-      console.log('✅ Loaded threads:', data);
-      setThreads((data || []) as SupportThread[]);
+      // Get profiles for these users
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, full_name, phone, community, flat_no')
+        .in('id', userIds);
+
+      if (profilesError) {
+        console.error('❌ Error loading profiles:', profilesError);
+      }
+
+      console.log('✅ Loaded profiles:', profilesData);
+
+      // Get unread counts for each thread
+      const unreadCounts = await Promise.all(
+        threadsData.map(async (thread) => {
+          const { count } = await supabase
+            .from('support_messages')
+            .select('*', { count: 'exact', head: true })
+            .eq('thread_id', thread.id)
+            .eq('sender', 'user')
+            .eq('seen', false);
+          
+          return { threadId: thread.id, count: count || 0 };
+        })
+      );
+
+      // Combine threads with profiles and unread counts
+      const threadsWithProfiles: ThreadWithProfile[] = threadsData.map(thread => {
+        const profile = profilesData?.find(p => p.id === thread.user_id) || null;
+        const unreadCount = unreadCounts.find(u => u.threadId === thread.id)?.count || 0;
+        
+        return {
+          ...thread,
+          last_sender: thread.last_sender as 'user' | 'admin' | undefined,
+          profile,
+          unread_count: unreadCount,
+        };
+      }) as ThreadWithProfile[];
+
+      setThreads(threadsWithProfiles);
     } catch (error) {
       console.error('Error loading threads:', error);
     } finally {
@@ -70,113 +125,59 @@ export default function AdminChat() {
     }
   };
 
-  // Load messages for selected thread
-  const loadMessages = async (threadId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('support_messages')
-        .select('*')
-        .eq('thread_id', threadId)
-        .order('created_at', { ascending: true });
-
-      if (error) throw error;
-      setMessages((data || []) as SupportMessage[]);
-
-      // Mark messages as seen
-      await supabase
-        .from('support_messages')
-        .update({ seen: true, seen_at: new Date().toISOString() })
-        .eq('thread_id', threadId)
-        .eq('sender', 'user')
-        .eq('seen', false);
-    } catch (error) {
-      console.error('Error loading messages:', error);
+  // Handle thread selection
+  const handleThreadSelect = async (thread: ThreadWithProfile) => {
+    setSelectedThread(thread);
+    // Mark messages as seen
+    if (thread.unread_count && thread.unread_count > 0) {
+      await markSeen();
+      // Update local unread count
+      setThreads(prev => 
+        prev.map(t => 
+          t.id === thread.id ? { ...t, unread_count: 0 } : t
+        )
+      );
     }
   };
 
-  // Send message
-  const sendMessage = async () => {
-    if (!selectedThread || !newMessage.trim()) return;
-
-    try {
-      const { error } = await supabase
-        .from('support_messages')
-        .insert({
-          thread_id: selectedThread.id,
-          sender: 'admin',
-          message: newMessage.trim(),
-        });
-
-      if (error) throw error;
-      
-      setNewMessage('');
-      loadMessages(selectedThread.id);
-      loadThreads();
-    } catch (error) {
-      console.error('Error sending message:', error);
-    }
+  // Handle sending admin messages
+  const handleSendMessage = async (message: string) => {
+    await send(message, 'admin');
   };
 
   useEffect(() => {
     loadThreads();
   }, []);
 
-  // Set up real-time subscriptions
+  // Set up real-time subscriptions for thread updates
   useEffect(() => {
-    // Listen for new threads
+    // Listen for new threads and thread updates
     const threadsChannel = supabase
-      .channel('support_threads_admin')
+      .channel('admin_support_threads')
       .on('postgres_changes', {
-        event: 'INSERT',
+        event: '*',
         schema: 'public',
         table: 'support_threads',
       }, () => {
         loadThreads();
       })
-      .on('postgres_changes', {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'support_threads',
-      }, () => {
-        loadThreads();
-      })
-      .subscribe();
-
-    // Listen for new messages
-    const messagesChannel = supabase
-      .channel('support_messages_admin')
       .on('postgres_changes', {
         event: 'INSERT',
         schema: 'public',
         table: 'support_messages',
-      }, (payload) => {
-        const newMessage = payload.new as SupportMessage;
-        
-        // If we're viewing this thread, add the message
-        if (selectedThread && newMessage.thread_id === selectedThread.id) {
-          setMessages(prev => {
-            if (prev.some(msg => msg.id === newMessage.id)) return prev;
-            return [...prev, newMessage];
-          });
-        }
-        
-        // Refresh threads to update last message
+      }, () => {
+        // Reload threads when new messages come in to update last_message and unread counts
         loadThreads();
       })
       .subscribe();
 
     return () => {
       supabase.removeChannel(threadsChannel);
-      supabase.removeChannel(messagesChannel);
     };
-  }, [selectedThread]);
+  }, []);
 
-  const formatTime = (dateString: string) => {
-    return format(new Date(dateString), 'h:mm a');
-  };
-
-  const getDisplayName = (thread: SupportThread) => {
-    return thread.profiles?.full_name || thread.profiles?.phone || 'Unknown User';
+  const getDisplayName = (thread: ThreadWithProfile) => {
+    return thread.profile?.full_name || thread.profile?.phone || 'Unknown User';
   };
 
   if (loading) {
@@ -218,16 +219,16 @@ export default function AdminChat() {
               >
                 ← Back to conversations
               </button>
-              <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
                   <User className="w-5 h-5 text-primary" />
                 </div>
                 <div>
                   <div className="font-medium">{getDisplayName(selectedThread)}</div>
                   <div className="text-sm text-muted-foreground">
-                    {selectedThread.profiles?.phone}
-                    {selectedThread.profiles?.community && selectedThread.profiles?.flat_no && (
-                      <span className="ml-2">• {selectedThread.profiles.community} - {selectedThread.profiles.flat_no}</span>
+                    {selectedThread.profile?.phone}
+                    {selectedThread.profile?.community && selectedThread.profile?.flat_no && (
+                      <span className="ml-2">• {selectedThread.profile.community} - {selectedThread.profile.flat_no}</span>
                     )}
                   </div>
                 </div>
@@ -235,7 +236,7 @@ export default function AdminChat() {
             </div>
 
             {/* Messages */}
-            <ScrollArea className="flex-1 p-4">
+            <div className="flex-1 overflow-y-auto px-4 py-4">
               <div className="space-y-4">
                 {messages.map((message) => (
                   <div
@@ -260,30 +261,38 @@ export default function AdminChat() {
                           ? "text-primary-foreground/70" 
                           : "text-muted-foreground"
                       )}>
-                        {formatTime(message.created_at)}
+                        {format(new Date(message.created_at), 'h:mm a')}
+                        {message.sender === 'user' && message.seen && (
+                          <span className="ml-1">✓✓</span>
+                        )}
                       </div>
                     </div>
                   </div>
                 ))}
               </div>
-            </ScrollArea>
+            </div>
 
             {/* Message Input */}
             <div className="p-4 border-t border-border">
               <div className="flex gap-2">
                 <input
                   type="text"
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
                   placeholder="Type a message..."
                   className="flex-1 px-3 py-2 border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {
-                      sendMessage();
+                      handleSendMessage(e.currentTarget.value);
+                      e.currentTarget.value = '';
                     }
                   }}
                 />
-                <Button onClick={sendMessage} disabled={!newMessage.trim()}>
+                <Button onClick={() => {
+                  const input = document.querySelector('input[type="text"]') as HTMLInputElement;
+                  if (input?.value.trim()) {
+                    handleSendMessage(input.value);
+                    input.value = '';
+                  }
+                }} disabled={sending}>
                   Send
                 </Button>
               </div>
@@ -306,10 +315,7 @@ export default function AdminChat() {
                   {threads.map((thread) => (
                     <button
                       key={thread.id}
-                      onClick={() => {
-                        setSelectedThread(thread);
-                        loadMessages(thread.id);
-                      }}
+                      onClick={() => handleThreadSelect(thread)}
                       className={cn(
                         "w-full p-4 text-left hover:bg-muted/50 transition-colors",
                         selectedThread?.id === thread.id && "bg-muted"
@@ -320,12 +326,19 @@ export default function AdminChat() {
                           <User className="w-5 h-5 text-primary" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="font-medium text-sm truncate">
-                            {getDisplayName(thread)}
+                          <div className="flex items-center gap-2">
+                            <div className="font-medium text-sm truncate">
+                              {getDisplayName(thread)}
+                            </div>
+                            {thread.unread_count && thread.unread_count > 0 && (
+                              <div className="bg-red-500 text-white text-xs rounded-full px-2 py-0.5 min-w-[20px] text-center">
+                                {thread.unread_count}
+                              </div>
+                            )}
                           </div>
-                          {thread.profiles?.community && thread.profiles?.flat_no && (
+                          {thread.profile?.community && thread.profile?.flat_no && (
                             <div className="text-xs text-muted-foreground truncate">
-                              {thread.profiles.community} - {thread.profiles.flat_no}
+                              {thread.profile.community} - {thread.profile.flat_no}
                             </div>
                           )}
                           {thread.last_message && (

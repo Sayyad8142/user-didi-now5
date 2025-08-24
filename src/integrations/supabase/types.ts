@@ -935,6 +935,22 @@ export type Database = {
         Args: { "": string }
         Returns: string[]
       }
+      support_get_or_create_thread: {
+        Args: { p_booking_id?: string }
+        Returns: {
+          booking_id: string | null
+          created_at: string
+          id: string
+          last_message: string | null
+          last_sender: string | null
+          updated_at: string
+          user_id: string
+        }
+      }
+      support_mark_seen: {
+        Args: { p_thread: string }
+        Returns: undefined
+      }
       text_to_bytea: {
         Args: { data: string }
         Returns: string

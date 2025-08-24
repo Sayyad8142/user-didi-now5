@@ -1,10 +1,11 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, User } from 'lucide-react';
 import { MessageBubble } from './MessageBubble';
 import { MessageComposer } from './MessageComposer';
-import { useChatThread } from './useChatThread';
+import { useSupportChat } from '@/hooks/useSupportChat';
+import { supabase } from '@/integrations/supabase/client';
 import { format, isToday, isYesterday, isSameDay } from 'date-fns';
 
 const formatMessageTime = (dateString: string) => {
@@ -26,17 +27,45 @@ const shouldShowDateSeparator = (currentMsg: any, prevMsg: any) => {
 export const ChatScreen: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const bookingId = searchParams.get('booking_id') || undefined;
+  const bookingId = searchParams.get('booking_id') || null;
+  const [thread, setThread] = useState<any>(null);
+  const [loadingThread, setLoadingThread] = useState(true);
   
-  const { messages, loading, sending, sendMessage } = useChatThread(bookingId);
+  const { messages, loading, sending, send } = useSupportChat(thread?.id);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Get or create thread
+  useEffect(() => {
+    const getThread = async () => {
+      setLoadingThread(true);
+      try {
+        const { data, error } = await supabase.rpc('support_get_or_create_thread', {
+          p_booking_id: bookingId
+        });
+        
+        if (error) throw error;
+        setThread(data);
+      } catch (error) {
+        console.error('Error getting thread:', error);
+      } finally {
+        setLoadingThread(false);
+      }
+    };
+
+    getThread();
+  }, [bookingId]);
+
+  // Handle sending messages
+  const handleSendMessage = async (message: string) => {
+    await send(message, 'user');
+  };
 
   // Auto-scroll to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  if (loading) {
+  if (loadingThread || loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
@@ -122,7 +151,7 @@ export const ChatScreen: React.FC = () => {
                       side={message.sender === 'user' ? 'right' : 'left'}
                       text={message.message}
                       time={formatMessageTime(message.created_at)}
-                      status={message.sender === 'user' ? 'delivered' : undefined}
+                      status={message.sender === 'user' ? (message.seen ? 'seen' : 'delivered') : undefined}
                     />
                   </React.Fragment>
                 );
@@ -134,7 +163,7 @@ export const ChatScreen: React.FC = () => {
       </div>
 
       {/* Message Composer */}
-      <MessageComposer onSend={sendMessage} loading={sending} />
+      <MessageComposer onSend={handleSendMessage} loading={sending} />
     </div>
   );
 };
