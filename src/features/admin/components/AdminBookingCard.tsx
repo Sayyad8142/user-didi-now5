@@ -445,24 +445,24 @@ export function AdminBookingCard({
             </div>
           )}
 
-          {/* Mobile: Hide in-card buttons, use sticky bar instead */}
-          <div className="mt-3 grid grid-cols-2 gap-2 md:grid">
+          {/* Action Buttons - Always visible */}
+          <div className="mt-2 flex gap-2">
             <Button
               variant="outline"
               size="sm"
-              className="hidden md:flex rounded-xl border-2 border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400 font-medium h-10 transition-all"
+              className="flex-1 border-2 border-red-300 text-red-700 hover:bg-red-50 hover:border-red-400 font-medium h-9 rounded-lg transition-all"
               onClick={handleCancel}
               disabled={saving}
             >
               {saving ? (
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 border-2 border-gray-400 border-t-gray-600 rounded-full animate-spin" />
-                  <span>Cancelling...</span>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-3 h-3 border-2 border-red-400 border-t-red-600 rounded-full animate-spin" />
+                  <span className="text-xs">Cancelling...</span>
                 </div>
               ) : (
-                <div className="flex items-center gap-2">
-                  <XCircle className="h-4 w-4" />
-                  <span>Cancel</span>
+                <div className="flex items-center gap-1.5">
+                  <XCircle className="h-3 w-3" />
+                  <span className="text-xs font-medium">Cancel</span>
                 </div>
               )}
             </Button>
@@ -470,63 +470,23 @@ export function AdminBookingCard({
             <Button
               size="sm"
               className={cn(
-                "hidden md:flex rounded-xl font-medium h-10 text-white shadow-md transition-all bg-gradient-to-r",
-                serviceConfig.gradient
+                "flex-1 rounded-lg font-medium h-9 text-white shadow-sm transition-all bg-gradient-to-r",
+                isAssigned
+                  ? "from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700"
+                  : serviceConfig.gradient
               )}
               onClick={() => setSheetOpen(true)}
               disabled={saving}
             >
-              <div className="flex items-center gap-2">
-                <UserCheck className="h-4 w-4" />
-                <span>
-                  {isAssigned ? 'Reassign Worker' : 'Assign Worker'}
+              <div className="flex items-center gap-1.5">
+                <UserCheck className="h-3 w-3" />
+                <span className="text-xs font-medium">
+                  {isAssigned ? 'Reassign' : 'Assign'}
                 </span>
               </div>
             </Button>
           </div>
         </CardContent>
-
-        {/* Integrated Action Buttons - Always part of the card */}
-        {(isPending || isAssigned) && (
-          <div className="md:hidden border-t border-gray-100 p-3 bg-gray-50/50">
-            <div className="flex gap-3">
-              <Button
-                variant="outline"
-                className="flex-1 border-2 border-red-300 text-red-700 hover:bg-red-50 hover:border-red-400 font-medium h-10 rounded-xl transition-all"
-                onClick={handleCancel}
-                disabled={saving}
-              >
-                {saving ? (
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 border-2 border-red-400 border-t-red-600 rounded-full animate-spin" />
-                    <span>Cancelling...</span>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-2">
-                    <XCircle className="h-4 w-4" />
-                    <span>Cancel</span>
-                  </div>
-                )}
-              </Button>
-              
-              <Button
-                className={cn(
-                  "flex-1 font-medium h-10 rounded-xl text-white transition-all bg-gradient-to-r",
-                  isAssigned
-                    ? "from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700"
-                    : serviceConfig.gradient
-                )}
-                onClick={() => setSheetOpen(true)}
-                disabled={saving}
-              >
-                <div className="flex items-center gap-2">
-                  <UserCheck className="h-4 w-4" />
-                  <span>{isAssigned ? 'Reassign' : 'Assign'}</span>
-                </div>
-              </Button>
-            </div>
-          </div>
-        )}
       </Card>
 
       <AssignWorkerSheet
