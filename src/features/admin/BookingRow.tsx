@@ -9,6 +9,7 @@ import { useNewBookingAlert } from "./useNewBookingAlert";
 import { SLAClock } from "./SLAClock";
 import { openExternalUrl } from "@/lib/nativeOpen";
 import { AssignWorkerSheet } from "./components/AssignWorkerSheet";
+import { LoadingWorkerBadge } from "@/components/LoadingWorkerBadge";
 function ServiceIcon({ t}:{t:string}) {
   return t==='cook' ? <ChefHat className="h-5 w-5"/> :
          t==='bathroom_cleaning' ? <ShowerHead className="h-5 w-5"/> :
@@ -85,11 +86,7 @@ export default function BookingRow({
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'pending':
-        return (
-          <Badge variant="secondary" className="bg-amber-100 text-amber-800 border-amber-200">
-            Finding Worker
-          </Badge>
-        );
+        return <LoadingWorkerBadge variant="simple" size="sm" />;
       case 'assigned':
         return (
           <Badge variant="secondary" className="bg-emerald-100 text-emerald-800 border-emerald-200">

@@ -31,6 +31,7 @@ import TimerComponent from "@/components/Timer";
 import { AssignWorkerSheet } from "./AssignWorkerSheet";
 import { cn } from "@/lib/utils";
 import { formatTime } from "@/features/bookings/dt";
+import { LoadingWorkerBadge } from "@/components/LoadingWorkerBadge";
 
 interface AdminBookingCardProps {
   booking: any;
@@ -82,12 +83,7 @@ function StatusChip({ status, overdue }: { status: string; overdue?: boolean }) 
 
   switch (status) {
     case 'pending':
-      return (
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-amber-400 to-orange-400 text-white text-xs font-bold shadow-lg">
-          <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
-          <span>FINDING WORKER</span>
-        </div>
-      );
+      return <LoadingWorkerBadge variant="gradient" size="md" />;
     case 'assigned':
       return (
         <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-emerald-400 to-green-400 text-white text-xs font-bold shadow-lg">

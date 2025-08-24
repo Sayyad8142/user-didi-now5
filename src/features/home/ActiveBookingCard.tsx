@@ -16,6 +16,7 @@ import { toast } from 'sonner';
 import { RateWorker } from '@/features/bookings/RateWorker';
 import { openExternalUrl } from '@/lib/nativeOpen';
 import ChatSheet from '@/features/chat/ChatSheet';
+import { LoadingWorkerBadge } from '@/components/LoadingWorkerBadge';
 
 interface Booking {
   id: string;
@@ -237,11 +238,13 @@ export function ActiveBookingCard() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Badge className={`text-xs ${getStatusColor(activeBooking.status)}`}>
-            {activeBooking.status === 'pending' ? 'Finding Worker' : 
-             activeBooking.status === 'assigned' ? '✓ Worker Assigned' : 
-             activeBooking.status}
-          </Badge>
+          {activeBooking.status === 'pending' ? (
+            <LoadingWorkerBadge variant="simple" size="sm" />
+          ) : (
+            <Badge className={`text-xs ${getStatusColor(activeBooking.status)}`}>
+              {activeBooking.status === 'assigned' ? '✓ Worker Assigned' : activeBooking.status}
+            </Badge>
+          )}
           {activeBooking.status === "cancelled" && (
             <Button
               variant="ghost"
