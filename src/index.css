@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -183,5 +184,9 @@
   
   .transition-spring {
     transition: var(--transition-spring);
+  }
+  
+  .pb-safe-or-20 {
+    padding-bottom: max(env(safe-area-inset-bottom), 5rem);
   }
 }

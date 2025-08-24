@@ -165,129 +165,137 @@ export default function LiveChat() {
   return (
     <div className="min-h-dvh bg-background flex flex-col">
       {/* Header */}
-      <header className="p-4 bg-gradient-to-r from-primary to-primary/80 text-white">
+      <header className="sticky top-0 z-10 p-3 bg-gradient-to-r from-primary to-primary/80 text-white shadow-lg">
         <div className="flex items-center gap-3">
           <Button 
             variant="ghost" 
             size="icon"
             onClick={() => navigate(-1)}
-            className="h-9 w-9 rounded-full text-white hover:bg-white/20"
+            className="h-8 w-8 rounded-full text-white hover:bg-white/20"
           >
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
-            <User className="w-5 h-5" />
+          <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
+            <User className="w-4 h-4" />
           </div>
           <div className="flex-1">
-            <div className="font-semibold text-lg">Support Chat</div>
+            <div className="font-semibold">Support Chat</div>
             <div className="text-xs text-white/80">
-              Get help from our support team
+              Online • We're here to help
             </div>
           </div>
         </div>
       </header>
 
-      {/* Messages */}
-      <ScrollArea ref={scrollAreaRef} className="flex-1 px-4 py-4">
-        {loading ? (
-          <div className="text-center text-muted-foreground py-8">
-            Loading messages...
-          </div>
-        ) : messages.length === 0 ? (
-          <div className="text-center py-8 space-y-4">
-            <div className="w-20 h-20 rounded-full bg-muted mx-auto flex items-center justify-center">
-              <User className="w-10 h-10 text-muted-foreground" />
-            </div>
-            <div className="space-y-2">
-              <div className="text-lg font-medium text-foreground">
-                Start a conversation with our support team
-              </div>
-              <div className="text-sm text-muted-foreground">
-                We're here to help you 24/7
+      {/* Messages Container */}
+      <div className="flex-1 flex flex-col min-h-0">
+        <ScrollArea ref={scrollAreaRef} className="flex-1 px-4 py-4">
+          {loading ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="text-center text-muted-foreground">
+                Loading messages...
               </div>
             </div>
-          </div>
-        ) : (
-          <div className="space-y-4 pb-4">
-            {messages.map((message) => {
-              const isFromUser = message.sender_role === 'user';
-              const time = new Date(message.created_at).toLocaleTimeString([], {
-                hour: '2-digit',
-                minute: '2-digit'
-              });
+          ) : messages.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 space-y-4">
+              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center">
+                <User className="w-8 h-8 text-primary" />
+              </div>
+              <div className="text-center space-y-2 max-w-sm">
+                <div className="text-lg font-medium text-foreground">
+                  Welcome to Support Chat
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  Our team is ready to help you with any questions or issues
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-3 pb-4">
+              {messages.map((message) => {
+                const isFromUser = message.sender_role === 'user';
+                const time = new Date(message.created_at).toLocaleTimeString([], {
+                  hour: '2-digit',
+                  minute: '2-digit'
+                });
 
-              return (
-                <div
-                  key={message.id}
-                  className={cn(
-                    "flex",
-                    isFromUser ? "justify-end" : "justify-start"
-                  )}
-                >
+                return (
                   <div
+                    key={message.id}
                     className={cn(
-                      "max-w-[80%] rounded-2xl px-4 py-3 space-y-1",
-                      isFromUser
-                        ? "bg-gradient-to-r from-primary to-primary/80 text-white"
-                        : "bg-muted text-foreground"
+                      "flex",
+                      isFromUser ? "justify-end" : "justify-start"
                     )}
                   >
-                    <div className="whitespace-pre-wrap text-sm leading-relaxed">
-                      {message.body}
-                    </div>
                     <div
                       className={cn(
-                        "text-[10px] flex items-center gap-1",
-                        isFromUser ? "text-white/70" : "text-muted-foreground"
+                        "max-w-[85%] sm:max-w-[70%] rounded-2xl px-3 py-2 space-y-1 shadow-sm",
+                        isFromUser
+                          ? "bg-gradient-to-r from-primary to-primary/90 text-white rounded-br-md"
+                          : "bg-muted text-foreground rounded-bl-md border"
                       )}
                     >
-                      <Clock className="w-3 h-3" />
-                      {time}
+                      <div className="whitespace-pre-wrap text-sm leading-relaxed">
+                        {message.body}
+                      </div>
+                      <div
+                        className={cn(
+                          "text-[10px] flex items-center gap-1 justify-end",
+                          isFromUser ? "text-white/70" : "text-muted-foreground"
+                        )}
+                      >
+                        <Clock className="w-2.5 h-2.5" />
+                        {time}
+                      </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </ScrollArea>
+                );
+              })}
+            </div>
+          )}
+        </ScrollArea>
+      </div>
 
-      {/* Input Area */}
-      <div className="p-4 border-t bg-background">
-        <div className="flex gap-2 mb-3">
-          <Textarea
-            value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
-            placeholder="Type your message..."
-            className="min-h-[50px] max-h-32 resize-none rounded-full px-4 py-3"
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                sendMessage();
-              }
-            }}
-            disabled={sending}
-          />
-          <Button
-            onClick={sendMessage}
-            disabled={!newMessage.trim() || sending}
-            className="h-[50px] w-[50px] p-0 rounded-full bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
-          >
-            <Send className="w-5 h-5" />
-          </Button>
-        </div>
-        
-        {/* Quick actions */}
-        <div className="flex justify-center">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => window.open('tel:8008180018')}
-            className="text-xs rounded-full"
-          >
-            <Phone className="w-3 h-3 mr-2" />
-            Call Support
-          </Button>
+      {/* Input Area - Fixed at bottom with proper spacing for mobile nav */}
+      <div className="sticky bottom-0 bg-background border-t p-3 pb-safe-or-20">
+        <div className="space-y-3">
+          <div className="flex gap-2 items-end">
+            <div className="flex-1 relative">
+              <Textarea
+                value={newMessage}
+                onChange={(e) => setNewMessage(e.target.value)}
+                placeholder="Type your message..."
+                className="min-h-[44px] max-h-24 resize-none rounded-2xl px-4 py-3 pr-12 border-2 focus:border-primary/50 bg-background"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMessage();
+                  }
+                }}
+                disabled={sending}
+              />
+            </div>
+            <Button
+              onClick={sendMessage}
+              disabled={!newMessage.trim() || sending}
+              className="h-[44px] w-[44px] p-0 rounded-full bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-lg"
+            >
+              <Send className="w-4 h-4" />
+            </Button>
+          </div>
+          
+          {/* Quick actions */}
+          <div className="flex justify-center">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => window.open('tel:8008180018')}
+              className="text-xs rounded-full border-primary/20 text-primary hover:bg-primary/5"
+            >
+              <Phone className="w-3 h-3 mr-1" />
+              Emergency Call
+            </Button>
+          </div>
         </div>
       </div>
     </div>
