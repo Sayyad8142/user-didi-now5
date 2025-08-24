@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Download, FileText, AlertCircle } from "lucide-react";
+import { Download, FileText, AlertCircle, ArrowLeft } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 
 export default function PrivacyPolicy() {
+  const navigate = useNavigate();
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -61,7 +63,17 @@ export default function PrivacyPolicy() {
       
       <header className="border-b bg-white shadow-sm">
         <div className="max-w-4xl mx-auto px-4 py-6">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate(-1)}
+              className="flex items-center gap-2 text-muted-foreground hover:text-foreground"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back
+            </Button>
+            <div className="h-8 w-px bg-border" />
             <div className="h-12 w-12 bg-primary/10 rounded-2xl flex items-center justify-center">
               <FileText className="w-6 h-6 text-primary" />
             </div>
