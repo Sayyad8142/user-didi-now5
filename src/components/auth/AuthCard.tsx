@@ -115,15 +115,10 @@ export function AuthCard() {
     try {
       const formattedPhone = formatPhoneIN(phone);
       
-      // For sign-in, check if user exists first
-      if (!isSignUp) {
-        const userExists = await checkIfUserExists(phone);
-        if (!userExists) {
-          setErrors({ phone: "You don't have an account with this mobile number. Please sign up first." });
-          setLoading(false);
-          return;
-        }
-      }
+      // For sign-in, skip existence check due to RLS; let OTP proceed for both cases
+      // This avoids false "no account" errors for existing users.
+      // If the phone is new, Supabase will handle account creation upon verification.
+
       
       // For sign-up, check if user already exists
       if (isSignUp) {
