@@ -42,7 +42,7 @@ export default function QuickStats(){
   const statItems = [
     { label: "Today's Bookings", value: stats.today, linkTo: "/admin/daily-bookings", clickable: true },
     { label: "Pending", value: stats.pending, clickable: false },
-    { label: "Completed", value: stats.completed, clickable: false },
+    { label: "Completed", value: stats.completed, linkTo: "/admin/completed-bookings", clickable: true },
     { label: "Total Users", value: stats.users, linkTo: "/admin/users", clickable: true },
   ];
   

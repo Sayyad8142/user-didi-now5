@@ -35,6 +35,7 @@ import SupportScreen from "./routes/support/SupportScreen";
 import { ChatScreen } from "./features/chat/ChatScreen";
 import AdminChat from "./routes/admin/AdminChat";
 import AdminFeedback from "./routes/admin/AdminFeedback";
+import AdminCompletedBookings from "./routes/admin/AdminCompletedBookings";
 
 const queryClient = new QueryClient();
 
@@ -231,6 +232,14 @@ const App = () => {
               element={
                 <AdminGate>
                   <AdminFeedback />
+                </AdminGate>
+              } 
+            />
+            <Route 
+              path="/admin/completed-bookings" 
+              element={
+                <AdminGate>
+                  <AdminCompletedBookings />
                 </AdminGate>
               } 
             />
