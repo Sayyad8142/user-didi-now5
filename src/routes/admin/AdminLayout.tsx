@@ -88,16 +88,25 @@ export default function AdminLayout() {
       <Route path="/chat" element={<AdminChat />} />
       <Route path="/users" element={<AdminUsers />} />
       <Route path="/*" element={<div className="min-h-[100svh] max-w-screen-sm mx-auto bg-background text-foreground flex flex-col">
-          {/* Mobile-optimized header */}
-          <header className="sticky top-0 z-40 bg-background/80 backdrop-blur border-b safe-top">
-            <div className="flex items-center gap-2 px-3 py-2">
-              <div className="flex-1 min-w-0">
-                <h1 className="font-semibold text-lg">
-                  <span className="text-[#ff007a]">Didi Now</span> — <span className="text-[#ff007a]">Admin</span>
-                </h1>
+          {/* Enhanced admin header */}
+          <header className="sticky top-0 z-40 bg-gradient-to-r from-pink-50 to-purple-50 backdrop-blur border-b border-pink-100 safe-top shadow-sm">
+            <div className="flex items-center justify-between px-4 py-4">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-gradient-to-br from-pink-500 to-purple-600 rounded-lg flex items-center justify-center shadow-md">
+                  <Settings className="w-4 h-4 text-white" />
+                </div>
+                <div>
+                  <h1 className="font-bold text-xl bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent">
+                    Didi Now Admin
+                  </h1>
+                  <p className="text-xs text-muted-foreground font-medium">Administrative Console</p>
+                </div>
               </div>
-              <span className="text-xs text-muted-foreground hidden sm:block">Administrative Console</span>
-              
+              <div className="flex items-center gap-2">
+                <div className="px-3 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full border border-green-200">
+                  Online
+                </div>
+              </div>
             </div>
           </header>
 
