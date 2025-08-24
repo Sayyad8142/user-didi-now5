@@ -29,7 +29,7 @@ export function HomeScreen() {
         {/* Promotional Banner */}
         <div className="px-2">
           <img 
-            src="/lovable-uploads/a463cafa-1467-4d5b-a761-91285dd6bd19.png" 
+            src="/lovable-uploads/a157d599-7225-4729-88f2-e0a3d7500d7b.png" 
             alt="Didi Now - Quick maid service in 10 minutes"
             className="w-full object-contain rounded-lg shadow-sm"
           />
