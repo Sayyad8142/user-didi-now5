@@ -77,15 +77,15 @@ export function AuthCard() {
     try {
       // Use the same normalization function used during profile creation
       const normalizedPhone = normalizePhone(phone);
-      
-      // Also try formatPhoneIN for backward compatibility
       const formattedPhone = formatPhoneIN(phone);
+      
+      console.log('Checking user existence for:', { phone, normalizedPhone, formattedPhone });
       
       // Check if user exists in profiles table with either format
       const { data, error } = await supabase
         .from('profiles')
-        .select('id')
-        .or(`phone.eq.${normalizedPhone},phone.eq.${formattedPhone}`)
+        .select('id, phone')
+        .in('phone', [normalizedPhone, formattedPhone])
         .maybeSingle();
 
       if (error) {
@@ -93,6 +93,7 @@ export function AuthCard() {
         return false;
       }
 
+      console.log('User existence check result:', data);
       return !!data;
     } catch (error) {
       console.error('Error checking user existence:', error);
