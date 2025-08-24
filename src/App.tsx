@@ -195,7 +195,7 @@ const App = () => {
               } 
             />
             <Route 
-              path="/admin" 
+              path="/admin/*" 
               element={
                 <AdminGate>
                   <AdminLayout />
@@ -239,22 +239,6 @@ const App = () => {
               element={
                 <AdminGate>
                   <AdminChat />
-                </AdminGate>
-              } 
-             />
-            <Route 
-              path="/admin/users" 
-              element={
-                <AdminGate>
-                  <AdminLayout />
-                </AdminGate>
-              } 
-            />
-            <Route 
-              path="/admin/communities" 
-              element={
-                <AdminGate>
-                  <AdminLayout />
                 </AdminGate>
               } 
             />

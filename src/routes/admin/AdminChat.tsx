@@ -46,7 +46,7 @@ export default function AdminChat() {
         .from('support_threads')
         .select(`
           *,
-          profiles!user_id (
+          profiles!support_threads_user_id_fkey (
             full_name,
             phone,
             community,
