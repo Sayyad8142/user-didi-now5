@@ -4,10 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, User, Search, UserPlus } from "lucide-react";
+import { Loader2, User, Search, UserPlus, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { Link } from "react-router-dom";
+import { WorkerAvailabilityTimer } from "./WorkerAvailabilityTimer";
 
 interface Worker {
   id: string;
@@ -33,6 +34,7 @@ export function AssignWorkerSheet({
   onWorkerAssigned 
 }: AssignWorkerSheetProps) {
   const [workers, setWorkers] = useState<Worker[]>([]);
+  const [assignedBookings, setAssignedBookings] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [assigning, setAssigning] = useState<string | null>(null);
@@ -40,41 +42,59 @@ export function AssignWorkerSheet({
   const [sameService, setSameService] = useState(false);
   const { toast } = useToast();
 
-  // Fetch workers when sheet opens
+  // Fetch workers and assigned bookings when sheet opens
   useEffect(() => {
     if (!open) return;
     
-    const fetchWorkers = async () => {
+    const fetchData = async () => {
       setLoading(true);
       try {
-        console.log('Fetching workers...');
-        const { data, error } = await supabaseAdmin
-          .from('workers')
-          .select('*')
-          .eq('is_active', true)
-          .order('full_name');
+        console.log('Fetching workers and assigned bookings...');
         
-        if (error) {
-          console.error('Supabase error:', error);
-          throw error;
+        // Fetch workers and assigned bookings in parallel
+        const [workersResult, assignedResult] = await Promise.all([
+          supabaseAdmin
+            .from('workers')
+            .select('*')
+            .eq('is_active', true)
+            .order('full_name'),
+          supabaseAdmin
+            .from('bookings')
+            .select('id, worker_id, worker_name, assigned_at, service_type')
+            .eq('status', 'assigned')
+            .not('worker_id', 'is', null)
+        ]);
+        
+        if (workersResult.error) {
+          console.error('Workers fetch error:', workersResult.error);
+          throw workersResult.error;
+        }
+
+        if (assignedResult.error) {
+          console.error('Assigned bookings fetch error:', assignedResult.error);
+          throw assignedResult.error;
         }
         
-        console.log('Workers fetched:', data?.length || 0);
-        setWorkers(data || []);
+        console.log('Workers fetched:', workersResult.data?.length || 0);
+        console.log('Assigned bookings fetched:', assignedResult.data?.length || 0);
+        
+        setWorkers(workersResult.data || []);
+        setAssignedBookings(assignedResult.data || []);
       } catch (error) {
-        console.error('Error fetching workers:', error);
+        console.error('Error fetching data:', error);
         toast({
           title: "Error",
           description: "Failed to load workers. Please try again.",
           variant: "destructive"
         });
-        setWorkers([]); // Set empty array on error
+        setWorkers([]);
+        setAssignedBookings([]);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchWorkers();
+    fetchData();
   }, [open, toast]);
 
   // Reset filters when sheet opens
@@ -206,6 +226,39 @@ export function AssignWorkerSheet({
                   Same Community
                 </Button>
               )}
+            </div>
+          </div>
+
+          {/* Currently Assigned Workers - Availability Timers */}
+          {assignedBookings.length > 0 && (
+            <div className="px-4 pb-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Clock className="w-4 h-4 text-slate-600" />
+                <h3 className="text-sm font-semibold text-slate-900">
+                  Currently Working ({assignedBookings.length})
+                </h3>
+              </div>
+              <div className="space-y-2 max-h-32 overflow-y-auto">
+                {assignedBookings.map(assignedBooking => (
+                  <WorkerAvailabilityTimer
+                    key={assignedBooking.id}
+                    workerId={assignedBooking.worker_id}
+                    workerName={assignedBooking.worker_name}
+                    assignedAt={assignedBooking.assigned_at}
+                    durationMinutes={30}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Available Workers */}
+          <div className="px-4 pb-2">
+            <div className="flex items-center gap-2 mb-3">
+              <User className="w-4 h-4 text-slate-600" />
+              <h3 className="text-sm font-semibold text-slate-900">
+                Available Workers ({filteredWorkers.length})
+              </h3>
             </div>
           </div>
 
