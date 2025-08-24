@@ -304,7 +304,7 @@ export function BookingForm() {
         description: bookingType === 'instant' ? "Service will arrive in 10 minutes." : "Your booking has been scheduled successfully."
       });
       setScheduleSheetOpen(false);
-      navigate('/bookings');
+      navigate('/home');
     } catch (err) {
       console.error('Booking error:', err);
       toast({
