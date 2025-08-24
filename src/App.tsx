@@ -32,7 +32,8 @@ import PrivacyPolicy from "./routes/legal/PrivacyPolicy";
 import TermsOfService from "./routes/legal/TermsOfService";
 import AccountSettings from "./routes/profile/AccountSettings";
 import SupportScreen from "./routes/support/SupportScreen";
-import LiveChat from "./pages/LiveChat";
+import { ChatScreen } from "./features/chat/ChatScreen";
+import AdminChat from "./routes/admin/AdminChat";
 import AdminFeedback from "./routes/admin/AdminFeedback";
 
 const queryClient = new QueryClient();
@@ -169,9 +170,7 @@ const App = () => {
               path="/chat" 
               element={
                 <ProtectedRoute>
-                  <ProtectedLayout>
-                    <LiveChat />
-                  </ProtectedLayout>
+                  <ChatScreen />
                 </ProtectedRoute>
               } 
             />
@@ -232,6 +231,14 @@ const App = () => {
               element={
                 <AdminGate>
                   <AdminFeedback />
+                </AdminGate>
+              } 
+            />
+            <Route 
+              path="/admin/chat" 
+              element={
+                <AdminGate>
+                  <AdminChat />
                 </AdminGate>
               } 
             />

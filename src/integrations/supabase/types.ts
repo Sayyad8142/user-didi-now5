@@ -542,6 +542,82 @@ export type Database = {
         }
         Relationships: []
       }
+      support_messages: {
+        Row: {
+          created_at: string
+          id: number
+          message: string
+          seen: boolean
+          seen_at: string | null
+          sender: string
+          thread_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: number
+          message: string
+          seen?: boolean
+          seen_at?: string | null
+          sender: string
+          thread_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: number
+          message?: string
+          seen?: boolean
+          seen_at?: string | null
+          sender?: string
+          thread_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_messages_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "support_threads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      support_threads: {
+        Row: {
+          booking_id: string | null
+          created_at: string
+          id: string
+          last_message: string | null
+          last_sender: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          booking_id?: string | null
+          created_at?: string
+          id?: string
+          last_message?: string | null
+          last_sender?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          booking_id?: string | null
+          created_at?: string
+          id?: string
+          last_message?: string | null
+          last_sender?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_threads_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       worker_ratings: {
         Row: {
           booking_id: string
