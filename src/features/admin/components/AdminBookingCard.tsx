@@ -25,7 +25,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
-import { supabaseAdmin } from "@/lib/supabase-admin";
+import { supabase } from "@/integrations/supabase/client";
 import { openExternalUrl } from "@/lib/nativeOpen";
 import TimerComponent from "@/components/Timer";
 import { AssignWorkerSheet } from "./AssignWorkerSheet";
@@ -265,7 +265,7 @@ export function AdminBookingCard({
     
     setSaving(true);
     try {
-      const { error } = await supabaseAdmin.rpc("admin_cancel_booking", {
+      const { error } = await supabase.rpc("admin_cancel_booking", {
         p_booking_id: booking.id,
         p_reason: "admin_cancel"
       });

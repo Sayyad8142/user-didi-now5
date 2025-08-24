@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { supabaseAdmin as supabase } from "@/lib/supabase-admin";
+import { supabase } from "@/integrations/supabase/client";
 import { RotateCw, Calendar, Users } from "lucide-react";
 
 export default function QuickStats(){

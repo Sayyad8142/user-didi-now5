@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { supabaseAdmin as supabase } from "@/lib/supabase-admin";
+import { supabase } from "@/integrations/supabase/client";
 
 const LS_KEY = "admin_sound_enabled";
 const SOUND_SRC = "/ding.mp3"; // optional file in /public

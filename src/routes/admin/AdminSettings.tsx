@@ -11,7 +11,7 @@ import { useNewBookingAlert } from '@/features/admin/useNewBookingAlert';
 import { WorkersTable } from '@/features/admin/workers/WorkersTable';
 import SettingsLegalPDF from '@/routes/admin/SettingsLegalPDF';
 import AdminFaqsTab from '@/features/admin/settings/AdminFaqsTab';
-import { supabaseAdmin as supabase } from '@/lib/supabase-admin';
+import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { toast } from 'sonner';
 

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { supabaseAdmin as supabase } from "@/lib/supabase-admin";
+import { supabase } from "@/integrations/supabase/client";
 import { ensureProfile, normalizePhone } from "@/features/profile/ensureProfile";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

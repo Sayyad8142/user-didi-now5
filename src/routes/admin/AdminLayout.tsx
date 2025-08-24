@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
-import { supabaseAdmin as supabase } from "@/lib/supabase-admin";
+import { supabase } from "@/integrations/supabase/client";
 import { AdminBookingCard } from "@/features/admin/components/AdminBookingCard";
 import BookingDrawer from "@/features/admin/BookingDrawer";
 import { useBookingsRealtime } from "@/features/admin/useRealtime";

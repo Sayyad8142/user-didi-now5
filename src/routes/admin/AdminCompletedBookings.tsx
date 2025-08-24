@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
 import { Link } from "react-router-dom";
-import { supabaseAdmin as supabase } from "@/lib/supabase-admin";
+import { supabase } from "@/integrations/supabase/client";
 import BookingRow from "@/features/admin/BookingRow";
 import BookingDrawer from "@/features/admin/BookingDrawer";
 import { useBookingsRealtime } from "@/features/admin/useRealtime";

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabaseAdmin as supabase } from "@/lib/supabase-admin";
+import { supabase } from "@/integrations/supabase/client";
 import { formatPhoneIN, isValidINPhone, extractCleanPhone } from "@/lib/auth-helpers";
 import { Button } from "@/components/ui/button";
 import { PhoneInputIN } from "@/components/auth/PhoneInputIN";

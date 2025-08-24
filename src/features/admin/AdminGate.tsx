@@ -1,6 +1,6 @@
 import { useEffect, useState, ReactNode } from "react";
 import { Navigate, useLocation, Link } from "react-router-dom";
-import { supabaseAdmin as supabase } from "@/lib/supabase-admin";
+import { supabase } from "@/integrations/supabase/client";
 import { normalizePhone } from "@/features/profile/ensureProfile";
 
 const ADMIN_PHONE = (import.meta.env.VITE_ADMIN_PHONE || "+919000666986").replace(/\s/g,"");

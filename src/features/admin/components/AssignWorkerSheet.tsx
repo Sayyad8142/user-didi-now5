@@ -6,7 +6,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, User, Search, UserPlus, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { supabaseAdmin } from "@/lib/supabase-admin";
+import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
 import { WorkerAvailabilityTimer } from "./WorkerAvailabilityTimer";
 
@@ -53,12 +53,12 @@ export function AssignWorkerSheet({
         
         // Fetch workers and assigned bookings in parallel
         const [workersResult, assignedResult] = await Promise.all([
-          supabaseAdmin
+          supabase
             .from('workers')
             .select('*')
             .eq('is_active', true)
             .order('full_name'),
-          supabaseAdmin
+          supabase
             .from('bookings')
             .select('id, worker_id, worker_name, assigned_at, service_type')
             .eq('status', 'assigned')
@@ -149,7 +149,7 @@ export function AssignWorkerSheet({
     
     setAssigning(worker.id);
     try {
-      const { data, error } = await supabaseAdmin.rpc('assign_worker_to_booking', {
+      const { data, error } = await supabase.rpc('assign_worker_to_booking', {
         p_booking_id: booking.id,
         p_worker_id: worker.id,
         p_assigned_by: null // Use the 3-parameter version to avoid ambiguity

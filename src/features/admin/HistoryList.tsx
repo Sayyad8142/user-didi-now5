@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabaseAdmin as supabase } from "@/lib/supabase-admin";
+import { supabase } from "@/integrations/supabase/client";
 
 type HistoryRow = {
   id: string;

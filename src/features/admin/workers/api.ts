@@ -1,5 +1,4 @@
 import { supabase } from "@/integrations/supabase/client";
-import { supabaseAdmin } from "@/lib/supabase-admin";
 
 export interface Worker {
   id: string;
@@ -15,7 +14,7 @@ export interface Worker {
 }
 
 export async function listWorkers(query: string = '', serviceType?: string): Promise<Worker[]> {
-  let supabaseQuery = supabaseAdmin
+  let supabaseQuery = supabase
     .from('workers')
     .select('*')
     .order('created_at', { ascending: false });
@@ -60,7 +59,7 @@ export async function adminUpsertWorker(input: UpsertWorkerInput): Promise<Worke
     is_active: input.is_active ?? true,
   };
 
-  const { data, error } = await supabaseAdmin.rpc('admin_upsert_worker', {
+  const { data, error } = await supabase.rpc('admin_upsert_worker', {
     p_full_name: input.full_name,
     p_phone: input.phone,
     p_upi_id: input.upi_id,
@@ -88,7 +87,7 @@ export async function upsertWorker(payload: Omit<Worker, 'created_at' | 'updated
 }
 
 export async function deleteWorker(id: string): Promise<void> {
-  const { error } = await supabaseAdmin
+  const { error } = await supabase
     .from('workers')
     .delete()
     .eq('id', id);
@@ -108,7 +107,7 @@ export async function uploadWorkerPhoto(file: File): Promise<string> {
 
     console.log('Calling edge function with payload size:', base64.length);
 
-    const { data, error } = await supabaseAdmin.functions.invoke('admin-upload-worker-photo', {
+    const { data, error } = await supabase.functions.invoke('admin-upload-worker-photo', {
       body: {
         filename,
         contentType: file.type,
@@ -137,7 +136,7 @@ export async function uploadWorkerPhoto(file: File): Promise<string> {
 }
 
 export async function assignWorkerToBooking(bookingId: string, workerId: string): Promise<void> {
-  const { error } = await supabaseAdmin.rpc('assign_worker_to_booking', {
+  const { error } = await supabase.rpc('assign_worker_to_booking', {
     p_booking_id: bookingId,
     p_worker_id: workerId
   });

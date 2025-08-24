@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { supabaseAdmin as supabase } from "@/lib/supabase-admin";
+import { supabase } from "@/integrations/supabase/client";
 import { Phone, CalendarClock, Sparkles, ChefHat, ShowerHead, Check, MapPin, User, Clock, AlertCircle, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
