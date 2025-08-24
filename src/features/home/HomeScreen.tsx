@@ -37,7 +37,7 @@ export function HomeScreen() {
           </Button>
           
           <Button
-            onClick={() => navigate('/support')}
+            onClick={() => navigate('/chat')}
             variant="outline"
             className="w-full h-12 rounded-full border-2 border-primary/20 bg-white/90 hover:bg-primary/5 text-primary font-semibold transition-spring hover:scale-[1.02] flex items-center justify-center gap-3"
           >
