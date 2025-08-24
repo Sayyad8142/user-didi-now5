@@ -33,7 +33,7 @@ export function HomeScreen() {
             className="w-full h-12 rounded-full gradient-primary shadow-button transition-spring hover:scale-[1.02] flex items-center justify-center gap-3"
           >
             <Phone className="w-5 h-5" />
-            <span className="font-semibold">Contact Manager</span>
+            <span className="font-semibold">Call Manger</span>
           </Button>
           
           <Button
