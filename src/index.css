@@ -186,6 +186,10 @@
     transition: var(--transition-spring);
   }
   
+  .pb-safe {
+    padding-bottom: max(env(safe-area-inset-bottom), 1rem);
+  }
+  
   .pb-safe-or-20 {
     padding-bottom: max(env(safe-area-inset-bottom), 5rem);
   }
