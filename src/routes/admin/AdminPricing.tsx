@@ -43,6 +43,7 @@ function BathroomSettings({ community }: { community: string }) {
 
   const upsertBathroom = useMutation({
     mutationFn: async () => {
+      console.log('🔧 Attempting to save bathroom pricing:', bathroomForm);
       const { error } = await supabase
         .from("bathroom_pricing_settings")
         .upsert({
@@ -50,9 +51,19 @@ function BathroomSettings({ community }: { community: string }) {
           unit_price_inr: Number(bathroomForm.unitPrice) || 0,
           updated_at: new Date().toISOString()
         });
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Bathroom pricing save error:', error);
+        throw error;
+      }
+      console.log('✅ Bathroom pricing saved successfully');
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["bathroom_settings", community] })
+    onSuccess: () => {
+      console.log('🔄 Invalidating bathroom settings query');
+      qc.invalidateQueries({ queryKey: ["bathroom_settings", community] });
+    },
+    onError: (error) => {
+      console.error('💥 Bathroom mutation error:', error);
+    }
   });
 
   return (
@@ -129,11 +140,22 @@ export default function AdminPricing() {
 
   const upsertMaid = useMutation({
     mutationFn: async (payload: {flat_size: string; task: MaidTask; price_inr: number}[]) => {
+      console.log('🔧 Attempting to save maid pricing:', payload);
       const rows = payload.map(r => ({ ...r, community, active: true }));
       const { error } = await supabase.from("maid_pricing_tasks").upsert(rows, { onConflict: "flat_size,task,community" });
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Maid pricing save error:', error);
+        throw error;
+      }
+      console.log('✅ Maid pricing saved successfully');
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["maid_prices_admin", community] })
+    onSuccess: () => {
+      console.log('🔄 Invalidating maid prices query');
+      qc.invalidateQueries({ queryKey: ["maid_prices_admin", community] });
+    },
+    onError: (error) => {
+      console.error('💥 Maid mutation error:', error);
+    }
   });
 
   function handleMaidSave() {
@@ -172,6 +194,7 @@ export default function AdminPricing() {
 
   const upsertCook = useMutation({
     mutationFn: async () => {
+      console.log('🔧 Attempting to save cook pricing:', cookForm);
       const { error } = await supabase
         .from("cook_pricing_settings")
         .upsert({
@@ -181,9 +204,19 @@ export default function AdminPricing() {
           per_extra_person_inr: Number(cookForm.perExtra) || 0,
           updated_at: new Date().toISOString()
         });
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Cook pricing save error:', error);
+        throw error;
+      }
+      console.log('✅ Cook pricing saved successfully');
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["cook_settings", community] })
+    onSuccess: () => {
+      console.log('🔄 Invalidating cook settings query');
+      qc.invalidateQueries({ queryKey: ["cook_settings", community] });
+    },
+    onError: (error) => {
+      console.error('💥 Cook mutation error:', error);
+    }
   });
 
   return (
