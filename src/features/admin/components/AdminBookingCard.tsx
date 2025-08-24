@@ -485,47 +485,51 @@ export function AdminBookingCard({
             </Button>
           </div>
         </CardContent>
+      </Card>
 
-        {/* Mobile: Sticky action bar */}
-        <div className="md:hidden sticky bottom-0 z-30 bg-white/95 backdrop-blur border-t border-gray-100 p-3 safe-bottom">
-          <div className="grid grid-cols-2 gap-2">
+      {/* Mobile-Only: Fixed action buttons bar at bottom */}
+      {(isPending || isAssigned) && (
+        <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 z-50 shadow-lg">
+          <div className="max-w-sm mx-auto flex gap-3">
             <Button
-              variant="destructive"
-              className="h-11 rounded-xl font-medium"
+              variant="outline"
+              size="lg"
+              className="flex-1 rounded-xl border-2 border-red-300 text-red-700 hover:bg-red-50 hover:border-red-400 font-bold h-14 transition-all shadow-sm"
               onClick={handleCancel}
               disabled={saving}
             >
               {saving ? (
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  <span>Cancelling...</span>
+                <div className="flex flex-col items-center gap-1">
+                  <div className="w-4 h-4 border-2 border-red-400 border-t-red-600 rounded-full animate-spin" />
+                  <span className="text-xs">Cancelling...</span>
                 </div>
               ) : (
-                <div className="flex items-center gap-2">
-                  <XCircle className="h-4 w-4" />
-                  <span>Cancel</span>
+                <div className="flex flex-col items-center gap-1">
+                  <XCircle className="h-5 w-5" />
+                  <span className="text-xs font-bold">Cancel</span>
                 </div>
               )}
             </Button>
             
             <Button
+              size="lg"
               className={cn(
-                "h-11 rounded-xl font-medium text-white shadow-md bg-gradient-to-r",
-                serviceConfig.gradient
+                "flex-1 rounded-xl font-bold h-14 shadow-sm transition-all text-white bg-gradient-to-r",
+                isAssigned
+                  ? "from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700"
+                  : serviceConfig.gradient
               )}
               onClick={() => setSheetOpen(true)}
               disabled={saving}
             >
-              <div className="flex items-center gap-2">
-                <UserCheck className="h-4 w-4" />
-                <span>
-                  {isAssigned ? 'Reassign' : 'Assign'}
-                </span>
+              <div className="flex flex-col items-center gap-1">
+                <UserCheck className="h-5 w-5" />
+                <span className="text-xs font-bold">{isAssigned ? 'Reassign' : 'Assign'}</span>
               </div>
             </Button>
           </div>
         </div>
-      </Card>
+      )}
 
       <AssignWorkerSheet
         open={sheetOpen}
