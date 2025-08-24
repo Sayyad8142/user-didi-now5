@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { Settings, Bell, BellOff, DollarSign, ArrowLeft, Info, Volume2, Users, FileText, Globe, RefreshCw, MessageSquare, HelpCircle } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Settings, Bell, BellOff, DollarSign, ArrowLeft, Info, Volume2, Users, FileText, Globe, RefreshCw, MessageSquare, HelpCircle, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -13,8 +13,10 @@ import SettingsLegalPDF from '@/routes/admin/SettingsLegalPDF';
 import AdminFaqsTab from '@/features/admin/settings/AdminFaqsTab';
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin';
 import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 
 export default function AdminSettings() {
+  const navigate = useNavigate();
   const {
     enabled: soundOn,
     toggle: toggleSound,
@@ -24,14 +26,25 @@ export default function AdminSettings() {
   const [loading, setLoading] = useState(false);
   const [currentVersion, setCurrentVersion] = useState<string>('v1.0.0');
   const [forceUpdates, setForceUpdates] = useState<boolean>(false);
-  const { toast } = useToast();
+  const { toast: toastHook } = useToast();
+
+  const handleLogout = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      toast.success('Logged out successfully');
+      navigate('/admin-login');
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to logout');
+    }
+  };
 
   // Load from RPC (admin_get_web_version)
   async function loadVersion() {
     const { data, error } = await supabase.rpc('admin_get_web_version');
     if (error) {
       console.error(error);
-      toast({ variant: 'destructive', title: 'Error', description: 'Failed to load web version' });
+      toastHook({ variant: 'destructive', title: 'Error', description: 'Failed to load web version' });
       return;
     }
     if (data && data.length > 0) {
@@ -61,11 +74,11 @@ export default function AdminSettings() {
 
     if (error) {
       console.error(error);
-      toast({ variant: 'destructive', title: 'Error', description: error.message || 'Failed to update web version' });
+      toastHook({ variant: 'destructive', title: 'Error', description: error.message || 'Failed to update web version' });
       return;
     }
     setCurrentVersion(next);
-    toast({ title: 'Updated', description: `Web version set to ${next}${forceUpdates ? ' (forced)' : ''}` });
+    toastHook({ title: 'Updated', description: `Web version set to ${next}${forceUpdates ? ' (forced)' : ''}` });
   }
 
   return (
@@ -232,6 +245,37 @@ export default function AdminSettings() {
                         </div>
                       </div>
                     </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Logout Section */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <LogOut className="h-5 w-5 text-[#ff007a]" />
+                    Account
+                  </CardTitle>
+                  <CardDescription className="text-sm">
+                    Sign out of your admin account
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="p-3 bg-muted/50 rounded-xl space-y-3">
+                    <div>
+                      <h3 className="font-medium mb-1 text-red-600">Sign Out</h3>
+                      <p className="text-sm text-muted-foreground leading-relaxed">
+                        This will sign you out of the admin panel
+                      </p>
+                    </div>
+                    <Button 
+                      onClick={handleLogout} 
+                      variant="destructive" 
+                      className="w-full h-10"
+                    >
+                      <LogOut className="h-4 w-4 mr-2" />
+                      Sign Out
+                    </Button>
                   </div>
                 </CardContent>
               </Card>

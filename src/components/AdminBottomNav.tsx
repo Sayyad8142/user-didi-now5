@@ -1,9 +1,7 @@
 import React from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Home, Calendar, User, LogOut, Settings, MessageSquare } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
+import { Calendar, Settings, MessageSquare } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { supabaseAdmin as supabase } from "@/lib/supabase-admin";
-import { toast } from 'sonner';
 
 const adminTabs = [
   { to: '/admin', label: 'Dashboard', icon: Calendar },
@@ -13,18 +11,6 @@ const adminTabs = [
 
 export function AdminBottomNav() {
   const location = useLocation();
-  const navigate = useNavigate();
-
-  const handleLogout = async () => {
-    try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
-      toast.success('Logged out successfully');
-      navigate('/admin-login');
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to logout');
-    }
-  };
 
   return (
     <div className="fixed bottom-0 inset-x-0 z-40 backdrop-blur supports-[backdrop-filter]:bg-white/70 pb-safe">
@@ -50,15 +36,6 @@ export function AdminBottomNav() {
                 </Link>
               );
             })}
-            
-            {/* Logout Button */}
-            <button
-              onClick={handleLogout}
-              className="flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-colors text-xs text-gray-500 hover:text-gray-700"
-            >
-              <LogOut className="w-5 h-5" />
-              <span>Logout</span>
-            </button>
           </div>
         </nav>
       </div>
