@@ -487,9 +487,9 @@ export function AdminBookingCard({
         </CardContent>
       </Card>
 
-      {/* Mobile-Only: Fixed action buttons bar at bottom */}
+      {/* Mobile-Only: Fixed action buttons bar above nav */}
       {(isPending || isAssigned) && (
-        <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 z-50 shadow-lg">
+        <div className="md:hidden fixed bottom-24 left-0 right-0 bg-white border-t border-gray-200 p-4 z-30 shadow-lg">
           <div className="max-w-sm mx-auto flex gap-3">
             <Button
               variant="outline"
