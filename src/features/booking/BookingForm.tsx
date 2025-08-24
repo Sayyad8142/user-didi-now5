@@ -72,9 +72,9 @@ export function BookingForm() {
     queryFn: async () => {
       const q = supabase.from("maid_pricing_tasks").select("task, price_inr, community").eq("flat_size", selectedFlatSize!).eq("active", true);
       if (profile?.community) {
-        q.or(`community.is.null,community.eq.${profile.community}`);
+        q.or(`community.is.null,community.eq.,community.eq.${profile.community}`);
       } else {
-        q.is('community', null);
+        q.or(`community.is.null,community.eq.`);
       }
       const {
         data,
