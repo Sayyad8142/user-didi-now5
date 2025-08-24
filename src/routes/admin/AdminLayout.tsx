@@ -6,7 +6,7 @@ import { useBookingsRealtime } from "@/features/admin/useRealtime";
 import QuickStats from "@/features/admin/QuickStats";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Settings } from "lucide-react";
+import { Search, Settings, BarChart3, Calendar, MessageSquare } from "lucide-react";
 import { useNewBookingAlert } from "@/features/admin/useNewBookingAlert";
 import { AdminBottomNav } from "@/components/AdminBottomNav";
 import { useSLASettings } from "@/features/admin/useSLASettings";
@@ -87,58 +87,117 @@ export default function AdminLayout() {
       <Route path="/communities" element={<AdminCommunities />} />
       <Route path="/chat" element={<AdminChat />} />
       <Route path="/users" element={<AdminUsers />} />
-      <Route path="/*" element={<div className="min-h-[100svh] max-w-screen-sm mx-auto bg-background text-foreground flex flex-col">
-          {/* Enhanced admin header */}
-          <header className="sticky top-0 z-40 bg-gradient-to-r from-pink-50 to-purple-50 backdrop-blur border-b border-pink-100 safe-top shadow-sm">
-            <div className="flex items-center justify-between px-4 py-4">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-gradient-to-br from-pink-500 to-purple-600 rounded-lg flex items-center justify-center shadow-md">
-                  <Settings className="w-4 h-4 text-white" />
+      <Route path="/*" element={<div className="min-h-[100svh] max-w-screen-lg mx-auto bg-gradient-to-br from-slate-50 to-blue-50 text-foreground flex flex-col">
+          {/* Enhanced modern header */}
+          <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-white/20 safe-top shadow-lg">
+            <div className="flex items-center justify-between px-6 py-4">
+              <div className="flex items-center gap-4">
+                <div className="relative">
+                  <div className="w-10 h-10 bg-gradient-to-br from-pink-500 via-purple-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-xl">
+                    <Settings className="w-5 h-5 text-white" />
+                  </div>
+                  <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-400 rounded-full border-2 border-white animate-pulse"></div>
                 </div>
                 <div>
-                  <h1 className="font-bold text-xl bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent">
+                  <h1 className="font-bold text-2xl bg-gradient-to-r from-pink-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent">
                     Didi Now Admin
                   </h1>
-                  <p className="text-xs text-muted-foreground font-medium">Administrative Console</p>
+                  <p className="text-sm text-slate-600 font-medium">Administrative Console</p>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <div className="px-3 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full border border-green-200">
-                  Online
+              <div className="flex items-center gap-3">
+                <div className="hidden sm:flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-100 to-emerald-100 text-green-700 text-sm font-medium rounded-full border border-green-200 shadow-sm">
+                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                  System Online
+                </div>
+                <div className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center">
+                  <div className="w-6 h-6 bg-gradient-to-r from-slate-400 to-slate-600 rounded-full"></div>
                 </div>
               </div>
             </div>
           </header>
 
-          {/* Main content with mobile layout */}
+          {/* Main content with enhanced layout */}
           <main className="flex-1 flex flex-col overflow-hidden">
-            {/* Quick Stats - Compact */}
-            <section className="px-3 py-3 border-b bg-muted/30">
-              <div className="bg-white rounded-2xl p-3 shadow-sm">
-                <div className="font-semibold text-sm mb-2">Quick Stats</div>
+            {/* Quick Stats - Enhanced */}
+            <section className="px-6 py-6">
+              <div className="bg-white/70 backdrop-blur-sm rounded-3xl p-6 shadow-xl border border-white/30">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center">
+                    <BarChart3 className="w-4 h-4 text-white" />
+                  </div>
+                  <h2 className="font-bold text-lg text-slate-800">Quick Stats</h2>
+                </div>
                 <QuickStats />
               </div>
             </section>
 
-            {/* Dashboard content area */}
-            <section className="flex-1 overflow-y-auto px-3 py-3 space-y-3 pb-24 md:pb-6">
-              <div className="text-center py-12">
-                <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Settings className="h-6 w-6 text-muted-foreground" />
-                </div>
-                <h3 className="font-medium text-foreground mb-1">
-                  Admin Dashboard
-                </h3>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Use the navigation below to access different admin functions
-                </p>
-                <div className="grid grid-cols-2 gap-3 max-w-xs mx-auto">
-                  <Button variant="outline" onClick={() => navigate('/admin/bookings')} className="rounded-xl h-12">
-                    View Bookings
-                  </Button>
-                  <Button variant="outline" onClick={() => navigate('/admin/workers')} className="rounded-xl h-12">
-                    Manage Workers
-                  </Button>
+            {/* Dashboard content area - Enhanced */}
+            <section className="flex-1 overflow-y-auto px-6 pb-24 md:pb-6">
+              <div className="max-w-4xl mx-auto">
+                <div className="text-center py-16">
+                  <div className="relative mb-8">
+                    <div className="w-20 h-20 bg-gradient-to-br from-purple-100 to-pink-100 rounded-2xl flex items-center justify-center mx-auto shadow-lg">
+                      <Settings className="h-8 w-8 text-purple-600" />
+                    </div>
+                    <div className="absolute -top-2 -right-2 w-6 h-6 bg-gradient-to-r from-pink-500 to-purple-600 rounded-full flex items-center justify-center">
+                      <span className="text-white text-xs font-bold">✓</span>
+                    </div>
+                  </div>
+                  
+                  <h3 className="font-bold text-2xl text-slate-800 mb-3">
+                    Welcome to Admin Dashboard
+                  </h3>
+                  <p className="text-slate-600 mb-8 max-w-md mx-auto leading-relaxed">
+                    Manage your platform efficiently with our comprehensive admin tools and real-time insights
+                  </p>
+                  
+                  {/* Action Cards Grid */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 max-w-4xl mx-auto">
+                    <div className="group">
+                      <Button 
+                        variant="outline" 
+                        onClick={() => navigate('/admin/bookings')} 
+                        className="w-full h-24 rounded-2xl border-2 border-slate-200 bg-white/50 hover:bg-white hover:border-pink-300 hover:shadow-lg transition-all duration-300 flex flex-col gap-2 group-hover:scale-105"
+                      >
+                        <Calendar className="h-6 w-6 text-pink-600" />
+                        <span className="font-semibold">View Bookings</span>
+                      </Button>
+                    </div>
+                    
+                    <div className="group">
+                      <Button 
+                        variant="outline" 
+                        onClick={() => navigate('/admin/workers')} 
+                        className="w-full h-24 rounded-2xl border-2 border-slate-200 bg-white/50 hover:bg-white hover:border-purple-300 hover:shadow-lg transition-all duration-300 flex flex-col gap-2 group-hover:scale-105"
+                      >
+                        <Settings className="h-6 w-6 text-purple-600" />
+                        <span className="font-semibold">Manage Workers</span>
+                      </Button>
+                    </div>
+                    
+                    <div className="group">
+                      <Button 
+                        variant="outline" 
+                        onClick={() => navigate('/admin/chat')} 
+                        className="w-full h-24 rounded-2xl border-2 border-slate-200 bg-white/50 hover:bg-white hover:border-blue-300 hover:shadow-lg transition-all duration-300 flex flex-col gap-2 group-hover:scale-105"
+                      >
+                        <MessageSquare className="h-6 w-6 text-blue-600" />
+                        <span className="font-semibold">Messages</span>
+                      </Button>
+                    </div>
+                    
+                    <div className="group">
+                      <Button 
+                        variant="outline" 
+                        onClick={() => navigate('/admin/settings')} 
+                        className="w-full h-24 rounded-2xl border-2 border-slate-200 bg-white/50 hover:bg-white hover:border-indigo-300 hover:shadow-lg transition-all duration-300 flex flex-col gap-2 group-hover:scale-105"
+                      >
+                        <Settings className="h-6 w-6 text-indigo-600" />
+                        <span className="font-semibold">Settings</span>
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </section>
