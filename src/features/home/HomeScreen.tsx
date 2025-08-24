@@ -26,6 +26,15 @@ export function HomeScreen() {
         <ServiceHours />
         <FeatureCarousel />
         
+        {/* Promotional Banner */}
+        <div className="px-2">
+          <img 
+            src="/lovable-uploads/a463cafa-1467-4d5b-a761-91285dd6bd19.png" 
+            alt="Didi Now - Quick maid service in 10 minutes"
+            className="w-full h-auto rounded-lg shadow-sm"
+          />
+        </div>
+        
         {/* Contact Manager Button */}
         <div className="pt-4 space-y-3">
           <Button
