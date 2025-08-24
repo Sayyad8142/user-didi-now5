@@ -75,13 +75,17 @@ export function AuthCard() {
 
   const checkIfUserExists = async (phone: string): Promise<boolean> => {
     try {
+      // Use the same normalization function used during profile creation
+      const normalizedPhone = normalizePhone(phone);
+      
+      // Also try formatPhoneIN for backward compatibility
       const formattedPhone = formatPhoneIN(phone);
       
-      // Check if user exists in profiles table
+      // Check if user exists in profiles table with either format
       const { data, error } = await supabase
         .from('profiles')
         .select('id')
-        .eq('phone', formattedPhone)
+        .or(`phone.eq.${normalizedPhone},phone.eq.${formattedPhone}`)
         .maybeSingle();
 
       if (error) {
