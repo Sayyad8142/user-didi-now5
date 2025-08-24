@@ -36,6 +36,7 @@ import { ChatScreen } from "./features/chat/ChatScreen";
 import AdminChat from "./routes/admin/AdminChat";
 import AdminFeedback from "./routes/admin/AdminFeedback";
 import AdminCompletedBookings from "./routes/admin/AdminCompletedBookings";
+import AdminWorkers from "./routes/admin/AdminWorkers";
 
 const queryClient = new QueryClient();
 
@@ -240,6 +241,14 @@ const App = () => {
               element={
                 <AdminGate>
                   <AdminCompletedBookings />
+                </AdminGate>
+              } 
+            />
+            <Route 
+              path="/admin/workers" 
+              element={
+                <AdminGate>
+                  <AdminWorkers />
                 </AdminGate>
               } 
             />
