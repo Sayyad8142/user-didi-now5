@@ -22,6 +22,7 @@ import NotFound from "./pages/NotFound";
 const Home = lazy(() => import("./pages/Home"));
 const Bookings = lazy(() => import("./pages/Bookings"));
 const Profile = lazy(() => import("./pages/Profile"));
+const FAQs = lazy(() => import("./pages/FAQs"));
 const BookingForm = lazy(() => import("./features/booking/BookingForm").then(m => ({ default: m.BookingForm })));
 const ScheduleScreen = lazy(() => import("./features/booking/ScheduleScreen").then(m => ({ default: m.ScheduleScreen })));
 const ChatScreen = lazy(() => import("./features/chat/ChatScreen").then(m => ({ default: m.ChatScreen })));
@@ -163,6 +164,16 @@ const App = () => {
               element={
                 <ProtectedRoute>
                   <ChatScreen />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/faqs" 
+              element={
+                <ProtectedRoute>
+                  <ProtectedLayout>
+                    <FAQs />
+                  </ProtectedLayout>
                 </ProtectedRoute>
               } 
             />
