@@ -31,7 +31,9 @@ export function HomeScreen() {
           <img 
             src="/lovable-uploads/a157d599-7225-4729-88f2-e0a3d7500d7b.png" 
             alt="Didi Now - Quick maid service in 10 minutes"
-            className="w-full object-contain rounded-lg shadow-sm"
+            className="block w-full h-auto"
+            loading="eager"
+            decoding="async"
           />
         </div>
         
