@@ -241,6 +241,22 @@ const App = () => {
                   <AdminChat />
                 </AdminGate>
               } 
+             />
+            <Route 
+              path="/admin/users" 
+              element={
+                <AdminGate>
+                  <AdminLayout />
+                </AdminGate>
+              } 
+            />
+            <Route 
+              path="/admin/communities" 
+              element={
+                <AdminGate>
+                  <AdminLayout />
+                </AdminGate>
+              } 
             />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
