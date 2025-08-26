@@ -107,12 +107,15 @@ export function LegalPDFs() {
       if (upErr) {
         // Special handling for RLS/session problems
         if (/row-level security|42501/i.test(upErr.message)) {
-          toast({ 
-            variant: 'destructive', 
-            title: 'Session expired', 
-            description: 'Please login again to upload legal PDFs.' 
-          });
-          navigate('/admin/login');
+          // Only show toast if not already on login page
+          if (!window.location.pathname.includes('/admin/login')) {
+            toast({ 
+              variant: 'destructive', 
+              title: 'Session expired', 
+              description: 'Please login again to upload legal PDFs.' 
+            });
+            navigate('/admin/login');
+          }
           return;
         }
         throw upErr;
