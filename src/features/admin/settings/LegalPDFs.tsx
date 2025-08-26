@@ -95,37 +95,37 @@ export function LegalPDFs() {
 
       if (uploadError) throw uploadError;
 
-      // Get public URL
+      // Get public URL with cache-busting
       const { data } = supabase.storage.from('app-pdfs').getPublicUrl(path);
-      const publicUrl = data.publicUrl;
+      const uploadedAt = new Date().toISOString();
+      const publicUrl = `${data.publicUrl}?v=${encodeURIComponent(uploadedAt)}`;
 
       // Save to ops_settings
-      const now = new Date().toISOString();
       const { error: settingsError } = await supabase
         .from('ops_settings')
         .upsert([
           { key: `${kind}_pdf_url`, value: publicUrl },
-          { key: `${kind}_pdf_uploaded_at`, value: now },
+          { key: `${kind}_pdf_uploaded_at`, value: uploadedAt },
         ]);
 
       if (settingsError) throw settingsError;
 
       // Update local state
       if (kind === "privacy") {
-        setPrivacy({ url: publicUrl, uploadedAt: now });
+        setPrivacy({ url: publicUrl, uploadedAt });
       } else {
-        setTerms({ url: publicUrl, uploadedAt: now });
+        setTerms({ url: publicUrl, uploadedAt });
       }
 
       toast({
         title: "Upload successful",
         description: `${kind === "privacy" ? "Privacy Policy" : "Terms of Service"} uploaded successfully.`,
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Upload error:', error);
       toast({
         title: "Upload failed",
-        description: "Failed to upload PDF. Please try again.",
+        description: error?.message || "Failed to upload PDF. Please try again.",
         variant: "destructive",
       });
     } finally {
