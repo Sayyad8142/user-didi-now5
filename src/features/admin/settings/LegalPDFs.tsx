@@ -92,12 +92,24 @@ export function LegalPDFs() {
     return true;
   };
 
+  const fileToBase64 = (file: File) => new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = (reader.result as string) || '';
+      const base64 = result.split(',')[1] || '';
+      resolve(base64);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+
   const uploadWithRetry = async (kind: "privacy" | "terms", file: File) => {
     const doUpload = async () => {
       const timestamp = Date.now();
       const fileName = `${kind}.pdf`;
       
-      // Upload file to storage
+      // Upload file to storage first; if RLS blocks, fallback to Edge Function
+      let publicUrl: string | null = null;
       const { error: uploadError } = await supabase.storage
         .from('app-pdfs')
         .upload(fileName, file, {
@@ -106,12 +118,21 @@ export function LegalPDFs() {
           cacheControl: '3600'
         });
 
-      if (uploadError) throw uploadError;
-
-      // Get public URL with cache busting
-      const { data: { publicUrl } } = supabase.storage
-        .from('app-pdfs')
-        .getPublicUrl(fileName);
+      if (uploadError) {
+        // Fallback via Edge Function (service role)
+        const base64 = await fileToBase64(file);
+        const { data: fnData, error: fnError } = await supabase.functions.invoke('admin-upload-legal-pdf', {
+          body: { filename: fileName, contentType: 'application/pdf', base64, kind }
+        });
+        if (fnError) throw fnError;
+        publicUrl = fnData?.url as string;
+      } else {
+        // Get public URL
+        const { data: pub } = supabase.storage
+          .from('app-pdfs')
+          .getPublicUrl(fileName);
+        publicUrl = pub.publicUrl;
+      }
       
       const urlWithTimestamp = `${publicUrl}?t=${timestamp}`;
 
