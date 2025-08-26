@@ -108,32 +108,51 @@ export function LegalPDFs() {
       const timestamp = Date.now();
       const fileName = `${kind}.pdf`;
       
-      // Use Edge Function directly (bypasses RLS issues)
-      console.log('Using Edge Function for upload...');
-      const base64 = await fileToBase64(file);
+      // Try direct storage upload first
+      let publicUrl: string | null = null;
+      console.log('Attempting direct storage upload...');
       
-      const { data: fnData, error: fnError } = await supabase.functions.invoke('admin-upload-legal-pdf', {
-        body: { 
-          filename: fileName, 
-          contentType: 'application/pdf', 
-          base64, 
-          kind 
+      const { error: uploadError } = await supabase.storage
+        .from('app-pdfs')
+        .upload(fileName, file, {
+          upsert: true,
+          contentType: 'application/pdf',
+          cacheControl: '3600'
+        });
+
+      if (uploadError) {
+        console.log('Storage upload failed, using Edge Function fallback:', uploadError);
+        // Fallback to Edge Function (service role upload)
+        const base64 = await fileToBase64(file);
+        
+        const { data: fnData, error: fnError } = await supabase.functions.invoke('admin-upload-legal-pdf', {
+          body: { 
+            filename: fileName, 
+            contentType: 'application/pdf', 
+            base64, 
+            kind 
+          }
+        });
+        
+        if (fnError) {
+          console.error('Edge Function upload failed:', fnError);
+          throw new Error(`Upload failed: ${fnError.message}`);
         }
-      });
-      
-      if (fnError) {
-        console.error('Edge Function upload failed:', fnError);
-        throw new Error(`Upload failed: ${fnError.message || 'Unknown error'}`);
+        
+        if (!fnData?.url) {
+          throw new Error('Edge Function did not return a valid URL');
+        }
+        
+        publicUrl = fnData.url;
+        console.log('Edge Function upload successful:', publicUrl);
+      } else {
+        console.log('Direct storage upload successful');
+        // Get public URL for direct upload
+        const { data: pub } = supabase.storage
+          .from('app-pdfs')
+          .getPublicUrl(fileName);
+        publicUrl = pub.publicUrl;
       }
-      
-      if (!fnData?.url) {
-        console.error('Edge Function response:', fnData);
-        throw new Error('Edge Function did not return a valid URL');
-      }
-      
-      const publicUrl = fnData.url;
-      console.log('Edge Function upload successful:', publicUrl);
-      
       const urlWithTimestamp = `${publicUrl}?t=${timestamp}`;
 
       // Save URL using RPC
