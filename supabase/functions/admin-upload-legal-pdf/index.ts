@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -6,7 +7,9 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
-export async function serve(req: Request): Promise<Response> {
+serve(async (req: Request): Promise<Response> => {
+  console.log('Edge Function called:', req.method, req.url);
+  
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -93,11 +96,10 @@ export async function serve(req: Request): Promise<Response> {
       headers: { 'Content-Type': 'application/json', ...corsHeaders },
     });
   } catch (e) {
+    console.error('Unexpected error:', e);
     return new Response(JSON.stringify({ error: 'Unexpected error: ' + String(e) }), {
       status: 500,
       headers: { 'Content-Type': 'application/json', ...corsHeaders },
     });
   }
-}
-
-export default serve;
+});
