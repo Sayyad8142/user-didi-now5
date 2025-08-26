@@ -54,6 +54,11 @@ export function LegalPDFs() {
   };
 
   useEffect(() => {
+    // Don't check session if already on login/auth pages
+    if (window.location.pathname.includes('/admin/login') || window.location.pathname.includes('/auth')) {
+      return;
+    }
+    
     // Check session validity on mount
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -273,7 +278,8 @@ export function LegalPDFs() {
     </Card>
   );
 
-  if (!sessionValid) {
+  // Don't render session expired state if on login pages
+  if (!sessionValid && !window.location.pathname.includes('/admin/login')) {
     return (
       <div className="space-y-6">
         <div>
