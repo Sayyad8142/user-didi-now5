@@ -108,8 +108,10 @@ export function LegalPDFs() {
       const timestamp = Date.now();
       const fileName = `${kind}.pdf`;
       
-      // Upload file to storage first; if RLS blocks, fallback to Edge Function
+      // Try direct storage upload first
       let publicUrl: string | null = null;
+      console.log('Attempting direct storage upload...');
+      
       const { error: uploadError } = await supabase.storage
         .from('app-pdfs')
         .upload(fileName, file, {
@@ -119,15 +121,33 @@ export function LegalPDFs() {
         });
 
       if (uploadError) {
-        // Fallback via Edge Function (service role)
+        console.log('Storage upload failed, using Edge Function fallback:', uploadError);
+        // Fallback to Edge Function (service role upload)
         const base64 = await fileToBase64(file);
+        
         const { data: fnData, error: fnError } = await supabase.functions.invoke('admin-upload-legal-pdf', {
-          body: { filename: fileName, contentType: 'application/pdf', base64, kind }
+          body: { 
+            filename: fileName, 
+            contentType: 'application/pdf', 
+            base64, 
+            kind 
+          }
         });
-        if (fnError) throw fnError;
-        publicUrl = fnData?.url as string;
+        
+        if (fnError) {
+          console.error('Edge Function upload failed:', fnError);
+          throw new Error(`Upload failed: ${fnError.message}`);
+        }
+        
+        if (!fnData?.url) {
+          throw new Error('Edge Function did not return a valid URL');
+        }
+        
+        publicUrl = fnData.url;
+        console.log('Edge Function upload successful:', publicUrl);
       } else {
-        // Get public URL
+        console.log('Direct storage upload successful');
+        // Get public URL for direct upload
         const { data: pub } = supabase.storage
           .from('app-pdfs')
           .getPublicUrl(fileName);
@@ -136,13 +156,17 @@ export function LegalPDFs() {
       
       const urlWithTimestamp = `${publicUrl}?t=${timestamp}`;
 
-      // Save URL using RPC (bypasses RLS issues)
+      // Save URL using RPC
+      console.log('Saving URL via RPC:', urlWithTimestamp);
       const { error: rpcError } = await supabase.rpc('admin_set_legal_pdf', {
         kind,
         url: urlWithTimestamp
       });
 
-      if (rpcError) throw rpcError;
+      if (rpcError) {
+        console.error('RPC error:', rpcError);
+        throw new Error(`Failed to save URL: ${rpcError.message}`);
+      }
 
       return { url: urlWithTimestamp, uploadedAt: new Date().toISOString() };
     };
