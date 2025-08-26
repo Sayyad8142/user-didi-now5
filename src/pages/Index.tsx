@@ -37,8 +37,7 @@ const Index = () => {
               e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjFmNWY5Ii8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxOCIgZmlsbD0iIzY0NzQ4YiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPkRpZGkgTm93PC90ZXh0Pjwvc3ZnPg==';
             }}
             style={{
-              aspectRatio: '4/3',
-              objectFit: 'cover',
+              objectFit: 'contain',
               background: 'linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)'
             }}
           />
