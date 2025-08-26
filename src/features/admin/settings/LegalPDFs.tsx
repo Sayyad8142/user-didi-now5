@@ -26,29 +26,39 @@ export function LegalPDFs() {
 
   const loadSettings = async () => {
     try {
-      const { data, error } = await supabase
-        .from('ops_settings')
-        .select('key, value')
-        .in('key', [
-          'privacy_pdf_url', 
-          'privacy_pdf_uploaded_at',
-          'terms_pdf_url', 
-          'terms_pdf_uploaded_at'
-        ]);
-
+      const { data, error } = await supabase.rpc('admin_get_legal_pdfs');
+      
       if (error) throw error;
 
-      const settings = data?.reduce((acc, { key, value }) => ({ ...acc, [key]: value }), {} as Record<string, string>) || {};
-      
       setPrivacy({
-        url: settings['privacy_pdf_url'] || null,
-        uploadedAt: settings['privacy_pdf_uploaded_at'] || null,
+        url: data?.[0]?.privacy_url || null,
+        uploadedAt: null, // We'll get timestamps separately if needed
       });
       
       setTerms({
-        url: settings['terms_pdf_url'] || null,
-        uploadedAt: settings['terms_pdf_uploaded_at'] || null,
+        url: data?.[0]?.terms_url || null,
+        uploadedAt: null,
       });
+
+      // Get timestamps separately
+      const { data: settingsData } = await supabase
+        .from('ops_settings')
+        .select('key, value')
+        .in('key', ['privacy_pdf_uploaded_at', 'terms_pdf_uploaded_at']);
+
+      if (settingsData) {
+        const settings = settingsData.reduce((acc, { key, value }) => ({ ...acc, [key]: value }), {} as Record<string, string>);
+        
+        setPrivacy(prev => ({
+          ...prev,
+          uploadedAt: settings['privacy_pdf_uploaded_at'] || null,
+        }));
+        
+        setTerms(prev => ({
+          ...prev,
+          uploadedAt: settings['terms_pdf_uploaded_at'] || null,
+        }));
+      }
     } catch (error) {
       console.error('Error loading settings:', error);
     }
@@ -105,19 +115,15 @@ export function LegalPDFs() {
       
       const urlWithTimestamp = `${publicUrl}?t=${timestamp}`;
 
-      // Save settings to database
-      const uploadedAt = new Date().toISOString();
-      
-      const { error: settingsError } = await supabase
-        .from('ops_settings')
-        .upsert([
-          { key: `${kind}_pdf_url`, value: urlWithTimestamp },
-          { key: `${kind}_pdf_uploaded_at`, value: uploadedAt }
-        ]);
+      // Save URL using RPC (bypasses RLS issues)
+      const { error: rpcError } = await supabase.rpc('admin_set_legal_pdf', {
+        kind,
+        url: urlWithTimestamp
+      });
 
-      if (settingsError) throw settingsError;
+      if (rpcError) throw rpcError;
 
-      return { url: urlWithTimestamp, uploadedAt };
+      return { url: urlWithTimestamp, uploadedAt: new Date().toISOString() };
     };
 
     // Ensure session and try once
@@ -156,7 +162,7 @@ export function LegalPDFs() {
       });
 
     } catch (error: any) {
-      console.error('Upload error:', error);
+      console.error('PDF upload error:', error);
       
       if (error.code === "AUTH_EXPIRED") {
         toast({
@@ -168,7 +174,7 @@ export function LegalPDFs() {
         toast({
           variant: "destructive",
           title: "Upload failed",
-          description: error.message,
+          description: error.message ?? 'Please try again.',
         });
       }
     } finally {

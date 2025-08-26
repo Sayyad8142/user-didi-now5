@@ -734,6 +734,13 @@ export type Database = {
         Args: { p_booking_id: string; p_reason: string }
         Returns: undefined
       }
+      admin_get_legal_pdfs: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          privacy_url: string
+          terms_url: string
+        }[]
+      }
       admin_get_web_version: {
         Args: Record<PropertyKey, never>
         Returns: {
@@ -743,6 +750,10 @@ export type Database = {
       }
       admin_set_booking_status: {
         Args: { p_booking_id: string; p_new_status: string; p_note?: string }
+        Returns: undefined
+      }
+      admin_set_legal_pdf: {
+        Args: { kind: string; url: string }
         Returns: undefined
       }
       admin_set_web_version: {
