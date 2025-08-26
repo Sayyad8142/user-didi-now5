@@ -42,16 +42,7 @@ export function HomeScreen() {
           </Button>
           
           {/* Legal Links */}
-          <div className="flex justify-center pt-2">
-            <Button 
-              variant="link" 
-              onClick={() => navigate('/legal/privacy')}
-              className="text-xs text-muted-foreground hover:text-foreground p-2 h-auto flex items-center gap-1"
-            >
-              <Shield className="w-3 h-3" />
-              Privacy Policy
-            </Button>
-          </div>
+          
         </div>
 
         <FaqSection />
