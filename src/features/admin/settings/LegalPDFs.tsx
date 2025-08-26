@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Upload, Download, Copy, Trash2, Loader2, ExternalLink } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { ensureAdminSession } from "@/lib/auth/ensureAdminSession";
 
 interface PdfState {
   url: string | null;
@@ -53,23 +54,10 @@ export function LegalPDFs() {
     }
   };
 
+  // Clear any previous session error state when component mounts
   useEffect(() => {
-    // Don't check session if already on login/auth pages
-    if (window.location.pathname.includes('/admin/login') || window.location.pathname.includes('/auth')) {
-      return;
-    }
-    
-    // Check session validity on mount
-    const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        setSessionValid(false);
-        return;
-      }
-      setSessionValid(true);
-      loadSettings();
-    };
-    checkSession();
+    setSessionValid(true);
+    loadSettings();
   }, []);
 
   const validateFile = (file: File): boolean => {
@@ -94,107 +82,168 @@ export function LegalPDFs() {
     return true;
   };
 
+  const uploadWithRetry = async (kind: "privacy" | "terms", file: File) => {
+    const doUpload = async () => {
+      const timestamp = Date.now();
+      const fileName = `${kind}.pdf`;
+      
+      // Upload file to storage
+      const { error: uploadError } = await supabase.storage
+        .from('app-pdfs')
+        .upload(fileName, file, {
+          upsert: true,
+          contentType: 'application/pdf',
+          cacheControl: '3600'
+        });
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL with cache busting
+      const { data: { publicUrl } } = supabase.storage
+        .from('app-pdfs')
+        .getPublicUrl(fileName);
+      
+      const urlWithTimestamp = `${publicUrl}?t=${timestamp}`;
+
+      // Save settings to database
+      const uploadedAt = new Date().toISOString();
+      
+      const { error: settingsError } = await supabase
+        .from('ops_settings')
+        .upsert([
+          { key: `${kind}_pdf_url`, value: urlWithTimestamp },
+          { key: `${kind}_pdf_uploaded_at`, value: uploadedAt }
+        ]);
+
+      if (settingsError) throw settingsError;
+
+      return { url: urlWithTimestamp, uploadedAt };
+    };
+
+    // Ensure session and try once
+    await ensureAdminSession();
+    try {
+      return await doUpload();
+    } catch (e: any) {
+      // Retry once on auth/permission errors
+      const msg = String(e?.message || e);
+      if (e?.code === "401" || /JWT|auth|permission|401/i.test(msg)) {
+        await ensureAdminSession();
+        return await doUpload();
+      }
+      throw e;
+    }
+  };
+
   const uploadPdf = async (kind: "privacy" | "terms", file: File | null) => {
     if (!file || !validateFile(file)) return;
 
     setUploading(prev => ({ ...prev, [kind]: true }));
 
     try {
-      const bucket = 'app-pdfs';
-      const path = kind === 'privacy' ? 'privacy.pdf' : 'terms.pdf';
-
-      const { error: upErr } = await supabase.storage.from(bucket).upload(path, file, {
-        upsert: true,
-        contentType: 'application/pdf',
-        cacheControl: '3600',
-      });
-
-      if (upErr) {
-        // Special handling for RLS/session problems
-        if (/row-level security|42501/i.test(upErr.message)) {
-          // Only show toast if not already on login page
-          if (!window.location.pathname.includes('/admin/login')) {
-            toast({ 
-              variant: 'destructive', 
-              title: 'Session expired', 
-              description: 'Please login again to upload legal PDFs.' 
-            });
-            navigate('/admin/login');
-          }
-          return;
-        }
-        throw upErr;
-      }
-
-      const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(path);
-      const uploadedAt = new Date().toISOString();
-      const publicUrl = `${urlData.publicUrl}?v=${encodeURIComponent(uploadedAt)}`;
-
-      await supabase.from('ops_settings').upsert([
-        { key: `${kind}_pdf_url`, value: publicUrl },
-        { key: `${kind}_pdf_uploaded_at`, value: uploadedAt },
-      ]);
+      const result = await uploadWithRetry(kind, file);
 
       // Update local state
-      if (kind === "privacy") {
-        setPrivacy({ url: publicUrl, uploadedAt });
+      if (kind === 'privacy') {
+        setPrivacy(result);
       } else {
-        setTerms({ url: publicUrl, uploadedAt });
+        setTerms(result);
       }
 
       toast({
         title: "Upload successful",
-        description: `${kind === "privacy" ? "Privacy Policy" : "Terms of Service"} uploaded successfully.`,
+        description: `${kind === 'privacy' ? 'Privacy Policy' : 'Terms of Service'} uploaded successfully!`,
       });
+
     } catch (error: any) {
       console.error('Upload error:', error);
-      toast({
-        title: "Upload failed",
-        description: error?.message || "Failed to upload PDF. Please try again.",
-        variant: "destructive",
-      });
+      
+      if (error.code === "AUTH_EXPIRED") {
+        toast({
+          variant: "destructive",
+          title: "Session expired",
+          description: "Please try the upload again.",
+        });
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Upload failed",
+          description: error.message,
+        });
+      }
     } finally {
       setUploading(prev => ({ ...prev, [kind]: false }));
     }
   };
 
-  const removePdf = async (kind: "privacy" | "terms") => {
-    const path = kind === "privacy" ? "privacy.pdf" : "terms.pdf";
-
-    try {
+  const removeWithRetry = async (kind: "privacy" | "terms") => {
+    const doRemove = async () => {
+      const fileName = `${kind}.pdf`;
+      
       // Remove from storage
-      const { error: storageError } = await supabase.storage
+      const { error: deleteError } = await supabase.storage
         .from('app-pdfs')
-        .remove([path]);
+        .remove([fileName]);
 
-      if (storageError) throw storageError;
+      if (deleteError) throw deleteError;
 
-      // Remove from ops_settings
+      // Remove from settings
       const { error: settingsError } = await supabase
         .from('ops_settings')
         .delete()
         .in('key', [`${kind}_pdf_url`, `${kind}_pdf_uploaded_at`]);
 
       if (settingsError) throw settingsError;
+    };
+
+    // Ensure session and try once
+    await ensureAdminSession();
+    try {
+      await doRemove();
+    } catch (e: any) {
+      // Retry once on auth/permission errors
+      const msg = String(e?.message || e);
+      if (e?.code === "401" || /JWT|auth|permission|401/i.test(msg)) {
+        await ensureAdminSession();
+        await doRemove();
+      } else {
+        throw e;
+      }
+    }
+  };
+
+  const removePdf = async (kind: "privacy" | "terms") => {
+    try {
+      await removeWithRetry(kind);
 
       // Update local state
-      if (kind === "privacy") {
+      if (kind === 'privacy') {
         setPrivacy({ url: null, uploadedAt: null });
       } else {
         setTerms({ url: null, uploadedAt: null });
       }
 
       toast({
-        title: "PDF removed",
-        description: `${kind === "privacy" ? "Privacy Policy" : "Terms of Service"} removed successfully.`,
+        title: "Removal successful",
+        description: `${kind === 'privacy' ? 'Privacy Policy' : 'Terms of Service'} removed successfully!`,
       });
-    } catch (error) {
+
+    } catch (error: any) {
       console.error('Remove error:', error);
-      toast({
-        title: "Remove failed",
-        description: "Failed to remove PDF. Please try again.",
-        variant: "destructive",
-      });
+      
+      if (error.code === "AUTH_EXPIRED") {
+        toast({
+          variant: "destructive",
+          title: "Session expired",
+          description: "Please try the removal again.",
+        });
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Removal failed",
+          description: error.message,
+        });
+      }
     }
   };
 
@@ -277,30 +326,6 @@ export function LegalPDFs() {
       </CardContent>
     </Card>
   );
-
-  // Don't render session expired state if on login pages
-  if (!sessionValid && !window.location.pathname.includes('/admin/login')) {
-    return (
-      <div className="space-y-6">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">Legal PDFs</h2>
-          <p className="text-muted-foreground">
-            Upload Privacy Policy and Terms of Service PDFs for public access.
-          </p>
-        </div>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-center">
-              <p className="text-muted-foreground mb-4">Session expired, please sign in again</p>
-              <Button onClick={() => navigate('/admin/login')}>
-                Sign In
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6">
