@@ -95,8 +95,8 @@ export default function LegalCenter() {
     let cancelled = false;
     async function load() {
       try {
-        // Get the PDF URL from the admin_get_legal_pdfs function
-        const { data, error } = await supabase.rpc('admin_get_legal_pdfs');
+        // Get the PDF URL from the get_legal_pdfs function
+        const { data, error } = await supabase.rpc('get_legal_pdfs');
         
         if (!cancelled && !error && data?.[0]) {
           const url = tab === "privacy" ? data[0].privacy_url : data[0].terms_url;

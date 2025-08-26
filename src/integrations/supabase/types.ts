@@ -836,6 +836,13 @@ export type Database = {
           worker_name: string
         }[]
       }
+      get_legal_pdfs: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          privacy_url: string
+          terms_url: string
+        }[]
+      }
       get_setting: {
         Args: { p_default: string; p_key: string }
         Returns: string
