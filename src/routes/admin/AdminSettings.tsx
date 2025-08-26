@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { AdminBottomNav } from '@/components/AdminBottomNav';
 import { useNewBookingAlert } from '@/features/admin/useNewBookingAlert';
 import { WorkersTable } from '@/features/admin/workers/WorkersTable';
-import SettingsLegalPDF from '@/routes/admin/SettingsLegalPDF';
+import { LegalPDFs } from '@/features/admin/settings/LegalPDFs';
 import AdminFaqsTab from '@/features/admin/settings/AdminFaqsTab';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -380,7 +380,7 @@ export default function AdminSettings() {
             </TabsContent>
 
             <TabsContent value="legal-pdf" className="mt-4">
-              <SettingsLegalPDF />
+              <LegalPDFs />
             </TabsContent>
           </Tabs>
         </div>
