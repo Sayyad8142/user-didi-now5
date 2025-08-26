@@ -25,8 +25,8 @@ const Index = () => {
       <div className="text-center max-w-sm">
         <div className="mb-6">
           <img
-            src="/lovable-uploads/99eb2646-dd7d-41ce-929e-7d27abfe2f37.png"
-            alt="Didi Now - Your maid on leave today? No worry, we will send maid in 10mins"
+            src="/lovable-uploads/00ada6f2-1251-44ce-ad6a-cfc6377b3088.png"
+            alt="Didi Now in 10Mins - Your maid on leave today? No worry, we will send maid in 10mins"
             className="w-full rounded-2xl shadow-card mb-6"
             loading="lazy"
             decoding="async"
