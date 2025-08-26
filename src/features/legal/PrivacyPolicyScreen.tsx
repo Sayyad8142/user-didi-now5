@@ -27,42 +27,36 @@ export function PrivacyPolicyScreen() {
   useEffect(() => {
     const fetchContent = async () => {
       try {
-        // Fetch markdown content
-        const { data: markdownData } = await supabase
-          .from('ops_settings')
-          .select('value')
-          .eq('key', 'privacy_policy_markdown')
-          .maybeSingle();
+        // Fetch markdown content using RPC
+        const { data: markdownData, error: markdownError } = await supabase
+          .rpc('get_app_setting', { k: 'privacy_policy_markdown' });
 
-        if (markdownData?.value) {
-          setContent(markdownData.value);
+        if (markdownError) {
+          console.error('Error fetching privacy policy markdown:', markdownError);
+        } else if (markdownData) {
+          setContent(markdownData);
         }
 
-        // Check for PDF URL
-        const { data: pdfData } = await supabase
-          .from('ops_settings')
-          .select('value')
-          .eq('key', 'privacy_pdf_url')
-          .maybeSingle();
+        // Check for PDF URL using RPC
+        const { data: pdfData, error: pdfError } = await supabase
+          .rpc('get_app_setting', { k: 'privacy_pdf_url' });
 
-        if (pdfData?.value) {
-          setPdfUrl(pdfData.value);
+        if (pdfError) {
+          console.error('Error fetching PDF URL:', pdfError);
+        } else if (pdfData) {
+          setPdfUrl(pdfData);
         }
 
-        // Get last updated date
-        const { data: updatedData } = await supabase
-          .from('ops_settings')
-          .select('value')
-          .in('key', ['privacy_policy_updated_at', 'privacy_pdf_uploaded_at']);
+        // Get last updated date using RPC
+        const { data: updatedData, error: updatedError } = await supabase
+          .rpc('get_app_setting', { k: 'privacy_policy_updated_at' });
 
-        if (updatedData && updatedData.length > 0) {
-          const dates = updatedData
-            .map(item => new Date(item.value))
-            .filter(date => !isNaN(date.getTime()))
-            .sort((a, b) => b.getTime() - a.getTime());
-          
-          if (dates.length > 0) {
-            setLastUpdated(dates[0].toLocaleDateString('en-IN', {
+        if (updatedError) {
+          console.error('Error fetching updated date:', updatedError);
+        } else if (updatedData) {
+          const date = new Date(updatedData);
+          if (!isNaN(date.getTime())) {
+            setLastUpdated(date.toLocaleDateString('en-IN', {
               year: 'numeric',
               month: 'long',
               day: 'numeric'
@@ -86,11 +80,8 @@ export function PrivacyPolicyScreen() {
 
   const handleCopyLink = async () => {
     try {
-      const publicUrl = 'https://didisnow.com/legal/privacy';
-      const fallbackUrl = `${window.location.origin}/legal/privacy`;
-      
-      // Try public URL first, fallback to in-app URL
-      await navigator.clipboard.writeText(publicUrl);
+      const currentUrl = window.location.href;
+      await navigator.clipboard.writeText(currentUrl);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
       
@@ -123,17 +114,17 @@ export function PrivacyPolicyScreen() {
       } else if (line.startsWith('- ')) {
         html += `<li class="ml-4">${line.substring(2)}</li>`;
       } else if (line.startsWith('**') && line.endsWith('**')) {
-        html += `<p class="font-semibold text-foreground mb-2">${line.substring(2, line.length - 2)}</p>`;
+        html += `<p class="font-semibold text-foreground mb-3">${line.substring(2, line.length - 2)}</p>`;
       } else if (line === '') {
-        html += '<br>';
+        html += '<div class="mb-3"></div>';
       } else if (line.includes('team@didisnow.com')) {
-        html += `<p class="text-muted-foreground mb-3">${line.replace(/team@didisnow\.com/g, '<a href="mailto:team@didisnow.com" class="text-primary underline">team@didisnow.com</a>')}</p>`;
+        html += `<p class="text-muted-foreground mb-3">${line.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>').replace(/team@didisnow\.com/g, '<a href="mailto:team@didisnow.com" class="text-primary underline font-medium">team@didisnow.com</a>')}</p>`;
       } else if (line.includes('https://')) {
         const urlRegex = /(https?:\/\/[^\s]+)/g;
         const formattedLine = line.replace(urlRegex, '<a href="$1" class="text-primary underline" target="_blank" rel="noopener noreferrer">$1</a>');
         html += `<p class="text-muted-foreground mb-3">${formattedLine}</p>`;
       } else if (line.length > 0) {
-        html += `<p class="text-muted-foreground mb-3">${line}</p>`;
+        html += `<p class="text-muted-foreground mb-3">${line.replace(/\*\*([^*]+)\*\*/g, '<strong class="font-medium">$1</strong>')}</p>`;
       }
     }
     
@@ -212,14 +203,23 @@ export function PrivacyPolicyScreen() {
 
       {/* Content */}
       <main className="max-w-4xl mx-auto px-4 py-8">
-        <article className="prose prose-slate max-w-none">
-          <div 
-            dangerouslySetInnerHTML={{ 
-              __html: renderMarkdown(content) 
-            }} 
-            className="space-y-4"
-          />
-        </article>
+        {!content ? (
+          <div className="text-center py-12">
+            <p className="text-muted-foreground text-lg">Policy coming soon.</p>
+            <p className="text-sm text-muted-foreground mt-2">
+              We're working on updating our privacy policy. Please check back soon.
+            </p>
+          </div>
+        ) : (
+          <article className="prose prose-slate max-w-none">
+            <div 
+              dangerouslySetInnerHTML={{ 
+                __html: renderMarkdown(content) 
+              }} 
+              className="space-y-4"
+            />
+          </article>
+        )}
 
         {/* Last Updated */}
         {lastUpdated && (

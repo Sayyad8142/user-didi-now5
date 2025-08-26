@@ -827,6 +827,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: Json
       }
+      get_app_setting: {
+        Args: { k: string }
+        Returns: string
+      }
       get_assigned_worker_info: {
         Args: { booking_id: string }
         Returns: {
