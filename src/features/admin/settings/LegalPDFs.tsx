@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Upload, Download, Copy, Trash2, Loader2 } from "lucide-react";
+import { Upload, Download, Copy, Trash2, Loader2, ExternalLink } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
 interface PdfState {
@@ -12,12 +13,14 @@ interface PdfState {
 }
 
 export function LegalPDFs() {
+  const navigate = useNavigate();
   const [privacy, setPrivacy] = useState<PdfState>({ url: null, uploadedAt: null });
   const [terms, setTerms] = useState<PdfState>({ url: null, uploadedAt: null });
   const [uploading, setUploading] = useState<{ privacy: boolean; terms: boolean }>({
     privacy: false,
     terms: false,
   });
+  const [sessionValid, setSessionValid] = useState(true);
   const { toast } = useToast();
 
   const loadSettings = async () => {
@@ -51,7 +54,17 @@ export function LegalPDFs() {
   };
 
   useEffect(() => {
-    loadSettings();
+    // Check session validity on mount
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setSessionValid(false);
+        return;
+      }
+      setSessionValid(true);
+      loadSettings();
+    };
+    checkSession();
   }, []);
 
   const validateFile = (file: File): boolean => {
@@ -79,36 +92,40 @@ export function LegalPDFs() {
   const uploadPdf = async (kind: "privacy" | "terms", file: File | null) => {
     if (!file || !validateFile(file)) return;
 
-    const path = kind === "privacy" ? "privacy.pdf" : "terms.pdf";
-    
     setUploading(prev => ({ ...prev, [kind]: true }));
 
     try {
-      // Upload to storage
-      const { error: uploadError } = await supabase.storage
-        .from('app-pdfs')
-        .upload(path, file, {
-          upsert: true,
-          contentType: 'application/pdf',
-          cacheControl: '3600',
-        });
+      const bucket = 'app-pdfs';
+      const path = kind === 'privacy' ? 'privacy.pdf' : 'terms.pdf';
 
-      if (uploadError) throw uploadError;
+      const { error: upErr } = await supabase.storage.from(bucket).upload(path, file, {
+        upsert: true,
+        contentType: 'application/pdf',
+        cacheControl: '3600',
+      });
 
-      // Get public URL with cache-busting
-      const { data } = supabase.storage.from('app-pdfs').getPublicUrl(path);
+      if (upErr) {
+        // Special handling for RLS/session problems
+        if (/row-level security|42501/i.test(upErr.message)) {
+          toast({ 
+            variant: 'destructive', 
+            title: 'Session expired', 
+            description: 'Please login again to upload legal PDFs.' 
+          });
+          navigate('/admin/login');
+          return;
+        }
+        throw upErr;
+      }
+
+      const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(path);
       const uploadedAt = new Date().toISOString();
-      const publicUrl = `${data.publicUrl}?v=${encodeURIComponent(uploadedAt)}`;
+      const publicUrl = `${urlData.publicUrl}?v=${encodeURIComponent(uploadedAt)}`;
 
-      // Save to ops_settings
-      const { error: settingsError } = await supabase
-        .from('ops_settings')
-        .upsert([
-          { key: `${kind}_pdf_url`, value: publicUrl },
-          { key: `${kind}_pdf_uploaded_at`, value: uploadedAt },
-        ]);
-
-      if (settingsError) throw settingsError;
+      await supabase.from('ops_settings').upsert([
+        { key: `${kind}_pdf_url`, value: publicUrl },
+        { key: `${kind}_pdf_uploaded_at`, value: uploadedAt },
+      ]);
 
       // Update local state
       if (kind === "privacy") {
@@ -253,6 +270,29 @@ export function LegalPDFs() {
     </Card>
   );
 
+  if (!sessionValid) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight">Legal PDFs</h2>
+          <p className="text-muted-foreground">
+            Upload Privacy Policy and Terms of Service PDFs for public access.
+          </p>
+        </div>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center">
+              <p className="text-muted-foreground mb-4">Session expired, please sign in again</p>
+              <Button onClick={() => navigate('/admin/login')}>
+                Sign In
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -285,23 +325,59 @@ export function LegalPDFs() {
           <CardHeader>
             <CardTitle className="text-lg">Public Links</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2">
+          <CardContent className="space-y-4">
             {privacy.url && (
-              <div className="flex items-center justify-between p-2 bg-muted rounded">
-                <span className="text-sm font-medium">Privacy Policy:</span>
-                <Button variant="ghost" size="sm" onClick={() => copyLink(privacy.url!)}>
-                  <Copy className="h-4 w-4" />
-                  Copy link
-                </Button>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Privacy Policy URL</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={privacy.url}
+                    readOnly
+                    className="flex-1 px-3 py-2 border border-input bg-background text-sm rounded-md"
+                  />
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => copyLink(privacy.url!)}
+                  >
+                    <Copy className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => window.open(privacy.url!, '_blank')}
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                  </Button>
+                </div>
               </div>
             )}
             {terms.url && (
-              <div className="flex items-center justify-between p-2 bg-muted rounded">
-                <span className="text-sm font-medium">Terms of Service:</span>
-                <Button variant="ghost" size="sm" onClick={() => copyLink(terms.url!)}>
-                  <Copy className="h-4 w-4" />
-                  Copy link
-                </Button>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Terms of Service URL</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={terms.url}
+                    readOnly
+                    className="flex-1 px-3 py-2 border border-input bg-background text-sm rounded-md"
+                  />
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => copyLink(terms.url!)}
+                  >
+                    <Copy className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => window.open(terms.url!, '_blank')}
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                  </Button>
+                </div>
               </div>
             )}
           </CardContent>
