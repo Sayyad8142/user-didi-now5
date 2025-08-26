@@ -6,9 +6,17 @@ const config: CapacitorConfig = {
   webDir: 'dist',
   bundledWebRuntime: false,
   server: {
-    url: 'https://2edd991f-3825-445a-9485-006dde036295.lovableproject.com?forceHideBadge=true',
-    cleartext: true,
-    allowNavigation: ['*.lovable.app', '*.lovableproject.com', 'didisnow.com', '*.didisnow.com']
+    url: 'https://app.didisnow.com',
+    cleartext: false,
+    allowNavigation: [
+      'app.didisnow.com',
+      'didisnow.com',
+      '*.supabase.co',
+      '*.supabase.in',
+      'cdn.jsdelivr.net',
+      'fonts.gstatic.com',
+      'fonts.googleapis.com'
+    ]
   },
   plugins: {
     SplashScreen: {

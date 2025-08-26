@@ -107,3 +107,7 @@ npm run android:aab
 - [ ] Content rating questionnaire completed
 
 See `docs/publish-android.md` for detailed publishing guide.
+
+## Production Deployment
+
+Production deploy: App loads web from https://app.didisnow.com. Make sure the domain is live in Lovable, DNS is pointed, and Supabase Auth redirect URLs include https://app.didisnow.com/*.
