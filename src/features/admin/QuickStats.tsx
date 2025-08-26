@@ -10,19 +10,34 @@ export default function QuickStats(){
   async function load(){
     setIsLoading(true);
     try {
-      const todayDate = new Date().toISOString().split('T')[0]; // Get today's date in YYYY-MM-DD format
+      const todayDate = new Date().toISOString().split('T')[0];
       
-      // counts with RLS: admin can read all
-      const [{count:pending},{count:assigned},{count:completed},{count:users},{count:todayBookings},{count:workers}] = await Promise.all([
-        supabase.from("bookings").select("*",{count:"exact", head:true}).eq("status","pending"),
-        supabase.from("bookings").select("*",{count:"exact", head:true}).eq("status","assigned"),
-        supabase.from("bookings").select("*",{count:"exact", head:true}).eq("status","completed"),
+      // Optimize: Use fewer, more efficient queries
+      const [bookingsResult, usersResult, workersResult] = await Promise.all([
+        // Get all booking counts in one query
+        supabase.from("bookings").select("status,created_at"),
         supabase.from("profiles").select("*",{count:"exact", head:true}),
-        supabase.from("bookings").select("*",{count:"exact", head:true}).gte("created_at", `${todayDate}T00:00:00`).lt("created_at", `${todayDate}T23:59:59`),
         supabase.from("workers").select("*",{count:"exact", head:true}).eq("is_active", true),
       ]);
-      const active = (pending??0) + (assigned??0);
-      setStats({active, pending: pending??0, completed: completed??0, users: users??0, today: todayBookings??0, workers: workers??0});
+      
+      // Process booking data client-side to avoid multiple queries
+      const bookings = bookingsResult.data || [];
+      const pending = bookings.filter(b => b.status === 'pending').length;
+      const assigned = bookings.filter(b => b.status === 'assigned').length;
+      const completed = bookings.filter(b => b.status === 'completed').length;
+      const todayBookings = bookings.filter(b => 
+        b.created_at?.startsWith(todayDate)
+      ).length;
+      
+      const active = pending + assigned;
+      setStats({
+        active, 
+        pending, 
+        completed, 
+        users: usersResult.count ?? 0, 
+        today: todayBookings, 
+        workers: workersResult.count ?? 0
+      });
     } catch (error) {
       console.error('Error loading stats:', error);
     } finally {
@@ -33,8 +48,8 @@ export default function QuickStats(){
   useEffect(() => {
     load();
     
-    // Auto-refresh every 30 seconds
-    const interval = setInterval(load, 30000);
+    // Reduced frequency: Auto-refresh every 2 minutes instead of 30 seconds
+    const interval = setInterval(load, 120000);
     
     // Cleanup interval on unmount
     return () => clearInterval(interval);
