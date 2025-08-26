@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Phone, MessageCircle } from 'lucide-react';
+import { Phone, MessageCircle, Shield } from 'lucide-react';
 import { HomeHeader } from './HomeHeader';
 import { HeroCarousel } from './HeroCarousel';
 import { ServicesRow } from './ServicesRow';
@@ -40,6 +40,18 @@ export function HomeScreen() {
             <MessageCircle className="w-5 h-5" />
             <span>Chat Support</span>
           </Button>
+          
+          {/* Legal Links */}
+          <div className="flex justify-center pt-2">
+            <Button 
+              variant="link" 
+              onClick={() => navigate('/legal/privacy')}
+              className="text-xs text-muted-foreground hover:text-foreground p-2 h-auto flex items-center gap-1"
+            >
+              <Shield className="w-3 h-3" />
+              Privacy Policy
+            </Button>
+          </div>
         </div>
 
         <FaqSection />

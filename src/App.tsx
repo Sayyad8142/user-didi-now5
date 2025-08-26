@@ -44,6 +44,7 @@ const AdminBookings = lazy(() => import("./routes/admin/AdminBookings"));
 // Lazy load legal and profile pages
 const LegalCenter = lazy(() => import("./routes/LegalCenter"));
 const PrivacyPolicy = lazy(() => import("./routes/legal/PrivacyPolicy"));
+const PrivacyPolicyScreen = lazy(() => import("./features/legal/PrivacyPolicyScreen").then(m => ({ default: m.PrivacyPolicyScreen })));
 const TermsOfService = lazy(() => import("./routes/legal/TermsOfService"));
 const AccountSettings = lazy(() => import("./routes/profile/AccountSettings"));
 const SupportScreen = lazy(() => import("./routes/support/SupportScreen"));
@@ -77,7 +78,12 @@ const AppContent = () => {
         <Route path="/admin-login" element={<AdminLogin />} />
         <Route path="/admin-verify" element={<AdminVerify />} />
         <Route path="/legal" element={<LegalCenter />} />
-        <Route path="/legal/privacy" element={<PrivacyPolicy />} />
+        <Route path="/legal/privacy" element={
+          <ProtectedRoute>
+            <PrivacyPolicyScreen />
+          </ProtectedRoute>
+        } />
+        <Route path="/legal/privacy-pdf" element={<PrivacyPolicy />} />
         <Route path="/legal/terms" element={<TermsOfService />} />
         <Route 
           path="/home" 
