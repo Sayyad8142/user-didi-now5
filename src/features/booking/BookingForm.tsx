@@ -14,6 +14,7 @@ import { isOpenNow, getOpenStatusText } from '@/features/home/time';
 import { ScheduleSheet } from './ScheduleSheet';
 import { cn } from '@/lib/utils';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { PriceNote } from '@/components/PriceNote';
 
 // Maid task types and constants
 type MaidTask = "floor_cleaning" | "dish_washing";
@@ -637,7 +638,8 @@ export function BookingForm() {
             </div>}
 
           {/* Price Display */}
-          {(service_type === 'cook' && foodPreference || service_type === 'maid' && selectedFlatSize && selectedTasks.length > 0 || service_type === 'bathroom_cleaning' || (service_type !== 'cook' && service_type !== 'maid' && service_type !== 'bathroom_cleaning' && selectedFlatSize)) && <Card className="bg-primary/5 border-primary/20 rounded-2xl">
+          {(service_type === 'cook' && foodPreference || service_type === 'maid' && selectedFlatSize && selectedTasks.length > 0 || service_type === 'bathroom_cleaning' || (service_type !== 'cook' && service_type !== 'maid' && service_type !== 'bathroom_cleaning' && selectedFlatSize)) && <div>
+            <Card className="bg-primary/5 border-primary/20 rounded-2xl">
               <CardContent className="p-6 py-[5px] px-[24px] bg-stone-50">
                 <div className="text-center px-0">
                   {loadingPricing && service_type !== 'cook' && service_type !== 'maid' && service_type !== 'bathroom_cleaning' ? <Skeleton className="h-8 w-32 mx-auto rounded-lg" /> : <>
@@ -650,7 +652,9 @@ export function BookingForm() {
                     </>}
                 </div>
               </CardContent>
-            </Card>}
+            </Card>
+            <PriceNote className="pb-2" />
+          </div>}
 
           {/* Action Buttons */}
           <div className="space-y-6 mt-8">
