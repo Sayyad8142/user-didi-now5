@@ -94,10 +94,20 @@ export default function LegalCenter() {
   useEffect(() => {
     let cancelled = false;
     async function load() {
-      const key = tab === "privacy" ? "privacy.pdf" : "terms.pdf";
-      // create a signed URL valid for 10 minutes
-      const { data, error } = await supabase.storage.from("legal-pdfs").createSignedUrl(key, 600);
-      if (!cancelled) setPdfUrl(error ? "" : (data?.signedUrl || ""));
+      try {
+        // Get the PDF URL from the admin_get_legal_pdfs function
+        const { data, error } = await supabase.rpc('admin_get_legal_pdfs');
+        
+        if (!cancelled && !error && data?.[0]) {
+          const url = tab === "privacy" ? data[0].privacy_url : data[0].terms_url;
+          setPdfUrl(url || "");
+        } else {
+          setPdfUrl("");
+        }
+      } catch (err) {
+        console.error('Error loading PDF URL:', err);
+        if (!cancelled) setPdfUrl("");
+      }
     }
     load();
     return () => { cancelled = true; };
