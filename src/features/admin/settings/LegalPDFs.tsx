@@ -456,13 +456,14 @@ export function LegalPDFs() {
                   >
                     <Copy className="w-4 h-4" />
                   </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => window.open(privacy.url!, '_blank')}
-                  >
-                    <ExternalLink className="w-4 h-4" />
-                  </Button>
+                   <Button
+                     size="sm"
+                     variant="outline"
+                     onClick={() => window.open('/legal/privacy', '_blank')}
+                   >
+                     <ExternalLink className="w-4 h-4 mr-2" />
+                     Open Privacy Policy
+                   </Button>
                 </div>
               </div>
             )}
@@ -483,13 +484,14 @@ export function LegalPDFs() {
                   >
                     <Copy className="w-4 h-4" />
                   </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => window.open(terms.url!, '_blank')}
-                  >
-                    <ExternalLink className="w-4 h-4" />
-                  </Button>
+                   <Button
+                     size="sm"
+                     variant="outline"
+                     onClick={() => window.open('/legal/terms', '_blank')}
+                   >
+                     <ExternalLink className="w-4 h-4 mr-2" />
+                     Open Terms of Service
+                   </Button>
                 </div>
               </div>
             )}
