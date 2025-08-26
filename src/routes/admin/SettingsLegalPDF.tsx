@@ -2,66 +2,130 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Copy, ExternalLink } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 
-type Obj = { name: string; updated_at?: string };
-
-async function getObjectMeta(name: string): Promise<Obj | null> {
-  const { data, error } = await supabase.storage.from("legal-pdfs").list("", { search: name });
-  if (error) return null;
-  const found = (data || []).find(o => o.name === name);
-  return found ? { name: found.name, updated_at: (found as any).updated_at } : null;
+type PdfState = {
+  url?: string;
+  uploadedAt?: string;
 }
 
 export default function SettingsLegalPDF() {
   const navigate = useNavigate();
-  const [privacyMeta, setPrivacyMeta] = useState<Obj | null>(null);
-  const [termsMeta, setTermsMeta] = useState<Obj | null>(null);
+  const [privacy, setPrivacy] = useState<PdfState>({});
+  const [terms, setTerms] = useState<PdfState>({});
   const [uploading, setUploading] = useState<"privacy" | "terms" | null>(null);
-  const [message, setMessage] = useState<string>("");
 
-  async function refresh() {
-    const [p, t] = await Promise.all([getObjectMeta("privacy.pdf"), getObjectMeta("terms.pdf")]);
-    setPrivacyMeta(p); 
-    setTermsMeta(t);
+  async function loadSettings() {
+    try {
+      const { data } = await supabase
+        .from('ops_settings')
+        .select('key, value')
+        .in('key', ['privacy_pdf_url', 'privacy_pdf_uploaded_at', 'terms_pdf_url', 'terms_pdf_uploaded_at']);
+      
+      if (data) {
+        const privacyUrl = data.find(row => row.key === 'privacy_pdf_url')?.value;
+        const privacyUploadedAt = data.find(row => row.key === 'privacy_pdf_uploaded_at')?.value;
+        const termsUrl = data.find(row => row.key === 'terms_pdf_url')?.value;
+        const termsUploadedAt = data.find(row => row.key === 'terms_pdf_uploaded_at')?.value;
+        
+        setPrivacy({ url: privacyUrl, uploadedAt: privacyUploadedAt });
+        setTerms({ url: termsUrl, uploadedAt: termsUploadedAt });
+      }
+    } catch (error) {
+      console.error('Failed to load settings:', error);
+    }
   }
   
   useEffect(() => { 
-    refresh(); 
+    loadSettings(); 
   }, []);
 
-  async function upload(kind: "privacy" | "terms", file: File | null) {
+  async function uploadPdf(kind: "privacy" | "terms", file: File | null) {
     if (!file) return;
+    
     if (file.type !== "application/pdf") { 
-      setMessage("Please upload a PDF file."); 
+      toast.error("Please select a PDF file"); 
       return; 
     }
     if (file.size > 8 * 1024 * 1024) { 
-      setMessage("Max size 8 MB."); 
+      toast.error("File too large (max 8 MB)"); 
       return; 
     }
-    setMessage(""); 
+    
     setUploading(kind);
     try {
-      const path = `${kind}.pdf`;
-      const { error } = await supabase.storage.from("legal-pdfs")
-        .upload(path, file, { upsert: true, contentType: "application/pdf" });
-      if (error) throw error;
-      await refresh();
-      setMessage(`${kind === "privacy" ? "Privacy Policy" : "Terms"} uploaded successfully.`);
+      const key = kind === 'privacy' ? 'privacy.pdf' : 'terms.pdf';
+      
+      // Upload to new app-pdfs bucket
+      const { error: upErr } = await supabase
+        .storage.from('app-pdfs')
+        .upload(key, file, { contentType: 'application/pdf', upsert: true });
+      
+      if (upErr) { 
+        toast.error(`Upload failed: ${upErr.message}`); 
+        return; 
+      }
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase
+        .storage.from('app-pdfs')
+        .getPublicUrl(key);
+
+      // Persist in ops_settings
+      await supabase.from('ops_settings').upsert([
+        { key: `${kind}_pdf_url`, value: publicUrl },
+        { key: `${kind}_pdf_uploaded_at`, value: new Date().toISOString() },
+      ]);
+
+      toast.success(`${kind === 'privacy' ? 'Privacy Policy' : 'Terms'} uploaded`);
+      
+      // Update local state
+      if (kind === 'privacy') {
+        setPrivacy({ url: publicUrl, uploadedAt: new Date().toISOString() });
+      } else {
+        setTerms({ url: publicUrl, uploadedAt: new Date().toISOString() });
+      }
     } catch (e: any) {
-      setMessage(e?.message || "Upload failed");
+      toast.error(e?.message || "Upload failed");
     } finally {
       setUploading(null);
     }
   }
 
-  async function remove(kind: "privacy" | "terms") {
-    if (!confirm(`Remove ${kind}.pdf?`)) return;
-    await supabase.storage.from("legal-pdfs").remove([`${kind}.pdf`]);
-    await refresh();
+  async function removePdf(kind: "privacy" | "terms") {
+    if (!confirm(`Remove ${kind === 'privacy' ? 'Privacy Policy' : 'Terms of Service'}?`)) return;
+    
+    try {
+      const key = kind === 'privacy' ? 'privacy.pdf' : 'terms.pdf';
+      
+      // Remove from storage
+      await supabase.storage.from('app-pdfs').remove([key]);
+      
+      // Remove from ops_settings
+      await supabase.from('ops_settings').delete().in('key', [
+        `${kind}_pdf_url`, `${kind}_pdf_uploaded_at`
+      ]);
+      
+      toast.success('Removed');
+      
+      // Clear local state
+      if (kind === 'privacy') {
+        setPrivacy({});
+      } else {
+        setTerms({});
+      }
+    } catch (error) {
+      console.error('Remove failed:', error);
+      toast.error('Failed to remove');
+    }
   }
+
+  const copyLink = (url: string) => {
+    navigator.clipboard.writeText(url);
+    toast.success('Link copied to clipboard');
+  };
 
   return (
     <div className="min-h-dvh bg-background p-4 space-y-6">
@@ -80,12 +144,6 @@ export default function SettingsLegalPDF() {
         </div>
       </header>
 
-      {message ? (
-        <div className="rounded-lg bg-emerald-50 text-emerald-700 p-3 text-sm border border-emerald-200">
-          {message}
-        </div>
-      ) : null}
-
       <section className="rounded-2xl bg-card border shadow-sm p-4 space-y-3">
         <div className="font-semibold text-card-foreground">Privacy Policy (privacy.pdf)</div>
         <div className="text-xs text-muted-foreground">Allowed: PDF • Max 8 MB</div>
@@ -93,20 +151,40 @@ export default function SettingsLegalPDF() {
           <Input 
             type="file" 
             accept="application/pdf" 
-            onChange={e => upload("privacy", e.target.files?.[0] || null)} 
+            onChange={e => uploadPdf("privacy", e.target.files?.[0] || null)} 
             disabled={!!uploading}
             className="flex-1"
           />
+          {privacy.url && (
+            <>
+              <Button 
+                onClick={() => window.open(privacy.url, '_blank')} 
+                variant="outline" 
+                size="sm"
+                disabled={!!uploading}
+              >
+                <ExternalLink className="h-4 w-4" />
+              </Button>
+              <Button 
+                onClick={() => copyLink(privacy.url!)} 
+                variant="outline" 
+                size="sm"
+                disabled={!!uploading}
+              >
+                <Copy className="h-4 w-4" />
+              </Button>
+            </>
+          )}
           <Button 
-            onClick={() => remove("privacy")} 
+            onClick={() => removePdf("privacy")} 
             variant="outline" 
-            disabled={!privacyMeta || !!uploading}
+            disabled={!privacy.url || !!uploading}
           >
             Remove
           </Button>
         </div>
         <div className="text-xs text-muted-foreground">
-          {privacyMeta ? `Uploaded • ${privacyMeta.updated_at || ""}` : "Not uploaded yet"}
+          {privacy.url ? `Uploaded • ${privacy.uploadedAt ? new Date(privacy.uploadedAt).toLocaleDateString() : ""}` : "Not uploaded yet"}
         </div>
       </section>
 
@@ -117,48 +195,92 @@ export default function SettingsLegalPDF() {
           <Input 
             type="file" 
             accept="application/pdf" 
-            onChange={e => upload("terms", e.target.files?.[0] || null)} 
+            onChange={e => uploadPdf("terms", e.target.files?.[0] || null)} 
             disabled={!!uploading}
             className="flex-1"
           />
+          {terms.url && (
+            <>
+              <Button 
+                onClick={() => window.open(terms.url, '_blank')} 
+                variant="outline" 
+                size="sm"
+                disabled={!!uploading}
+              >
+                <ExternalLink className="h-4 w-4" />
+              </Button>
+              <Button 
+                onClick={() => copyLink(terms.url!)} 
+                variant="outline" 
+                size="sm"
+                disabled={!!uploading}
+              >
+                <Copy className="h-4 w-4" />
+              </Button>
+            </>
+          )}
           <Button 
-            onClick={() => remove("terms")} 
+            onClick={() => removePdf("terms")} 
             variant="outline" 
-            disabled={!termsMeta || !!uploading}
+            disabled={!terms.url || !!uploading}
           >
             Remove
           </Button>
         </div>
         <div className="text-xs text-muted-foreground">
-          {termsMeta ? `Uploaded • ${termsMeta.updated_at || ""}` : "Not uploaded yet"}
+          {terms.url ? `Uploaded • ${terms.uploadedAt ? new Date(terms.uploadedAt).toLocaleDateString() : ""}` : "Not uploaded yet"}
         </div>
       </section>
 
       {/* Public Links Section */}
-      <section className="rounded-2xl bg-card border shadow-sm p-4 space-y-3">
-        <div className="font-semibold text-card-foreground">Public Links</div>
-        <div className="text-xs text-muted-foreground">Share these links in app stores and websites</div>
-        
-        <div className="space-y-3">
-          <div className="bg-muted/50 rounded-lg p-3">
-            <div className="text-sm font-medium text-foreground mb-1">Privacy Policy URL:</div>
-            <code className="text-xs text-muted-foreground break-all">
-              {`${window.location.origin}/legal/privacy`}
-            </code>
-          </div>
+      {(privacy.url || terms.url) && (
+        <section className="rounded-2xl bg-card border shadow-sm p-4 space-y-3">
+          <div className="font-semibold text-card-foreground">Public PDF Links</div>
+          <div className="text-xs text-muted-foreground">Direct links to uploaded PDFs</div>
           
-          <div className="bg-muted/50 rounded-lg p-3">
-            <div className="text-sm font-medium text-foreground mb-1">Terms of Service URL:</div>
-            <code className="text-xs text-muted-foreground break-all">
-              {`${window.location.origin}/legal/terms`}
-            </code>
+          <div className="space-y-3">
+            {privacy.url && (
+              <div className="bg-muted/50 rounded-lg p-3">
+                <div className="text-sm font-medium text-foreground mb-1">Privacy Policy:</div>
+                <div className="flex items-center gap-2">
+                  <code className="text-xs text-muted-foreground break-all flex-1">
+                    {privacy.url}
+                  </code>
+                  <Button 
+                    onClick={() => copyLink(privacy.url!)} 
+                    variant="ghost" 
+                    size="sm"
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
+            
+            {terms.url && (
+              <div className="bg-muted/50 rounded-lg p-3">
+                <div className="text-sm font-medium text-foreground mb-1">Terms of Service:</div>
+                <div className="flex items-center gap-2">
+                  <code className="text-xs text-muted-foreground break-all flex-1">
+                    {terms.url}
+                  </code>
+                  <Button 
+                    onClick={() => copyLink(terms.url!)} 
+                    variant="ghost" 
+                    size="sm"
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
-      <p className="text-xs text-muted-foreground">
-        PDFs are served with signed URLs for security. Public pages are accessible without login and optimized for SEO.
-      </p>
+      <div className="pb-24 text-xs text-muted-foreground">
+        PDFs are uploaded to public storage and immediately accessible. Upload replaces existing files.
+      </div>
     </div>
   );
 }
