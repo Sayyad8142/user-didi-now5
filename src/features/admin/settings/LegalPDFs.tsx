@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Upload, Download, Copy, Trash2, Loader2, ExternalLink } from "lucide-react";
+import { Upload, Download, Copy, Trash2, Loader2, ExternalLink, Link2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ensureAdminSession } from "@/lib/auth/ensureAdminSession";
 
@@ -297,6 +297,51 @@ export function LegalPDFs() {
     }
   };
 
+  const normalizeDriveUrl = (url: string) => {
+    try {
+      const u = new URL(url.trim());
+      if (u.hostname.includes('drive.google.com')) {
+        const m = u.pathname.match(/\/file\/d\/([^/]+)\//);
+        const id = m?.[1] || u.searchParams.get('id');
+        if (id) return `https://drive.google.com/uc?export=download&id=${id}`;
+      }
+      return url.trim();
+    } catch {
+      return url;
+    }
+  };
+
+  const importFromUrl = async (kind: "privacy" | "terms") => {
+    const input = window.prompt(`Paste a direct PDF link${kind === 'privacy' ? ' for Privacy Policy' : ' for Terms of Service'}`);
+    if (!input) return;
+
+    const sourceUrl = normalizeDriveUrl(input);
+    setUploading(prev => ({ ...prev, [kind]: true }));
+    try {
+      await ensureAdminSession();
+      const { data, error } = await supabase.functions.invoke('admin-upload-legal-pdf-from-url', {
+        body: { sourceUrl, kind }
+      });
+      if (error) throw new Error(error.message || 'Edge Function failed');
+      if (!data?.url) throw new Error('No URL returned');
+
+      const timestamp = Date.now();
+      const urlWithTimestamp = `${data.url}?t=${timestamp}`;
+      const { error: rpcError } = await supabase.rpc('admin_set_legal_pdf', { kind, url: urlWithTimestamp });
+      if (rpcError) throw new Error(rpcError.message);
+
+      const result = { url: urlWithTimestamp, uploadedAt: new Date().toISOString() };
+      if (kind === 'privacy') setPrivacy(result); else setTerms(result);
+
+      toast({ title: 'Imported successfully', description: `${kind === 'privacy' ? 'Privacy Policy' : 'Terms of Service'} updated from URL.` });
+    } catch (e: any) {
+      console.error('Import from URL failed:', e);
+      toast({ variant: 'destructive', title: 'Import failed', description: e?.message ?? 'Please try again.' });
+    } finally {
+      setUploading(prev => ({ ...prev, [kind]: false }));
+    }
+  };
+
   const copyLink = (url: string) => {
     navigator.clipboard.writeText(url);
     toast({
@@ -354,6 +399,10 @@ export function LegalPDFs() {
                 </span>
               </Button>
             </label>
+            <Button variant="outline" size="sm" onClick={() => importFromUrl(kind)} disabled={isUploading}>
+              <Link2 className="h-4 w-4" />
+              Import URL
+            </Button>
           </div>
         </div>
 
