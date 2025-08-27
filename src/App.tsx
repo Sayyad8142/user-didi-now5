@@ -78,11 +78,7 @@ const AppContent = () => {
         <Route path="/admin-login" element={<AdminLogin />} />
         <Route path="/admin-verify" element={<AdminVerify />} />
         <Route path="/legal" element={<LegalCenter />} />
-        <Route path="/legal/privacy" element={
-          <ProtectedRoute>
-            <PrivacyPolicyScreen />
-          </ProtectedRoute>
-        } />
+        <Route path="/legal/privacy" element={<PrivacyPolicyScreen />} />
         <Route path="/legal/privacy-pdf" element={<PrivacyPolicy />} />
         <Route path="/legal/terms" element={<TermsScreen />} />
         <Route 
