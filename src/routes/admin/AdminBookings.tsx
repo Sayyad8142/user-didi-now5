@@ -156,7 +156,7 @@ export default function AdminBookings() {
         </div>
 
         {/* Booking cards - Mobile optimized grid */}
-        <section className="flex-1 overflow-y-auto px-3 py-3 space-y-3 pb-24 md:pb-6">
+        <section className="flex-1 overflow-y-auto px-3 py-3 space-y-3 pb-32 md:pb-6">
           {filteredRows.length === 0 ? (
             <div className="text-center py-12">
               <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
