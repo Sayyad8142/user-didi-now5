@@ -18,7 +18,10 @@ import {
   UserCheck,
   Calendar,
   Zap,
-  TrendingUp
+  TrendingUp,
+  ChevronDown,
+  ChevronUp,
+  Copy
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -238,6 +241,16 @@ function humanEta(booking: any) {
   return 'Scheduled';
 }
 
+function formatFlatNumber(flatNo: string) {
+  if (!flatNo || flatNo.length !== 4) return flatNo;
+  
+  const tower = flatNo[0];
+  const floor = flatNo.substring(1, 3);
+  const door = flatNo[3];
+  
+  return `Tower ${tower}, Floor ${floor}, Door No ${door}`;
+}
+
 export function AdminBookingCard({ 
   booking, 
   slaMinutes = 12, 
@@ -246,6 +259,7 @@ export function AdminBookingCard({
 }: AdminBookingCardProps) {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [detailsExpanded, setDetailsExpanded] = useState(false);
   const { toast } = useToast();
 
   const isAssigned = booking.status === 'assigned';
@@ -294,6 +308,23 @@ export function AdminBookingCard({
     setSheetOpen(false);
   };
 
+  const handleCopyFlatNumber = async () => {
+    const formattedFlat = formatFlatNumber(booking.flat_no);
+    try {
+      await navigator.clipboard.writeText(formattedFlat);
+      toast({ 
+        title: "Copied!", 
+        description: "Flat number copied to clipboard" 
+      });
+    } catch (err) {
+      toast({ 
+        title: "Failed to copy", 
+        description: "Could not copy to clipboard",
+        variant: "destructive" 
+      });
+    }
+  };
+
   return (
     <>
       <Card className="group relative overflow-hidden rounded-2xl border-0 shadow-sm hover:shadow-md transition-all duration-300 bg-white">
@@ -333,7 +364,7 @@ export function AdminBookingCard({
             </div>
           </div>
 
-          {/* Compact info grid - Mobile stacked */}
+          {/* Location with formatted flat number */}
           <div className="space-y-1.5 mb-2">
             <div className="flex items-center gap-3 p-1.5 bg-gray-50/60 rounded-xl">
               <div className={cn(
@@ -344,8 +375,20 @@ export function AdminBookingCard({
               </div>
               <div className="flex-1 min-w-0">
                 <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">Location</div>
-                <div className="font-semibold text-sm text-gray-900 truncate">
-                  {booking.community} • Flat {booking.flat_no}
+                <div className="font-semibold text-sm text-gray-900">
+                  {booking.community}
+                </div>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <span className="text-xs text-gray-600 font-medium">
+                    {formatFlatNumber(booking.flat_no)}
+                  </span>
+                  <button
+                    onClick={handleCopyFlatNumber}
+                    className="p-1 hover:bg-gray-200 rounded transition-colors"
+                    title="Copy flat number"
+                  >
+                    <Copy className="w-3 h-3 text-gray-500" />
+                  </button>
                 </div>
               </div>
             </div>
@@ -368,49 +411,87 @@ export function AdminBookingCard({
                 </div>
               </div>
             </div>
-            
-            <div className="flex items-center gap-3 p-1.5 bg-gray-50/60 rounded-xl">
-              <div className={cn(
-                "w-6 h-6 rounded-lg bg-gradient-to-br flex items-center justify-center flex-shrink-0",
-                serviceConfig.gradient
-              )}>
-                <User className="w-3 h-3 text-white" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">Customer</div>
-                <div className="font-semibold text-sm text-gray-900 truncate">
-                  {booking.cust_name}
-                </div>
-                <a 
-                  href={`tel:${booking.cust_phone}`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    openExternalUrl(`tel:${booking.cust_phone}`);
-                  }}
-                  className="flex items-center gap-1 text-blue-600 hover:text-blue-700 transition-colors text-xs font-medium mt-0.5"
-                >
-                  <Phone className="h-3 w-3" />
-                  {booking.cust_phone}
-                </a>
-              </div>
-            </div>
 
-            {booking.service_type === 'maid' && booking.maid_tasks?.length > 0 && (
-              <div className="flex items-center gap-3 p-1.5 bg-gray-50/60 rounded-xl">
-                <div className={cn(
-                  "w-6 h-6 rounded-lg bg-gradient-to-br flex items-center justify-center flex-shrink-0",
-                  serviceConfig.gradient
-                )}>
-                  <Sparkles className="w-3 h-3 text-white" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">Tasks</div>
-                  <div className="font-semibold text-sm text-gray-900">
-                    {formatMaidTasks(booking)}
+            {/* Expandable Details Section */}
+            <div className="border border-gray-200 rounded-xl overflow-hidden">
+              <button
+                onClick={() => setDetailsExpanded(!detailsExpanded)}
+                className="w-full flex items-center justify-between p-2 bg-gray-50/80 hover:bg-gray-100/80 transition-colors"
+              >
+                <span className="text-xs font-medium text-gray-700 uppercase tracking-wide">
+                  Customer Details & Tasks
+                </span>
+                {detailsExpanded ? (
+                  <ChevronUp className="w-4 h-4 text-gray-500" />
+                ) : (
+                  <ChevronDown className="w-4 h-4 text-gray-500" />
+                )}
+              </button>
+              
+              {detailsExpanded && (
+                <div className="p-2 space-y-1.5 bg-white">
+                  <div className="flex items-center gap-3 p-1.5 bg-gray-50/60 rounded-xl">
+                    <div className={cn(
+                      "w-6 h-6 rounded-lg bg-gradient-to-br flex items-center justify-center flex-shrink-0",
+                      serviceConfig.gradient
+                    )}>
+                      <User className="w-3 h-3 text-white" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">Customer</div>
+                      <div className="font-semibold text-sm text-gray-900 truncate">
+                        {booking.cust_name}
+                      </div>
+                      <a 
+                        href={`tel:${booking.cust_phone}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openExternalUrl(`tel:${booking.cust_phone}`);
+                        }}
+                        className="flex items-center gap-1 text-blue-600 hover:text-blue-700 transition-colors text-xs font-medium mt-0.5"
+                      >
+                        <Phone className="h-3 w-3" />
+                        {booking.cust_phone}
+                      </a>
+                    </div>
                   </div>
+
+                  {booking.service_type === 'maid' && booking.maid_tasks?.length > 0 && (
+                    <div className="flex items-center gap-3 p-1.5 bg-gray-50/60 rounded-xl">
+                      <div className={cn(
+                        "w-6 h-6 rounded-lg bg-gradient-to-br flex items-center justify-center flex-shrink-0",
+                        serviceConfig.gradient
+                      )}>
+                        <Sparkles className="w-3 h-3 text-white" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">Tasks</div>
+                        <div className="font-semibold text-sm text-gray-900">
+                          {formatMaidTasks(booking)}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {booking.notes && (
+                    <div className="flex items-start gap-3 p-1.5 bg-gray-50/60 rounded-xl">
+                      <div className={cn(
+                        "w-6 h-6 rounded-lg bg-gradient-to-br flex items-center justify-center flex-shrink-0",
+                        serviceConfig.gradient
+                      )}>
+                        <AlertCircle className="w-3 h-3 text-white" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">Notes</div>
+                        <div className="text-sm text-gray-900">
+                          {booking.notes}
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
 
           {/* SLA Progress */}
