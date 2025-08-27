@@ -4,6 +4,7 @@ import { AdminBookingCard } from "@/features/admin/components/AdminBookingCard";
 import BookingDrawer from "@/features/admin/BookingDrawer";
 import { useBookingsRealtime } from "@/features/admin/useRealtime";
 import QuickStats from "@/features/admin/QuickStats";
+import PendingBookings from "@/features/admin/PendingBookings";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Search, Settings, BarChart3, Calendar, MessageSquare } from "lucide-react";
@@ -130,8 +131,13 @@ export default function AdminLayout() {
 
           {/* Main content with enhanced layout */}
           <main className="flex-1 flex flex-col overflow-hidden">
+            {/* Pending Bookings - New Section */}
+            <section className="px-6 pt-6 pb-3">
+              <PendingBookings />
+            </section>
+
             {/* Quick Stats - Enhanced */}
-            <section className="px-6 py-6">
+            <section className="px-6 py-3">
               <div className="bg-white/70 backdrop-blur-sm rounded-3xl p-6 shadow-xl border border-white/30">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center">
