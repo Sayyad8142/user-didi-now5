@@ -1,12 +1,13 @@
 import { AuthCard } from '@/components/auth/AuthCard';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/components/auth/AuthProvider';
+import { isGuest } from '@/lib/guest';
 
 export default function Auth() {
   const { user, loading } = useAuth();
 
-  // Only redirect authenticated users, let guest button handle guest redirect
-  if (!loading && user) {
+  // Redirect authenticated users or if guest flag is set
+  if (!loading && (user || isGuest())) {
     return <Navigate to="/home" replace />;
   }
 
