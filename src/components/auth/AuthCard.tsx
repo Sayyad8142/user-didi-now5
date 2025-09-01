@@ -13,7 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { normalizePhone } from '@/features/profile/ensureProfile';
 import { useCommunities } from '@/hooks/useCommunities';
-import { isDemoCredentials, setDemoSession } from '@/lib/demo';
+import { isDemoCredentials, setDemoSession, setGuestSession } from '@/lib/demo';
 
 export function AuthCard() {
   const navigate = useNavigate();
@@ -182,6 +182,17 @@ export function AuthCard() {
     }
   };
 
+  const handleContinueAsGuest = () => {
+    setGuestSession();
+    
+    toast({
+      title: 'Welcome Guest!',
+      description: 'You can browse and explore our services.',
+    });
+    
+    navigate("/home", { replace: true });
+  };
+
   return (
     <Card className="max-w-sm mx-auto shadow-card border-pink-100 gradient-card backdrop-blur-sm">
       <CardContent className="p-6">
@@ -214,6 +225,15 @@ export function AuthCard() {
             >
               {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Send OTP
+            </Button>
+            
+            <Button
+              onClick={handleContinueAsGuest}
+              disabled={loading}
+              variant="outline"
+              className="w-full h-12 rounded-full border-primary/20 text-primary hover:bg-primary/5 transition-spring hover:scale-[1.02] disabled:scale-100"
+            >
+              Continue as Guest
             </Button>
             
             <div className="text-center">

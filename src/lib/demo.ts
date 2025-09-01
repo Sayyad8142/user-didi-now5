@@ -47,6 +47,20 @@ export function setDemoSession(): void {
 }
 
 export function getDemoSession(): DemoSession | null {
+  // Check guest session first
+  const guestMode = localStorage.getItem('guest-mode');
+  if (guestMode === 'true') {
+    const guestData = localStorage.getItem('guest-session');
+    if (guestData) {
+      try {
+        return JSON.parse(guestData);
+      } catch {
+        // Continue to demo session check
+      }
+    }
+  }
+  
+  // Check demo session
   const demoMode = localStorage.getItem('demo-mode');
   if (demoMode !== 'true') return null;
   
@@ -63,10 +77,51 @@ export function getDemoSession(): DemoSession | null {
 export function clearDemoSession(): void {
   localStorage.removeItem('demo-session');
   localStorage.removeItem('demo-mode');
+  localStorage.removeItem('guest-session');
+  localStorage.removeItem('guest-mode');
   // Notify app that demo mode was cleared
   window.dispatchEvent(new CustomEvent('demo-mode-changed', { detail: { enabled: false } }));
 }
 
 export function isDemoMode(): boolean {
-  return localStorage.getItem('demo-mode') === 'true';
+  return localStorage.getItem('demo-mode') === 'true' || localStorage.getItem('guest-mode') === 'true';
+}
+
+// Guest session functionality
+const GUEST_SESSION: DemoSession = {
+  user: {
+    id: 'guest-user-id',
+    phone: '',
+    email: 'guest@example.com',
+  },
+  profile: {
+    id: 'guest-user-id',
+    full_name: 'Guest User',
+    phone: '',
+    community: 'Guest Community',
+    flat_no: 'Guest',
+    is_admin: false,
+  },
+};
+
+export function setGuestSession(): void {
+  localStorage.setItem('guest-session', JSON.stringify(GUEST_SESSION));
+  localStorage.setItem('guest-mode', 'true');
+  // Notify app that guest mode was enabled
+  window.dispatchEvent(new CustomEvent('demo-mode-changed', { detail: { enabled: true, isGuest: true } }));
+}
+
+export function getGuestSession(): DemoSession | null {
+  const guestData = localStorage.getItem('guest-session');
+  if (!guestData) return null;
+  
+  try {
+    return JSON.parse(guestData);
+  } catch {
+    return null;
+  }
+}
+
+export function isGuestMode(): boolean {
+  return localStorage.getItem('guest-mode') === 'true';
 }
