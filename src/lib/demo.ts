@@ -3,14 +3,28 @@ const KEY = 'demoSession';
 export type DemoSession = {
   isDemo: true;
   createdAt: string;
-  user: { id: 'demo'; displayName: 'Demo User' };
+  user: { 
+    id: 'demo'; 
+    displayName: 'Demo User';
+    fullName: 'Demo User';
+    phone: '+919876543210';
+    community: 'prestige high fields';
+    flatNo: '0000';
+  };
 };
 
 export const setDemo = (): DemoSession => {
   const payload: DemoSession = {
     isDemo: true,
     createdAt: new Date().toISOString(),
-    user: { id: 'demo', displayName: 'Demo User' },
+    user: { 
+      id: 'demo', 
+      displayName: 'Demo User',
+      fullName: 'Demo User',
+      phone: '+919876543210',
+      community: 'prestige high fields',
+      flatNo: '0000',
+    },
   };
   localStorage.setItem(KEY, JSON.stringify(payload));
   return payload;
