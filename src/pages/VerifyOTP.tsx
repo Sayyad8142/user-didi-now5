@@ -85,7 +85,18 @@ export default function VerifyOTP() {
     try {
       // Check for demo login
       const demoPendingPhone = localStorage.getItem('demoPendingPhone');
+      console.log('Demo check:', { 
+        phone, 
+        demoPendingPhone, 
+        otp: otp.trim(), 
+        DEMO_OTP,
+        isDemoPhone_phone: isDemoPhone(phone),
+        isDemoPhone_pending: isDemoPhone(demoPendingPhone || ''),
+        otpMatch: otp.trim() === DEMO_OTP
+      });
+      
       if ((isDemoPhone(phone) || isDemoPhone(demoPendingPhone || '')) && otp.trim() === DEMO_OTP) {
+        console.log('Demo login detected, setting demo session');
         setDemo();
         // Clear any pending states
         localStorage.removeItem('demoPendingPhone');
@@ -97,6 +108,7 @@ export default function VerifyOTP() {
         });
         
         navigate('/home', { replace: true });
+        setLoading(false);
         return;
       }
       // Verify OTP
