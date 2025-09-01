@@ -9,6 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Loader2, CheckCircle2 } from 'lucide-react';
 import { maskPhone } from '@/lib/auth-helpers';
 import { ensureProfile, waitForSession, normalizePhone } from '@/features/profile/ensureProfile';
+import { isDemoCredentials, setDemoSession } from '@/lib/demo';
 
 interface LocationState {
   phone: string;
@@ -81,27 +82,38 @@ export default function VerifyOTP() {
 
     try {
       // Check for demo credentials
-      const isDemoPhone = phone === '+919876543210' || phone === '919876543210';
-      const isDemoOTP = otp.trim() === '123456';
-      
-      if (isDemoPhone && isDemoOTP) {
-        // Skip OTP verification for demo user
+      if (isDemoCredentials(phone, otp)) {
+        // Handle demo login
         console.log('Demo login detected');
-      } else {
-        // Verify OTP for regular users
-        const { error: verifyError } = await supabase.auth.verifyOtp({
-          type: "sms",
-          token: otp.trim(),
-          phone, // must match the phone used to send OTP
+        setDemoSession();
+        
+        toast({
+          title: 'Demo Login Successful',
+          description: 'You are now logged in as a demo user.',
         });
-
-        if (verifyError) {
-          const errorMsg = /expired|invalid/i.test(verifyError.message)
-            ? "OTP expired or invalid. Resend and try again."
-            : verifyError.message;
-          setError(errorMsg);
-          return;
+        
+        // Navigate directly for demo user
+        if (redirectTo) {
+          navigate(redirectTo, { replace: true });
+        } else {
+          navigate("/home", { replace: true });
         }
+        return;
+      }
+
+      // Verify OTP for regular users
+      const { error: verifyError } = await supabase.auth.verifyOtp({
+        type: "sms",
+        token: otp.trim(),
+        phone, // must match the phone used to send OTP
+      });
+
+      if (verifyError) {
+        const errorMsg = /expired|invalid/i.test(verifyError.message)
+          ? "OTP expired or invalid. Resend and try again."
+          : verifyError.message;
+        setError(errorMsg);
+        return;
       }
 
       // Ensure session is set and profile exists
