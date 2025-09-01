@@ -10,7 +10,7 @@ import { PhoneInputIN } from './PhoneInputIN';
 import { formatPhoneIN, isValidINPhone } from '@/lib/auth-helpers';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Smartphone, UserCheck } from 'lucide-react';
 import { normalizePhone } from '@/features/profile/ensureProfile';
 import { useCommunities } from '@/hooks/useCommunities';
 
@@ -100,6 +100,65 @@ export function AuthCard() {
     } catch (error) {
       console.error('Error checking user existence:', error);
       return false;
+    }
+  };
+
+  const handleDemoLogin = async () => {
+    if (!import.meta.env.VITE_DEMO_ENABLED || import.meta.env.VITE_DEMO_ENABLED !== 'true') {
+      return;
+    }
+
+    setLoading(true);
+    setErrors({});
+
+    try {
+      // Check if demo phone/OTP match
+      if (signInPhone === import.meta.env.VITE_DEMO_PHONE) {
+        // Instead of OTP, sign in with demo email/password
+        const { error } = await supabase.auth.signInWithPassword({
+          email: import.meta.env.VITE_DEMO_EMAIL,
+          password: import.meta.env.VITE_DEMO_PASSWORD,
+        });
+
+        if (error) throw error;
+
+        toast({
+          title: 'Demo Login Successful',
+          description: 'Welcome to the demo!',
+        });
+
+        navigate('/home');
+      } else {
+        toast({
+          title: 'Invalid Demo Credentials',
+          description: 'Use phone 987654321 for demo login',
+          variant: 'destructive',
+        });
+      }
+    } catch (error: any) {
+      console.error('Demo login error:', error);
+      toast({
+        title: 'Demo Login Failed',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGuestLogin = () => {
+    localStorage.setItem('guestSession', 'true');
+    toast({
+      title: 'Browsing as Guest',
+      description: 'You can view services but sign in to book',
+    });
+    navigate('/home');
+  };
+
+  const handleFillDemo = () => {
+    if (import.meta.env.VITE_DEMO_ENABLED === 'true') {
+      setSignInPhone(import.meta.env.VITE_DEMO_PHONE);
     }
   };
 
@@ -199,6 +258,52 @@ export function AuthCard() {
             >
               {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Send OTP
+            </Button>
+
+            {/* Demo and Guest Login Options */}
+            {import.meta.env.VITE_DEMO_ENABLED === 'true' && (
+              <div className="space-y-3">
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-background px-2 text-muted-foreground">
+                      Quick Options
+                    </span>
+                  </div>
+                </div>
+
+                <Button
+                  onClick={handleFillDemo}
+                  variant="outline"
+                  className="w-full h-10 text-sm"
+                  disabled={loading}
+                >
+                  <Smartphone className="w-4 h-4 mr-2" />
+                  Fill Demo Phone & OTP
+                </Button>
+
+                <Button
+                  onClick={handleDemoLogin}
+                  variant="outline"
+                  className="w-full h-10 text-sm border-orange-200 text-orange-700 hover:bg-orange-50"
+                  disabled={loading}
+                >
+                  <UserCheck className="w-4 h-4 mr-2" />
+                  Use Demo Login
+                  <span className="ml-auto text-xs opacity-75">Phone 987654321 • OTP 123456</span>
+                </Button>
+              </div>
+            )}
+
+            <Button
+              onClick={handleGuestLogin}
+              variant="ghost"
+              className="w-full h-10 text-sm text-muted-foreground hover:text-foreground"
+              disabled={loading}
+            >
+              Continue as Guest
             </Button>
             
             <div className="text-center">

@@ -10,13 +10,18 @@ import { FeatureCarousel } from './FeatureCarousel';
 import { ActiveBookingCard } from './ActiveBookingCard';
 import { openExternalUrl } from '@/lib/nativeOpen';
 import FaqSection from './FaqSection';
+import { useAuth } from '@/hooks/useAuth';
+import { DemoBanner } from '@/components/DemoBanner';
 export function HomeScreen() {
   const navigate = useNavigate();
+  const { isDemoUser } = useAuth();
+  
   const handleServiceSelect = (service: 'maid' | 'cook' | 'bathroom_cleaning') => {
     navigate(`/book/${service}`);
   };
   return <div className="min-h-screen gradient-bg pb-24">
       <div className="max-w-md mx-auto px-4 py-3 space-y-4 bg-slate-50">
+        {isDemoUser && <DemoBanner />}
         <HomeHeader />
         <HeroCarousel />
         <ServicesRow onServiceSelect={handleServiceSelect} />

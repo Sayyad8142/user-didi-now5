@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Settings, Bell, BellOff, DollarSign, ArrowLeft, Info, Volume2, Users, FileText, Globe, RefreshCw, MessageSquare, HelpCircle, LogOut } from 'lucide-react';
+import { Settings, Bell, BellOff, DollarSign, ArrowLeft, Info, Volume2, Users, FileText, Globe, RefreshCw, MessageSquare, HelpCircle, LogOut, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -26,6 +26,7 @@ export default function AdminSettings() {
   const [loading, setLoading] = useState(false);
   const [currentVersion, setCurrentVersion] = useState<string>('v1.0.0');
   const [forceUpdates, setForceUpdates] = useState<boolean>(false);
+  const [seedingDemo, setSeedingDemo] = useState(false);
   const { toast: toastHook } = useToast();
 
   const handleLogout = async () => {
@@ -80,6 +81,29 @@ export default function AdminSettings() {
     setCurrentVersion(next);
     toastHook({ title: 'Updated', description: `Web version set to ${next}${forceUpdates ? ' (forced)' : ''}` });
   }
+
+  const handleSeedDemoUser = async () => {
+    setSeedingDemo(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('seed-demo-user');
+      
+      if (error) throw error;
+      
+      toastHook({
+        title: 'Demo User Seeded',
+        description: 'Demo user created successfully',
+      });
+    } catch (error: any) {
+      console.error('Error seeding demo user:', error);
+      toastHook({
+        title: 'Error',
+        description: error.message || 'Failed to seed demo user',
+        variant: 'destructive',
+      });
+    } finally {
+      setSeedingDemo(false);
+    }
+  };
 
   return (
     <div className="min-h-[100svh] max-w-screen-sm mx-auto bg-background text-foreground flex flex-col">
@@ -248,6 +272,39 @@ export default function AdminSettings() {
                   </div>
                 </CardContent>
               </Card>
+
+              {/* Demo User Management */}
+              {import.meta.env.VITE_DEMO_ENABLED === 'true' && (
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center gap-2 text-base">
+                      <UserPlus className="h-5 w-5 text-[#ff007a]" />
+                      Demo User Management
+                    </CardTitle>
+                    <CardDescription className="text-sm">
+                      Create or update the demo user for testing
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="p-3 bg-muted/50 rounded-xl space-y-3">
+                      <div>
+                        <h3 className="font-medium mb-1">Seed Demo User</h3>
+                        <p className="text-sm text-muted-foreground leading-relaxed">
+                          Creates demo@didinow.com user with demo profile data
+                        </p>
+                      </div>
+                      <Button 
+                        onClick={handleSeedDemoUser}
+                        disabled={seedingDemo}
+                        className="w-full h-10"
+                      >
+                        <UserPlus className={`h-4 w-4 mr-2 ${seedingDemo ? 'animate-spin' : ''}`} />
+                        {seedingDemo ? 'Seeding...' : 'Seed Demo User'}
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
 
               {/* Logout Section */}
               <Card>
