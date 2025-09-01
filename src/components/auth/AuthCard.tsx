@@ -13,7 +13,6 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, Smartphone, UserCheck } from 'lucide-react';
 import { normalizePhone } from '@/features/profile/ensureProfile';
 import { useCommunities } from '@/hooks/useCommunities';
-import { setGuest } from '@/lib/guest';
 
 export function AuthCard() {
   const navigate = useNavigate();
@@ -148,13 +147,13 @@ export function AuthCard() {
     }
   };
 
-const handleGuestLogin = () => {
-    setGuest();
+  const handleGuestLogin = () => {
+    localStorage.setItem('guestSession', 'true');
     toast({
       title: 'Browsing as Guest',
       description: 'You can view services but sign in to book',
     });
-    navigate('/home', { replace: true });
+    navigate('/home');
   };
 
   const handleFillDemo = () => {

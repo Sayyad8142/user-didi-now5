@@ -1,7 +1,6 @@
 import { useAuth } from "@/components/auth/AuthProvider";
 import { Button } from "@/components/ui/button";
 import { Navigate } from "react-router-dom";
-import { isGuest } from "@/lib/guest";
 
 const Index = () => {
   const { user, loading } = useAuth();
@@ -16,13 +15,8 @@ const Index = () => {
     );
   }
 
-  // Redirect authenticated users and guests to home
+  // Redirect authenticated users to home
   if (user) {
-    return <Navigate to="/home" replace />;
-  }
-
-  // Redirect guests to home
-  if (isGuest()) {
     return <Navigate to="/home" replace />;
   }
 
