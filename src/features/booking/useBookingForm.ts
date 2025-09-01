@@ -1,23 +1,17 @@
 import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { GuestPromptSheet } from '@/components/GuestPromptSheet';
+import { useGuestGuard } from '@/hooks/useGuestGuard';
 
 export function useBookingGuard() {
-  const { isGuest, isDemoUser } = useAuth();
-  const [showGuestPrompt, setShowGuestPrompt] = useState(false);
+  const { isDemoUser } = useAuth();
+  const { requireSignIn } = useGuestGuard();
 
   const checkAuthForBooking = () => {
-    if (isGuest) {
-      setShowGuestPrompt(true);
-      return false;
-    }
-    return true;
+    return requireSignIn();
   };
 
   return {
     checkAuthForBooking,
-    showGuestPrompt,
-    setShowGuestPrompt,
     isDemoUser,
   };
 }

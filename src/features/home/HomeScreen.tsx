@@ -12,16 +12,26 @@ import { openExternalUrl } from '@/lib/nativeOpen';
 import FaqSection from './FaqSection';
 import { useAuth } from '@/hooks/useAuth';
 import { DemoBanner } from '@/components/DemoBanner';
+import { GuestBanner } from '@/components/GuestBanner';
+import { useGuestGuard } from '@/hooks/useGuestGuard';
 export function HomeScreen() {
   const navigate = useNavigate();
   const { isDemoUser } = useAuth();
+  const { requireSignIn } = useGuestGuard();
   
   const handleServiceSelect = (service: 'maid' | 'cook' | 'bathroom_cleaning') => {
+    if (!requireSignIn()) return;
     navigate(`/book/${service}`);
+  };
+
+  const handleChatSupport = () => {
+    if (!requireSignIn()) return;
+    navigate('/chat');
   };
   return <div className="min-h-screen gradient-bg pb-24">
       <div className="max-w-md mx-auto px-4 py-3 space-y-4 bg-slate-50">
         {isDemoUser && <DemoBanner />}
+        <GuestBanner />
         <HomeHeader />
         <HeroCarousel />
         <ServicesRow onServiceSelect={handleServiceSelect} />
@@ -41,7 +51,7 @@ export function HomeScreen() {
             <span className="font-semibold">Call Manger</span>
           </Button>
           
-          <Button onClick={() => navigate('/chat')} variant="outline" className="w-full h-12 rounded-full border-2 border-primary/20 bg-white/90 hover:bg-primary/5 text-primary font-semibold transition-spring hover:scale-[1.02] flex items-center justify-center gap-3">
+          <Button onClick={handleChatSupport} variant="outline" className="w-full h-12 rounded-full border-2 border-primary/20 bg-white/90 hover:bg-primary/5 text-primary font-semibold transition-spring hover:scale-[1.02] flex items-center justify-center gap-3">
             <MessageCircle className="w-5 h-5" />
             <span>Chat Support</span>
           </Button>

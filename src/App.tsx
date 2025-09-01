@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { useState, useEffect, Suspense, lazy } from "react";
+import React from "react";
 import { UpdateBanner } from "@/components/UpdateBanner";
 import { OfflineScreen } from "@/components/OfflineScreen";
 import { useWebVersion } from "@/hooks/useWebVersion";
@@ -11,6 +12,9 @@ import { AuthProvider } from "@/components/auth/AuthProvider";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { BottomTabs } from "@/components/BottomTabs";
 import { useBackButton } from "@/hooks/useBackButton";
+import { clearGuest } from "@/lib/guest";
+import { supabase } from "@/integrations/supabase/client";
+import RequireAuth from "@/components/routing/RequireAuth";
 
 // Immediate load for critical pages
 import Index from "./pages/Index";
@@ -68,6 +72,17 @@ const ProtectedLayout = ({ children }: { children: React.ReactNode }) => (
 const AppContent = () => {
   // Handle hardware back button on mobile devices (inside Router context)
   useBackButton();
+
+  // Clear guest mode when user signs in or out
+  React.useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session || event === 'SIGNED_OUT') {
+        clearGuest();
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
   
   return (
     <Suspense fallback={<PageLoader />}>
@@ -84,89 +99,89 @@ const AppContent = () => {
         <Route 
           path="/home" 
           element={
-            <ProtectedRoute>
+            <RequireAuth allowGuest>
               <ProtectedLayout>
                 <Home />
               </ProtectedLayout>
-            </ProtectedRoute>
+            </RequireAuth>
           } 
         />
         <Route 
           path="/bookings" 
           element={
-            <ProtectedRoute>
+            <RequireAuth>
               <ProtectedLayout>
                 <Bookings />
               </ProtectedLayout>
-            </ProtectedRoute>
+            </RequireAuth>
           } 
         />
         <Route 
           path="/profile" 
           element={
-            <ProtectedRoute>
+            <RequireAuth>
               <ProtectedLayout>
                 <Profile />
               </ProtectedLayout>
-            </ProtectedRoute>
+            </RequireAuth>
           } 
         />
         <Route 
           path="/profile/account" 
           element={
-            <ProtectedRoute>
+            <RequireAuth>
               <ProtectedLayout>
                 <AccountSettings />
               </ProtectedLayout>
-            </ProtectedRoute>
+            </RequireAuth>
           } 
         />
         <Route 
           path="/support" 
           element={
-            <ProtectedRoute>
+            <RequireAuth>
               <ProtectedLayout>
                 <SupportScreen />
               </ProtectedLayout>
-            </ProtectedRoute>
+            </RequireAuth>
           } 
         />
         <Route 
           path="/chat" 
           element={
-            <ProtectedRoute>
+            <RequireAuth>
               <ChatScreen />
-            </ProtectedRoute>
+            </RequireAuth>
           } 
         />
         <Route 
           path="/faqs" 
           element={
-            <ProtectedRoute>
+            <RequireAuth allowGuest>
               <ProtectedLayout>
                 <FAQs />
               </ProtectedLayout>
-            </ProtectedRoute>
+            </RequireAuth>
           } 
         />
         <Route 
           path="/book/:service_type" 
           element={
-            <ProtectedRoute>
+            <RequireAuth>
               <ProtectedLayout>
                 <BookingForm />
               </ProtectedLayout>
-            </ProtectedRoute>
+            </RequireAuth>
           } 
         />
         <Route 
           path="/book/:service_type/schedule" 
           element={
-            <ProtectedRoute>
+            <RequireAuth>
               <ProtectedLayout>
                 <ScheduleScreen />
               </ProtectedLayout>
-            </ProtectedRoute>
+            </RequireAuth>
           } 
         />
         <Route 
