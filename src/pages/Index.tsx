@@ -1,19 +1,9 @@
-import React from 'react';
 import { useAuth } from "@/components/auth/AuthProvider";
 import { Button } from "@/components/ui/button";
-import { Navigate, useNavigate } from "react-router-dom";
-import { isGuest } from '@/lib/guest';
-import { isDemo } from '@/lib/demo';
+import { Navigate } from "react-router-dom";
 
 const Index = () => {
   const { user, loading } = useAuth();
-  const navigate = useNavigate();
-
-  React.useEffect(() => {
-    if (isGuest() || isDemo()) {
-      navigate('/home', { replace: true });
-    }
-  }, [navigate]);
 
   if (loading) {
     return (

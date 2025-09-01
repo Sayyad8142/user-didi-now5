@@ -9,8 +9,6 @@ import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Loader2, CheckCircle2 } from 'lucide-react';
 import { maskPhone } from '@/lib/auth-helpers';
 import { ensureProfile, waitForSession, normalizePhone } from '@/features/profile/ensureProfile';
-import { DEMO_OTP, isDemoPhone, setDemo, clearDemo } from '@/lib/demo';
-import { clearGuest } from '@/lib/guest';
 
 interface LocationState {
   phone: string;
@@ -23,7 +21,6 @@ interface LocationState {
   } | null;
   adminLogin?: boolean;
   redirectTo?: string;
-  isDemo?: boolean;
 }
 
 function isAdminPhone(phone?: string | null) {
@@ -83,34 +80,6 @@ export default function VerifyOTP() {
     setError('');
 
     try {
-      // Check for demo login
-      const demoPendingPhone = localStorage.getItem('demoPendingPhone');
-      console.log('Demo check:', { 
-        phone, 
-        demoPendingPhone, 
-        otp: otp.trim(), 
-        DEMO_OTP,
-        isDemoPhone_phone: isDemoPhone(phone),
-        isDemoPhone_pending: isDemoPhone(demoPendingPhone || ''),
-        otpMatch: otp.trim() === DEMO_OTP
-      });
-      
-      if ((isDemoPhone(phone) || isDemoPhone(demoPendingPhone || '')) && otp.trim() === DEMO_OTP) {
-        console.log('Demo login detected, setting demo session');
-        setDemo();
-        // Clear any pending states
-        localStorage.removeItem('demoPendingPhone');
-        clearGuest();
-        
-        toast({
-          title: 'Demo Mode Active',
-          description: 'You are now in demo mode. Some actions are disabled.',
-        });
-        
-        navigate('/home', { replace: true });
-        setLoading(false);
-        return;
-      }
       // Verify OTP
       const { error: verifyError } = await supabase.auth.verifyOtp({
         type: "sms",

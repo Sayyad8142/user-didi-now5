@@ -4,7 +4,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { useState, useEffect, Suspense, lazy } from "react";
-import React from "react";
 import { UpdateBanner } from "@/components/UpdateBanner";
 import { OfflineScreen } from "@/components/OfflineScreen";
 import { useWebVersion } from "@/hooks/useWebVersion";
@@ -12,10 +11,6 @@ import { AuthProvider } from "@/components/auth/AuthProvider";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { BottomTabs } from "@/components/BottomTabs";
 import { useBackButton } from "@/hooks/useBackButton";
-import { clearGuest } from "@/lib/guest";
-import { clearDemo } from "@/lib/demo";
-import { supabase } from "@/integrations/supabase/client";
-import RequireAuth from "@/components/routing/RequireAuth";
 
 // Immediate load for critical pages
 import Index from "./pages/Index";
@@ -73,18 +68,6 @@ const ProtectedLayout = ({ children }: { children: React.ReactNode }) => (
 const AppContent = () => {
   // Handle hardware back button on mobile devices (inside Router context)
   useBackButton();
-
-  // Clear guest and demo modes when user signs in or out
-  React.useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (session || event === 'SIGNED_OUT') {
-        clearGuest();
-        clearDemo();
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
   
   return (
     <Suspense fallback={<PageLoader />}>
@@ -101,89 +84,89 @@ const AppContent = () => {
         <Route 
           path="/home" 
           element={
-            <RequireAuth allowGuest allowDemo>
+            <ProtectedRoute>
               <ProtectedLayout>
                 <Home />
               </ProtectedLayout>
-            </RequireAuth>
+            </ProtectedRoute>
           } 
         />
         <Route 
           path="/bookings" 
           element={
-            <RequireAuth>
+            <ProtectedRoute>
               <ProtectedLayout>
                 <Bookings />
               </ProtectedLayout>
-            </RequireAuth>
+            </ProtectedRoute>
           } 
         />
         <Route 
           path="/profile" 
           element={
-            <RequireAuth>
+            <ProtectedRoute>
               <ProtectedLayout>
                 <Profile />
               </ProtectedLayout>
-            </RequireAuth>
+            </ProtectedRoute>
           } 
         />
         <Route 
           path="/profile/account" 
           element={
-            <RequireAuth>
+            <ProtectedRoute>
               <ProtectedLayout>
                 <AccountSettings />
               </ProtectedLayout>
-            </RequireAuth>
+            </ProtectedRoute>
           } 
         />
         <Route 
           path="/support" 
           element={
-            <RequireAuth>
+            <ProtectedRoute>
               <ProtectedLayout>
                 <SupportScreen />
               </ProtectedLayout>
-            </RequireAuth>
+            </ProtectedRoute>
           } 
         />
         <Route 
           path="/chat" 
           element={
-            <RequireAuth>
+            <ProtectedRoute>
               <ChatScreen />
-            </RequireAuth>
+            </ProtectedRoute>
           } 
         />
         <Route 
           path="/faqs" 
           element={
-            <RequireAuth allowGuest allowDemo>
+            <ProtectedRoute>
               <ProtectedLayout>
                 <FAQs />
               </ProtectedLayout>
-            </RequireAuth>
+            </ProtectedRoute>
           } 
         />
         <Route 
           path="/book/:service_type" 
           element={
-            <RequireAuth>
+            <ProtectedRoute>
               <ProtectedLayout>
                 <BookingForm />
               </ProtectedLayout>
-            </RequireAuth>
+            </ProtectedRoute>
           } 
         />
         <Route 
           path="/book/:service_type/schedule" 
           element={
-            <RequireAuth>
+            <ProtectedRoute>
               <ProtectedLayout>
                 <ScheduleScreen />
               </ProtectedLayout>
-            </RequireAuth>
+            </ProtectedRoute>
           } 
         />
         <Route 
