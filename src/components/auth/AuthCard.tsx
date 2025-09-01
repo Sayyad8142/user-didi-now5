@@ -154,7 +154,7 @@ const handleGuestLogin = () => {
       title: 'Browsing as Guest',
       description: 'You can view services but sign in to book',
     });
-    navigate('/', { replace: true });
+    navigate('/home', { replace: true });
   };
 
   const handleFillDemo = () => {

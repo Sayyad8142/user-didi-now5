@@ -4,6 +4,7 @@ import { useAuth } from './AuthProvider';
 import { Loader2 } from 'lucide-react';
 import ConsentGate from '@/features/auth/ConsentGate';
 import { hasAppAccess } from '@/lib/session';
+import { isGuest } from '@/lib/guest';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -30,6 +31,13 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     })();
     return () => { mounted = false; };
   }, [location.pathname, navigate]);
+
+  // Redirect guests from / to /home
+  React.useEffect(() => {
+    if (ok && isGuest() && location.pathname === '/') {
+      navigate('/home', { replace: true });
+    }
+  }, [ok, location.pathname, navigate]);
 
   if ((loading || ok === null) && !user) {
     return (
