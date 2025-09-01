@@ -15,6 +15,7 @@ import { ScheduleSheet } from './ScheduleSheet';
 import { cn } from '@/lib/utils';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { PriceNote } from '@/components/PriceNote';
+import { isGuestMode } from '@/lib/demo';
 
 // Maid task types and constants
 type MaidTask = "floor_cleaning" | "dish_washing";
@@ -344,6 +345,66 @@ export function BookingForm() {
     : service_type === 'bathroom_cleaning' ? !submitting
     : selectedFlatSize && currentPrice && !submitting
   );
+
+  // Guest user check - show sign up prompt instead of booking form
+  if (isGuestMode()) {
+    return (
+      <div className="min-h-screen bg-background pb-24">
+        <div className="max-w-md mx-auto px-4 py-6">
+          {/* Header */}
+          <div className="flex items-center mb-6">
+            <Button variant="ghost" size="sm" onClick={() => navigate('/home')} className="p-2">
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+            <h1 className="text-xl font-semibold text-foreground ml-4">
+              Book {prettyServiceName(service_type)}
+            </h1>
+          </div>
+
+          {/* Guest Notice Card */}
+          <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10 rounded-3xl">
+            <CardContent className="p-8 text-center">
+              <div className="mb-6">
+                <div className="w-16 h-16 mx-auto mb-4 bg-primary/10 rounded-full flex items-center justify-center">
+                  <ServiceIcon className="w-8 h-8 text-primary" />
+                </div>
+                <h2 className="text-2xl font-bold text-foreground mb-2">
+                  Create Account to Book Services
+                </h2>
+                <p className="text-muted-foreground text-lg">
+                  To book our services, you need to create an account with your mobile number and community details.
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                <Button 
+                  onClick={() => navigate('/auth')}
+                  className="w-full h-16 rounded-2xl font-bold text-lg bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-primary-foreground shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02]"
+                >
+                  Create Account & Book Now
+                </Button>
+                
+                <Button 
+                  onClick={() => navigate('/home')}
+                  variant="outline"
+                  className="w-full h-14 rounded-2xl font-semibold border-primary/20 text-primary hover:bg-primary/5 transition-all duration-300"
+                >
+                  Browse Services
+                </Button>
+              </div>
+
+              <div className="mt-6 text-sm text-muted-foreground">
+                <p>✓ Quick 30-second signup</p>
+                <p>✓ Instant service booking</p>
+                <p>✓ Track your orders</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
   return <div className="min-h-screen bg-background pb-24">
       <div className="max-w-md mx-auto px-4 py-6">
         {/* Header */}
