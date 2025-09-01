@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth as useSupabaseAuth } from '@/components/auth/AuthProvider';
+import { isGuest as isGuestFlag } from '@/lib/guest';
 
 export interface GuestSession {
   isGuest: true;
@@ -20,13 +21,8 @@ export function useAuth(): AuthSession & { loading: boolean; isDemoUser: boolean
   const [isGuest, setIsGuest] = useState(false);
 
   useEffect(() => {
-    // Check if user is in guest mode
-    const guestMode = localStorage.getItem('guestSession');
-    if (guestMode === 'true' && !user) {
-      setIsGuest(true);
-    } else {
-      setIsGuest(false);
-    }
+    // Detect guest mode using helper and only when no authenticated user
+    setIsGuest(isGuestFlag() && !user);
   }, [user]);
 
   const isDemoUser = user?.email === import.meta.env.VITE_DEMO_EMAIL;
