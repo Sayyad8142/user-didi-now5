@@ -260,43 +260,6 @@ export function AuthCard() {
               Send OTP
             </Button>
 
-            {/* Demo and Guest Login Options */}
-            {import.meta.env.VITE_DEMO_ENABLED === 'true' && (
-              <div className="space-y-3">
-                <div className="relative">
-                  <div className="absolute inset-0 flex items-center">
-                    <span className="w-full border-t" />
-                  </div>
-                  <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-background px-2 text-muted-foreground">
-                      Quick Options
-                    </span>
-                  </div>
-                </div>
-
-                <Button
-                  onClick={handleFillDemo}
-                  variant="outline"
-                  className="w-full h-10 text-sm"
-                  disabled={loading}
-                >
-                  <Smartphone className="w-4 h-4 mr-2" />
-                  Fill Demo Phone & OTP
-                </Button>
-
-                <Button
-                  onClick={handleDemoLogin}
-                  variant="outline"
-                  className="w-full h-10 text-sm border-orange-200 text-orange-700 hover:bg-orange-50"
-                  disabled={loading}
-                >
-                  <UserCheck className="w-4 h-4 mr-2" />
-                  Use Demo Login
-                  <span className="ml-auto text-xs opacity-75">Phone 987654321 • OTP 123456</span>
-                </Button>
-              </div>
-            )}
-
             <Button
               onClick={handleGuestLogin}
               variant="ghost"
