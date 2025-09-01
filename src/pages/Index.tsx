@@ -3,13 +3,16 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { Button } from "@/components/ui/button";
 import { Navigate, useNavigate } from "react-router-dom";
 import { isGuest } from '@/lib/guest';
+import { isDemo } from '@/lib/demo';
 
 const Index = () => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
 
   React.useEffect(() => {
-    if (isGuest()) navigate('/home', { replace: true });
+    if (isGuest() || isDemo()) {
+      navigate('/home', { replace: true });
+    }
   }, [navigate]);
 
   if (loading) {
