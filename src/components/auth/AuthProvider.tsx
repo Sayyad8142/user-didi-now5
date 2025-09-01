@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { getDemoSession, isDemoMode } from '@/lib/demo';
 
 interface AuthContextType {
   user: User | null;
@@ -32,7 +33,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Set up auth state listener
+    // Check for demo mode first
+    if (isDemoMode()) {
+      const demoSession = getDemoSession();
+      if (demoSession) {
+        setUser(demoSession.user as User);
+        setSession(null); // Demo mode doesn't use real sessions
+        setLoading(false);
+        return;
+      }
+    }
+
+    // Set up auth state listener for real users
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         setSession(session);
@@ -41,7 +53,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }
     );
 
-    // Get initial session
+    // Get initial session for real users
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);

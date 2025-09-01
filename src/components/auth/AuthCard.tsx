@@ -13,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { normalizePhone } from '@/features/profile/ensureProfile';
 import { useCommunities } from '@/hooks/useCommunities';
+import { isDemoCredentials, setDemoSession } from '@/lib/demo';
 
 export function AuthCard() {
   const navigate = useNavigate();
@@ -108,6 +109,20 @@ export function AuthCard() {
     const phone = isSignUp ? signUpData.phone : signInPhone;
     
     if (isSignUp ? !validateSignUp() : !validateSignIn()) {
+      return;
+    }
+
+    // Check for demo credentials first
+    if (isDemoCredentials(phone, '123456') && !isSignUp) {
+      console.log('Demo login detected');
+      setDemoSession();
+      
+      toast({
+        title: 'Demo Login Successful',
+        description: 'You are now logged in as a demo user.',
+      });
+      
+      navigate("/home", { replace: true });
       return;
     }
 
