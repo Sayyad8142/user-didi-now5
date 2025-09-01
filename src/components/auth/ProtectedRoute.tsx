@@ -1,8 +1,9 @@
 import React from 'react';
-import { Navigate, useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from './AuthProvider';
 import { Loader2 } from 'lucide-react';
 import ConsentGate from '@/features/auth/ConsentGate';
+import { hasAppAccess } from '@/lib/session';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -11,13 +12,26 @@ interface ProtectedRouteProps {
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const { user, loading } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
+  const [ok, setOk] = React.useState<boolean | null>(null);
 
   // Don't apply user auth protection to /admin routes - let AdminGate handle it
   if (location.pathname.startsWith("/admin")) {
     return <>{children}</>;
   }
 
-  if (loading) {
+  React.useEffect(() => {
+    let mounted = true;
+    (async () => {
+      const allowed = await hasAppAccess();
+      if (!mounted) return;
+      setOk(allowed);
+      if (!allowed) navigate('/auth', { replace: true, state: { from: location } });
+    })();
+    return () => { mounted = false; };
+  }, [location.pathname, navigate]);
+
+  if ((loading || ok === null) && !user) {
     return (
       <div className="min-h-screen gradient-bg flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -25,8 +39,11 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     );
   }
 
+  if (!ok) return null;
+
   if (!user) {
-    return <Navigate to="/auth" state={{ from: location }} replace />;
+    // Guest mode allowed
+    return <>{children}</>;
   }
 
   return (
