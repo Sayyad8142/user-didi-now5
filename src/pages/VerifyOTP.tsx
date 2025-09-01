@@ -80,19 +80,28 @@ export default function VerifyOTP() {
     setError('');
 
     try {
-      // Verify OTP
-      const { error: verifyError } = await supabase.auth.verifyOtp({
-        type: "sms",
-        token: otp.trim(),
-        phone, // must match the phone used to send OTP
-      });
+      // Check for demo credentials
+      const isDemoPhone = phone === '+919876543210' || phone === '919876543210';
+      const isDemoOTP = otp.trim() === '123456';
+      
+      if (isDemoPhone && isDemoOTP) {
+        // Skip OTP verification for demo user
+        console.log('Demo login detected');
+      } else {
+        // Verify OTP for regular users
+        const { error: verifyError } = await supabase.auth.verifyOtp({
+          type: "sms",
+          token: otp.trim(),
+          phone, // must match the phone used to send OTP
+        });
 
-      if (verifyError) {
-        const errorMsg = /expired|invalid/i.test(verifyError.message)
-          ? "OTP expired or invalid. Resend and try again."
-          : verifyError.message;
-        setError(errorMsg);
-        return;
+        if (verifyError) {
+          const errorMsg = /expired|invalid/i.test(verifyError.message)
+            ? "OTP expired or invalid. Resend and try again."
+            : verifyError.message;
+          setError(errorMsg);
+          return;
+        }
       }
 
       // Ensure session is set and profile exists
