@@ -14,6 +14,7 @@ import { Loader2, Smartphone, UserCheck } from 'lucide-react';
 import { normalizePhone } from '@/features/profile/ensureProfile';
 import { useCommunities } from '@/hooks/useCommunities';
 import { setGuest } from '@/lib/guest';
+import { isDemoPhone } from '@/lib/demo';
 
 export function AuthCard() {
   const navigate = useNavigate();
@@ -177,6 +178,28 @@ export function AuthCard() {
     try {
       const formattedPhone = formatPhoneIN(phone);
       
+      // Check for demo phone
+      if (isDemoPhone(phone)) {
+        toast({
+          title: 'Demo login',
+          description: 'Use OTP 123456 to continue.',
+        });
+        localStorage.setItem('demoPendingPhone', formattedPhone);
+        
+        // Navigate to verification with demo state
+        navigate('/auth/verify', {
+          state: {
+            phone: formattedPhone,
+            mode: activeTab,
+            signupData: isSignUp ? signUpData : null,
+            redirectTo: "/home",
+            isDemo: true,
+          },
+        });
+        setLoading(false);
+        return;
+      }
+      
       // For sign-in, skip existence check due to RLS; let OTP proceed for both cases
       // This avoids false "no account" errors for existing users.
       // If the phone is new, Supabase will handle account creation upon verification.
@@ -251,6 +274,12 @@ export function AuthCard() {
               disabled={loading}
               required
             />
+            
+            {isDemoPhone(signInPhone) && (
+              <p className="text-xs text-primary mt-1">
+                Demo login detected. Use OTP 123456.
+              </p>
+            )}
 
             <Button
               onClick={handleSendOTP}

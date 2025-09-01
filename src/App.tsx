@@ -13,6 +13,7 @@ import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { BottomTabs } from "@/components/BottomTabs";
 import { useBackButton } from "@/hooks/useBackButton";
 import { clearGuest } from "@/lib/guest";
+import { clearDemo } from "@/lib/demo";
 import { supabase } from "@/integrations/supabase/client";
 import RequireAuth from "@/components/routing/RequireAuth";
 
@@ -73,11 +74,12 @@ const AppContent = () => {
   // Handle hardware back button on mobile devices (inside Router context)
   useBackButton();
 
-  // Clear guest mode when user signs in or out
+  // Clear guest and demo modes when user signs in or out
   React.useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (session || event === 'SIGNED_OUT') {
         clearGuest();
+        clearDemo();
       }
     });
 
@@ -99,7 +101,7 @@ const AppContent = () => {
         <Route 
           path="/home" 
           element={
-            <RequireAuth allowGuest>
+            <RequireAuth allowGuest allowDemo>
               <ProtectedLayout>
                 <Home />
               </ProtectedLayout>
@@ -157,7 +159,7 @@ const AppContent = () => {
         <Route 
           path="/faqs" 
           element={
-            <RequireAuth allowGuest>
+            <RequireAuth allowGuest allowDemo>
               <ProtectedLayout>
                 <FAQs />
               </ProtectedLayout>

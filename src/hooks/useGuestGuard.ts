@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { isGuest } from '@/lib/guest';
+import { isReadOnlyVisitor } from '@/lib/authz';
 import { useToast } from '@/hooks/use-toast';
 
 export function useGuestGuard() {
@@ -7,7 +7,7 @@ export function useGuestGuard() {
   const { toast } = useToast();
 
   const requireSignIn = (): boolean => {
-    if (isGuest()) {
+    if (isReadOnlyVisitor()) {
       toast({
         title: 'Sign in required',
         description: 'Please sign in to access this feature',
