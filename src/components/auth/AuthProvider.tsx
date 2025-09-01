@@ -33,14 +33,30 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check for demo mode first
+    // Listen for demo mode changes (triggered by setDemoSession/clearDemoSession)
+    const handleDemoModeChange = (_event: Event) => {
+      const demo = getDemoSession();
+      if (demo) {
+        setUser(demo.user as User);
+        setSession(null);
+        setLoading(false);
+      } else {
+        setUser(null);
+        setSession(null);
+      }
+    };
+    window.addEventListener('demo-mode-changed', handleDemoModeChange as EventListener);
+
+    // Check for demo mode first (initial load)
     if (isDemoMode()) {
       const demoSession = getDemoSession();
       if (demoSession) {
         setUser(demoSession.user as User);
         setSession(null); // Demo mode doesn't use real sessions
         setLoading(false);
-        return;
+        return () => {
+          window.removeEventListener('demo-mode-changed', handleDemoModeChange as EventListener);
+        };
       }
     }
 
@@ -60,7 +76,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      subscription.unsubscribe();
+      window.removeEventListener('demo-mode-changed', handleDemoModeChange as EventListener);
+    };
   }, []);
 
   return (

@@ -42,6 +42,8 @@ export function isDemoCredentials(phone: string, otp: string): boolean {
 export function setDemoSession(): void {
   localStorage.setItem('demo-session', JSON.stringify(DEMO_SESSION));
   localStorage.setItem('demo-mode', 'true');
+  // Notify app that demo mode changed so AuthProvider can update immediately
+  window.dispatchEvent(new CustomEvent('demo-mode-changed', { detail: { enabled: true } }));
 }
 
 export function getDemoSession(): DemoSession | null {
@@ -61,6 +63,8 @@ export function getDemoSession(): DemoSession | null {
 export function clearDemoSession(): void {
   localStorage.removeItem('demo-session');
   localStorage.removeItem('demo-mode');
+  // Notify app that demo mode was cleared
+  window.dispatchEvent(new CustomEvent('demo-mode-changed', { detail: { enabled: false } }));
 }
 
 export function isDemoMode(): boolean {
