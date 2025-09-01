@@ -26,8 +26,23 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     (async () => {
       const allowed = await hasAppAccess();
       if (!mounted) return;
-      setOk(allowed);
-      if (!allowed) navigate('/auth', { replace: true, state: { from: location } });
+
+      if (allowed) {
+        setOk(true);
+        // If guest is allowed and user is on root or auth, send them to /home
+        if (isGuest() && (location.pathname === '/' || location.pathname === '/auth')) {
+          navigate('/home', { replace: true });
+        }
+      } else {
+        // Fallback: if guest detected (race condition), allow and go to /home
+        if (isGuest()) {
+          setOk(true);
+          navigate('/home', { replace: true });
+        } else {
+          setOk(false);
+          navigate('/auth', { replace: true, state: { from: location } });
+        }
+      }
     })();
     return () => { mounted = false; };
   }, [location.pathname, navigate]);
