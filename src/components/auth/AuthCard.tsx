@@ -68,10 +68,6 @@ export function AuthCard() {
       newErrors.community = 'Please select your community';
     }
     
-    if (!signUpData.flatNo.trim()) {
-      newErrors.flatNo = 'Flat number is required';
-    }
-    
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -317,7 +313,7 @@ export function AuthCard() {
             {/* Flat Number */}
             <div className="space-y-2">
               <Label htmlFor="flatNo" className="text-sm font-medium">
-                Flat No <span className="text-destructive">*</span>
+                Flat No
               </Label>
               <Input
                 id="flatNo"
