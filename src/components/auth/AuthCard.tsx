@@ -119,24 +119,35 @@ export function AuthCard() {
     setErrors({});
     try {
       const formattedPhone = formatPhoneIN(phone);
-
       if (!isSignUp) {
         // Sign In: do not create user; show friendly error if not found
-        const { error } = await supabase.auth.signInWithOtp({
+        const {
+          error
+        } = await supabase.auth.signInWithOtp({
           phone: formattedPhone,
-          options: { channel: 'sms', shouldCreateUser: false }
+          options: {
+            channel: 'sms',
+            shouldCreateUser: false
+          }
         });
         if (error) {
           // Supabase returns different messages; normalize to our copy
-          setErrors({ phone: 'Mobile number not registered, sign up first.' });
+          setErrors({
+            phone: 'Mobile number not registered, sign up first.'
+          });
           setLoading(false);
           return;
         }
       } else {
         // Sign Up: allow creating a new user
-        const { error } = await supabase.auth.signInWithOtp({
+        const {
+          error
+        } = await supabase.auth.signInWithOtp({
           phone: formattedPhone,
-          options: { channel: 'sms', shouldCreateUser: true }
+          options: {
+            channel: 'sms',
+            shouldCreateUser: true
+          }
         });
         if (error) throw error;
       }
@@ -198,9 +209,7 @@ export function AuthCard() {
               Send OTP
             </Button>
             
-            <Button onClick={handleContinueAsGuest} disabled={loading} variant="outline" className="w-full h-12 rounded-full border-primary/20 text-primary hover:bg-primary/5 transition-spring hover:scale-[1.02] disabled:scale-100">
-              Continue as Guest
-            </Button>
+            
             
             <div className="text-center">
               <button type="button" onClick={() => navigate("/admin-login")} className="text-xs text-primary underline hover:no-underline transition-smooth">
