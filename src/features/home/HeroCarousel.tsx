@@ -35,6 +35,12 @@ export function HeroCarousel() {
     Autoplay({ delay: 3000, stopOnInteraction: true })
   );
 
+  const [loadedImages, setLoadedImages] = React.useState<Set<number>>(new Set());
+
+  const handleImageLoad = (index: number) => {
+    setLoadedImages(prev => new Set(prev).add(index));
+  };
+
   return (
     <div className="relative">
       <Carousel
@@ -47,22 +53,26 @@ export function HeroCarousel() {
           {carouselImages.map((image, index) => (
             <CarouselItem key={index}>
               <div className="relative rounded-2xl overflow-hidden shadow-card aspect-video bg-gradient-to-br from-pink-100 to-purple-100">
+                {/* Background gradient placeholder */}
+                <div 
+                  className={`absolute inset-0 bg-gradient-to-br from-pink-200 to-purple-200 transition-opacity duration-500 ${
+                    loadedImages.has(index) ? 'opacity-0' : 'opacity-100'
+                  }`}
+                />
+                
                 <img
                   src={image.url}
                   alt={image.alt}
-                  className="w-full h-full object-cover transition-opacity duration-300"
+                  className={`w-full h-full object-cover transition-opacity duration-500 ${
+                    loadedImages.has(index) ? 'opacity-100' : 'opacity-0'
+                  }`}
                   loading={index === 0 ? "eager" : "lazy"}
                   decoding="async"
-                  onLoad={(e) => {
-                    e.currentTarget.style.opacity = '1';
-                  }}
+                  fetchPriority={index === 0 ? "high" : "low"}
+                  onLoad={() => handleImageLoad(index)}
                   onError={(e) => {
                     console.error('Banner image failed to load:', image.url);
                     e.currentTarget.style.display = 'none';
-                  }}
-                  style={{
-                    opacity: '0',
-                    background: 'linear-gradient(135deg, #fdf2f8 0%, #f3e8ff 100%)'
                   }}
                 />
               </div>
