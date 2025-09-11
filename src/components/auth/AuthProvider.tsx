@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
-import { getDemoSession, isDemoMode } from '@/lib/demo';
+import { getDemoSession, isDemoMode, clearDemoSession } from '@/lib/demo';
 
 interface AuthContextType {
   user: User | null;
@@ -63,6 +63,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
     // Set up auth state listener for real users
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
+        // If we get a real auth session, clear any demo/guest sessions
+        if (session?.user) {
+          clearDemoSession();
+        }
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
@@ -71,6 +75,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     // Get initial session for real users
     supabase.auth.getSession().then(({ data: { session } }) => {
+      // If we have a real auth session, clear any demo/guest sessions
+      if (session?.user) {
+        clearDemoSession();
+      }
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
