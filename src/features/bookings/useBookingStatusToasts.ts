@@ -2,12 +2,14 @@ import { useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
-export function useBookingStatusToasts() {
+export function useBookingStatusToasts(enabled: boolean = true) {
   const { toast } = useToast();
   const lastStatusRef = useRef<Map<string, string>>(new Map());
   const userIdRef = useRef<string | null>(null);
 
   useEffect(() => {
+    if (!enabled) return;
+    
     let mounted = true;
     
     // Get current user ID
@@ -70,5 +72,5 @@ export function useBookingStatusToasts() {
       mounted = false;
       supabase.removeChannel(channel);
     };
-  }, [toast]);
+  }, [toast, enabled]);
 }

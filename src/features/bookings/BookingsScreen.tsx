@@ -128,11 +128,9 @@ export function BookingsScreen() {
     fetchBookings(true, false); // Force refresh, don't use cache
   };
 
-  // Conditional hooks - only run after initial load
-  if (enableRealtime) {
-    useMyBookingsRealtime();
-    useBookingStatusToasts();
-  }
+  // Always call hooks but conditionally enable them
+  useMyBookingsRealtime(enableRealtime);
+  useBookingStatusToasts(enableRealtime);
 
   if (loading) {
     return (
