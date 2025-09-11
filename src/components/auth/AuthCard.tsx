@@ -120,38 +120,26 @@ export function AuthCard() {
     try {
       const formattedPhone = formatPhoneIN(phone);
 
-      // For sign-in, check if user exists in database
       if (!isSignUp) {
-        const userExists = await checkIfUserExists(phone);
-        if (!userExists) {
-          setErrors({
-            phone: "Mobile number not registered, sign up first."
-          });
+        // Sign In: do not create user; show friendly error if not found
+        const { error } = await supabase.auth.signInWithOtp({
+          phone: formattedPhone,
+          options: { channel: 'sms', shouldCreateUser: false }
+        });
+        if (error) {
+          // Supabase returns different messages; normalize to our copy
+          setErrors({ phone: 'Mobile number not registered, sign up first.' });
           setLoading(false);
           return;
         }
+      } else {
+        // Sign Up: allow creating a new user
+        const { error } = await supabase.auth.signInWithOtp({
+          phone: formattedPhone,
+          options: { channel: 'sms', shouldCreateUser: true }
+        });
+        if (error) throw error;
       }
-
-      // For sign-up, check if user already exists
-      if (isSignUp) {
-        const userExists = await checkIfUserExists(phone);
-        if (userExists) {
-          setErrors({
-            phone: "An account with this mobile number already exists. Please sign in instead."
-          });
-          setLoading(false);
-          return;
-        }
-      }
-      const {
-        error
-      } = await supabase.auth.signInWithOtp({
-        phone: formattedPhone,
-        options: {
-          channel: 'sms'
-        }
-      });
-      if (error) throw error;
 
       // Navigate to verification with state
       navigate('/auth/verify', {
@@ -159,7 +147,7 @@ export function AuthCard() {
           phone: formattedPhone,
           mode: activeTab,
           signupData: isSignUp ? signUpData : null,
-          redirectTo: "/home"
+          redirectTo: '/home'
         }
       });
       toast({
