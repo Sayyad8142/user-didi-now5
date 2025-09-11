@@ -191,7 +191,7 @@ export function AuthCard() {
         {/* Brand Header */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-primary mb-2">Didi Now</h1>
-          <p className="text-muted-foreground text-lg">in 11Mins</p>
+          <p className="text-muted-foreground text-lg">in 10Mins</p>
         </div>
 
         <Tabs value={activeTab} onValueChange={value => setActiveTab(value as 'signin' | 'signup')}>
