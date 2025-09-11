@@ -59,8 +59,10 @@ const PageLoader = () => (
 
 
 const ProtectedLayout = ({ children }: { children: React.ReactNode }) => (
-  <div className="relative">
-    {children}
+  <div className="relative safe-top">
+    <div className="pb-safe-bottom">
+      {children}
+    </div>
     <BottomTabs />
   </div>
 );

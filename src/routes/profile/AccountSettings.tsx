@@ -72,7 +72,7 @@ export default function AccountSettings() {
   }
 
   return (
-    <div className="min-h-dvh bg-background p-4 space-y-6">
+    <div className="min-h-dvh bg-background pt-safe-top p-4 space-y-6">
       <header className="mb-4 flex items-center gap-2">
         <Button 
           variant="ghost" 
