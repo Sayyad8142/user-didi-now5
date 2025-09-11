@@ -3,9 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { RefreshCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { CleaningLoader } from '@/components/ui/cleaning-loader';
+import { OptimizedLoadingCard } from '@/components/ui/optimized-loading';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/auth/AuthProvider';
+import { useQuery } from '@tanstack/react-query';
 import { BookingCard } from './BookingCard';
 import { EmptyState } from './EmptyState';
 import { useMyBookingsRealtime } from './useMyBookingsRealtime';
@@ -23,21 +24,39 @@ interface Booking {
   created_at: string;
 }
 
-// Cache for bookings
-const bookingsCache = new Map<string, { data: Booking[], timestamp: number }>();
-const CACHE_DURATION = 30000; // 30 seconds
+// Using React Query for caching & SWR; local cache removed
 
 export function BookingsScreen() {
   const { user } = useAuth();
   const navigate = useNavigate();
   
-  // Only enable realtime/toasts after initial load
-  const [enableRealtime, setEnableRealtime] = useState(false);
-  
-  const [allBookings, setAllBookings] = useState<Booking[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [activeTab, setActiveTab] = useState('upcoming');
+// Only enable realtime/toasts after initial load
+const [enableRealtime, setEnableRealtime] = useState(false);
+const [activeTab, setActiveTab] = useState('upcoming');
+
+// Centralized data fetching with React Query (cached & SWR)
+const { data: allBookings = [], isLoading, isFetching, isSuccess, refetch } = useQuery<Booking[]>({
+  queryKey: ['bookings', user?.id],
+  enabled: !!user,
+  queryFn: async () => {
+    const { data, error } = await supabase
+      .from('bookings')
+      .select('id, service_type, booking_type, scheduled_date, scheduled_time, status, community, flat_no, created_at')
+      .eq('user_id', user!.id)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching bookings:', error);
+      return [] as Booking[];
+    }
+    return (data || []) as Booking[];
+  },
+  staleTime: 60_000,
+  gcTime: 300_000,
+  refetchOnWindowFocus: false,
+  retry: 1,
+  placeholderData: (prev) => prev,
+});
 
   // Memoize filtered bookings to avoid recalculation
   const { upcomingBookings, historyBookings } = useMemo(() => {
@@ -63,85 +82,19 @@ export function BookingsScreen() {
     return { upcomingBookings: upcoming, historyBookings: history };
   }, [allBookings]);
 
-  const fetchBookings = async (showRefreshLoader = false, useCache = true) => {
-    if (!user) {
-      navigate('/auth');
-      return;
-    }
+// Data fetching handled by React Query above
 
-    const cacheKey = `bookings-${user.id}`;
-    
-    // Check cache first (only if not refreshing)
-    if (useCache && !showRefreshLoader) {
-      const cached = bookingsCache.get(cacheKey);
-      if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
-        setAllBookings(cached.data);
-        setLoading(false);
-        setEnableRealtime(true);
-        return;
-      }
-    }
+useEffect(() => {
+  if (isSuccess) setEnableRealtime(true);
+}, [isSuccess]);
 
-    try {
-      if (showRefreshLoader) {
-        setRefreshing(true);
-      } else {
-        setLoading(true);
-      }
-
-      // Single query to fetch all bookings
-      const { data: bookings, error } = await supabase
-        .from('bookings')
-        .select('id, service_type, booking_type, scheduled_date, scheduled_time, status, community, flat_no, created_at')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        console.error('Error fetching bookings:', error);
-        return;
-      }
-
-      const bookingsData = bookings || [];
-      setAllBookings(bookingsData);
-      
-      // Cache the results
-      bookingsCache.set(cacheKey, {
-        data: bookingsData,
-        timestamp: Date.now()
-      });
-
-      // Enable realtime after initial load
-      setEnableRealtime(true);
-    } catch (err) {
-      console.error('Error:', err);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchBookings();
-  }, [user]);
-
-  const handleRefresh = () => {
-    fetchBookings(true, false); // Force refresh, don't use cache
-  };
+const handleRefresh = () => {
+  refetch();
+};
 
   // Always call hooks but conditionally enable them
   useMyBookingsRealtime(enableRealtime);
   useBookingStatusToasts(enableRealtime);
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-[#FFF6F2] pb-24 flex items-center justify-center">
-        <div className="text-center">
-          <CleaningLoader size="lg" />
-          <p className="text-muted-foreground mt-4">Loading your bookings...</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen pb-24 bg-slate-50">
@@ -155,10 +108,10 @@ export function BookingsScreen() {
               variant="ghost"
               size="sm"
               onClick={handleRefresh}
-              disabled={refreshing}
+              disabled={isFetching}
               className="text-muted-foreground"
             >
-              <RefreshCcw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+              <RefreshCcw className={`w-4 h-4 ${isFetching ? 'animate-spin' : ''}`} />
             </Button>
           </div>
 
