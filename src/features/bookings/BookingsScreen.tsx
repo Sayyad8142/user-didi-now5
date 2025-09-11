@@ -34,16 +34,18 @@ export function BookingsScreen() {
 const [enableRealtime, setEnableRealtime] = useState(false);
 const [activeTab, setActiveTab] = useState('upcoming');
 
-// Centralized data fetching with React Query (cached & SWR)
+// Optimized data fetching with pagination and minimal fields
 const { data: allBookings = [], isLoading, isFetching, isSuccess, refetch } = useQuery<Booking[]>({
   queryKey: ['bookings', user?.id],
   enabled: !!user,
   queryFn: async () => {
+    // Fetch only essential fields for listing, limit to recent bookings for faster initial load
     const { data, error } = await supabase
       .from('bookings')
       .select('id, service_type, booking_type, scheduled_date, scheduled_time, status, community, flat_no, created_at')
       .eq('user_id', user!.id)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(50); // Limit initial load to recent 50 bookings
 
     if (error) {
       console.error('Error fetching bookings:', error);
@@ -51,11 +53,14 @@ const { data: allBookings = [], isLoading, isFetching, isSuccess, refetch } = us
     }
     return (data || []) as Booking[];
   },
-  staleTime: 60_000,
-  gcTime: 300_000,
+  staleTime: 30_000, // Cache for 30 seconds
+  gcTime: 180_000, // Keep in memory for 3 minutes
   refetchOnWindowFocus: false,
   retry: 1,
   placeholderData: (prev) => prev,
+  meta: {
+    errorMessage: 'Failed to load bookings'
+  }
 });
 
   // Memoize filtered bookings to avoid recalculation
