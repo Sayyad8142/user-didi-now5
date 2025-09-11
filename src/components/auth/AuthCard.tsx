@@ -65,6 +65,9 @@ export function AuthCard() {
     if (!signUpData.community) {
       newErrors.community = 'Please select your community';
     }
+    if (!signUpData.flatNo.trim()) {
+      newErrors.flatNo = 'Flat number is required';
+    }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -263,7 +266,7 @@ export function AuthCard() {
             {/* Flat Number */}
             <div className="space-y-2">
               <Label htmlFor="flatNo" className="text-sm font-medium">
-                Flat No
+                Flat No <span className="text-destructive">*</span>
               </Label>
               <Input id="flatNo" type="text" placeholder="e.g., A-401, Tower 2" value={signUpData.flatNo} onChange={e => setSignUpData(prev => ({
               ...prev,
