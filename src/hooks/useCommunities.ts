@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 interface Community {
@@ -13,7 +13,7 @@ export function useCommunities() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchCommunities = async () => {
+  const fetchCommunities = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -37,11 +37,18 @@ export function useCommunities() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchCommunities();
-  }, []);
+  }, [fetchCommunities]);
 
-  return { communities, loading, error, refresh: fetchCommunities };
+  const memoizedValue = useMemo(() => ({
+    communities,
+    loading,
+    error,
+    refresh: fetchCommunities
+  }), [communities, loading, error, fetchCommunities]);
+
+  return memoizedValue;
 }

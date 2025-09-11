@@ -1,25 +1,12 @@
-import React from 'react';
-import { Skeleton } from '@/components/ui/skeleton';
-import { useProfile } from '@/features/profile/useProfile';
+import React, { memo } from 'react';
+import { useProfile } from '@/contexts/ProfileContext';
+import { OptimizedLoadingCard } from '@/components/ui/optimized-loading';
 
-export function HomeHeader() {
+const HomeHeader = memo(() => {
   const { profile, loading } = useProfile();
 
   if (loading) {
-    return (
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
-        <div className="p-4 flex justify-between items-center">
-          <div>
-            <Skeleton className="h-6 w-24 mb-1" />
-            <Skeleton className="h-4 w-16" />
-          </div>
-          <div className="text-right">
-            <Skeleton className="h-4 w-20 mb-1" />
-            <Skeleton className="h-4 w-12" />
-          </div>
-        </div>
-      </div>
-    );
+    return <OptimizedLoadingCard />;
   }
 
   return (
@@ -40,4 +27,8 @@ export function HomeHeader() {
       </div>
     </div>
   );
-}
+});
+
+HomeHeader.displayName = 'HomeHeader';
+
+export { HomeHeader };

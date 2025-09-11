@@ -18,8 +18,8 @@ export function useWebVersionQuery() {
 
       return data?.value || '1.0.0';
     },
-    staleTime: 60 * 1000, // 60 seconds
-    refetchInterval: 60 * 1000, // Refetch every 60 seconds
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchInterval: false, // Disable automatic refetching
     retry: 1,
   });
 }

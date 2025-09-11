@@ -1,5 +1,4 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/auth/AuthProvider';
 
@@ -11,16 +10,42 @@ interface Profile {
   flat_no: string;
 }
 
-export function useProfile() {
+interface ProfileContextType {
+  profile: Profile | null;
+  loading: boolean;
+  error: string | null;
+  refresh: () => void;
+}
+
+const ProfileContext = createContext<ProfileContextType>({
+  profile: null,
+  loading: true,
+  error: null,
+  refresh: () => {},
+});
+
+export const useProfile = () => {
+  const context = useContext(ProfileContext);
+  if (!context) {
+    throw new Error('useProfile must be used within a ProfileProvider');
+  }
+  return context;
+};
+
+interface ProfileProviderProps {
+  children: React.ReactNode;
+}
+
+export function ProfileProvider({ children }: ProfileProviderProps) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { user } = useAuth();
-  const navigate = useNavigate();
 
   const fetchProfile = async () => {
     if (!user?.id) {
-      navigate('/auth');
+      setProfile(null);
+      setLoading(false);
       return;
     }
 
@@ -37,11 +62,6 @@ export function useProfile() {
       if (fetchError) {
         console.error('Error fetching profile:', fetchError);
         setError('Failed to load profile');
-        return;
-      }
-
-      if (!data) {
-        navigate('/auth');
         return;
       }
 
@@ -62,5 +82,9 @@ export function useProfile() {
     fetchProfile();
   };
 
-  return { profile, loading, error, refresh };
+  return (
+    <ProfileContext.Provider value={{ profile, loading, error, refresh }}>
+      {children}
+    </ProfileContext.Provider>
+  );
 }

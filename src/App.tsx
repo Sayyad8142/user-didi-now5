@@ -8,6 +8,7 @@ import { UpdateBanner } from "@/components/UpdateBanner";
 import { OfflineScreen } from "@/components/OfflineScreen";
 import { useWebVersion } from "@/hooks/useWebVersion";
 import { AuthProvider } from "@/components/auth/AuthProvider";
+import { ProfileProvider } from "@/contexts/ProfileContext";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { BottomTabs } from "@/components/BottomTabs";
 import { useBackButton } from "@/hooks/useBackButton";
@@ -273,7 +274,8 @@ const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <TooltipProvider>
+        <ProfileProvider>
+          <TooltipProvider>
           {updateAvailable && (
             <UpdateBanner onRefresh={handleRefresh} onDismiss={dismissUpdate} />
           )}
@@ -283,7 +285,8 @@ const App = () => {
             <AppContent />
           </BrowserRouter>
         </TooltipProvider>
-      </AuthProvider>
+      </ProfileProvider>
+    </AuthProvider>
     </QueryClientProvider>
   );
 };

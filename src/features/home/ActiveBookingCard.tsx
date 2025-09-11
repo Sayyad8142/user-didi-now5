@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, memo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -68,7 +68,7 @@ const getStatusColor = (status: string) => {
   }
 };
 
-export function ActiveBookingCard() {
+const ActiveBookingCard = memo(() => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [activeBooking, setActiveBooking] = useState<Booking | null>(null);
@@ -77,7 +77,7 @@ export function ActiveBookingCard() {
   const [openChat, setOpenChat] = useState(false);
   const [workerStats, setWorkerStats] = useState<{ avg_rating: number; ratings_count: number } | null>(null);
 
-  const fetchActiveBooking = async () => {
+  const fetchActiveBooking = useCallback(async () => {
     if (!user) return;
 
     try {
@@ -103,7 +103,7 @@ export function ActiveBookingCard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user?.id]);
 
   // Load dismissed bookings from localStorage
   useEffect(() => {
@@ -114,8 +114,13 @@ export function ActiveBookingCard() {
   }, []);
 
   useEffect(() => {
-    fetchActiveBooking();
-  }, [user]);
+    if (user?.id) {
+      fetchActiveBooking();
+    } else {
+      setLoading(false);
+      setActiveBooking(null);
+    }
+  }, [user?.id]);
 
   // Load worker rating stats
   useEffect(() => {
@@ -132,17 +137,24 @@ export function ActiveBookingCard() {
       .then(({ data }) => setWorkerStats(data ?? null));
   }, [activeBooking?.worker_id]);
 
-  // Set up real-time updates
+  // Set up real-time updates (reduced frequency)
   useEffect(() => {
-    if (!user) return;
+    if (!user?.id || !activeBooking) return;
 
     const channel = supabase
-      .channel("active-booking-updates")
+      .channel(`active-booking-updates-${user.id}`)
       .on("postgres_changes", 
-        { event: "UPDATE", schema: "public", table: "bookings" },
+        { 
+          event: "UPDATE", 
+          schema: "public", 
+          table: "bookings",
+          filter: `user_id=eq.${user.id}`
+        },
         (payload) => {
-          // Refetch active booking when any booking is updated
-          fetchActiveBooking();
+          // Only refetch if it's our booking that changed
+          if (payload.new.id === activeBooking.id) {
+            fetchActiveBooking();
+          }
         }
       )
       .subscribe();
@@ -150,7 +162,7 @@ export function ActiveBookingCard() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user]);
+  }, [user?.id, activeBooking?.id]);
 
   if (loading || !activeBooking || dismissedBookings.has(activeBooking.id)) {
     return null;
@@ -346,4 +358,8 @@ export function ActiveBookingCard() {
       />
     </Card>
   );
-}
+});
+
+ActiveBookingCard.displayName = 'ActiveBookingCard';
+
+export { ActiveBookingCard };
