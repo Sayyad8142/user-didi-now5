@@ -1,14 +1,11 @@
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { Routes, Route } from "react-router-dom";
 import { useState, useEffect, Suspense, lazy } from "react";
 import { UpdateBanner } from "@/components/UpdateBanner";
 import { OfflineScreen } from "@/components/OfflineScreen";
 import { useWebVersion } from "@/hooks/useWebVersion";
-import { AuthProvider } from "@/components/auth/AuthProvider";
-import { ProfileProvider } from "@/contexts/ProfileContext";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { BottomTabs } from "@/components/BottomTabs";
 import { useBackButton } from "@/hooks/useBackButton";
@@ -57,7 +54,7 @@ const PageLoader = () => (
   </div>
 );
 
-const queryClient = new QueryClient();
+
 
 const ProtectedLayout = ({ children }: { children: React.ReactNode }) => (
   <div className="relative">
@@ -272,22 +269,14 @@ const App = () => {
   }
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <ProfileProvider>
-          <TooltipProvider>
-          {updateAvailable && (
-            <UpdateBanner onRefresh={handleRefresh} onDismiss={dismissUpdate} />
-          )}
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <AppContent />
-          </BrowserRouter>
-        </TooltipProvider>
-      </ProfileProvider>
-    </AuthProvider>
-    </QueryClientProvider>
+    <TooltipProvider>
+      {updateAvailable && (
+        <UpdateBanner onRefresh={handleRefresh} onDismiss={dismissUpdate} />
+      )}
+      <Toaster />
+      <Sonner />
+      <AppContent />
+    </TooltipProvider>
   );
 };
 
