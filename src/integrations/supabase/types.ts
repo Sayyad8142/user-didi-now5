@@ -177,6 +177,7 @@ export type Database = {
           flat_size: string | null
           food_pref: string | null
           id: string
+          is_demo: boolean
           maid_tasks: Database["public"]["Enums"]["maid_task"][] | null
           notes: string | null
           pay_enabled_at: string | null
@@ -218,6 +219,7 @@ export type Database = {
           flat_size?: string | null
           food_pref?: string | null
           id?: string
+          is_demo?: boolean
           maid_tasks?: Database["public"]["Enums"]["maid_task"][] | null
           notes?: string | null
           pay_enabled_at?: string | null
@@ -259,6 +261,7 @@ export type Database = {
           flat_size?: string | null
           food_pref?: string | null
           id?: string
+          is_demo?: boolean
           maid_tasks?: Database["public"]["Enums"]["maid_task"][] | null
           notes?: string | null
           pay_enabled_at?: string | null
@@ -287,6 +290,42 @@ export type Database = {
           },
         ]
       }
+      callback_requests: {
+        Row: {
+          best_time: string | null
+          created_at: string
+          id: string
+          ip: string | null
+          name: string
+          notes: string | null
+          phone: string
+          status: string
+          user_agent: string | null
+        }
+        Insert: {
+          best_time?: string | null
+          created_at?: string
+          id?: string
+          ip?: string | null
+          name: string
+          notes?: string | null
+          phone: string
+          status?: string
+          user_agent?: string | null
+        }
+        Update: {
+          best_time?: string | null
+          created_at?: string
+          id?: string
+          ip?: string | null
+          name?: string
+          notes?: string | null
+          phone?: string
+          status?: string
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
       communities: {
         Row: {
           created_at: string
@@ -314,6 +353,36 @@ export type Database = {
         }
         Relationships: []
       }
+      contact_leads: {
+        Row: {
+          created_at: string | null
+          email: string
+          id: string
+          message: string
+          name: string
+          phone: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email: string
+          id?: string
+          message: string
+          name: string
+          phone: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string
+          id?: string
+          message?: string
+          name?: string
+          phone?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       cook_pricing_settings: {
         Row: {
           base_price_inr: number
@@ -335,6 +404,30 @@ export type Database = {
           non_veg_extra_inr?: number
           per_extra_person_inr?: number
           updated_at?: string
+        }
+        Relationships: []
+      }
+      faq_feedback: {
+        Row: {
+          comment: string | null
+          created_at: string
+          helpful: boolean
+          id: string
+          question_key: string
+        }
+        Insert: {
+          comment?: string | null
+          created_at?: string
+          helpful: boolean
+          id?: string
+          question_key: string
+        }
+        Update: {
+          comment?: string | null
+          created_at?: string
+          helpful?: boolean
+          id?: string
+          question_key?: string
         }
         Relationships: []
       }
@@ -412,6 +505,158 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      landlord_properties: {
+        Row: {
+          id: string
+          landlord_id: string
+          property_id: string
+        }
+        Insert: {
+          id?: string
+          landlord_id: string
+          property_id: string
+        }
+        Update: {
+          id?: string
+          landlord_id?: string
+          property_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "landlord_properties_landlord_id_fkey"
+            columns: ["landlord_id"]
+            isOneToOne: false
+            referencedRelation: "landlords"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "landlord_properties_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      landlords: {
+        Row: {
+          company_name: string | null
+          created_at: string | null
+          gstin: string | null
+          id: string
+          note: string | null
+          profile_id: string | null
+        }
+        Insert: {
+          company_name?: string | null
+          created_at?: string | null
+          gstin?: string | null
+          id?: string
+          note?: string | null
+          profile_id?: string | null
+        }
+        Update: {
+          company_name?: string | null
+          created_at?: string | null
+          gstin?: string | null
+          id?: string
+          note?: string | null
+          profile_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "landlords_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      leads: {
+        Row: {
+          created_at: string
+          email: string | null
+          id: string
+          message: string | null
+          name: string
+          phone: string | null
+          source: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          message?: string | null
+          name: string
+          phone?: string | null
+          source?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          message?: string | null
+          name?: string
+          phone?: string | null
+          source?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      leases: {
+        Row: {
+          created_at: string | null
+          end_date: string | null
+          file_url: string | null
+          id: string
+          notice_period_days: number | null
+          property_id: string
+          start_date: string
+          status: string | null
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          end_date?: string | null
+          file_url?: string | null
+          id?: string
+          notice_period_days?: number | null
+          property_id: string
+          start_date: string
+          status?: string | null
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string | null
+          end_date?: string | null
+          file_url?: string | null
+          id?: string
+          notice_period_days?: number | null
+          property_id?: string
+          start_date?: string
+          status?: string | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leases_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leases_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
         ]
@@ -542,6 +787,133 @@ export type Database = {
         }
         Relationships: []
       }
+      properties: {
+        Row: {
+          address: string | null
+          area_sqft: number | null
+          city: string | null
+          code: string | null
+          created_at: string | null
+          id: string
+          name: string
+          photos: Json | null
+          pincode: string | null
+          type: string | null
+        }
+        Insert: {
+          address?: string | null
+          area_sqft?: number | null
+          city?: string | null
+          code?: string | null
+          created_at?: string | null
+          id?: string
+          name: string
+          photos?: Json | null
+          pincode?: string | null
+          type?: string | null
+        }
+        Update: {
+          address?: string | null
+          area_sqft?: number | null
+          city?: string | null
+          code?: string | null
+          created_at?: string | null
+          id?: string
+          name?: string
+          photos?: Json | null
+          pincode?: string | null
+          type?: string | null
+        }
+        Relationships: []
+      }
+      rent_invoices: {
+        Row: {
+          amount: number
+          created_at: string | null
+          due_date: string
+          id: string
+          lease_id: string | null
+          notes: string | null
+          paid_on: string | null
+          payment_ref: string | null
+          period_end: string
+          period_start: string
+          property_id: string
+          status: Database["public"]["Enums"]["payment_status"]
+          tenant_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string | null
+          due_date: string
+          id?: string
+          lease_id?: string | null
+          notes?: string | null
+          paid_on?: string | null
+          payment_ref?: string | null
+          period_end: string
+          period_start: string
+          property_id: string
+          status?: Database["public"]["Enums"]["payment_status"]
+          tenant_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string | null
+          due_date?: string
+          id?: string
+          lease_id?: string | null
+          notes?: string | null
+          paid_on?: string | null
+          payment_ref?: string | null
+          period_end?: string
+          period_start?: string
+          property_id?: string
+          status?: Database["public"]["Enums"]["payment_status"]
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rent_invoices_lease_id_fkey"
+            columns: ["lease_id"]
+            isOneToOne: false
+            referencedRelation: "leases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rent_invoices_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rent_invoices_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      services: {
+        Row: {
+          created_at: string | null
+          id: string
+          label: string
+        }
+        Insert: {
+          created_at?: string | null
+          id: string
+          label: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          label?: string
+        }
+        Relationships: []
+      }
       support_messages: {
         Row: {
           created_at: string
@@ -618,6 +990,59 @@ export type Database = {
           },
         ]
       }
+      tenants: {
+        Row: {
+          active: boolean | null
+          created_at: string | null
+          deposit: number | null
+          due_day: number
+          email: string | null
+          end_date: string | null
+          full_name: string
+          id: string
+          monthly_rent: number
+          phone: string | null
+          property_id: string
+          start_date: string | null
+        }
+        Insert: {
+          active?: boolean | null
+          created_at?: string | null
+          deposit?: number | null
+          due_day?: number
+          email?: string | null
+          end_date?: string | null
+          full_name: string
+          id?: string
+          monthly_rent?: number
+          phone?: string | null
+          property_id: string
+          start_date?: string | null
+        }
+        Update: {
+          active?: boolean | null
+          created_at?: string | null
+          deposit?: number | null
+          due_day?: number
+          email?: string | null
+          end_date?: string | null
+          full_name?: string
+          id?: string
+          monthly_rent?: number
+          phone?: string | null
+          property_id?: string
+          start_date?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenants_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       worker_ratings: {
         Row: {
           booking_id: string
@@ -663,40 +1088,103 @@ export type Database = {
           },
         ]
       }
+      worker_registration_requests: {
+        Row: {
+          community: string
+          created_at: string
+          full_name: string
+          id: string
+          phone: string
+          rejection_reason: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          service_types: string[]
+          status: string
+          updated_at: string
+          upi_id: string
+        }
+        Insert: {
+          community: string
+          created_at?: string
+          full_name: string
+          id?: string
+          phone: string
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          service_types: string[]
+          status?: string
+          updated_at?: string
+          upi_id: string
+        }
+        Update: {
+          community?: string
+          created_at?: string
+          full_name?: string
+          id?: string
+          phone?: string
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          service_types?: string[]
+          status?: string
+          updated_at?: string
+          upi_id?: string
+        }
+        Relationships: []
+      }
       workers: {
         Row: {
           community: string | null
           created_at: string
+          fcm_token: string | null
           full_name: string
           id: string
           is_active: boolean
+          is_available: boolean | null
+          last_active_at: string | null
           phone: string
           photo_url: string | null
+          rating: number | null
           service_types: string[]
+          total_earnings: number | null
+          total_ratings: number | null
           updated_at: string
           upi_id: string
         }
         Insert: {
           community?: string | null
           created_at?: string
+          fcm_token?: string | null
           full_name: string
           id?: string
           is_active?: boolean
+          is_available?: boolean | null
+          last_active_at?: string | null
           phone: string
           photo_url?: string | null
+          rating?: number | null
           service_types?: string[]
+          total_earnings?: number | null
+          total_ratings?: number | null
           updated_at?: string
           upi_id: string
         }
         Update: {
           community?: string | null
           created_at?: string
+          fcm_token?: string | null
           full_name?: string
           id?: string
           is_active?: boolean
+          is_available?: boolean | null
+          last_active_at?: string | null
           phone?: string
           photo_url?: string | null
+          rating?: number | null
           service_types?: string[]
+          total_earnings?: number | null
+          total_ratings?: number | null
           updated_at?: string
           upi_id?: string
         }
@@ -730,6 +1218,27 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      admin_approve_worker_registration: {
+        Args: { p_photo_url?: string; p_request_id: string }
+        Returns: {
+          community: string | null
+          created_at: string
+          fcm_token: string | null
+          full_name: string
+          id: string
+          is_active: boolean
+          is_available: boolean | null
+          last_active_at: string | null
+          phone: string
+          photo_url: string | null
+          rating: number | null
+          service_types: string[]
+          total_earnings: number | null
+          total_ratings: number | null
+          updated_at: string
+          upi_id: string
+        }
+      }
       admin_cancel_booking: {
         Args: { p_booking_id: string; p_reason: string }
         Returns: undefined
@@ -747,6 +1256,10 @@ export type Database = {
           force: boolean
           web_version: string
         }[]
+      }
+      admin_reject_worker_registration: {
+        Args: { p_rejection_reason: string; p_request_id: string }
+        Returns: undefined
       }
       admin_set_booking_status: {
         Args: { p_booking_id: string; p_new_status: string; p_note?: string }
@@ -775,12 +1288,18 @@ export type Database = {
         Returns: {
           community: string | null
           created_at: string
+          fcm_token: string | null
           full_name: string
           id: string
           is_active: boolean
+          is_available: boolean | null
+          last_active_at: string | null
           phone: string
           photo_url: string | null
+          rating: number | null
           service_types: string[]
+          total_earnings: number | null
+          total_ratings: number | null
           updated_at: string
           upi_id: string
         }
@@ -946,6 +1465,26 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: number
       }
+      register_worker: {
+        Args: {
+          p_community: string
+          p_full_name: string
+          p_phone: string
+          p_service_types: string[]
+          p_upi_id: string
+        }
+        Returns: Json
+      }
+      register_worker_request: {
+        Args: {
+          p_community: string
+          p_full_name: string
+          p_phone: string
+          p_service_types: string[]
+          p_upi_id: string
+        }
+        Returns: Json
+      }
       run_scheduled_prealerts: {
         Args: { p_window_minutes?: number }
         Returns: undefined
@@ -986,6 +1525,12 @@ export type Database = {
         Args: { data: string }
         Returns: string
       }
+      update_worker_availability: {
+        Args:
+          | { is_available_param: boolean; worker_id_param: string }
+          | { p_is_available: boolean }
+        Returns: boolean
+      }
       urlencode: {
         Args: { data: Json } | { string: string } | { string: string }
         Returns: string
@@ -994,9 +1539,15 @@ export type Database = {
         Args: { p_booking_id: string; p_reason: string }
         Returns: undefined
       }
+      worker_set_booking_status: {
+        Args: { booking_id_param: string; new_status_param: string }
+        Returns: undefined
+      }
     }
     Enums: {
       maid_task: "floor_cleaning" | "dish_washing"
+      payment_status: "pending" | "paid" | "partial" | "overdue" | "cancelled"
+      user_role: "admin" | "staff" | "landlord"
     }
     CompositeTypes: {
       http_header: {
@@ -1141,6 +1692,8 @@ export const Constants = {
   public: {
     Enums: {
       maid_task: ["floor_cleaning", "dish_washing"],
+      payment_status: ["pending", "paid", "partial", "overdue", "cancelled"],
+      user_role: ["admin", "staff", "landlord"],
     },
   },
 } as const
