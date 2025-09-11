@@ -28,6 +28,8 @@ const ChatScreen = lazy(() => import("./features/chat/ChatScreen").then(m => ({ 
 // Lazy load admin pages
 const AdminGate = lazy(() => import("./features/admin/AdminGate").then(m => ({ default: m.AdminGate })));
 const AdminLayout = lazy(() => import("./routes/admin/AdminLayout"));
+const AdminCommunities = lazy(() => import("./routes/admin/AdminCommunities"));
+const AdminUsers = lazy(() => import("./routes/admin/AdminUsers"));
 const AdminPricing = lazy(() => import("./routes/admin/AdminPricing"));
 const AdminSettings = lazy(() => import("./routes/admin/AdminSettings"));
 const AdminDailyBookings = lazy(() => import("./routes/admin/AdminDailyBookings"));
@@ -168,10 +170,26 @@ const AppContent = () => {
           } 
         />
         <Route 
-          path="/admin/*" 
+          path="/admin" 
           element={
             <AdminGate>
               <AdminLayout />
+            </AdminGate>
+          } 
+        />
+        <Route 
+          path="/admin/communities" 
+          element={
+            <AdminGate>
+              <AdminCommunities />
+            </AdminGate>
+          } 
+        />
+        <Route 
+          path="/admin/users" 
+          element={
+            <AdminGate>
+              <AdminUsers />
             </AdminGate>
           } 
         />
