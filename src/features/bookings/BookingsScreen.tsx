@@ -96,6 +96,23 @@ const handleRefresh = () => {
   useMyBookingsRealtime(enableRealtime);
   useBookingStatusToasts(enableRealtime);
 
+  // Show loading skeleton on initial load
+  if (isLoading) {
+    return (
+      <div className="min-h-screen pb-24 bg-slate-50">
+        <div className="max-w-md mx-auto px-4 py-6">
+          <div className="text-center mb-6">
+            <h1 className="text-2xl font-bold text-primary">Bookings</h1>
+            <div className="space-y-4 mt-6">
+              <OptimizedLoadingCard />
+              <OptimizedLoadingCard />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen pb-24 bg-slate-50">
       <div className="max-w-md mx-auto px-4 py-6">
