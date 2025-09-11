@@ -47,16 +47,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
     };
     window.addEventListener('demo-mode-changed', handleDemoModeChange as EventListener);
 
-    // Check for demo mode first (initial load)
+    // Check for demo mode first (initial load) — but do NOT return early
     if (isDemoMode()) {
       const demoSession = getDemoSession();
       if (demoSession) {
         setUser(demoSession.user as User);
-        setSession(null); // Demo mode doesn't use real sessions
+        setSession(null); // Demo/guest mode doesn't use real sessions
         setLoading(false);
-        return () => {
-          window.removeEventListener('demo-mode-changed', handleDemoModeChange as EventListener);
-        };
+        // continue to set up Supabase listeners so real login can replace guest/demo
       }
     }
 
