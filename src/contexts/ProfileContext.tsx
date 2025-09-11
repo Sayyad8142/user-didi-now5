@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/auth/AuthProvider';
+import { getDemoSession, isDemoMode } from '@/lib/demo';
 
 interface Profile {
   id: string;
@@ -40,19 +41,40 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { user } = useAuth();
+  const { user, session } = useAuth();
 
   const fetchProfile = async () => {
-    if (!user?.id) {
-      setProfile(null);
-      setLoading(false);
-      return;
-    }
-
     try {
       setLoading(true);
       setError(null);
 
+      // Check if we're in demo/guest mode first
+      if (isDemoMode()) {
+        const demoSession = getDemoSession();
+        if (demoSession?.profile) {
+          setProfile(demoSession.profile);
+          setLoading(false);
+          return;
+        }
+      }
+
+      // If no authenticated user, clear profile
+      if (!user?.id || !session) {
+        setProfile(null);
+        setLoading(false);
+        return;
+      }
+
+      // Validate that user.id is a proper UUID (real Supabase user)
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(user.id)) {
+        console.log('User ID is not a valid UUID, treating as demo/guest user');
+        setProfile(null);
+        setLoading(false);
+        return;
+      }
+
+      // Fetch real user profile from database
       const { data, error: fetchError } = await supabase
         .from('profiles')
         .select('id, full_name, phone, community, flat_no')
@@ -76,7 +98,7 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
 
   useEffect(() => {
     fetchProfile();
-  }, [user?.id]);
+  }, [user?.id, session]);
 
   const refresh = () => {
     fetchProfile();
