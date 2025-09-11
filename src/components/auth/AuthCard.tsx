@@ -10,7 +10,7 @@ import { PhoneInputIN } from './PhoneInputIN';
 import { formatPhoneIN, isValidINPhone } from '@/lib/auth-helpers';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2 } from 'lucide-react';
+import { CleaningLoader } from '@/components/ui/cleaning-loader';
 import { normalizePhone } from '@/features/profile/ensureProfile';
 import { useCommunities } from '@/hooks/useCommunities';
 import { isDemoCredentials, setDemoSession, setGuestSession } from '@/lib/demo';
@@ -194,7 +194,7 @@ export function AuthCard() {
             <PhoneInputIN value={signInPhone} onChange={setSignInPhone} error={errors.phone} disabled={loading} required />
 
             <Button onClick={handleSendOTP} disabled={loading || !signInPhone} className="w-full h-12 rounded-full gradient-primary shadow-button transition-spring hover:scale-[1.02] disabled:scale-100">
-              {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              {loading && <CleaningLoader size="sm" className="mr-2" />}
               Send OTP
             </Button>
             
@@ -264,7 +264,7 @@ export function AuthCard() {
             </div>
 
             <Button onClick={handleSendOTP} disabled={loading} className="w-full h-12 rounded-full gradient-primary shadow-button transition-spring hover:scale-[1.02] disabled:scale-100">
-              {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              {loading && <CleaningLoader size="sm" className="mr-2" />}
               Send OTP
             </Button>
           </TabsContent>

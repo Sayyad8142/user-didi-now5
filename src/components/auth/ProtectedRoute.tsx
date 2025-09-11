@@ -1,7 +1,7 @@
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './AuthProvider';
-import { Loader2 } from 'lucide-react';
+import { CleaningPulse } from '@/components/ui/cleaning-loader';
 import ConsentGate from '@/features/auth/ConsentGate';
 
 interface ProtectedRouteProps {
@@ -20,7 +20,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   if (loading) {
     return (
       <div className="min-h-screen gradient-bg flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        <CleaningPulse size="lg" />
       </div>
     );
   }

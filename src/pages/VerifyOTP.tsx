@@ -6,8 +6,9 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { OtpBoxes } from '@/components/auth/OtpBoxes';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Loader2, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, CheckCircle2 } from 'lucide-react';
 import { maskPhone } from '@/lib/auth-helpers';
+import { CleaningLoader } from '@/components/ui/cleaning-loader';
 import { ensureProfile, waitForSession, normalizePhone } from '@/features/profile/ensureProfile';
 import { isDemoCredentials, setDemoSession } from '@/lib/demo';
 
@@ -271,7 +272,7 @@ export default function VerifyOTP() {
               disabled={loading || otp.length !== 6}
               className="w-full h-12 rounded-full gradient-primary shadow-button transition-spring hover:scale-[1.02] disabled:scale-100 mb-4"
             >
-              {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              {loading && <CleaningLoader size="sm" className="mr-2" />}
               {state?.mode === 'signup' ? 'Verify & Create Account' : 'Verify & Continue'}
             </Button>
 
@@ -289,7 +290,7 @@ export default function VerifyOTP() {
                   disabled={resendLoading}
                   className="text-primary hover:text-primary-dark"
                 >
-                  {resendLoading && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
+                  {resendLoading && <CleaningLoader size="sm" className="mr-1" />}
                   Resend OTP
                 </Button>
               )}

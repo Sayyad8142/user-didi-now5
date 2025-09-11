@@ -5,7 +5,7 @@ import { ensureProfile, normalizePhone } from "@/features/profile/ensureProfile"
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import { Loader2 } from "lucide-react";
+import { CleaningLoader } from '@/components/ui/cleaning-loader';
 
 const RESEND_MS = 30000;
 
@@ -135,7 +135,7 @@ export default function AdminVerify() {
               disabled={sending || code.length !== 6}
               className="w-full h-12 rounded-full gradient-primary shadow-button transition-spring hover:scale-[1.02] disabled:scale-100"
             >
-              {sending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              {sending && <CleaningLoader size="sm" className="mr-2" />}
               Verify & Continue
             </Button>
 

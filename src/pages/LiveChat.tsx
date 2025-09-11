@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from '@/components/ui/textarea';
 import { ArrowLeft, Send, Phone, User, Clock } from 'lucide-react';
+import { CleaningPulse } from '@/components/ui/cleaning-loader';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/auth/AuthProvider';
@@ -200,8 +201,9 @@ export default function LiveChat() {
         <ScrollArea ref={scrollAreaRef} className="flex-1 px-4 py-4 relative z-10">
           {loading ? (
             <div className="flex items-center justify-center py-8">
-              <div className="text-center text-gray-500">
-                Loading messages...
+              <div className="text-center text-gray-500 space-y-3">
+                <CleaningPulse size="lg" />
+                <div>Loading messages...</div>
               </div>
             </div>
           ) : messages.length === 0 ? (
