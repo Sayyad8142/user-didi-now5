@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { RefreshCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { OptimizedLoadingCard } from '@/components/ui/optimized-loading';
+import { CleaningLoader } from '@/components/ui/cleaning-loader';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useQuery } from '@tanstack/react-query';
@@ -103,9 +103,8 @@ const handleRefresh = () => {
         <div className="max-w-md mx-auto px-4 py-6">
           <div className="text-center mb-6">
             <h1 className="text-2xl font-bold text-primary">Bookings</h1>
-            <div className="space-y-4 mt-6">
-              <OptimizedLoadingCard />
-              <OptimizedLoadingCard />
+            <div className="flex justify-center mt-8">
+              <CleaningLoader size="lg" />
             </div>
           </div>
         </div>
