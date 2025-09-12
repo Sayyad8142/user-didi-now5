@@ -5,12 +5,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Camera, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { Worker, adminUpsertWorker, uploadWorkerPhoto } from "./api";
 import { PhoneInputIN } from "@/components/auth/PhoneInputIN";
+import { useCommunities } from "@/hooks/useCommunities";
 
 interface WorkerFormProps {
   worker?: Worker | null;
@@ -30,6 +32,7 @@ export function WorkerForm({ worker, open, onOpenChange, onSaved }: WorkerFormPr
   const [uploading, setUploading] = useState(false);
   const [photoUrl, setPhotoUrl] = useState<string | undefined>();
   const [serviceTypes, setServiceTypes] = useState<string[]>([]);
+  const { communities, loading: communitiesLoading } = useCommunities();
 
   const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm({
     defaultValues: {
@@ -187,10 +190,22 @@ export function WorkerForm({ worker, open, onOpenChange, onSaved }: WorkerFormPr
 
           <div>
             <Label htmlFor="community">Community</Label>
-            <Input
-              id="community"
-              {...register('community')}
-            />
+            <Select
+              value={watch('community')}
+              onValueChange={(value) => setValue('community', value)}
+              disabled={communitiesLoading}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder={communitiesLoading ? "Loading communities..." : "Select community"} />
+              </SelectTrigger>
+              <SelectContent>
+                {communities.map((community) => (
+                  <SelectItem key={community.id} value={community.value}>
+                    {community.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Service Types */}
