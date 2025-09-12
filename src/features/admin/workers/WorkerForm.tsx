@@ -10,6 +10,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Camera, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { Worker, adminUpsertWorker, uploadWorkerPhoto } from "./api";
+import { PhoneInputIN } from "@/components/auth/PhoneInputIN";
 
 interface WorkerFormProps {
   worker?: Worker | null;
@@ -164,16 +165,12 @@ export function WorkerForm({ worker, open, onOpenChange, onSaved }: WorkerFormPr
           </div>
 
           <div>
-            <Label htmlFor="phone">Phone *</Label>
-            <Input
-              id="phone"
-              type="tel"
-              placeholder="+91 98765 43210"
-              {...register('phone', { required: 'Phone is required' })}
+            <PhoneInputIN
+              value={watch('phone')}
+              onChange={(value) => setValue('phone', value)}
+              error={errors.phone?.message}
+              required
             />
-            {errors.phone && (
-              <p className="text-sm text-destructive mt-1">{errors.phone.message}</p>
-            )}
           </div>
 
           <div>
