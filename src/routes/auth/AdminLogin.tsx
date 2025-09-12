@@ -69,8 +69,8 @@ export default function AdminLogin() {
   }
 
   return (
-    <div className="min-h-dvh bg-gradient-to-br from-background to-muted/20 flex items-center justify-center p-4">
-      <Card className="w-full max-w-md shadow-xl border-0 bg-card/95 backdrop-blur">
+    <div className="min-h-screen-safe bg-gradient-to-br from-background to-muted/20 flex items-center justify-center p-4 pt-safe pb-safe">
+      <Card className="w-full max-w-sm mx-auto shadow-xl border-0 bg-card/95 backdrop-blur">
         <CardHeader className="text-center space-y-4">
           <div className="mx-auto w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
             <Shield className="w-8 h-8 text-primary" />
