@@ -33,6 +33,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let sessionInitialized = false;
+
     // Listen for demo mode changes (triggered by setDemoSession/clearDemoSession)
     const handleDemoModeChange = (_event: Event) => {
       const demo = getDemoSession();
@@ -54,35 +56,70 @@ export function AuthProvider({ children }: AuthProviderProps) {
         setUser(demoSession.user as User);
         setSession(null); // Demo/guest mode doesn't use real sessions
         setLoading(false);
+        sessionInitialized = true;
         // continue to set up Supabase listeners so real login can replace guest/demo
       }
     }
 
-    // Set up auth state listener for real users
+    // Set up auth state listener for real users FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
+        console.log('Auth state change:', event, session?.user?.id);
+        
         // If we get a real auth session, clear any demo/guest sessions
         if (session?.user) {
           clearDemoSession();
         }
+        
         setSession(session);
         setUser(session?.user ?? null);
-        setLoading(false);
+        
+        // Only set loading to false after we've processed auth state
+        if (!sessionInitialized) {
+          setLoading(false);
+          sessionInitialized = true;
+        }
       }
     );
 
-    // Get initial session for real users
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      // If we have a real auth session, clear any demo/guest sessions
-      if (session?.user) {
-        clearDemoSession();
+    // Get initial session for real users AFTER setting up listener
+    const initializeSession = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('Error getting session:', error);
+        }
+        
+        console.log('Initial session:', session?.user?.id);
+        
+        // If we have a real auth session, clear any demo/guest sessions
+        if (session?.user) {
+          clearDemoSession();
+        }
+        
+        setSession(session);
+        setUser(session?.user ?? null);
+        
+        // Only set loading to false if we haven't already initialized
+        if (!sessionInitialized) {
+          setLoading(false);
+          sessionInitialized = true;
+        }
+      } catch (error) {
+        console.error('Error initializing session:', error);
+        if (!sessionInitialized) {
+          setLoading(false);
+          sessionInitialized = true;
+        }
       }
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
+    };
+
+    // Small delay to ensure proper initialization order
+    const timer = setTimeout(initializeSession, 100);
 
     return () => {
+      clearTimeout(timer);
       subscription.unsubscribe();
       window.removeEventListener('demo-mode-changed', handleDemoModeChange as EventListener);
     };
