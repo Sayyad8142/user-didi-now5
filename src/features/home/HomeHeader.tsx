@@ -11,13 +11,13 @@ const HomeHeader = memo(() => {
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
-      <div className="p-4 flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-[#ff007a] tracking-tight">Didi Now</h1>
-          <p className="text-gray-600 text-sm font-medium">in 10Mins</p>
+      <div className="p-4 flex justify-between items-center gap-4">
+        <div className="flex-shrink-0">
+          <h1 className="text-xl sm:text-2xl font-bold text-[#ff007a] tracking-tight">Didi Now</h1>
+          <p className="text-gray-600 text-xs sm:text-sm font-medium">in 10Mins</p>
         </div>
-        <div className="text-right">
-          <div className="text-sm font-semibold text-gray-900">
+        <div className="text-right flex-shrink-0 min-w-0">
+          <div className="text-xs sm:text-sm font-semibold text-gray-900 truncate">
             {profile?.community || "Prestige High Fields"}
           </div>
           <div className="text-xs text-gray-500 font-medium">
