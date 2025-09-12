@@ -248,7 +248,7 @@ function formatFlatNumber(flatNo: string) {
   const floor = flatNo.substring(1, 3);
   const door = flatNo[3];
   
-  return `Tower ${tower}, Floor ${floor}, Door No ${door}`;
+  return `Flat no : ${flatNo}\n\nTower ${tower}\nFloor ${floor}\nDoor ${door}`;
 }
 
 export function AdminBookingCard({ 
