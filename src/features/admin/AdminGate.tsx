@@ -20,6 +20,21 @@ export function AdminGate({ children }: { children: ReactNode }) {
   useEffect(() => {
     let mounted = true;
     (async () => {
+      // Check for existing valid admin session first
+      const adminLoginTime = localStorage.getItem('admin_login_time');
+      const adminPhone = localStorage.getItem('admin_phone');
+      const now = Date.now();
+      const sevenDaysMs = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
+      
+      // If admin logged in within last 7 days, allow access without re-verification
+      if (adminLoginTime && adminPhone && (now - parseInt(adminLoginTime)) < sevenDaysMs) {
+        if (normalizePhone(adminPhone) === normalizePhone(ADMIN_PHONE)) {
+          mounted && setOk(true);
+          mounted && setLoading(false);
+          return;
+        }
+      }
+      
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { 
         mounted && setOk(false); 
@@ -30,11 +45,21 @@ export function AdminGate({ children }: { children: ReactNode }) {
       // Allow if profile.is_admin OR phone is whitelisted
       let allow = false;
       const phone = (user.phone || user.user_metadata?.phone_number || "").toString();
-      if (normalizePhone(phone) === normalizePhone(ADMIN_PHONE)) allow = true;
+      if (normalizePhone(phone) === normalizePhone(ADMIN_PHONE)) {
+        allow = true;
+        // Update admin login timestamp
+        localStorage.setItem('admin_login_time', now.toString());
+        localStorage.setItem('admin_phone', normalizePhone(phone));
+      }
       
       try {
         const { data: prof } = await supabase.from("profiles").select("is_admin").eq("id", user.id).maybeSingle();
-        if (prof?.is_admin) allow = true;
+        if (prof?.is_admin) {
+          allow = true;
+          // Update admin login timestamp
+          localStorage.setItem('admin_login_time', now.toString());
+          localStorage.setItem('admin_phone', normalizePhone(phone));
+        }
       } catch {}
       
       mounted && setOk(allow); 

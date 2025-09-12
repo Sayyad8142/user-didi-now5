@@ -55,6 +55,11 @@ export default function AdminLogin() {
         type: "sms" 
       });
       if (error) throw error;
+      
+      // Store admin login timestamp for persistence
+      localStorage.setItem('admin_login_time', Date.now().toString());
+      localStorage.setItem('admin_phone', e164);
+      
       nav("/admin", { replace: true });
     } catch (e: any) { 
       setErr(e.message || "Invalid code"); 

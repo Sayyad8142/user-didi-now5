@@ -13,7 +13,9 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: true,
-    storageKey: "sb-user-didinow", // separate from admin
+    storageKey: "sb-user-didinow",
     storage: typeof window !== "undefined" ? window.localStorage : undefined,
+    flowType: 'pkce', // More secure for mobile
+    debug: false,
   }
 });
