@@ -150,14 +150,14 @@ export function BookingCard({
 
   // Check if payment should be enabled (show immediately when assigned)
   const isAssigned = row.status === 'assigned';
-  const paymentReady = isAssigned && (row.worker_upi || assignedWorker?.worker?.upi_id);
+  const paymentReady = isAssigned;
 
   const handlePayWorker = async () => {
     const workerUpi = row.worker_upi || assignedWorker?.worker?.upi_id;
     const workerName = row.worker_name || assignedWorker?.worker?.full_name || 'Worker';
 
     if (!workerUpi) {
-      toast.error("Worker payment details not available");
+      toast.error("Worker account details not updated, cash to worker");
       return;
     }
 

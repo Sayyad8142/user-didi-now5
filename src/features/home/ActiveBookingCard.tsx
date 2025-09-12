@@ -186,7 +186,7 @@ const ActiveBookingCard = memo(() => {
 
   // Check if payment should be enabled (show immediately when assigned)
   const isAssigned = activeBooking.status === 'assigned';
-  const paymentReady = isAssigned && activeBooking.worker_upi;
+  const paymentReady = isAssigned;
 
   const handlePayWorker = () => {
     // Set default amount to booking price
@@ -200,7 +200,7 @@ const ActiveBookingCard = memo(() => {
     const amount = parseFloat(paymentAmount);
 
     if (!workerUpi) {
-      toast.error("Worker payment details not available");
+      toast.error("Worker account details not updated, cash to worker");
       return;
     }
 

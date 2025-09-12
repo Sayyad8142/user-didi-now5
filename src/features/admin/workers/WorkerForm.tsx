@@ -177,15 +177,12 @@ export function WorkerForm({ worker, open, onOpenChange, onSaved }: WorkerFormPr
           </div>
 
           <div>
-            <Label htmlFor="upi_id">UPI ID *</Label>
+            <Label htmlFor="upi_id">UPI ID</Label>
             <Input
               id="upi_id"
-              placeholder="name@okaxis"
-              {...register('upi_id', { required: 'UPI ID is required' })}
+              placeholder="name@okaxis (optional)"
+              {...register('upi_id')}
             />
-            {errors.upi_id && (
-              <p className="text-sm text-destructive mt-1">{errors.upi_id.message}</p>
-            )}
           </div>
 
           <div>
