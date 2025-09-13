@@ -1,17 +1,16 @@
 import React, { memo } from 'react';
 import { useProfile } from '@/contexts/ProfileContext';
 import { OptimizedLoadingCard } from '@/components/ui/optimized-loading';
-
 const HomeHeader = memo(() => {
-  const { profile, loading } = useProfile();
-
+  const {
+    profile,
+    loading
+  } = useProfile();
   if (loading) {
     return <OptimizedLoadingCard />;
   }
-
-  return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm mt-safe">
-      <div className="p-4 flex justify-between items-center gap-4">
+  return <div className="bg-white rounded-2xl border border-gray-100 shadow-sm mt-safe">
+      <div className="p-4 flex justify-between items-center gap-4 px-[17px] py-[20px]">
         <div className="flex-shrink-0">
           <h1 className="text-xl sm:text-2xl font-bold text-[#ff007a] tracking-tight">Didi Now</h1>
           <p className="text-gray-600 text-xs sm:text-sm font-medium">in 10Mins</p>
@@ -25,10 +24,7 @@ const HomeHeader = memo(() => {
           </div>
         </div>
       </div>
-    </div>
-  );
+    </div>;
 });
-
 HomeHeader.displayName = 'HomeHeader';
-
 export { HomeHeader };
