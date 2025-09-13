@@ -22,6 +22,17 @@ interface Booking {
   community: string;
   flat_no: string;
   created_at: string;
+  price_inr?: number | null;
+  worker_id?: string | null;
+  worker_name?: string | null;
+  worker_phone?: string | null;
+  worker_upi?: string | null;
+  worker_photo_url?: string | null;
+  auto_complete_at?: string | null;
+  assigned_at?: string | null;
+  pay_enabled_at?: string | null;
+  cancel_source?: string | null;
+  cancel_reason?: string | null;
 }
 
 // Using React Query for caching & SWR; local cache removed
@@ -39,10 +50,10 @@ const { data: allBookings = [], isLoading, isFetching, isSuccess, refetch } = us
   queryKey: ['bookings', user?.id],
   enabled: !!user,
   queryFn: async () => {
-    // Fetch only essential fields for listing, limit to recent bookings for faster initial load
+    // Fetch all essential fields including worker payment info
     const { data, error } = await supabase
       .from('bookings')
-      .select('id, service_type, booking_type, scheduled_date, scheduled_time, status, community, flat_no, created_at')
+      .select('*')
       .eq('user_id', user!.id)
       .order('created_at', { ascending: false })
       .limit(50); // Limit initial load to recent 50 bookings
