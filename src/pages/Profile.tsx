@@ -121,11 +121,7 @@ export default function Profile() {
     return name.split(' ').map(word => word.charAt(0)).join('').toUpperCase().slice(0, 2);
   };
   return <main className="min-h-screen bg-slate-50 flex flex-col">
-      <header className="safe-header sticky top-0 z-50 bg-slate-50 no-dup-pt">
-        <div className="safe-header--inner px-4 max-w-md mx-auto">
-          <h1 className="text-xl font-bold text-foreground">Profile</h1>
-        </div>
-      </header>
+      <div className="pt-safe bg-slate-50 sticky top-0 z-50"></div>
       <section className="flex-1 gradient-bg pb-24">
         <div className="max-w-md mx-auto px-4 py-8 space-y-6 bg-slate-50">
         {/* Header Section with Avatar */}

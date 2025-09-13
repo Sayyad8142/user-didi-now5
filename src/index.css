@@ -199,25 +199,6 @@ html, body {
 }
 
 @layer components {
-  /* Safe Area Header Utilities */
-  .safe-header {
-    /* only safe-area, no extra spacing */
-    padding-top: env(safe-area-inset-top);
-    padding-top: constant(safe-area-inset-top);
-  }
-  
-  .safe-header--inner {
-    /* inner vertical rhythm, do NOT add pt/mt on .safe-header */
-    padding-top: 12px;   /* adjust if design needs slightly more */
-    padding-bottom: 12px;
-  }
-  
-  .no-dup-pt > .pt-safe,
-  .no-dup-pt.pt-safe {
-    /* guard against duplicated safe padding on nested elements */
-    padding-top: 0 !important;
-  }
-
   /* Didi Now Utilities */
   .gradient-bg {
     background: var(--gradient-bg);
