@@ -13,7 +13,7 @@ export function BottomTabs() {
   const location = useLocation();
 
   return (
-    <nav className="fixed bottom-0 inset-x-0 z-40 backdrop-blur supports-[backdrop-filter]:bg-white/70 pb-safe">
+    <div className="fixed bottom-0 inset-x-0 z-40 backdrop-blur supports-[backdrop-filter]:bg-white/70 pb-safe">
       <div className="max-w-md mx-auto px-4 py-3">
         <nav className="bg-white/90 shadow-lg border border-pink-100 rounded-2xl px-4 py-2">
           <div className="flex items-center justify-around">
@@ -39,6 +39,6 @@ export function BottomTabs() {
           </div>
         </nav>
       </div>
-    </nav>
+    </div>
   );
 }

@@ -120,14 +120,8 @@ export default function Profile() {
   const getInitials = (name: string = '') => {
     return name.split(' ').map(word => word.charAt(0)).join('').toUpperCase().slice(0, 2);
   };
-  return <main className="min-h-screen bg-white flex flex-col">
-      <div className="pt-safe bg-white sticky top-0 z-50">
-        <div className="max-w-md mx-auto px-4 text-center">
-          <h1 className="text-2xl font-bold text-primary">Profile</h1>
-        </div>
-      </div>
-      <section className="flex-1 bg-slate-50 pb-24">
-        <div className="max-w-md mx-auto px-4 py-8 space-y-6">
+  return <div className="min-h-screen gradient-bg pb-24">
+      <div className="max-w-md mx-auto px-4 py-8 space-y-6 bg-slate-50">
         {/* Header Section with Avatar */}
         
 
@@ -345,7 +339,6 @@ export default function Profile() {
 
         {/* App Version */}
         <AppVersionDisplay />
-        </div>
-      </section>
-    </main>;
+      </div>
+    </div>;
 }
