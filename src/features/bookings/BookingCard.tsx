@@ -3,6 +3,9 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { prettyServiceName } from '@/features/booking/utils';
 import { formatDateTime } from '@/features/bookings/dt';
 import { format } from 'date-fns';
@@ -65,6 +68,8 @@ export function BookingCard({
   const [row, setRow] = useState(booking);
   const [workerStats, setWorkerStats] = useState<{ avg_rating: number; ratings_count: number } | null>(null);
   const [openChat, setOpenChat] = useState(false);
+  const [showPaymentDialog, setShowPaymentDialog] = useState(false);
+  const [paymentAmount, setPaymentAmount] = useState('');
   const now = useNow(); // ticks every 30s
   
   // Subscribe to real-time updates for this specific booking
@@ -152,12 +157,24 @@ export function BookingCard({
   const isAssigned = row.status === 'assigned';
   const paymentReady = isAssigned;
 
-  const handlePayWorker = async () => {
+  const handlePayWorker = () => {
+    // Set default amount to booking price
+    setPaymentAmount(row.price_inr?.toString() || '');
+    setShowPaymentDialog(true);
+  };
+
+  const handleConfirmPayment = async () => {
     const workerUpi = row.worker_upi || assignedWorker?.worker?.upi_id;
     const workerName = row.worker_name || assignedWorker?.worker?.full_name || 'Worker';
+    const amount = parseFloat(paymentAmount);
 
     if (!workerUpi) {
       toast.error("Worker account details not updated, cash to worker");
+      return;
+    }
+
+    if (!paymentAmount || amount <= 0) {
+      toast.error("Please enter a valid amount");
       return;
     }
 
@@ -165,7 +182,7 @@ export function BookingCard({
     const upiUrl = buildUpiUrl({
       pa: workerUpi,
       pn: workerName,
-      am: row.price_inr || undefined,
+      am: amount,
       tn: note
     });
 
@@ -176,6 +193,7 @@ export function BookingCard({
         .update({ user_marked_paid_at: new Date().toISOString() })
         .eq('id', row.id);
       
+      setShowPaymentDialog(false);
       openUpi(upiUrl);
       toast.success("Opening UPI app...");
     } catch (error) {
@@ -374,6 +392,42 @@ export function BookingCard({
         booking={row} 
         mode="user" 
       />
+
+      {/* Payment Amount Dialog */}
+      <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Enter Payment Amount</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="amount">Amount (₹)</Label>
+              <Input
+                id="amount"
+                type="number"
+                placeholder="Enter amount"
+                value={paymentAmount}
+                onChange={(e) => setPaymentAmount(e.target.value)}
+                className="text-lg font-semibold"
+              />
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Booking amount: ₹{row.price_inr}
+            </p>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setShowPaymentDialog(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleConfirmPayment}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              Pay Now
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
