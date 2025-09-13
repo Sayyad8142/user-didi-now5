@@ -9,7 +9,7 @@ const HomeHeader = memo(() => {
   if (loading) {
     return <OptimizedLoadingCard />;
   }
-  return <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
+  return <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-0 mx-0">
       <div className="p-4 flex justify-between items-center gap-4">
         <div className="flex-shrink-0">
           <h1 className="text-xl sm:text-2xl font-bold text-[#ff007a] tracking-tight">Didi Now</h1>
