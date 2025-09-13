@@ -11,7 +11,7 @@ const HomeHeader = memo(() => {
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm mt-safe">
-      <div className="p-4 flex justify-between items-center gap-4">
+      <div className="p-4 pt-6 flex justify-between items-center gap-4">
         <div className="flex-shrink-0">
           <h1 className="text-xl sm:text-2xl font-bold text-[#ff007a] tracking-tight">Didi Now</h1>
           <p className="text-gray-600 text-xs sm:text-sm font-medium">in 10Mins</p>
