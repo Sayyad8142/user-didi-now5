@@ -120,8 +120,10 @@ export default function Profile() {
   const getInitials = (name: string = '') => {
     return name.split(' ').map(word => word.charAt(0)).join('').toUpperCase().slice(0, 2);
   };
-  return <div className="min-h-screen gradient-bg pb-24">
-      <div className="max-w-md mx-auto px-4 py-8 space-y-6 bg-slate-50">
+  return <main className="min-h-screen bg-slate-50 flex flex-col">
+      <div className="pt-safe bg-slate-50 sticky top-0 z-50"></div>
+      <section className="flex-1 gradient-bg pb-24">
+        <div className="max-w-md mx-auto px-4 py-8 space-y-6 bg-slate-50">
         {/* Header Section with Avatar */}
         
 
@@ -339,6 +341,7 @@ export default function Profile() {
 
         {/* App Version */}
         <AppVersionDisplay />
-      </div>
-    </div>;
+        </div>
+      </section>
+    </main>;
 }

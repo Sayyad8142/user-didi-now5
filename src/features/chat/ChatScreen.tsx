@@ -80,7 +80,7 @@ export const ChatScreen: React.FC = () => {
   return (
     <div className="min-h-screen bg-[#efeae2] flex flex-col">
       {/* WhatsApp-like Header */}
-      <header className="sticky top-0 z-10 bg-[#F70E79] text-white shadow-md">
+      <header className="pt-safe sticky top-0 z-10 bg-[#F70E79] text-white shadow-md">
         <div className="flex items-center px-4 py-3">
           <Button 
             variant="ghost" 

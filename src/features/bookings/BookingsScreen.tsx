@@ -118,25 +118,30 @@ const handleRefresh = () => {
   }
 
   return (
-    <div className="min-h-screen pb-24 bg-slate-50">
-      <div className="max-w-md mx-auto px-4 py-6">
-        {/* Header */}
-        <div className="text-center mb-6">
-          <div className="flex justify-between items-center mb-4">
-            <div></div>
-            <h1 className="text-2xl font-bold text-primary">Bookings</h1>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleRefresh}
-              disabled={isFetching}
-              className="text-muted-foreground"
-            >
-              <RefreshCcw className={`w-4 h-4 ${isFetching ? 'animate-spin' : ''}`} />
-            </Button>
+    <main className="min-h-screen bg-slate-50 flex flex-col">
+      <div className="pt-safe bg-slate-50 sticky top-0 z-50">
+        <div className="max-w-md mx-auto px-4 py-6">
+          <div className="text-center">
+            <div className="flex justify-between items-center mb-4">
+              <div></div>
+              <h1 className="text-2xl font-bold text-primary">Bookings</h1>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleRefresh}
+                disabled={isFetching}
+                className="text-muted-foreground"
+              >
+                <RefreshCcw className={`w-4 h-4 ${isFetching ? 'animate-spin' : ''}`} />
+              </Button>
+            </div>
           </div>
-
+        </div>
+      </div>
+      <section className="flex-1 pb-24">
+        <div className="max-w-md mx-auto px-4">
           {/* Tabs */}
+          <div className="mb-6">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="grid w-full grid-cols-2 bg-transparent p-0 h-auto">
               <TabsTrigger 
@@ -174,7 +179,8 @@ const handleRefresh = () => {
             </TabsContent>
           </Tabs>
         </div>
-      </div>
-    </div>
+        </div>
+      </section>
+    </main>
   );
 }
