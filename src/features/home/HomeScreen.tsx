@@ -15,19 +15,14 @@ export function HomeScreen() {
   const handleServiceSelect = (service: 'maid' | 'cook' | 'bathroom_cleaning') => {
     navigate(`/book/${service}`);
   };
-  return <main className="min-h-screen bg-slate-50 flex flex-col">
-      <div className="pt-safe bg-slate-50 sticky top-0 z-50">
-        <div className="max-w-md mx-auto px-4 py-3">
-          <HomeHeader />
-        </div>
-      </div>
-      <section className="flex-1 gradient-bg">
-        <div className="max-w-md mx-auto px-4 space-y-4">
+  return <div className="min-h-dvh gradient-bg pb-24">
+      <div className="max-w-md mx-auto px-4 pt-safe-top py-3 space-y-4 bg-slate-50">
+        <HomeHeader />
         <HeroCarousel />
         <ServicesRow onServiceSelect={handleServiceSelect} />
         <ActiveBookingCard />
         <ServiceHours />
-        <FeatureCarousel />
+        <FeatureCarousel className="bg-slate-50" />
         
         {/* Promotional Banner */}
         <div className="px-2">
@@ -51,7 +46,6 @@ export function HomeScreen() {
         </div>
 
         <FaqSection />
-        </div>
-      </section>
-    </main>;
+      </div>
+    </div>;
 }
