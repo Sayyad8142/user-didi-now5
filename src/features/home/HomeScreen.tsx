@@ -22,7 +22,7 @@ export function HomeScreen() {
         <ServicesRow onServiceSelect={handleServiceSelect} />
         <ActiveBookingCard />
         <ServiceHours />
-        <FeatureCarousel className="bg-slate-50" />
+        <FeatureCarousel />
         
         {/* Promotional Banner */}
         <div className="px-2">
