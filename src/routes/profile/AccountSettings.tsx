@@ -72,21 +72,21 @@ export default function AccountSettings() {
   }
 
   return (
-    <div className="min-h-dvh bg-background pt-safe-top p-4 space-y-6">
-      <header className="mb-4 flex items-center gap-2">
-        <Button 
-          variant="ghost" 
-          size="icon"
-          onClick={() => navigate(-1)}
-          className="h-9 w-9 rounded-full border"
-        >
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
-        <div>
-          <div className="text-2xl font-bold text-primary">Account Settings</div>
-          <div className="text-xs text-muted-foreground">Manage your data and account</div>
+    <div className="min-h-dvh bg-background flex flex-col">
+      <header className="pt-safe sticky top-0 z-50 bg-background">
+        <div className="px-4 py-2 flex items-center gap-2">
+          <Button 
+            variant="ghost" 
+            size="icon"
+            onClick={() => navigate(-1)}
+            className="h-9 w-9 rounded-full border"
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <h1 className="text-xl font-semibold">Account Settings</h1>
         </div>
       </header>
+      <div className="flex-1 p-4 space-y-6">
 
       {msg ? (
         <div className={`rounded-lg p-3 text-sm border ${
@@ -141,6 +141,7 @@ export default function AccountSettings() {
 
       <div className="text-xs text-muted-foreground text-center">
         Need help? Contact us at support@didinow.com
+      </div>
       </div>
     </div>
   );

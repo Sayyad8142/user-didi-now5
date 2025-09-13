@@ -16,8 +16,12 @@ export function HomeScreen() {
     navigate(`/book/${service}`);
   };
   return <div className="min-h-dvh gradient-bg pb-24">
-      <div className="max-w-md mx-auto px-4 pt-safe space-y-4 bg-slate-50">
-        <HomeHeader />
+      <header className="pt-safe sticky top-0 z-50 bg-slate-50">
+        <div className="max-w-md mx-auto px-4 py-2">
+          <HomeHeader />
+        </div>
+      </header>
+      <div className="max-w-md mx-auto px-4 space-y-4 bg-slate-50">
         <HeroCarousel />
         <ServicesRow onServiceSelect={handleServiceSelect} />
         <ActiveBookingCard />

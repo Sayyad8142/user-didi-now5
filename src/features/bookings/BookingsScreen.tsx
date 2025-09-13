@@ -119,8 +119,8 @@ const handleRefresh = () => {
 
   return (
     <main className="min-h-screen bg-slate-50 flex flex-col">
-      <div className="pt-safe bg-slate-50 sticky top-0 z-50">
-        <div className="max-w-md mx-auto px-4 py-6">
+      <header className="pt-safe bg-slate-50 sticky top-0 z-50">
+        <div className="max-w-md mx-auto px-4 py-2">
           <div className="text-center">
             <div className="flex justify-between items-center mb-4">
               <div></div>
@@ -137,7 +137,7 @@ const handleRefresh = () => {
             </div>
           </div>
         </div>
-      </div>
+      </header>
       <section className="flex-1 pb-24">
         <div className="max-w-md mx-auto px-4">
           {/* Tabs */}

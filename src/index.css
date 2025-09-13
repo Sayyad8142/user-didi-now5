@@ -25,6 +25,9 @@ html, body {
 }
 
 /* iOS status bar safe area */
+/* Do not add any default top padding to body/page shells */
+html, body { margin: 0 !important; padding: 0 !important; }
+
 .pt-safe {
   padding-top: constant(safe-area-inset-top);
   padding-top: env(safe-area-inset-top);
