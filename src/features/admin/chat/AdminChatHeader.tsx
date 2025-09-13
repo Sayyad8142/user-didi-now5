@@ -18,7 +18,8 @@ export function AdminChatHeader({
   onBack,
 }: AdminChatHeaderProps) {
   return (
-    <header className="fixed top-0 left-0 right-0 z-40 bg-background/95 backdrop-blur border-b pt-safe">
+    <div className="pt-safe pt-3 bg-background/95 fixed top-0 left-0 right-0 z-40">
+      <header className="bg-background/95 backdrop-blur border-b">
       <div className="flex items-center gap-3 px-4 py-3 max-w-screen-sm mx-auto">
         <button
           onClick={onBack}
@@ -51,6 +52,7 @@ export function AdminChatHeader({
           <span className="text-xs text-muted-foreground">Online</span>
         </div>
       </div>
-    </header>
+      </header>
+    </div>
   );
 }

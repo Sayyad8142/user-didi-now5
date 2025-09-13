@@ -118,13 +118,19 @@ const handleRefresh = () => {
   }
 
   return (
-    <div className="min-h-screen pb-24 bg-slate-50">
-      <div className="max-w-md mx-auto px-4 py-6">
-        {/* Header */}
+    <main className="min-h-screen bg-white flex flex-col">
+      <div className="pt-safe pt-3 bg-white sticky top-0 z-50">
+        <div className="max-w-md mx-auto px-4 text-center">
+          <h1 className="text-2xl font-bold text-primary">Bookings</h1>
+        </div>
+      </div>
+      <section className="flex-1 bg-slate-50 pb-24">
+        <div className="max-w-md mx-auto px-4 py-6">
+        {/* Content */}
         <div className="text-center mb-6">
           <div className="flex justify-between items-center mb-4">
             <div></div>
-            <h1 className="text-2xl font-bold text-primary">Bookings</h1>
+            <div></div>
             <Button
               variant="ghost"
               size="sm"
@@ -174,7 +180,8 @@ const handleRefresh = () => {
             </TabsContent>
           </Tabs>
         </div>
-      </div>
-    </div>
+        </div>
+      </section>
+    </main>
   );
 }
