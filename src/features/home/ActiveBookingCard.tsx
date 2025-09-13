@@ -13,7 +13,7 @@ import { useAuth } from '@/components/auth/AuthProvider';
 import { prettyServiceName } from '@/features/booking/utils';
 import AssigningProgress from '@/features/bookings/AssigningProgress';
 import AutoCompleteCountdown from '@/components/AutoCompleteCountdown';
-import { buildUpiUrl, openUpi } from '@/lib/upi';
+import { launchUpiPayment } from '@/lib/launchUpi';
 import { useNow } from '@/hooks/useNow';
 import { toast } from 'sonner';
 import { RateWorker } from '@/features/bookings/RateWorker';
@@ -210,12 +210,6 @@ const ActiveBookingCard = memo(() => {
     }
 
     const note = `Didi Now ${activeBooking.service_type} • ${activeBooking.community} • ${activeBooking.flat_no}`;
-    const upiUrl = buildUpiUrl({
-      pa: workerUpi,
-      pn: workerName,
-      am: amount,
-      tn: note
-    });
 
     try {
       // Mark that user tapped pay
@@ -225,7 +219,16 @@ const ActiveBookingCard = memo(() => {
         .eq('id', activeBooking.id);
       
       setShowPaymentDialog(false);
-      openUpi(upiUrl);
+      
+      await launchUpiPayment({
+        pa: workerUpi,
+        pn: workerName,
+        am: amount.toString(),
+        tn: note,
+        cu: 'INR',
+        tr: activeBooking.id
+      });
+      
       toast.success("Opening UPI app...");
     } catch (error) {
       toast.error("Please ensure a UPI app (GPay/PhonePe/Paytm) is installed");
