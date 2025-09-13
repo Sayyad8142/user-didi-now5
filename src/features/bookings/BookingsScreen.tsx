@@ -119,7 +119,7 @@ const handleRefresh = () => {
 
   return (
     <main className="min-h-screen bg-white flex flex-col">
-      <div className="pt-safe pt-3 bg-white sticky top-0 z-50">
+      <div className="pt-safe bg-white sticky top-0 z-50">
         <div className="max-w-md mx-auto px-4 text-center">
           <h1 className="text-2xl font-bold text-primary">Bookings</h1>
         </div>

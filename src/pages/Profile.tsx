@@ -121,7 +121,7 @@ export default function Profile() {
     return name.split(' ').map(word => word.charAt(0)).join('').toUpperCase().slice(0, 2);
   };
   return <main className="min-h-screen bg-white flex flex-col">
-      <div className="pt-safe pt-3 bg-white sticky top-0 z-50">
+      <div className="pt-safe bg-white sticky top-0 z-50">
         <div className="max-w-md mx-auto px-4 text-center">
           <h1 className="text-2xl font-bold text-primary">Profile</h1>
         </div>
