@@ -17,7 +17,7 @@ export function HomeScreen() {
   };
   return <div className="min-h-screen gradient-bg pb-24">
       <header className="sticky top-0 z-50 bg-slate-50">
-        <div className="max-w-md mx-auto px-4 bg-red-600">
+        <div className="max-w-md mx-auto px-4 bg-slate-50">
           <HomeHeader />
         </div>
       </header>
