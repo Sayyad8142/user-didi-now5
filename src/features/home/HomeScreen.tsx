@@ -15,7 +15,7 @@ export function HomeScreen() {
   const handleServiceSelect = (service: 'maid' | 'cook' | 'bathroom_cleaning') => {
     navigate(`/book/${service}`);
   };
-  return <div className="min-h-dvh gradient-bg pb-24">
+  return <div className="min-h-screen gradient-bg pb-24">
       <header className="pt-safe sticky top-0 z-50 bg-slate-50">
         <div className="max-w-md mx-auto px-4">
           <HomeHeader />
