@@ -421,20 +421,22 @@ const ActiveBookingCard = memo(() => {
       </Dialog>
 
       {/* UPI App Chooser for iOS */}
-      <UpiChooser
-        open={showUpiChooser}
-        onOpenChange={setShowUpiChooser}
-        paymentParams={{
-          pa: activeBooking.worker_upi || '',
-          pn: activeBooking.worker_name || 'Worker',
-          am: paymentAmount,
-          tn: `Didi Now ${activeBooking.service_type} • ${activeBooking.community} • ${activeBooking.flat_no}`,
-          tr: activeBooking.id
-        }}
-        onNoneFound={() => {
-          toast.error('No supported UPI apps found. Try scanning the worker\'s UPI QR code.');
-        }}
-      />
+      {activeBooking && (
+        <UpiChooser
+          open={showUpiChooser}
+          onOpenChange={setShowUpiChooser}
+          paymentParams={{
+            pa: activeBooking.worker_upi || '',
+            pn: activeBooking.worker_name || 'Worker',
+            am: paymentAmount,
+            tn: `Didi Now ${activeBooking.service_type} • ${activeBooking.community} • ${activeBooking.flat_no}`,
+            tr: activeBooking.id
+          }}
+          onNoneFound={() => {
+            toast.error('No supported UPI apps found. Try scanning the worker\'s UPI QR code.');
+          }}
+        />
+      )}
     </Card>
   );
 });
