@@ -51,8 +51,6 @@
 		<string>phonepe</string>
 		<string>paytmmp</string>
 		<string>whatsapp</string>
-		<string>tel</string>
-		<string>mailto</string>
 	</array>
 </dict>
 </plist>

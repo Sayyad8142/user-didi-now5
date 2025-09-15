@@ -437,20 +437,17 @@ export function BookingCard({
       </Dialog>
 
       {/* UPI App Chooser for iOS */}
-      <UpiChooser
-        open={showUpiChooser}
-        onOpenChange={setShowUpiChooser}
-        paymentParams={{
-          pa: row.worker_upi || '',
-          pn: row.worker_name || 'Worker',
-          am: paymentAmount,
-          tn: `Didi Now ${row.service_type} • ${row.community} • ${row.flat_no}`,
-          tr: row.id
-        }}
-        onNoneFound={() => {
-          toast.error('No supported UPI apps found. Try scanning the worker\'s UPI QR code.');
-        }}
-      />
+       <UpiChooser
+         open={showUpiChooser}
+         onOpenChange={setShowUpiChooser}
+         paymentParams={{
+           pa: row.worker_upi || '',
+           pn: row.worker_name || 'Worker',
+           am: paymentAmount,
+           tn: `Didi Now ${row.service_type} • ${row.community} • ${row.flat_no}`,
+           tr: row.id
+         }}
+       />
     </Card>
   );
 }
