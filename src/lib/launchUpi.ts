@@ -21,18 +21,40 @@ async function getInstalledUpiTargets() {
 }
 
 export async function launchUpiPayment(params: UpiParams) {
+  const platform = Capacitor.getPlatform();
   const genericUrl = buildGenericUpiUrl(params);
-  
-  // Use the simple and reliable approach that works on both platforms
-  // This will show the native app chooser on both iOS and Android
-  try {
-    window.location.href = genericUrl;
-  } catch (e) {
-    // Fallback: try using AppLauncher if window.location.href fails
+
+  if (platform === 'android') {
+    // Android shows native app chooser with window.location.href
     try {
+      window.location.href = genericUrl;
+    } catch (e) {
       await AppLauncher.openUrl({ url: genericUrl });
-    } catch (launcherError) {
-      alert('No compatible UPI app found. Please install a UPI app like GPay, PhonePe, or Paytm.');
     }
+    return;
+  }
+
+  // iOS: show custom picker to choose between available UPI apps
+  const available = await getInstalledUpiTargets();
+  
+  if (available.length === 1) {
+    // Only one app available, open it directly
+    const url = available[0].build(params);
+    await AppLauncher.openUrl({ url });
+    return;
+  }
+
+  // Multiple apps available, show chooser
+  const options = available.map(a => ({ title: a.label, id: a.id }));
+
+  const { index } = await ActionSheet.showActions({
+    title: 'Choose UPI app',
+    options,
+  });
+
+  const chosen = available[index];
+  if (chosen) {
+    const url = chosen.build(params);
+    await AppLauncher.openUrl({ url });
   }
 }
