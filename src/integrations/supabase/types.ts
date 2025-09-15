@@ -77,6 +77,60 @@ export type Database = {
         }
         Relationships: []
       }
+      booking_assignments: {
+        Row: {
+          assigned_at: string
+          assignment_order: number
+          booking_id: string
+          created_at: string
+          expires_at: string
+          id: string
+          response_at: string | null
+          status: string
+          updated_at: string
+          worker_id: string
+        }
+        Insert: {
+          assigned_at?: string
+          assignment_order: number
+          booking_id: string
+          created_at?: string
+          expires_at: string
+          id?: string
+          response_at?: string | null
+          status?: string
+          updated_at?: string
+          worker_id: string
+        }
+        Update: {
+          assigned_at?: string
+          assignment_order?: number
+          booking_id?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          response_at?: string | null
+          status?: string
+          updated_at?: string
+          worker_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_assignments_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_assignments_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "workers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       booking_messages: {
         Row: {
           body: string
@@ -694,6 +748,63 @@ export type Database = {
         }
         Relationships: []
       }
+      notification_logs: {
+        Row: {
+          booking_id: string | null
+          created_at: string | null
+          delivered_at: string | null
+          fcm_message_id: string | null
+          id: string
+          notification_type: string
+          opened_at: string | null
+          response_action: string | null
+          response_at: string | null
+          sent_at: string | null
+          worker_id: string | null
+        }
+        Insert: {
+          booking_id?: string | null
+          created_at?: string | null
+          delivered_at?: string | null
+          fcm_message_id?: string | null
+          id?: string
+          notification_type: string
+          opened_at?: string | null
+          response_action?: string | null
+          response_at?: string | null
+          sent_at?: string | null
+          worker_id?: string | null
+        }
+        Update: {
+          booking_id?: string | null
+          created_at?: string | null
+          delivered_at?: string | null
+          fcm_message_id?: string | null
+          id?: string
+          notification_type?: string
+          opened_at?: string | null
+          response_action?: string | null
+          response_at?: string | null
+          sent_at?: string | null
+          worker_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_logs_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notification_logs_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "workers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ops_settings: {
         Row: {
           key: string
@@ -1304,6 +1415,22 @@ export type Database = {
           upi_id: string
         }
       }
+      assign_booking_to_next_worker: {
+        Args: { p_booking_id: string }
+        Returns: {
+          assignment_id: string
+          assignment_order: number
+          expires_at: string
+          worker_fcm_token: string
+          worker_id: string
+          worker_name: string
+          worker_phone: string
+        }[]
+      }
+      assign_to_next_worker: {
+        Args: { p_booking_id: string }
+        Returns: Json
+      }
       assign_worker: {
         Args: { p_booking_id: string; p_worker_id: string }
         Returns: undefined
@@ -1334,6 +1461,10 @@ export type Database = {
         Args: { data: string }
         Returns: string
       }
+      check_expired_assignments: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
       delete_my_data: {
         Args: Record<PropertyKey, never>
         Returns: undefined
@@ -1358,6 +1489,25 @@ export type Database = {
           worker_id: string
           worker_name: string
         }[]
+      }
+      get_available_workers_by_rating: {
+        Args: { p_community?: string; p_service_type: string }
+        Returns: {
+          fcm_token: string
+          full_name: string
+          phone: string
+          rating: number
+          total_ratings: number
+          worker_id: string
+        }[]
+      }
+      get_booking_assignment_status: {
+        Args: { p_booking_id: string }
+        Returns: Json
+      }
+      get_booking_status: {
+        Args: { p_booking_id: string }
+        Returns: Json
       }
       get_legal_pdfs: {
         Args: Record<PropertyKey, never>
@@ -1393,6 +1543,33 @@ export type Database = {
       gtrgm_out: {
         Args: { "": unknown }
         Returns: unknown
+      }
+      handle_assignment_timeout: {
+        Args: { p_assignment_id: string }
+        Returns: Json
+      }
+      handle_assignment_timeouts: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
+      handle_expired_assignments: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          booking_id: string
+          expired_worker_id: string
+          next_assignment_id: string
+          next_worker_fcm_token: string
+          next_worker_id: string
+          next_worker_name: string
+        }[]
+      }
+      handle_worker_response: {
+        Args: {
+          p_assignment_id: string
+          p_response: string
+          p_worker_id: string
+        }
+        Returns: Json
       }
       http: {
         Args: { request: Database["public"]["CompositeTypes"]["http_request"] }
@@ -1445,6 +1622,14 @@ export type Database = {
         Args: { curlopt: string; value: string }
         Returns: boolean
       }
+      initiate_booking_assignment: {
+        Args: {
+          p_booking_id: string
+          p_community?: string
+          p_service_type: string
+        }
+        Returns: Json
+      }
       is_admin: {
         Args: Record<PropertyKey, never>
         Returns: boolean
@@ -1460,6 +1645,10 @@ export type Database = {
       norm_phone: {
         Args: { p: string }
         Returns: string
+      }
+      notify_next_worker: {
+        Args: { p_booking_id: string }
+        Returns: Json
       }
       pending_sla_minutes: {
         Args: Record<PropertyKey, never>
@@ -1485,6 +1674,15 @@ export type Database = {
         }
         Returns: Json
       }
+      respond_to_booking_assignment: {
+        Args: { p_assignment_id: string; p_response: string }
+        Returns: {
+          booking_id: string
+          message: string
+          success: boolean
+          worker_id: string
+        }[]
+      }
       run_scheduled_prealerts: {
         Args: { p_window_minutes?: number }
         Returns: undefined
@@ -1492,6 +1690,42 @@ export type Database = {
       run_sla_with_secret: {
         Args: { p_secret: string }
         Returns: undefined
+      }
+      schedule_assignment_timeout: {
+        Args: { p_assignment_id: string; p_expires_at: string }
+        Returns: undefined
+      }
+      send_demo_notification: {
+        Args: {
+          p_customer_name?: string
+          p_location?: string
+          p_service_type?: string
+        }
+        Returns: {
+          message: string
+          notification_data: Json
+          success: boolean
+        }[]
+      }
+      send_fcm_notification: {
+        Args: {
+          p_body?: string
+          p_booking_id?: string
+          p_data?: Json
+          p_notification_type?: string
+          p_title?: string
+          p_worker_id: string
+        }
+        Returns: Json
+      }
+      send_real_fcm_notification: {
+        Args: {
+          p_body?: string
+          p_data?: Json
+          p_title?: string
+          p_worker_id: string
+        }
+        Returns: Json
       }
       set_limit: {
         Args: { "": number }
@@ -1504,6 +1738,10 @@ export type Database = {
       show_trgm: {
         Args: { "": string }
         Returns: string[]
+      }
+      simple_assign_to_next_worker: {
+        Args: { p_booking_id: string }
+        Returns: Json
       }
       support_get_or_create_thread: {
         Args: { p_booking_id?: string }
@@ -1521,6 +1759,39 @@ export type Database = {
         Args: { p_thread: string }
         Returns: undefined
       }
+      test_booking_assignment_system: {
+        Args: {
+          p_community?: string
+          p_customer_name?: string
+          p_service_type?: string
+        }
+        Returns: Json
+      }
+      test_complete_booking_system: {
+        Args: {
+          p_community?: string
+          p_customer_name?: string
+          p_service_type?: string
+        }
+        Returns: Json
+      }
+      test_fcm_notification: {
+        Args: { p_body?: string; p_title?: string; p_worker_id?: string }
+        Returns: Json
+      }
+      test_worker_notification: {
+        Args: {
+          p_customer_name?: string
+          p_location?: string
+          p_service_type?: string
+        }
+        Returns: {
+          assignment_id: string
+          booking_id: string
+          message: string
+          worker_name: string
+        }[]
+      }
       text_to_bytea: {
         Args: { data: string }
         Returns: string
@@ -1531,6 +1802,10 @@ export type Database = {
           | { p_is_available: boolean }
         Returns: boolean
       }
+      update_worker_fcm_token: {
+        Args: { p_fcm_token: string; p_worker_id: string }
+        Returns: Json
+      }
       urlencode: {
         Args: { data: Json } | { string: string } | { string: string }
         Returns: string
@@ -1538,6 +1813,14 @@ export type Database = {
       user_cancel_booking: {
         Args: { p_booking_id: string; p_reason: string }
         Returns: undefined
+      }
+      worker_respond_to_booking: {
+        Args: {
+          p_assignment_id: string
+          p_response: string
+          p_worker_id: string
+        }
+        Returns: Json
       }
       worker_set_booking_status: {
         Args: { booking_id_param: string; new_status_param: string }
