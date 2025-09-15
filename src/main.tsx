@@ -8,7 +8,6 @@ import { AuthProvider } from "@/components/auth/AuthProvider";
 import { ProfileProvider } from "@/contexts/ProfileContext";
 import App from "./App.tsx";
 import "./index.css";
-import "./lib/queryPersistence";
 
 // Create QueryClient with longer gc and stale time for better performance
 export const queryClient = new QueryClient({
