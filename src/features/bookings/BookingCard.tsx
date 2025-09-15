@@ -14,7 +14,8 @@ import { supabase } from '@/integrations/supabase/client';
 import AssigningProgress from '@/features/bookings/AssigningProgress';
 import AutoCompleteCountdown from '@/components/AutoCompleteCountdown';
 import { useBookingRealtime } from '@/features/bookings/useBookingRealtime';
-import { launchUpiPayment } from '@/lib/launchUpi';
+import { launchUpiPayment } from '@/utils/launchUpiPayment';
+import UpiChooser from '@/components/UpiChooser';
 import { useNow } from '@/hooks/useNow';
 import { toast } from 'sonner';
 import CancelAction from './CancelAction';
@@ -70,6 +71,7 @@ export function BookingCard({
   const [openChat, setOpenChat] = useState(false);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState('');
+  const [showUpiChooser, setShowUpiChooser] = useState(false);
   const now = useNow(); // ticks every 30s
   
   // Subscribe to real-time updates for this specific booking
@@ -194,8 +196,8 @@ export function BookingCard({
         pn: workerName,
         am: amount.toString(),
         tn: note,
-        cu: 'INR',
-        tr: row.id
+        tr: row.id,
+        onNeedChooser: setShowUpiChooser
       });
       
       toast.success("Opening UPI app...");
@@ -431,6 +433,22 @@ export function BookingCard({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* UPI App Chooser for iOS */}
+      <UpiChooser
+        open={showUpiChooser}
+        onOpenChange={setShowUpiChooser}
+        paymentParams={{
+          pa: row.worker_upi || '',
+          pn: row.worker_name || 'Worker',
+          am: paymentAmount,
+          tn: `Didi Now ${row.service_type} • ${row.community} • ${row.flat_no}`,
+          tr: row.id
+        }}
+        onNoneFound={() => {
+          toast.error('No supported UPI apps found. Try scanning the worker\'s UPI QR code.');
+        }}
+      />
     </Card>
   );
 }

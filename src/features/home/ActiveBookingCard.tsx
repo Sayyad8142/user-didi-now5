@@ -13,7 +13,8 @@ import { useAuth } from '@/components/auth/AuthProvider';
 import { prettyServiceName } from '@/features/booking/utils';
 import AssigningProgress from '@/features/bookings/AssigningProgress';
 import AutoCompleteCountdown from '@/components/AutoCompleteCountdown';
-import { launchUpiPayment } from '@/lib/launchUpi';
+import { launchUpiPayment } from '@/utils/launchUpiPayment';
+import UpiChooser from '@/components/UpiChooser';
 import { useNow } from '@/hooks/useNow';
 import { toast } from 'sonner';
 import { RateWorker } from '@/features/bookings/RateWorker';
@@ -81,6 +82,7 @@ const ActiveBookingCard = memo(() => {
   const [workerStats, setWorkerStats] = useState<{ avg_rating: number; ratings_count: number } | null>(null);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState('');
+  const [showUpiChooser, setShowUpiChooser] = useState(false);
 
   const fetchActiveBooking = useCallback(async () => {
     if (!user) return;
@@ -211,6 +213,14 @@ const ActiveBookingCard = memo(() => {
 
     const note = `Didi Now ${activeBooking.service_type} • ${activeBooking.community} • ${activeBooking.flat_no}`;
 
+    const paymentParams = {
+      pa: workerUpi,
+      pn: workerName,
+      am: amount.toString(),
+      tn: note,
+      tr: activeBooking.id
+    };
+
     try {
       // Mark that user tapped pay
       await supabase
@@ -221,12 +231,8 @@ const ActiveBookingCard = memo(() => {
       setShowPaymentDialog(false);
       
       await launchUpiPayment({
-        pa: workerUpi,
-        pn: workerName,
-        am: amount.toString(),
-        tn: note,
-        cu: 'INR',
-        tr: activeBooking.id
+        ...paymentParams,
+        onNeedChooser: setShowUpiChooser
       });
       
       toast.success("Opening UPI app...");
@@ -413,6 +419,22 @@ const ActiveBookingCard = memo(() => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* UPI App Chooser for iOS */}
+      <UpiChooser
+        open={showUpiChooser}
+        onOpenChange={setShowUpiChooser}
+        paymentParams={{
+          pa: activeBooking.worker_upi || '',
+          pn: activeBooking.worker_name || 'Worker',
+          am: paymentAmount,
+          tn: `Didi Now ${activeBooking.service_type} • ${activeBooking.community} • ${activeBooking.flat_no}`,
+          tr: activeBooking.id
+        }}
+        onNoneFound={() => {
+          toast.error('No supported UPI apps found. Try scanning the worker\'s UPI QR code.');
+        }}
+      />
     </Card>
   );
 });
