@@ -191,6 +191,8 @@ export function BookingCard({
       
       setShowPaymentDialog(false);
       
+      console.log('[UPI] params', { pa: workerUpi, pn: workerName, am: amount.toString(), tn: note, tr: row.id });
+      
       await launchUpiPayment({
         pa: workerUpi,
         pn: workerName,

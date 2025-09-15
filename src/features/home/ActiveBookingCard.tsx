@@ -230,6 +230,8 @@ const ActiveBookingCard = memo(() => {
       
       setShowPaymentDialog(false);
       
+      console.log('[UPI] params', paymentParams);
+      
       await launchUpiPayment({
         ...paymentParams,
         onNeedChooser: setShowUpiChooser

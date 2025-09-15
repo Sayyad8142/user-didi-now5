@@ -45,30 +45,11 @@
 	<true/>
 	<key>LSApplicationQueriesSchemes</key>
 	<array>
-		<!-- UPI & common wallets -->
 		<string>upi</string>
 		<string>gpay</string>
 		<string>tez</string>
 		<string>phonepe</string>
 		<string>paytmmp</string>
-		<string>paytm</string>
-		<string>bhim</string>
-		<string>amazongpay</string>
-		<string>amazonpay</string>
-		<string>cred</string>
-		<string>freecharge</string>
-		<string>mobikwik</string>
-		<string>payzapp</string>
-		
-		<!-- Banks (optional but useful) -->
-		<string>iciciupisdk</string>
-		<string>axisbank</string>
-		<string>idfcbank</string>
-		<string>kotakupi</string>
-		<string>hsbcbank</string>
-		<string>yesbank</string>
-		
-		<!-- WhatsApp (allowed, but we won't default to it) -->
 		<string>whatsapp</string>
 		<string>tel</string>
 		<string>mailto</string>
