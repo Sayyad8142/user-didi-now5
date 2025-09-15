@@ -8,11 +8,15 @@ import { AuthProvider } from "@/components/auth/AuthProvider";
 import { ProfileProvider } from "@/contexts/ProfileContext";
 import App from "./App.tsx";
 import "./index.css";
+import "./lib/queryPersistence";
 
-const queryClient = new QueryClient({
+// Create QueryClient with longer gc and stale time for better performance
+export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 5 * 60 * 1000, // 5 minutes
+      // cache longer so first open after kill pulls from disk instantly
+      gcTime: 1000 * 60 * 30,      // 30 min
+      staleTime: 1000 * 60 * 5,    // 5 min
       refetchOnWindowFocus: false,
       retry: 1,
     },

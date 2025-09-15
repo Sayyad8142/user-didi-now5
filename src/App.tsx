@@ -9,6 +9,7 @@ import { useWebVersion } from "@/hooks/useWebVersion";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { BottomTabs } from "@/components/BottomTabs";
 import { useBackButton } from "@/hooks/useBackButton";
+import { useAppWarmup } from "@/warmup/useAppWarmup";
 
 // Immediate load for critical pages
 import Index from "./pages/Index";
@@ -269,6 +270,9 @@ const AppContent = () => {
 const App = () => {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const { updateAvailable, handleRefresh, dismissUpdate } = useWebVersion();
+  
+  // Initialize warmup for performance
+  useAppWarmup();
 
   useEffect(() => {
     // Simple online/offline detection
