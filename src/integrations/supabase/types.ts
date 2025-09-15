@@ -54,6 +54,13 @@ export type Database = {
             foreignKeyName: "assignments_worker_id_fkey"
             columns: ["worker_id"]
             isOneToOne: false
+            referencedRelation: "worker_customer_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assignments_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
             referencedRelation: "workers"
             referencedColumns: ["id"]
           },
@@ -120,6 +127,13 @@ export type Database = {
             columns: ["booking_id"]
             isOneToOne: false
             referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_assignments_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "worker_customer_view"
             referencedColumns: ["id"]
           },
           {
@@ -335,6 +349,13 @@ export type Database = {
           worker_upi?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "bookings_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "worker_customer_view"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "bookings_worker_id_fkey"
             columns: ["worker_id"]
@@ -800,6 +821,13 @@ export type Database = {
             foreignKeyName: "notification_logs_worker_id_fkey"
             columns: ["worker_id"]
             isOneToOne: false
+            referencedRelation: "worker_customer_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notification_logs_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
             referencedRelation: "workers"
             referencedColumns: ["id"]
           },
@@ -1194,6 +1222,13 @@ export type Database = {
             foreignKeyName: "worker_ratings_worker_id_fkey"
             columns: ["worker_id"]
             isOneToOne: false
+            referencedRelation: "worker_customer_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "worker_ratings_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
             referencedRelation: "workers"
             referencedColumns: ["id"]
           },
@@ -1303,6 +1338,33 @@ export type Database = {
       }
     }
     Views: {
+      worker_customer_view: {
+        Row: {
+          full_name: string | null
+          id: string | null
+          photo_url: string | null
+          rating: number | null
+          service_types: string[] | null
+          total_ratings: number | null
+        }
+        Insert: {
+          full_name?: string | null
+          id?: string | null
+          photo_url?: string | null
+          rating?: number | null
+          service_types?: string[] | null
+          total_ratings?: number | null
+        }
+        Update: {
+          full_name?: string | null
+          id?: string | null
+          photo_url?: string | null
+          rating?: number | null
+          service_types?: string[] | null
+          total_ratings?: number | null
+        }
+        Relationships: []
+      }
       worker_rating_stats: {
         Row: {
           avg_rating: number | null
@@ -1310,6 +1372,13 @@ export type Database = {
           worker_id: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "worker_ratings_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "worker_customer_view"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "worker_ratings_worker_id_fkey"
             columns: ["worker_id"]
@@ -1488,6 +1557,16 @@ export type Database = {
           service_types: string[]
           worker_id: string
           worker_name: string
+        }[]
+      }
+      get_assigned_worker_safe_info: {
+        Args: { p_booking_id: string }
+        Returns: {
+          worker_id: string
+          worker_name: string
+          worker_photo_url: string
+          worker_rating: number
+          worker_total_ratings: number
         }[]
       }
       get_available_workers_by_rating: {
