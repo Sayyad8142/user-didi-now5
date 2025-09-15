@@ -54,13 +54,6 @@ export type Database = {
             foreignKeyName: "assignments_worker_id_fkey"
             columns: ["worker_id"]
             isOneToOne: false
-            referencedRelation: "worker_customer_view"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "assignments_worker_id_fkey"
-            columns: ["worker_id"]
-            isOneToOne: false
             referencedRelation: "workers"
             referencedColumns: ["id"]
           },
@@ -127,13 +120,6 @@ export type Database = {
             columns: ["booking_id"]
             isOneToOne: false
             referencedRelation: "bookings"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "booking_assignments_worker_id_fkey"
-            columns: ["worker_id"]
-            isOneToOne: false
-            referencedRelation: "worker_customer_view"
             referencedColumns: ["id"]
           },
           {
@@ -349,13 +335,6 @@ export type Database = {
           worker_upi?: string | null
         }
         Relationships: [
-          {
-            foreignKeyName: "bookings_worker_id_fkey"
-            columns: ["worker_id"]
-            isOneToOne: false
-            referencedRelation: "worker_customer_view"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "bookings_worker_id_fkey"
             columns: ["worker_id"]
@@ -821,13 +800,6 @@ export type Database = {
             foreignKeyName: "notification_logs_worker_id_fkey"
             columns: ["worker_id"]
             isOneToOne: false
-            referencedRelation: "worker_customer_view"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "notification_logs_worker_id_fkey"
-            columns: ["worker_id"]
-            isOneToOne: false
             referencedRelation: "workers"
             referencedColumns: ["id"]
           },
@@ -1222,13 +1194,6 @@ export type Database = {
             foreignKeyName: "worker_ratings_worker_id_fkey"
             columns: ["worker_id"]
             isOneToOne: false
-            referencedRelation: "worker_customer_view"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "worker_ratings_worker_id_fkey"
-            columns: ["worker_id"]
-            isOneToOne: false
             referencedRelation: "workers"
             referencedColumns: ["id"]
           },
@@ -1338,33 +1303,6 @@ export type Database = {
       }
     }
     Views: {
-      worker_customer_view: {
-        Row: {
-          full_name: string | null
-          id: string | null
-          photo_url: string | null
-          rating: number | null
-          service_types: string[] | null
-          total_ratings: number | null
-        }
-        Insert: {
-          full_name?: string | null
-          id?: string | null
-          photo_url?: string | null
-          rating?: number | null
-          service_types?: string[] | null
-          total_ratings?: number | null
-        }
-        Update: {
-          full_name?: string | null
-          id?: string | null
-          photo_url?: string | null
-          rating?: number | null
-          service_types?: string[] | null
-          total_ratings?: number | null
-        }
-        Relationships: []
-      }
       worker_rating_stats: {
         Row: {
           avg_rating: number | null
@@ -1372,13 +1310,6 @@ export type Database = {
           worker_id: string | null
         }
         Relationships: [
-          {
-            foreignKeyName: "worker_ratings_worker_id_fkey"
-            columns: ["worker_id"]
-            isOneToOne: false
-            referencedRelation: "worker_customer_view"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "worker_ratings_worker_id_fkey"
             columns: ["worker_id"]
