@@ -131,6 +131,38 @@ export type Database = {
           },
         ]
       }
+      booking_events: {
+        Row: {
+          booking_id: string
+          created_at: string
+          id: string
+          meta: Json | null
+          type: string
+        }
+        Insert: {
+          booking_id: string
+          created_at?: string
+          id?: string
+          meta?: Json | null
+          type: string
+        }
+        Update: {
+          booking_id?: string
+          created_at?: string
+          id?: string
+          meta?: Json | null
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_events_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       booking_messages: {
         Row: {
           body: string
@@ -1565,7 +1597,7 @@ export type Database = {
               p_worker_id: string
             }
           | { p_booking_id: string; p_worker_id: string }
-        Returns: undefined
+        Returns: Json
       }
       auto_complete_assigned: {
         Args: Record<PropertyKey, never>

@@ -18,6 +18,12 @@ type Worker = {
   service_types?: string[] | null;
   photo_url?: string | null;
   is_active: boolean;
+  is_available?: boolean;
+  rating?: number | null;
+  total_ratings?: number | null;
+  total_earnings?: number | null;
+  assigned_at?: string;
+  current_service?: string;
 };
 
 type BookingLite = {
@@ -43,16 +49,20 @@ async function fetchWorkers(opts: {
   service?: string;
   community?: string;
   q?: string;
+  sort?: 'best' | 'jobs' | 'rating';
 }) {
-  const { tab, service, community, q } = opts;
+  const { tab, service, community, q, sort = 'best' } = opts;
 
-  // For all workers - just get active workers regardless of status
+  // Base worker fields - include rating and earnings for sorting
+  const baseFields = 'id, full_name, phone, community, service_types, photo_url, is_active, is_available, rating, total_ratings, total_earnings';
+
+  // For all workers - get all active workers regardless of availability
   if (tab === 'all') {
     let query = supabase
       .from('workers')
-      .select('id, full_name, phone, community, service_types, photo_url, is_active')
+      .select(baseFields)
       .eq('is_active', true)
-      .limit(200); // Higher limit for all workers
+      .limit(200);
 
     if (service) {
       query = query.contains('service_types', [service]);
@@ -64,7 +74,16 @@ async function fetchWorkers(opts: {
       query = query.or(`full_name.ilike.%${q}%,phone.ilike.%${q}%`);
     }
 
-    const { data, error } = await query.order('full_name');
+    // Apply sorting
+    if (sort === 'jobs') {
+      query = query.order('total_earnings', { ascending: false, nullsFirst: false });
+    } else if (sort === 'rating') {
+      query = query.order('rating', { ascending: false, nullsFirst: false });
+    } else {
+      query = query.order('full_name', { ascending: true });
+    }
+
+    const { data, error } = await query;
     if (error) throw error;
     return data as Worker[];
   }
@@ -73,8 +92,9 @@ async function fetchWorkers(opts: {
   if (tab === 'available') {
     let query = supabase
       .from('workers')
-      .select('id, full_name, phone, community, service_types, photo_url, is_active')
+      .select(baseFields)
       .eq('is_active', true)
+      .eq('is_available', true)
       .limit(100);
 
     if (service) {
@@ -87,7 +107,18 @@ async function fetchWorkers(opts: {
       query = query.or(`full_name.ilike.%${q}%,phone.ilike.%${q}%`);
     }
 
-    const { data, error } = await query.order('full_name');
+    // For available workers, prefer by rating then name
+    if (sort === 'jobs') {
+      query = query.order('total_earnings', { ascending: false, nullsFirst: false });
+    } else if (sort === 'rating') {
+      query = query.order('rating', { ascending: false, nullsFirst: false });
+    } else {
+      // Best match: sort by rating desc, then name
+      query = query.order('rating', { ascending: false, nullsFirst: false })
+                  .order('full_name', { ascending: true });
+    }
+
+    const { data, error } = await query;
     if (error) throw error;
     return data as Worker[];
   }
@@ -131,15 +162,14 @@ async function fetchWorkers(opts: {
   return workersData;
 }
 
-async function assignWorker(bookingId: string, workerId: string) {
+async function rpcAssignWorker(bookingId: string, workerId: string) {
   const { data, error } = await supabase.rpc('assign_worker_to_booking', {
     p_booking_id: bookingId,
-    p_worker_id: workerId,
-    p_assigned_by: null
+    p_worker_id: workerId
   });
-
+  
   if (error) throw error;
-  return data;
+  return data as { status: string };
 }
 
 export default function AdminAssignWorker() {
@@ -158,20 +188,35 @@ export default function AdminAssignWorker() {
     staleTime: 60_000,
   });
 
-  const [tab, setTab] = React.useState<TabKey>('available');
-  const [onlyThisService, setOnlyThisService] = React.useState(true);
-  const [onlyThisCommunity, setOnlyThisCommunity] = React.useState(true);
-  const [q, setQ] = React.useState('');
+  // State with session storage persistence
+  const key = `assign.state.${bookingId}`;
+  const saved = React.useMemo(() => {
+    try { 
+      return typeof window !== 'undefined' ? JSON.parse(sessionStorage.getItem(key) || '{}') : {}; 
+    } catch { 
+      return {}; 
+    }
+  }, [key]);
+
+  const [tab, setTab] = React.useState<TabKey>(saved.tab ?? 'available');
+  const [onlyThisService, setOnlyThisService] = React.useState<boolean>(saved.onlyThisService ?? true);
+  const [onlyThisCommunity, setOnlyThisCommunity] = React.useState<boolean>(saved.onlyThisCommunity ?? true);
+  const [q, setQ] = React.useState<string>(saved.q ?? '');
+  const [sort, setSort] = React.useState<'best' | 'jobs' | 'rating'>(saved.sort ?? 'best');
+
+  // Save state to session storage
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem(key, JSON.stringify({ tab, onlyThisService, onlyThisCommunity, q, sort }));
+    }
+  }, [key, tab, onlyThisService, onlyThisCommunity, q, sort]);
+
+  const effService = onlyThisService ? (booking?.service_type ?? presetService) : undefined;
+  const effCommunity = onlyThisCommunity ? (booking?.community ?? presetCommunity) : undefined;
 
   const { data: workers, isLoading } = useQuery({
-    queryKey: ['assign-workers', tab, q, onlyThisService, onlyThisCommunity, booking?.service_type, booking?.community],
-    queryFn: () =>
-      fetchWorkers({
-        tab,
-        service: onlyThisService ? (booking?.service_type ?? presetService) : undefined,
-        community: onlyThisCommunity ? (booking?.community ?? presetCommunity) : undefined,
-        q,
-      }),
+    queryKey: ['assign-workers', tab, effService, effCommunity, q, sort],
+    queryFn: () => fetchWorkers({ tab, service: effService, community: effCommunity, q, sort }),
     enabled: !!bookingId,
     staleTime: 30_000,
   });
@@ -179,12 +224,34 @@ export default function AdminAssignWorker() {
   const [selected, setSelected] = React.useState<string | null>(null);
 
   const assignMut = useMutation({
-    mutationFn: (workerId: string) => assignWorker(bookingId, workerId),
-    onMutate: () => toast.loading('Assigning worker…', { id: 'assigning' }),
+    mutationFn: (workerId: string) => rpcAssignWorker(bookingId, workerId),
+    onMutate: (workerId: string) => {
+      // Track analytics
+      if (typeof window !== 'undefined' && (window as any).__analytics?.track) {
+        (window as any).__analytics.track('assign_click', { 
+          booking_id: bookingId, 
+          worker_id: workerId, 
+          tab, 
+          service: onlyThisService ? booking?.service_type : undefined,
+          community: onlyThisCommunity ? booking?.community : undefined
+        });
+      }
+      toast.loading('Assigning worker…', { id: 'assigning' });
+    },
     onError: (e: any) => toast.error(e?.message || 'Failed to assign', { id: 'assigning' }),
-    onSuccess: () => {
-      toast.success('Worker assigned', { id: 'assigning' });
-      // refresh lists + bookings
+    onSuccess: (res) => {
+      if (res?.status === 'worker_busy') {
+        toast.error('Worker just became unavailable. List refreshed.', { id: 'assigning' });
+        qc.invalidateQueries({ queryKey: ['assign-workers'] });
+        return;
+      }
+      if (res?.status === 'already_assigned') {
+        toast.error('This booking is already assigned.', { id: 'assigning' });
+        qc.invalidateQueries({ queryKey: ['booking-lite', bookingId] });
+        return;
+      }
+      toast.success('Worker assigned successfully', { id: 'assigning' });
+      // Refresh all relevant queries
       qc.invalidateQueries({ queryKey: ['assign-workers'] });
       qc.invalidateQueries({ queryKey: ['bookings'] });
       qc.invalidateQueries({ queryKey: ['admin-bookings'] });
@@ -257,7 +324,7 @@ export default function AdminAssignWorker() {
             />
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={() => setOnlyThisService(v => !v)}
               className={`px-3 h-8 rounded-full text-xs border transition-colors ${
@@ -289,6 +356,20 @@ export default function AdminAssignWorker() {
             >
               All Workers
             </button>
+
+            {/* Sort dropdown */}
+            <div className="ml-auto">
+              <select
+                value={sort}
+                onChange={(e) => setSort(e.target.value as any)}
+                className="h-8 text-xs rounded-lg border px-2 bg-background"
+                aria-label="Sort workers"
+              >
+                <option value="best">Sort: Best Match</option>
+                <option value="jobs">Sort: Most Jobs</option>
+                <option value="rating">Sort: Highest Rating</option>
+              </select>
+            </div>
           </div>
         </div>
       </div>
@@ -305,7 +386,17 @@ export default function AdminAssignWorker() {
 
         {!isLoading && (!workers || workers.length === 0) && (
           <div className="text-sm text-muted-foreground p-6 text-center">
-            No workers found for the current filters.
+            No workers match the current filters.
+            <div className="mt-3">
+              <Button variant="secondary" onClick={() => { 
+                setTab('all'); 
+                setOnlyThisService(false); 
+                setOnlyThisCommunity(false); 
+                setQ(''); 
+              }}>
+                Clear filters & show All
+              </Button>
+            </div>
           </div>
         )}
 
