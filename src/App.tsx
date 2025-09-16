@@ -10,6 +10,7 @@ import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { BottomTabs } from "@/components/BottomTabs";
 import { useBackButton } from "@/hooks/useBackButton";
 import { useAppWarmup } from "@/hooks/useAppWarmup";
+import AuthGate from "@/auth/AuthGate";
 
 // Immediate load for critical pages
 import Index from "./pages/Index";
@@ -300,7 +301,9 @@ const App = () => {
       )}
       <Toaster />
       <Sonner />
-      <AppContent />
+      <AuthGate>
+        <AppContent />
+      </AuthGate>
     </TooltipProvider>
   );
 };

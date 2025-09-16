@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { formatPhoneIN, isValidINPhone, extractCleanPhone } from "@/lib/auth-helpers";
+import { PortalStore } from "@/lib/portal";
 import { Button } from "@/components/ui/button";
 import { PhoneInputIN } from "@/components/auth/PhoneInputIN";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -56,9 +57,8 @@ export default function AdminLogin() {
       });
       if (error) throw error;
       
-      // Store admin login timestamp for persistence
-      localStorage.setItem('admin_login_time', Date.now().toString());
-      localStorage.setItem('admin_phone', e164);
+      // Set admin portal for persistence
+      PortalStore.set('admin');
       
       nav("/admin", { replace: true });
     } catch (e: any) { 

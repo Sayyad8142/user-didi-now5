@@ -11,6 +11,7 @@ import { maskPhone } from '@/lib/auth-helpers';
 import { CleaningLoader } from '@/components/ui/cleaning-loader';
 import { ensureProfile, waitForSession, normalizePhone } from '@/features/profile/ensureProfile';
 import { isDemoCredentials, setDemoSession } from '@/lib/demo';
+import { PortalStore } from '@/lib/portal';
 
 interface LocationState {
   phone: string;
@@ -152,14 +153,16 @@ export default function VerifyOTP() {
         });
       }
 
-      // Prefer explicit redirect target; else admin check
+      // Set portal and navigate
       if (redirectTo) {
         navigate(redirectTo, { replace: true });
         return;
       }
       if (isAdminPhone(profile?.phone) || adminIntent) {
+        PortalStore.set('admin');
         navigate("/admin", { replace: true });
       } else {
+        PortalStore.set('user');
         navigate("/home", { replace: true });
       }
     } catch (error: any) {

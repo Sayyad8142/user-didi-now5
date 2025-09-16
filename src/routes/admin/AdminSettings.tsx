@@ -13,6 +13,7 @@ import { LegalPDFs } from '@/features/admin/settings/LegalPDFs';
 import AdminFaqsTab from '@/features/admin/settings/AdminFaqsTab';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { PortalStore } from '@/lib/portal';
 import { toast } from 'sonner';
 
 export default function AdminSettings() {
@@ -32,6 +33,7 @@ export default function AdminSettings() {
     try {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
+      PortalStore.clear();
       toast.success('Logged out successfully');
       navigate('/admin-login');
     } catch (error: any) {
