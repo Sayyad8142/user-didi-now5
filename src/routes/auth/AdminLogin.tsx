@@ -60,6 +60,10 @@ export default function AdminLogin() {
       localStorage.setItem('admin_login_time', Date.now().toString());
       localStorage.setItem('admin_phone', e164);
       
+      // Set admin portal
+      const { PortalStore } = await import('@/lib/portal');
+      PortalStore.set('admin');
+      
       nav("/admin", { replace: true });
     } catch (e: any) { 
       setErr(e.message || "Invalid code"); 

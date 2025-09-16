@@ -85,7 +85,9 @@ export default function Profile() {
   };
   const handleSignOut = async () => {
     try {
+      const { PortalStore } = await import('@/lib/portal');
       await supabase.auth.signOut();
+      PortalStore.clear();
       navigate('/auth');
       toast({
         title: 'Signed out successfully',

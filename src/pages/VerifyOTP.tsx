@@ -152,14 +152,24 @@ export default function VerifyOTP() {
         });
       }
 
+      // Set portal based on where user is going
+      const { PortalStore } = await import('@/lib/portal');
+      
       // Prefer explicit redirect target; else admin check
       if (redirectTo) {
+        if (redirectTo.includes('/admin')) {
+          PortalStore.set('admin');
+        } else {
+          PortalStore.set('user');
+        }
         navigate(redirectTo, { replace: true });
         return;
       }
       if (isAdminPhone(profile?.phone) || adminIntent) {
+        PortalStore.set('admin');
         navigate("/admin", { replace: true });
       } else {
+        PortalStore.set('user');
         navigate("/home", { replace: true });
       }
     } catch (error: any) {

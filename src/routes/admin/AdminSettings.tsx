@@ -30,8 +30,10 @@ export default function AdminSettings() {
 
   const handleLogout = async () => {
     try {
+      const { PortalStore } = await import('@/lib/portal');
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
+      PortalStore.clear();
       toast.success('Logged out successfully');
       navigate('/admin-login');
     } catch (error: any) {
