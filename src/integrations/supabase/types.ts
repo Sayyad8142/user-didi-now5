@@ -169,6 +169,57 @@ export type Database = {
           },
         ]
       }
+      booking_requests: {
+        Row: {
+          booking_id: string
+          created_at: string | null
+          id: string
+          offered_at: string | null
+          order_sequence: number
+          responded_at: string | null
+          status: string | null
+          timeout_at: string | null
+          worker_id: string
+        }
+        Insert: {
+          booking_id: string
+          created_at?: string | null
+          id?: string
+          offered_at?: string | null
+          order_sequence: number
+          responded_at?: string | null
+          status?: string | null
+          timeout_at?: string | null
+          worker_id: string
+        }
+        Update: {
+          booking_id?: string
+          created_at?: string | null
+          id?: string
+          offered_at?: string | null
+          order_sequence?: number
+          responded_at?: string | null
+          status?: string | null
+          timeout_at?: string | null
+          worker_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_requests_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_requests_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "workers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       booking_status_history: {
         Row: {
           booking_id: string
@@ -517,6 +568,47 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      fcm_tokens: {
+        Row: {
+          created_at: string | null
+          device_id: string | null
+          id: string
+          is_active: boolean | null
+          platform: string | null
+          token: string
+          updated_at: string | null
+          worker_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          device_id?: string | null
+          id?: string
+          is_active?: boolean | null
+          platform?: string | null
+          token: string
+          updated_at?: string | null
+          worker_id: string
+        }
+        Update: {
+          created_at?: string | null
+          device_id?: string | null
+          id?: string
+          is_active?: boolean | null
+          platform?: string | null
+          token?: string
+          updated_at?: string | null
+          worker_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fcm_tokens_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "workers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       feedback: {
         Row: {
@@ -1153,6 +1245,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      users: {
+        Row: {
+          created_at: string | null
+          email: string
+          full_name: string
+          id: string
+          phone: string | null
+          profile_image_url: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email: string
+          full_name: string
+          id?: string
+          phone?: string | null
+          profile_image_url?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string
+          full_name?: string
+          id?: string
+          phone?: string | null
+          profile_image_url?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       worker_ratings: {
         Row: {
