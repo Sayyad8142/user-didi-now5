@@ -36,13 +36,38 @@ async function getBooking(id: string): Promise<BookingLite> {
   return data as BookingLite;
 }
 
+type TabKey = 'available' | 'working' | 'all';
+
 async function fetchWorkers(opts: {
-  tab: 'available' | 'working';
+  tab: TabKey;
   service?: string;
   community?: string;
   q?: string;
 }) {
   const { tab, service, community, q } = opts;
+
+  // For all workers - just get active workers regardless of status
+  if (tab === 'all') {
+    let query = supabase
+      .from('workers')
+      .select('id, full_name, phone, community, service_types, photo_url, is_active')
+      .eq('is_active', true)
+      .limit(200); // Higher limit for all workers
+
+    if (service) {
+      query = query.contains('service_types', [service]);
+    }
+    if (community) {
+      query = query.eq('community', community);
+    }
+    if (q && q.trim()) {
+      query = query.or(`full_name.ilike.%${q}%,phone.ilike.%${q}%`);
+    }
+
+    const { data, error } = await query.order('full_name');
+    if (error) throw error;
+    return data as Worker[];
+  }
 
   // For available workers
   if (tab === 'available') {
@@ -133,7 +158,7 @@ export default function AdminAssignWorker() {
     staleTime: 60_000,
   });
 
-  const [tab, setTab] = React.useState<'available' | 'working'>('available');
+  const [tab, setTab] = React.useState<TabKey>('available');
   const [onlyThisService, setOnlyThisService] = React.useState(true);
   const [onlyThisCommunity, setOnlyThisCommunity] = React.useState(true);
   const [q, setQ] = React.useState('');
@@ -187,7 +212,7 @@ export default function AdminAssignWorker() {
 
         {/* Segmented tabs */}
         <div className="px-3 pb-3">
-          <div className="grid grid-cols-2 bg-muted rounded-xl p-1">
+          <div className="grid grid-cols-3 bg-muted rounded-xl p-1">
             <button
               onClick={() => setTab('available')}
               className={`h-10 rounded-lg text-sm font-medium transition-colors ${
@@ -208,6 +233,16 @@ export default function AdminAssignWorker() {
             >
               Currently Working
             </button>
+            <button
+              onClick={() => setTab('all')}
+              className={`h-10 rounded-lg text-sm font-medium transition-colors ${
+                tab === 'all' 
+                  ? 'bg-background shadow-sm text-foreground' 
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              All
+            </button>
           </div>
         </div>
 
@@ -222,7 +257,7 @@ export default function AdminAssignWorker() {
             />
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <button
               onClick={() => setOnlyThisService(v => !v)}
               className={`px-3 h-8 rounded-full text-xs border transition-colors ${
@@ -242,6 +277,17 @@ export default function AdminAssignWorker() {
               }`}
             >
               Same Community
+            </button>
+            <button
+              onClick={() => {
+                setTab('all');
+                setOnlyThisService(false);
+                setOnlyThisCommunity(false);
+              }}
+              className="px-3 h-8 rounded-full text-xs border bg-background border-border hover:bg-muted transition-colors"
+              title="Show every worker across services and communities"
+            >
+              All Workers
             </button>
           </div>
         </div>
@@ -307,7 +353,7 @@ function WorkerCard({
   isAssigning 
 }: {
   worker: Worker & { assigned_at?: string; current_service?: string }; 
-  tab: 'available' | 'working';
+  tab: TabKey;
   selected: boolean; 
   onSelect: () => void; 
   onAssign: () => void;
@@ -315,7 +361,9 @@ function WorkerCard({
 }) {
   const statusTag = tab === 'available' 
     ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-    : 'bg-amber-50 text-amber-700 border-amber-200';
+    : tab === 'working'
+    ? 'bg-amber-50 text-amber-700 border-amber-200'
+    : 'bg-blue-50 text-blue-700 border-blue-200';
 
   return (
     <div
@@ -368,7 +416,7 @@ function WorkerCard({
           )}
         </div>
         <div className={`px-2 h-7 rounded-full text-xs grid place-items-center border ${statusTag}`}>
-          {tab === 'available' ? 'AVAILABLE' : 'BUSY'}
+          {tab === 'available' ? 'AVAILABLE' : tab === 'working' ? 'BUSY' : 'ALL'}
         </div>
       </div>
 
