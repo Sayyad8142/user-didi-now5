@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { 
   MapPin, 
   Clock, 
@@ -32,7 +31,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { openExternalUrl } from "@/lib/nativeOpen";
 import TimerComponent from "@/components/Timer";
-
+import { AssignWorkerSheet } from "./AssignWorkerSheet";
 import { cn } from "@/lib/utils";
 import { formatTime } from "@/features/bookings/dt";
 import { LoadingWorkerBadge } from "@/components/LoadingWorkerBadge";
@@ -258,8 +257,7 @@ export function AdminBookingCard({
   onCancel, 
   onUpdate 
 }: AdminBookingCardProps) {
-  const navigate = useNavigate();
-  
+  const [sheetOpen, setSheetOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [detailsExpanded, setDetailsExpanded] = useState(false);
   const { toast } = useToast();
@@ -297,6 +295,18 @@ export function AdminBookingCard({
     }
   };
 
+  const handleWorkerAssigned = (worker: any) => {
+    const updatedBooking = {
+      ...booking,
+      status: 'assigned',
+      worker_id: worker.id,
+      worker_name: worker.full_name,
+      worker_phone: worker.phone,
+      assigned_at: new Date().toISOString()
+    };
+    onUpdate?.(updatedBooking);
+    setSheetOpen(false);
+  };
 
   const handleCopyFlatNumber = async () => {
     const formattedFlat = formatFlatNumber(booking.flat_no);
@@ -492,12 +502,7 @@ export function AdminBookingCard({
             <div className="mt-2">
               <button
                 className="w-full group/worker rounded-xl bg-gradient-to-r from-emerald-50 to-green-50 border border-emerald-200 p-2 hover:from-emerald-100 hover:to-green-100 transition-all duration-200 text-left hover:shadow-md"
-                onClick={() => navigate(`/admin/assign/${booking.id}`, { 
-                  state: {
-                    service: booking.service_type,
-                    community: booking.community
-                  }
-                })}
+                onClick={() => setSheetOpen(true)}
               >
                 <div className="flex items-center gap-3">
                   <div className="w-5 h-5 rounded-lg bg-gradient-to-br from-emerald-500 to-green-500 flex items-center justify-center shadow-md">
@@ -547,12 +552,7 @@ export function AdminBookingCard({
                   ? "from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700"
                   : serviceConfig.gradient
               )}
-              onClick={() => navigate(`/admin/assign/${booking.id}`, { 
-                state: {
-                  service: booking.service_type,
-                  community: booking.community
-                }
-              })}
+              onClick={() => setSheetOpen(true)}
               disabled={saving}
             >
               <div className="flex items-center gap-1.5">
@@ -566,6 +566,12 @@ export function AdminBookingCard({
         </CardContent>
       </Card>
 
+      <AssignWorkerSheet
+        open={sheetOpen}
+        onClose={() => setSheetOpen(false)}
+        booking={booking}
+        onWorkerAssigned={handleWorkerAssigned}
+      />
     </>
   );
 }
