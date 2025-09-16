@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="20037" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" launchScreen="YES" colorMatched="YES" initialViewController="LaunchVC">
+    <scenes>
+        <!--Launch Screen-->
+        <scene sceneID="launch-scene">
+            <objects>
+                <viewController id="LaunchVC" sceneMemberID="viewController">
+                    <view key="view" userInteractionEnabled="NO" contentMode="scaleToFill" id="main-view">
+                        <rect key="frame" x="0" y="0" width="390" height="844"/>
+                        <!-- solid brand background (no gradients on launch screens) -->
+                        <color key="backgroundColor" red="1.0" green="0.0" blue="0.47843137" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                        <!-- centered logo text; replace with image if you have one in Assets -->
+                        <subviews>
+                            <label opaque="NO" clipsSubviews="YES" userInteractionEnabled="NO" text="Didi Now" textAlignment="center" id="title" translatesAutoresizingMaskIntoConstraints="NO">
+                                <fontDescription key="fontDescription" type="system" pointSize="36" weight="semibold"/>
+                                <color key="textColor" white="1" alpha="1" colorSpace="genericGamma22GrayColorSpace"/>
+                            </label>
+                            <label opaque="NO" userInteractionEnabled="NO" text="in 10 Mins" textAlignment="center" id="subtitle" translatesAutoresizingMaskIntoConstraints="NO">
+                                <fontDescription key="fontDescription" type="system" pointSize="16" weight="regular"/>
+                                <color key="textColor" white="1" alpha="0.9" colorSpace="genericGamma22GrayColorSpace"/>
+                            </label>
+                        </subviews>
+                        <constraints>
+                            <constraint firstItem="title" firstAttribute="centerX" secondItem="main-view" secondAttribute="centerX" id="c1"/>
+                            <constraint firstItem="title" firstAttribute="centerY" secondItem="main-view" secondAttribute="centerY" id="c2"/>
+                            <constraint firstItem="subtitle" firstAttribute="centerX" secondItem="main-view" secondAttribute="centerX" id="c3"/>
+                            <constraint firstItem="subtitle" firstAttribute="top" secondItem="title" secondAttribute="bottom" constant="8" id="c4"/>
+                        </constraints>
+                    </view>
+                </viewController>
+                <placeholder placeholderIdentifier="IBFirstResponder" id="first" userLabel="First Responder" sceneMemberID="firstResponder"/>
+            </objects>
+        </scene>
+    </scenes>
+</document>
