@@ -26,9 +26,13 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
         const { data: { session } } = await supabase.auth.getSession();
 
         if (!session?.user) {
-          // No session at all → respect last portal and show its login
-          const portal = PortalStore.get() || 'user';
-          nav(portal === 'admin' ? '/admin-login' : '/auth', { replace: true });
+          // No session at all → only redirect if we're on the root path
+          // Let users stay on auth/admin-login pages they navigate to directly
+          const currentPath = window.location.pathname;
+          if (currentPath === '/') {
+            const portal = PortalStore.get() || 'user';
+            nav(portal === 'admin' ? '/admin-login' : '/auth', { replace: true });
+          }
           if (!cancelled) setReady(true);
           return;
         }
@@ -55,7 +59,11 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
           dest = '/home';
         }
 
-        nav(dest, { replace: true });
+        // Only redirect if we're on auth pages or root
+        const currentPath = window.location.pathname;
+        if (currentPath === '/' || currentPath === '/auth' || currentPath === '/admin-login') {
+          nav(dest, { replace: true });
+        }
         if (!cancelled) setReady(true);
       } catch (error) {
         console.error('AuthGate initialization error:', error);
