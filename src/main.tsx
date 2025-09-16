@@ -44,6 +44,12 @@ createRoot(rootElement).render(
 );
 
 // Defer non-critical inits to avoid blocking first paint
-(requestIdleCallback || setTimeout)(() => {
-  // Any heavy initialization can go here
-}, 0);
+if (typeof requestIdleCallback !== 'undefined') {
+  requestIdleCallback(() => {
+    // Any heavy initialization can go here
+  });
+} else {
+  setTimeout(() => {
+    // Any heavy initialization can go here
+  }, 0);
+}
