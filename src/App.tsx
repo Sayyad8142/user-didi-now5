@@ -42,6 +42,7 @@ const AdminFeedback = lazy(() => import("./routes/admin/AdminFeedback"));
 const AdminCompletedBookings = lazy(() => import("./routes/admin/AdminCompletedBookings"));
 const AdminWorkers = lazy(() => import("./routes/admin/AdminWorkers"));
 const AdminBookings = lazy(() => import("./routes/admin/AdminBookings"));
+const AdminAssignWorker = lazy(() => import("./pages/admin/AdminAssignWorker"));
 
 // Lazy load legal and profile pages
 const LegalCenter = lazy(() => import("./routes/LegalCenter"));
@@ -258,6 +259,14 @@ const AppContent = () => {
           element={
             <AdminGate>
               <AdminBookings />
+            </AdminGate>
+          } 
+        />
+        <Route 
+          path="/admin/assign/:bookingId" 
+          element={
+            <AdminGate>
+              <AdminAssignWorker />
             </AdminGate>
           } 
         />
