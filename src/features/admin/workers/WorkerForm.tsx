@@ -71,12 +71,14 @@ export function WorkerForm({ worker, open, onOpenChange, onSaved }: WorkerFormPr
   const handlePhotoUpload = async (file: File) => {
     try {
       setUploading(true);
+      console.log('Uploading photo...', file.name);
       const url = await uploadWorkerPhoto(file);
       setPhotoUrl(url);
       toast.success("Photo uploaded successfully");
-    } catch (error) {
-      toast.error("Failed to upload photo");
-      console.error(error);
+    } catch (error: any) {
+      console.error('Photo upload error:', error);
+      const message = error?.message || "Failed to upload photo";
+      toast.error(message);
     } finally {
       setUploading(false);
     }
@@ -139,20 +141,32 @@ export function WorkerForm({ worker, open, onOpenChange, onSaved }: WorkerFormPr
                 <Camera className="w-8 h-8" />
               </AvatarFallback>
             </Avatar>
-              <Label htmlFor="photo" className="cursor-pointer flex items-center gap-2 text-sm text-muted-foreground">
-                <Upload className="w-4 h-4" />
-                {uploading ? 'Uploading…' : 'Upload Photo'}
-              </Label>
+            <Label 
+              htmlFor="photo" 
+              className={`cursor-pointer flex items-center gap-2 text-sm ${
+                uploading ? 'text-muted-foreground cursor-not-allowed' : 'text-primary hover:text-primary/80'
+              }`}
+            >
+              <Upload className="w-4 h-4" />
+              {uploading ? 'Uploading…' : 'Upload Photo'}
+            </Label>
             <Input
               id="photo"
               type="file"
-              accept="image/*"
+              accept="image/jpeg,image/png,image/webp"
               className="hidden"
+              disabled={uploading}
               onChange={(e) => {
                 const file = e.target.files?.[0];
-                if (file) handlePhotoUpload(file);
+                if (file) {
+                  console.log('Selected file:', file.name, file.type, file.size);
+                  handlePhotoUpload(file);
+                }
               }}
             />
+            <p className="text-xs text-muted-foreground text-center">
+              JPG, PNG or WebP • Max 5MB
+            </p>
           </div>
 
           {/* Form Fields */}

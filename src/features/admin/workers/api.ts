@@ -97,6 +97,16 @@ export async function deleteWorker(id: string): Promise<void> {
 export async function uploadWorkerPhoto(file: File): Promise<string> {
   try {
     console.log('Starting photo upload for file:', file.name, 'size:', file.size);
+
+    // Check file size (limit to 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      throw new Error('File size too large. Please select an image under 5MB.');
+    }
+
+    // Check file type
+    if (!file.type.startsWith('image/')) {
+      throw new Error('Please select a valid image file.');
+    }
     
     const filename = file.name.replace(/\s+/g, '_');
     const arrayBuffer = await file.arrayBuffer();
