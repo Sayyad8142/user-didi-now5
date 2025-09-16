@@ -20,11 +20,16 @@ const config: CapacitorConfig = {
   },
   plugins: {
     SplashScreen: {
-      // Do not wait for plugin splash; rely on OS launch screen
-      launchShowDuration: 0,
-      // keep these for manual uses later inside the app if you ever call SplashScreen.show()
-      backgroundColor: '#ff007a',
-      showSpinner: false,
+      launchShowDuration: 2000,
+      showSpinner: true,
+      spinnerStyle: 'large',
+      spinnerColor: '#ec4899',
+      backgroundColor: '#ffffff',
+      androidScaleType: 'CENTER_CROP',
+      splashFullScreen: true,
+      splashImmersive: true,
+      fadeInDuration: 300,
+      fadeOutDuration: 300
     }
   }
 };

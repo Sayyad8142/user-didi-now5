@@ -12,7 +12,6 @@ import { openExternalUrl } from '@/lib/nativeOpen';
 import { useToast } from '@/hooks/use-toast';
 import { AppVersionDisplay } from '@/components/AppVersionDisplay';
 import { useCommunities } from '@/hooks/useCommunities';
-import { PortalStore } from '@/lib/portal';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 export default function Profile() {
   const { profile, loading } = useProfile();
@@ -87,7 +86,6 @@ export default function Profile() {
   const handleSignOut = async () => {
     try {
       await supabase.auth.signOut();
-      PortalStore.clear();
       navigate('/auth');
       toast({
         title: 'Signed out successfully',

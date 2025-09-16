@@ -25,7 +25,6 @@ export const queryClient = new QueryClient({
 const rootElement = document.getElementById("root");
 if (!rootElement) throw new Error("Root element not found");
 
-// Mount app ASAP for fastest first paint
 createRoot(rootElement).render(
   <StrictMode>
     <BrowserRouter>
@@ -42,14 +41,3 @@ createRoot(rootElement).render(
     </BrowserRouter>
   </StrictMode>
 );
-
-// Defer non-critical inits to avoid blocking first paint
-if (typeof requestIdleCallback !== 'undefined') {
-  requestIdleCallback(() => {
-    // Any heavy initialization can go here
-  });
-} else {
-  setTimeout(() => {
-    // Any heavy initialization can go here
-  }, 0);
-}
