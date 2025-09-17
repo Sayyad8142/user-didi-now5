@@ -2,6 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Phone, MessageCircle, Shield } from 'lucide-react';
+import { useUnseenMessages } from '@/hooks/useUnseenMessages';
 import { HomeHeader } from './HomeHeader';
 import { HeroCarousel } from './HeroCarousel';
 import { ServicesRow } from './ServicesRow';
@@ -12,6 +13,7 @@ import { openExternalUrl } from '@/lib/nativeOpen';
 import FaqSection from './FaqSection';
 export function HomeScreen() {
   const navigate = useNavigate();
+  const hasUnseenMessages = useUnseenMessages();
   const handleServiceSelect = (service: 'maid' | 'cook' | 'bathroom_cleaning') => {
     navigate(`/book/${service}`);
   };
@@ -40,9 +42,12 @@ export function HomeScreen() {
             <span className="font-semibold">Call Manger</span>
           </Button>
           
-          <Button onClick={() => navigate('/chat')} variant="outline" className="w-full h-12 rounded-full border-2 border-primary/20 bg-white/90 hover:bg-primary/5 text-primary font-semibold transition-spring hover:scale-[1.02] flex items-center justify-center gap-3">
+          <Button onClick={() => navigate('/chat')} variant="outline" className="w-full h-12 rounded-full border-2 border-primary/20 bg-white/90 hover:bg-primary/5 text-primary font-semibold transition-spring hover:scale-[1.02] flex items-center justify-center gap-3 relative">
             <MessageCircle className="w-5 h-5" />
             <span>Chat Support</span>
+            {hasUnseenMessages && (
+              <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse" />
+            )}
           </Button>
           
           {/* Legal Links */}

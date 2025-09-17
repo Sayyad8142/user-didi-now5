@@ -2,6 +2,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Phone, MessageCircle, Mail, HeadphonesIcon } from "lucide-react";
+import { useUnseenMessages } from "@/hooks/useUnseenMessages";
 import FeedbackForm from "./components/FeedbackForm";
 import { openExternalUrl } from "@/lib/nativeOpen";
 import GeneralChatSheet from "@/components/chat/GeneralChatSheet";
@@ -19,6 +20,7 @@ export default function SupportScreen() {
   const { user } = useAuth();
   const [chatOpen, setChatOpen] = useState(false);
   const [userProfile, setUserProfile] = useState<any>(null);
+  const hasUnseenMessages = useUnseenMessages();
   const searchParams = new URLSearchParams(location.search);
   const bookingId = searchParams.get("booking") || "";
 
@@ -88,7 +90,7 @@ export default function SupportScreen() {
         
         <button 
           onClick={() => setChatOpen(true)}
-          className="flex items-center gap-4 p-4 rounded-2xl bg-card border shadow-sm hover:shadow-md transition-shadow w-full text-left"
+          className="flex items-center gap-4 p-4 rounded-2xl bg-card border shadow-sm hover:shadow-md transition-shadow w-full text-left relative"
         >
           <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center">
             <MessageCircle className="h-6 w-6 text-blue-600" />
@@ -98,6 +100,9 @@ export default function SupportScreen() {
             <div className="text-sm text-muted-foreground">Chat with our support team</div>
             <div className="text-xs text-muted-foreground">Real-time • Fast response • WhatsApp-like</div>
           </div>
+          {hasUnseenMessages && (
+            <div className="absolute top-2 right-2 w-3 h-3 bg-red-500 rounded-full animate-pulse" />
+          )}
         </button>
         
         <a 

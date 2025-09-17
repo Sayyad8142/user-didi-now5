@@ -25,6 +25,7 @@ import { openExternalUrl } from '@/lib/nativeOpen';
 import ChatSheet from '@/features/chat/ChatSheet';
 import { LoadingWorkerBadge } from '@/components/LoadingWorkerBadge';
 import { WorkerRatingsModal } from './WorkerRatingsModal';
+import { useUnseenMessages } from '@/hooks/useUnseenMessages';
 
 interface Booking {
   id: string;
@@ -67,6 +68,7 @@ export function BookingCard({
   booking
 }: BookingCardProps) {
   const navigate = useNavigate();
+  const hasUnseenMessages = useUnseenMessages();
   const [assignedWorker, setAssignedWorker] = useState<any>(null);
   const [loadingWorker, setLoadingWorker] = useState(true);
   const [row, setRow] = useState(booking);
@@ -387,10 +389,13 @@ export function BookingCard({
           <Button 
             onClick={() => navigate('/chat')}
             variant="outline"
-            className="w-full h-10 border-[#ff007a] text-[#ff007a] hover:bg-[#ff007a] hover:text-white font-semibold rounded-lg shadow-sm"
+            className="w-full h-10 border-[#ff007a] text-[#ff007a] hover:bg-[#ff007a] hover:text-white font-semibold rounded-lg shadow-sm relative"
           >
             <MessageCircle className="h-4 w-4 mr-2" />
             Chat Support
+            {hasUnseenMessages && (
+              <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse" />
+            )}
           </Button>
         )}
 

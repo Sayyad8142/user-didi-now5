@@ -22,6 +22,7 @@ import { openExternalUrl } from '@/lib/nativeOpen';
 import ChatSheet from '@/features/chat/ChatSheet';
 import { LoadingWorkerBadge } from '@/components/LoadingWorkerBadge';
 import { WorkerRatingsModal } from '@/features/bookings/WorkerRatingsModal';
+import { useUnseenMessages } from '@/hooks/useUnseenMessages';
 
 interface Booking {
   id: string;
@@ -76,6 +77,7 @@ const getStatusColor = (status: string) => {
 const ActiveBookingCard = memo(() => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const hasUnseenMessages = useUnseenMessages();
   const [activeBooking, setActiveBooking] = useState<Booking | null>(null);
   const [loading, setLoading] = useState(true);
   const [dismissedBookings, setDismissedBookings] = useState<Set<string>>(new Set());
@@ -385,10 +387,13 @@ const ActiveBookingCard = memo(() => {
           <Button 
             onClick={() => navigate('/chat')}
             variant="outline"
-            className="w-full h-10 border-[#ff007a] text-[#ff007a] hover:bg-[#ff007a] hover:text-white font-semibold rounded-lg shadow-sm"
+            className="w-full h-10 border-[#ff007a] text-[#ff007a] hover:bg-[#ff007a] hover:text-white font-semibold rounded-lg shadow-sm relative"
           >
             <MessageCircle className="h-4 w-4 mr-2" />
             Chat Support
+            {hasUnseenMessages && (
+              <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse" />
+            )}
           </Button>
         )}
 
