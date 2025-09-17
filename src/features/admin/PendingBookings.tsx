@@ -61,29 +61,40 @@ export default function PendingBookings() {
 
   return (
     <div className="bg-white/70 backdrop-blur-sm rounded-3xl p-6 shadow-xl border border-white/30">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-gradient-to-r from-orange-500 to-red-600 rounded-lg flex items-center justify-center">
-            <Clock className="w-4 h-4 text-white" />
-          </div>
-          <h2 className="font-bold text-lg text-slate-800">Pending Bookings</h2>
-          {pendingBookings.length > 0 && (
-            <div className="flex items-center gap-1 px-2 py-1 bg-orange-100 text-orange-700 text-xs font-medium rounded-full">
-              <AlertCircle className="w-3 h-3" />
-              {pendingBookings.length}
+      <div className="mb-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="relative">
+              <div className="w-12 h-12 bg-gradient-to-br from-orange-400 via-red-500 to-pink-500 rounded-2xl flex items-center justify-center shadow-lg">
+                <Clock className="w-6 h-6 text-white" />
+              </div>
+              {pendingBookings.length > 0 && (
+                <div className="absolute -top-2 -right-2 w-6 h-6 bg-gradient-to-r from-red-500 to-red-600 text-white text-xs font-bold rounded-full flex items-center justify-center animate-pulse shadow-md">
+                  {pendingBookings.length}
+                </div>
+              )}
             </div>
+            <div>
+              <h2 className="font-bold text-xl text-slate-900">Pending Bookings</h2>
+              <p className="text-sm text-slate-600 font-medium">
+                {pendingBookings.length === 0 
+                  ? "All caught up! No pending requests" 
+                  : `${pendingBookings.length} booking${pendingBookings.length > 1 ? 's' : ''} awaiting assignment`
+                }
+              </p>
+            </div>
+          </div>
+          {pendingBookings.length > 0 && (
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => navigate('/admin/bookings')}
+              className="bg-white/80 border-2 border-slate-200 hover:border-orange-300 hover:bg-orange-50 text-slate-700 hover:text-orange-700 font-semibold px-4 py-2 rounded-xl transition-all duration-200 shadow-sm hover:shadow-md"
+            >
+              View All
+            </Button>
           )}
         </div>
-        {pendingBookings.length > 0 && (
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={() => navigate('/admin/bookings')}
-            className="text-xs"
-          >
-            View All
-          </Button>
-        )}
       </div>
 
       {pendingBookings.length === 0 ? (
