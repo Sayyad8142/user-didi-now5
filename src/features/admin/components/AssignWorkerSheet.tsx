@@ -317,13 +317,12 @@ export function AssignWorkerSheet({
                             )}
                           </div>
                           {isCurrentlyWorking && workerAssignment && (
-                            <div className="mt-1">
-                              <WorkerAvailabilityTimer
-                                workerId={workerAssignment.worker_id}
-                                workerName={workerAssignment.worker_name}
-                                assignedAt={workerAssignment.assigned_at}
-                                durationMinutes={30}
-                              />
+                            <div className="mt-2">
+                              <div className="flex items-center gap-2 text-xs">
+                                <div className="w-2 h-2 bg-pink-500 rounded-full animate-pulse"></div>
+                                <span className="text-pink-700 font-medium">Working...</span>
+                                <span className="text-slate-500">Ready in ~15m</span>
+                              </div>
                             </div>
                           )}
                           {worker.service_types && worker.service_types.length > 0 && (
@@ -348,7 +347,7 @@ export function AssignWorkerSheet({
                       </div>
                       <Button 
                         size="sm"
-                        className="rounded-xl bg-pink-600 hover:bg-pink-700 text-white ml-3 h-10 px-4"
+                        className="rounded-xl bg-pink-600 hover:bg-pink-700 text-white ml-3 h-10 px-4 flex-shrink-0"
                         onClick={() => handleAssignWorker(worker)}
                         disabled={assigning === worker.id || isCurrentlyWorking}
                       >
