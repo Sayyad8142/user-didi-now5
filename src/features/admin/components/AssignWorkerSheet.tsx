@@ -351,9 +351,13 @@ export function AssignWorkerSheet({
                         {showCurrentlyWorking && (() => {
                           const assignedBooking = assignedBookings.find(b => b.worker_id === worker.id);
                           return assignedBooking && (
-                            <div className="mt-1 text-xs text-slate-600 flex items-center gap-1">
-                              <Clock className="w-3 h-3" />
-                              <span>Working • Started {new Date(assignedBooking.assigned_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                            <div className="mt-2">
+                              <WorkerAvailabilityTimer
+                                workerId={assignedBooking.worker_id}
+                                workerName={assignedBooking.worker_name}
+                                assignedAt={assignedBooking.assigned_at}
+                                durationMinutes={30}
+                              />
                             </div>
                           );
                         })()}
