@@ -73,19 +73,19 @@ export function WorkerAvailabilityTimer({
 
   return (
     <div className={cn(
-      "rounded-xl border-2 p-3 transition-all duration-300",
+      "rounded-xl border-2 p-2 transition-all duration-300",
       getBgColor(),
       isCompleted && "animate-pulse",
       className
     )}>
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between mb-1">
+        <div className="flex items-center gap-1">
           {isCompleted ? (
-            <CheckCircle2 className="w-4 h-4 text-green-600" />
+            <CheckCircle2 className="w-3 h-3 text-green-600" />
           ) : (
-            <Clock className="w-4 h-4 text-gray-600" />
+            <Clock className="w-3 h-3 text-gray-600" />
           )}
-          <span className="text-sm font-semibold text-gray-900 truncate">
+          <span className="text-xs font-semibold text-gray-900 truncate">
             {workerName}
           </span>
         </div>
@@ -93,7 +93,7 @@ export function WorkerAvailabilityTimer({
         <Badge 
           variant="secondary" 
           className={cn(
-            "text-xs font-bold",
+            "text-xs font-bold px-1 py-0",
             isCompleted 
               ? "bg-green-100 text-green-800" 
               : "bg-white/80 text-gray-700"
@@ -103,8 +103,8 @@ export function WorkerAvailabilityTimer({
         </Badge>
       </div>
 
-      <div className="space-y-2">
-        <div className="relative h-2 bg-gray-200/60 rounded-full overflow-hidden">
+      <div className="space-y-1">
+        <div className="relative h-1.5 bg-gray-200/60 rounded-full overflow-hidden">
           <div 
             className={cn(
               "h-full transition-all duration-500 rounded-full",
@@ -115,10 +115,10 @@ export function WorkerAvailabilityTimer({
         </div>
         
         <div className="flex justify-between text-xs text-gray-600">
-          <span className="font-medium">
+          <span className="font-medium text-xs">
             {isCompleted ? "Ready for next booking" : "Working..."}
           </span>
-          <span>
+          <span className="text-xs">
             {Math.round(getProgress())}% complete
           </span>
         </div>

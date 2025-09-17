@@ -357,6 +357,7 @@ export function AssignWorkerSheet({
                                 workerName={assignedBooking.worker_name}
                                 assignedAt={assignedBooking.assigned_at}
                                 durationMinutes={30}
+                                className="text-xs"
                               />
                             </div>
                           );
