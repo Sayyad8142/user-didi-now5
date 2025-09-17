@@ -30,14 +30,32 @@ export default function AdminSettings() {
 
   const handleLogout = async () => {
     try {
+      console.log('Starting logout process...');
+      
+      // Clear the portal store first
       const { PortalStore } = await import('@/lib/portal');
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
       PortalStore.clear();
+      
+      // Sign out from Supabase (handle gracefully even if session doesn't exist)
+      const { error } = await supabase.auth.signOut();
+      
+      // Don't throw error if session doesn't exist - this is expected in some cases
+      if (error && !error.message.includes('session')) {
+        console.error('Logout error:', error);
+        toast.error(error.message || 'Failed to logout');
+        return;
+      }
+      
+      console.log('Logout successful, redirecting...');
       toast.success('Logged out successfully');
-      navigate('/admin-login');
+      
+      // Force navigation to admin login
+      window.location.href = '/admin-login';
     } catch (error: any) {
-      toast.error(error.message || 'Failed to logout');
+      console.error('Logout error:', error);
+      toast.error('Logout failed, but redirecting anyway');
+      // Even if logout fails, redirect to login page
+      window.location.href = '/admin-login';
     }
   };
 
