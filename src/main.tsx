@@ -9,6 +9,13 @@ import { ProfileProvider } from "@/contexts/ProfileContext";
 import App from "./App.tsx";
 import "./index.css";
 
+// Set dynamic --vh for mobile viewport
+const setVH = () => {
+  document.documentElement.style.setProperty('--vh', `${window.innerHeight * 0.01}px`);
+};
+setVH();
+window.addEventListener('resize', setVH);
+
 // Create QueryClient with longer gc and stale time for better performance
 export const queryClient = new QueryClient({
   defaultOptions: {

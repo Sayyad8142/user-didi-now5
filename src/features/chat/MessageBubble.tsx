@@ -2,47 +2,28 @@ import React from 'react';
 import { cn } from '@/lib/utils';
 
 interface MessageBubbleProps {
-  side: 'left' | 'right';
+  mine: boolean;
   text: string;
-  time: string;
-  status?: 'sent' | 'delivered' | 'seen';
+  time: Date;
 }
 
 export const MessageBubble: React.FC<MessageBubbleProps> = ({ 
-  side, 
+  mine, 
   text, 
-  time, 
-  status 
+  time 
 }) => {
-  const isOutgoing = side === 'right';
+  const t = time.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 
   return (
-    <div className={cn(
-      "flex mb-2",
-      isOutgoing ? "justify-end" : "justify-start"
-    )}>
-      <div className={cn(
-        "max-w-[78%] rounded-2xl px-3 py-2 relative shadow-sm",
-        isOutgoing
-          ? "bg-[#F70E79] text-white rounded-br-sm"
-          : "bg-white text-foreground rounded-bl-sm border border-border"
-      )}>
-        <div className="whitespace-pre-wrap text-sm leading-relaxed mb-1">
-          {text}
-        </div>
-        
-        <div className={cn(
-          "text-xs flex items-center justify-end gap-1 mt-1",
-          isOutgoing ? "text-white/70" : "text-muted-foreground"
-        )}>
-          <span>{time}</span>
-          {isOutgoing && status && (
-            <div className="text-white/70">
-              {status === 'sent' && '✓'}
-              {status === 'delivered' && '✓✓'}
-              {status === 'seen' && '✓✓'}
-            </div>
-          )}
+    <div className={`w-full flex ${mine ? 'justify-end' : 'justify-start'} mb-2`}>
+      <div className={`max-w-[80%] rounded-2xl px-3 py-2 shadow ${
+        mine 
+          ? 'bg-primary text-primary-foreground rounded-br-sm' 
+          : 'bg-white text-neutral-900 rounded-bl-sm'
+      }`}>
+        <div className="whitespace-pre-wrap break-words">{text}</div>
+        <div className={`text-[10px] mt-1 ${mine ? 'text-white/80' : 'text-neutral-500'}`}>
+          {t}
         </div>
       </div>
     </div>
