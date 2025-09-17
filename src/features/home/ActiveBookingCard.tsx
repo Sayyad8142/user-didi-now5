@@ -354,7 +354,7 @@ const ActiveBookingCard = memo(() => {
         {/* Chat Support button */}
         {(activeBooking.status === 'pending' || activeBooking.status === 'assigned') && (
           <Button 
-            onClick={() => window.location.href = '/chat'}
+            onClick={() => navigate('/chat')}
             variant="outline"
             className="w-full h-10 border-[#ff007a] text-[#ff007a] hover:bg-[#ff007a] hover:text-white font-semibold rounded-lg shadow-sm"
           >

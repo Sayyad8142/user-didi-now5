@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -64,6 +65,7 @@ const getServiceIcon = (serviceType: string) => {
 export function BookingCard({
   booking
 }: BookingCardProps) {
+  const navigate = useNavigate();
   const [assignedWorker, setAssignedWorker] = useState<any>(null);
   const [loadingWorker, setLoadingWorker] = useState(true);
   const [row, setRow] = useState(booking);
@@ -368,17 +370,17 @@ export function BookingCard({
             </Button>
           )}
 
-          {/* Chat Support button */}
-          {(row.status === 'pending' || row.status === 'assigned') && (
-            <Button 
-              onClick={() => window.location.href = '/chat'}
-              variant="outline"
-              className="w-full h-10 border-[#ff007a] text-[#ff007a] hover:bg-[#ff007a] hover:text-white font-semibold rounded-lg shadow-sm"
-            >
-              <MessageCircle className="h-4 w-4 mr-2" />
-              Chat Support
-            </Button>
-          )}
+        {/* Chat Support button */}
+        {(row.status === 'pending' || row.status === 'assigned') && (
+          <Button 
+            onClick={() => navigate('/chat')}
+            variant="outline"
+            className="w-full h-10 border-[#ff007a] text-[#ff007a] hover:bg-[#ff007a] hover:text-white font-semibold rounded-lg shadow-sm"
+          >
+            <MessageCircle className="h-4 w-4 mr-2" />
+            Chat Support
+          </Button>
+        )}
 
           {/* Cancellation component for pending/assigned bookings */}
           {(row.status === 'pending' || row.status === 'assigned') && (
