@@ -371,7 +371,7 @@ export function BookingCard({
           {/* Chat Support button */}
           {(row.status === 'pending' || row.status === 'assigned') && (
             <Button 
-              onClick={() => setOpenChat(true)}
+              onClick={() => window.location.href = '/chat'}
               variant="outline"
               className="w-full h-10 border-[#ff007a] text-[#ff007a] hover:bg-[#ff007a] hover:text-white font-semibold rounded-lg shadow-sm"
             >
