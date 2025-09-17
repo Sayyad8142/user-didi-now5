@@ -1229,6 +1229,21 @@ export type Database = {
           },
         ]
       }
+      support_pushcut_throttle: {
+        Row: {
+          last_notified_at: string
+          thread_id: string
+        }
+        Insert: {
+          last_notified_at?: string
+          thread_id: string
+        }
+        Update: {
+          last_notified_at?: string
+          thread_id?: string
+        }
+        Relationships: []
+      }
       support_threads: {
         Row: {
           booking_id: string | null
@@ -1763,6 +1778,10 @@ export type Database = {
           terms_url: string
         }[]
       }
+      get_ops_setting: {
+        Args: { p_key: string }
+        Returns: string
+      }
       get_setting: {
         Args: { p_default: string; p_key: string }
         Returns: string
@@ -1900,6 +1919,18 @@ export type Database = {
       pending_sla_minutes: {
         Args: Record<PropertyKey, never>
         Returns: number
+      }
+      pushcut_notify_support: {
+        Args: {
+          p_community: string
+          p_message_id: number
+          p_preview: string
+          p_service: string
+          p_thread_id: string
+          p_user_name: string
+          p_user_phone: string
+        }
+        Returns: undefined
       }
       register_worker: {
         Args: {
