@@ -13,7 +13,6 @@ import { AdminBottomNav } from "@/components/AdminBottomNav";
 import { useSLASettings } from "@/features/admin/useSLASettings";
 import { useOverdueAlert } from "@/features/admin/useOverdueAlert";
 import { useNavigate } from "react-router-dom";
-
 export default function AdminLayout() {
   const navigate = useNavigate();
   const [rows, setRows] = useState<any[]>([]);
@@ -62,7 +61,11 @@ export default function AdminLayout() {
 
   // Clear any session expired banners on auth state change
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+    const {
+      data: {
+        subscription
+      }
+    } = supabase.auth.onAuthStateChange(event => {
       if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
         // Clear any global banner state if it exists
         // This prevents sticky "Session expired" banners
@@ -85,38 +88,27 @@ export default function AdminLayout() {
     // Apply search filter
     if (searchTerm.trim()) {
       const search = searchTerm.toLowerCase();
-      filtered = filtered.filter(booking => 
-        booking.service_type?.toLowerCase().includes(search) || 
-        booking.community?.toLowerCase().includes(search) || 
-        booking.flat_no?.toLowerCase().includes(search) || 
-        booking.cust_name?.toLowerCase().includes(search) || 
-        booking.cust_phone?.toLowerCase().includes(search)
-      );
+      filtered = filtered.filter(booking => booking.service_type?.toLowerCase().includes(search) || booking.community?.toLowerCase().includes(search) || booking.flat_no?.toLowerCase().includes(search) || booking.cust_name?.toLowerCase().includes(search) || booking.cust_phone?.toLowerCase().includes(search));
     }
     return filtered;
   }, [rows, searchTerm]);
-
   const handleFilterChange = (status: 'all' | 'pending' | 'assigned' | 'cancelled' | 'completed') => {
     setFilterStatus(status);
   };
-
-  return (
-    <div className="min-h-[100svh] max-w-screen-lg mx-auto bg-gradient-to-br from-slate-50 to-blue-50 text-foreground flex flex-col">
+  return <div className="min-h-[100svh] max-w-screen-lg mx-auto bg-gradient-to-br from-slate-50 to-blue-50 text-foreground flex flex-col">
       {/* Enhanced modern header */}
       <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-white/20 safe-top shadow-lg">
         <div className="flex items-center justify-between px-6 py-4">
           <div className="flex items-center gap-4">
             <div className="relative">
-              <div className="w-10 h-10 bg-gradient-to-br from-pink-500 via-purple-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-xl">
-                <Settings className="w-5 h-5 text-white" />
-              </div>
-              <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-400 rounded-full border-2 border-white animate-pulse"></div>
+              
+              
             </div>
             <div>
-              <h1 className="font-bold text-2xl bg-gradient-to-r from-pink-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent">
+              <h1 className="font-bold text-2xl bg-gradient-to-r from-pink-600 via-purple-600 to-indigo-600 bg-clip-text text-pink-600 text-center mx-[46px]">
                 Didi Now Admin
               </h1>
-              <p className="text-sm text-slate-600 font-medium">Administrative Console</p>
+              
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -124,9 +116,7 @@ export default function AdminLayout() {
               <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
               System Online
             </div>
-            <div className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center">
-              <div className="w-6 h-6 bg-gradient-to-r from-slate-400 to-slate-600 rounded-full"></div>
-            </div>
+            
           </div>
         </div>
       </header>
@@ -174,44 +164,28 @@ export default function AdminLayout() {
               {/* Action Cards Grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 max-w-4xl mx-auto">
                 <div className="group">
-                  <Button 
-                    variant="outline" 
-                    onClick={() => navigate('/admin/bookings')} 
-                    className="w-full h-24 rounded-2xl border-2 border-slate-200 bg-white/50 hover:bg-white hover:border-pink-300 hover:shadow-lg transition-all duration-300 flex flex-col gap-2 group-hover:scale-105"
-                  >
+                  <Button variant="outline" onClick={() => navigate('/admin/bookings')} className="w-full h-24 rounded-2xl border-2 border-slate-200 bg-white/50 hover:bg-white hover:border-pink-300 hover:shadow-lg transition-all duration-300 flex flex-col gap-2 group-hover:scale-105">
                     <Calendar className="h-6 w-6 text-pink-600" />
                     <span className="font-semibold">View Bookings</span>
                   </Button>
                 </div>
                 
                 <div className="group">
-                  <Button 
-                    variant="outline" 
-                    onClick={() => navigate('/admin/workers')} 
-                    className="w-full h-24 rounded-2xl border-2 border-slate-200 bg-white/50 hover:bg-white hover:border-purple-300 hover:shadow-lg transition-all duration-300 flex flex-col gap-2 group-hover:scale-105"
-                  >
+                  <Button variant="outline" onClick={() => navigate('/admin/workers')} className="w-full h-24 rounded-2xl border-2 border-slate-200 bg-white/50 hover:bg-white hover:border-purple-300 hover:shadow-lg transition-all duration-300 flex flex-col gap-2 group-hover:scale-105">
                     <Settings className="h-6 w-6 text-purple-600" />
                     <span className="font-semibold">Manage Workers</span>
                   </Button>
                 </div>
                 
                 <div className="group">
-                  <Button 
-                    variant="outline" 
-                    onClick={() => navigate('/admin/chat')} 
-                    className="w-full h-24 rounded-2xl border-2 border-slate-200 bg-white/50 hover:bg-white hover:border-blue-300 hover:shadow-lg transition-all duration-300 flex flex-col gap-2 group-hover:scale-105"
-                  >
+                  <Button variant="outline" onClick={() => navigate('/admin/chat')} className="w-full h-24 rounded-2xl border-2 border-slate-200 bg-white/50 hover:bg-white hover:border-blue-300 hover:shadow-lg transition-all duration-300 flex flex-col gap-2 group-hover:scale-105">
                     <MessageSquare className="h-6 w-6 text-blue-600" />
                     <span className="font-semibold">Messages</span>
                   </Button>
                 </div>
                 
                 <div className="group">
-                  <Button 
-                    variant="outline" 
-                    onClick={() => navigate('/admin/settings')} 
-                    className="w-full h-24 rounded-2xl border-2 border-slate-200 bg-white/50 hover:bg-white hover:border-indigo-300 hover:shadow-lg transition-all duration-300 flex flex-col gap-2 group-hover:scale-105"
-                  >
+                  <Button variant="outline" onClick={() => navigate('/admin/settings')} className="w-full h-24 rounded-2xl border-2 border-slate-200 bg-white/50 hover:bg-white hover:border-indigo-300 hover:shadow-lg transition-all duration-300 flex flex-col gap-2 group-hover:scale-105">
                     <Settings className="h-6 w-6 text-indigo-600" />
                     <span className="font-semibold">Settings</span>
                   </Button>
@@ -223,6 +197,5 @@ export default function AdminLayout() {
       </main>
 
       <AdminBottomNav />
-    </div>
-  );
+    </div>;
 }
