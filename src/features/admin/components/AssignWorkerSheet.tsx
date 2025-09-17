@@ -133,14 +133,7 @@ export function AssignWorkerSheet({
     }
 
     return filtered.sort((a, b) => {
-      // First, prioritize available workers (not currently working)
-      const aIsWorking = assignedBookings.some(ab => ab.worker_id === a.id);
-      const bIsWorking = assignedBookings.some(ab => ab.worker_id === b.id);
-      
-      if (!aIsWorking && bIsWorking) return -1;
-      if (aIsWorking && !bIsWorking) return 1;
-      
-      // Then prioritize workers from same community
+      // Prioritize workers from same community
       if (booking?.community) {
         const aMatch = a.community?.toLowerCase() === booking.community?.toLowerCase();
         const bMatch = b.community?.toLowerCase() === booking.community?.toLowerCase();
@@ -149,7 +142,7 @@ export function AssignWorkerSheet({
       }
       return a.full_name.localeCompare(b.full_name);
     });
-  }, [workers, searchQuery, sameCommunity, sameService, booking, assignedBookings]);
+  }, [workers, searchQuery, sameCommunity, sameService, booking]);
 
   const handleAssignWorker = async (worker: Worker) => {
     if (!booking?.id) return;
@@ -236,12 +229,35 @@ export function AssignWorkerSheet({
             </div>
           </div>
 
-          {/* All Workers */}
+          {/* Currently Assigned Workers - Availability Timers */}
+          {assignedBookings.length > 0 && (
+            <div className="px-4 pb-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Clock className="w-4 h-4 text-slate-600" />
+                <h3 className="text-sm font-semibold text-slate-900">
+                  Currently Working ({assignedBookings.length})
+                </h3>
+              </div>
+              <div className="space-y-2 max-h-32 overflow-y-auto">
+                {assignedBookings.map(assignedBooking => (
+                  <WorkerAvailabilityTimer
+                    key={assignedBooking.id}
+                    workerId={assignedBooking.worker_id}
+                    workerName={assignedBooking.worker_name}
+                    assignedAt={assignedBooking.assigned_at}
+                    durationMinutes={30}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Available Workers */}
           <div className="px-4 pb-2">
             <div className="flex items-center gap-2 mb-3">
               <User className="w-4 h-4 text-slate-600" />
               <h3 className="text-sm font-semibold text-slate-900">
-                All Workers ({filteredWorkers.length})
+                Available Workers ({filteredWorkers.length})
               </h3>
             </div>
           </div>
@@ -283,88 +299,68 @@ export function AssignWorkerSheet({
               </div>
             ) : (
               <div className="p-4 space-y-3 pb-24">
-                {filteredWorkers.map(worker => {
-                  const workerAssignment = assignedBookings.find(ab => ab.worker_id === worker.id);
-                  const isCurrentlyWorking = !!workerAssignment;
-                  
-                  return (
-                    <div 
-                      key={worker.id} 
-                      className={`flex items-center justify-between p-3 rounded-xl border transition-colors ${
-                        isCurrentlyWorking 
-                          ? 'border-pink-200 bg-pink-50/50' 
-                          : 'border-slate-100 hover:bg-slate-50 bg-white'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3 flex-1 min-w-0">
-                        <Avatar className="w-10 h-10 flex-shrink-0">
-                          <AvatarImage src={worker.photo_url || undefined} />
-                          <AvatarFallback className="bg-slate-100 text-slate-600 font-medium">
-                            {worker.full_name.charAt(0).toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="min-w-0 flex-1">
-                          <div className="font-medium text-slate-900 truncate">
-                            {worker.full_name}
-                          </div>
-                          <div className="text-sm text-slate-500 flex items-center gap-2">
-                            <span>{worker.phone}</span>
-                            {worker.community && (
-                              <>
-                                <span>•</span>
-                                <span className="truncate">{worker.community}</span>
-                              </>
-                            )}
-                          </div>
-                          {isCurrentlyWorking && workerAssignment && (
-                            <div className="mt-2">
-                              <div className="flex items-center gap-2 text-xs">
-                                <div className="w-2 h-2 bg-pink-500 rounded-full animate-pulse"></div>
-                                <span className="text-pink-700 font-medium">Working...</span>
-                                <span className="text-slate-500">Ready in ~15m</span>
-                              </div>
-                            </div>
-                          )}
-                          {worker.service_types && worker.service_types.length > 0 && (
-                            <div className="flex gap-1 mt-1">
-                              {worker.service_types.slice(0, 2).map((service, idx) => (
-                                <Badge 
-                                  key={idx} 
-                                  variant="secondary" 
-                                  className="text-xs px-2 py-0"
-                                >
-                                  {service}
-                                </Badge>
-                              ))}
-                              {worker.service_types.length > 2 && (
-                                <Badge variant="secondary" className="text-xs px-2 py-0">
-                                  +{worker.service_types.length - 2}
-                                </Badge>
-                              )}
-                            </div>
+                {filteredWorkers.map(worker => (
+                  <div 
+                    key={worker.id} 
+                    className="flex items-center justify-between p-3 rounded-xl border border-slate-100 hover:bg-slate-50 transition-colors bg-white"
+                  >
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <Avatar className="w-10 h-10 flex-shrink-0">
+                        <AvatarImage src={worker.photo_url || undefined} />
+                        <AvatarFallback className="bg-slate-100 text-slate-600 font-medium">
+                          {worker.full_name.charAt(0).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0 flex-1">
+                        <div className="font-medium text-slate-900 truncate">
+                          {worker.full_name}
+                        </div>
+                        <div className="text-sm text-slate-500 flex items-center gap-2">
+                          <span>{worker.phone}</span>
+                          {worker.community && (
+                            <>
+                              <span>•</span>
+                              <span className="truncate">{worker.community}</span>
+                            </>
                           )}
                         </div>
-                      </div>
-                      <Button 
-                        size="sm"
-                        className="rounded-xl bg-pink-600 hover:bg-pink-700 text-white ml-3 h-10 px-4 flex-shrink-0"
-                        onClick={() => handleAssignWorker(worker)}
-                        disabled={assigning === worker.id || isCurrentlyWorking}
-                      >
-                        {assigning === worker.id ? (
-                          <>
-                            <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                            Assigning...
-                          </>
-                        ) : isCurrentlyWorking ? (
-                          'Working'
-                        ) : (
-                          'Assign'
+                        {worker.service_types && worker.service_types.length > 0 && (
+                          <div className="flex gap-1 mt-1">
+                            {worker.service_types.slice(0, 2).map((service, idx) => (
+                              <Badge 
+                                key={idx} 
+                                variant="secondary" 
+                                className="text-xs px-2 py-0"
+                              >
+                                {service}
+                              </Badge>
+                            ))}
+                            {worker.service_types.length > 2 && (
+                              <Badge variant="secondary" className="text-xs px-2 py-0">
+                                +{worker.service_types.length - 2}
+                              </Badge>
+                            )}
+                          </div>
                         )}
-                      </Button>
+                      </div>
                     </div>
-                  );
-                })}
+                    <Button 
+                      size="sm"
+                      className="rounded-xl bg-pink-600 hover:bg-pink-700 text-white ml-3 h-10 px-4"
+                      onClick={() => handleAssignWorker(worker)}
+                      disabled={assigning === worker.id}
+                    >
+                      {assigning === worker.id ? (
+                        <>
+                          <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                          Assigning...
+                        </>
+                      ) : (
+                        'Assign'
+                      )}
+                    </Button>
+                  </div>
+                ))}
               </div>
             )}
           </div>
