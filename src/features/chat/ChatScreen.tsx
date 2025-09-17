@@ -85,7 +85,7 @@ export const ChatScreen: React.FC = () => {
           <Button 
             variant="ghost" 
             size="icon"
-            onClick={() => navigate(-1)}
+            onClick={() => navigate('/')}
             className="h-8 w-8 text-white hover:bg-white/20 mr-3"
           >
             <ArrowLeft className="h-5 w-5" />
