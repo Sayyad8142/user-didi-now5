@@ -59,11 +59,8 @@ export const ChatScreen: React.FC = () => {
 
   // Back handler with fallback
   const handleBack = () => {
-    if (window.history.length > 1) {
-      navigate(-1);
-    } else {
-      navigate('/', { replace: true });
-    }
+    // Always navigate to home since chat is typically accessed from home screen
+    navigate('/', { replace: true });
   };
 
   // Handle sending messages
