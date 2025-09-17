@@ -21,6 +21,7 @@ import { RateWorker } from '@/features/bookings/RateWorker';
 import { openExternalUrl } from '@/lib/nativeOpen';
 import ChatSheet from '@/features/chat/ChatSheet';
 import { LoadingWorkerBadge } from '@/components/LoadingWorkerBadge';
+import { WorkerRatingsModal } from '@/features/bookings/WorkerRatingsModal';
 
 interface Booking {
   id: string;
@@ -83,6 +84,7 @@ const ActiveBookingCard = memo(() => {
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState('');
   const [showUpiChooser, setShowUpiChooser] = useState(false);
+  const [showWorkerRatings, setShowWorkerRatings] = useState(false);
 
   const fetchActiveBooking = useCallback(async () => {
     if (!user) return;
@@ -298,8 +300,37 @@ const ActiveBookingCard = memo(() => {
       </div>
 
       {activeBooking.worker_name && (
-        <div className="mb-3">
-          <p className="text-sm font-medium">Worker: {activeBooking.worker_name}</p>
+        <div className="mb-3 p-2 bg-blue-50 rounded-lg">
+          <p className="text-xs font-medium text-blue-600 uppercase tracking-wide">Worker</p>
+          <p className="text-sm font-semibold text-blue-900">{activeBooking.worker_name}</p>
+          
+          {/* Worker rating display */}
+          {workerStats && workerStats.avg_rating > 0 && (
+            <div className="flex items-center justify-between mt-1">
+              <div className="flex items-center gap-1">
+                <div className="flex">
+                  {[1, 2, 3, 4, 5].map((i) => (
+                    <Star
+                      key={i}
+                      className={`w-3 h-3 ${i <= Math.round(workerStats.avg_rating) ? 'text-yellow-500' : 'text-gray-300'}`}
+                      fill={i <= Math.round(workerStats.avg_rating) ? 'currentColor' : 'none'}
+                    />
+                  ))}
+                </div>
+                <span className="text-xs text-gray-600">
+                  {workerStats.avg_rating.toFixed(1)} ({workerStats.ratings_count})
+                </span>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowWorkerRatings(true)}
+                className="h-6 px-2 text-xs text-blue-600 hover:text-blue-800 hover:bg-blue-50"
+              >
+                View Ratings
+              </Button>
+            </div>
+          )}
         </div>
       )}
 
@@ -440,7 +471,17 @@ const ActiveBookingCard = memo(() => {
              tn: `Didi Now ${activeBooking.service_type} • ${activeBooking.community} • ${activeBooking.flat_no}`,
              tr: activeBooking.id
            }}
-         />
+          />
+       )}
+
+      {/* Worker Ratings Modal */}
+      {activeBooking.worker_id && activeBooking.worker_name && (
+        <WorkerRatingsModal
+          open={showWorkerRatings}
+          onOpenChange={setShowWorkerRatings}
+          workerId={activeBooking.worker_id}
+          workerName={activeBooking.worker_name}
+        />
       )}
     </Card>
   );

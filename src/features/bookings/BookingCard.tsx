@@ -24,6 +24,7 @@ import { RateWorker } from './RateWorker';
 import { openExternalUrl } from '@/lib/nativeOpen';
 import ChatSheet from '@/features/chat/ChatSheet';
 import { LoadingWorkerBadge } from '@/components/LoadingWorkerBadge';
+import { WorkerRatingsModal } from './WorkerRatingsModal';
 
 interface Booking {
   id: string;
@@ -74,6 +75,7 @@ export function BookingCard({
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState('');
   const [showUpiChooser, setShowUpiChooser] = useState(false);
+  const [showWorkerRatings, setShowWorkerRatings] = useState(false);
   const now = useNow(); // ticks every 30s
   
   // Subscribe to real-time updates for this specific booking
@@ -277,19 +279,29 @@ export function BookingCard({
               
               {/* Rating display */}
               {stars > 0 && (
-                <div className="flex items-center gap-1 mt-0.5">
-                  <div className="flex">
-                    {[1, 2, 3, 4, 5].map((i) => (
-                      <Star
-                        key={i}
-                        className={`w-3 h-3 ${i <= stars ? 'text-yellow-500' : 'text-gray-300'}`}
-                        fill={i <= stars ? 'currentColor' : 'none'}
-                      />
-                    ))}
+                <div className="flex items-center justify-between mt-0.5">
+                  <div className="flex items-center gap-1">
+                    <div className="flex">
+                      {[1, 2, 3, 4, 5].map((i) => (
+                        <Star
+                          key={i}
+                          className={`w-3 h-3 ${i <= stars ? 'text-yellow-500' : 'text-gray-300'}`}
+                          fill={i <= stars ? 'currentColor' : 'none'}
+                        />
+                      ))}
+                    </div>
+                    <span className="text-xs text-gray-600">
+                      {avgRating.toFixed(1)} ({ratingsCount})
+                    </span>
                   </div>
-                  <span className="text-xs text-gray-600">
-                    {avgRating.toFixed(1)} ({ratingsCount})
-                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowWorkerRatings(true)}
+                    className="h-6 px-2 text-xs text-blue-600 hover:text-blue-800 hover:bg-blue-50"
+                  >
+                    View Ratings
+                  </Button>
                 </div>
               )}
             </div>
@@ -457,6 +469,16 @@ export function BookingCard({
            tr: row.id
          }}
        />
+
+      {/* Worker Ratings Modal */}
+      {row.worker_id && row.worker_name && (
+        <WorkerRatingsModal
+          open={showWorkerRatings}
+          onOpenChange={setShowWorkerRatings}
+          workerId={row.worker_id}
+          workerName={row.worker_name}
+        />
+      )}
     </Card>
   );
 }
