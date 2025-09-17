@@ -168,7 +168,11 @@ export default function AdminChat() {
     try {
       if (!selectedThread) return;
       
-      await send(message, 'admin');
+      await supabase.from('support_messages').insert({
+        thread_id: selectedThread.id,
+        sender: 'admin',
+        message: message.trim(),
+      });
       
       setTimeout(scrollToBottom, 100);
     } catch (error) {
