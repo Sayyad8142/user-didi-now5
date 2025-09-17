@@ -40,6 +40,7 @@ export function AssignWorkerSheet({
   const [assigning, setAssigning] = useState<string | null>(null);
   const [sameCommunity, setSameCommunity] = useState(false);
   const [sameService, setSameService] = useState(false);
+  const [showCurrentlyWorking, setShowCurrentlyWorking] = useState(false);
   const { toast } = useToast();
 
   // Fetch workers and assigned bookings when sheet opens
@@ -103,11 +104,26 @@ export function AssignWorkerSheet({
       setSearchQuery("");
       setSameCommunity(false);
       setSameService(false);
+      setShowCurrentlyWorking(false);
     }
   }, [open]);
 
+  // Get currently working workers
+  const currentlyWorkingWorkers = useMemo(() => {
+    return assignedBookings.map(assignedBooking => 
+      workers.find(worker => worker.id === assignedBooking.worker_id)
+    ).filter(Boolean) as Worker[];
+  }, [workers, assignedBookings]);
+
+  // Get available workers (not currently working)
+  const availableWorkers = useMemo(() => {
+    const workingWorkerIds = new Set(assignedBookings.map(b => b.worker_id));
+    return workers.filter(worker => !workingWorkerIds.has(worker.id));
+  }, [workers, assignedBookings]);
+
   const filteredWorkers = useMemo(() => {
-    let filtered = workers;
+    // Use currently working or available workers based on toggle
+    let filtered = showCurrentlyWorking ? currentlyWorkingWorkers : availableWorkers;
 
     // Filter by service type
     if (sameService && booking?.service_type) {
@@ -142,7 +158,7 @@ export function AssignWorkerSheet({
       }
       return a.full_name.localeCompare(b.full_name);
     });
-  }, [workers, searchQuery, sameCommunity, sameService, booking]);
+  }, [showCurrentlyWorking, currentlyWorkingWorkers, availableWorkers, searchQuery, sameCommunity, sameService, booking]);
 
   const handleAssignWorker = async (worker: Worker) => {
     if (!booking?.id) return;
@@ -205,8 +221,31 @@ export function AssignWorkerSheet({
             </div>
           </div>
 
-          {/* Filters */}
-          <div className="px-4 pb-3">
+          {/* Toggle and Filters */}
+          <div className="px-4 pb-3 space-y-3">
+            {/* Toggle between Currently Working and Available */}
+            <div className="flex gap-2">
+              <Button
+                variant={!showCurrentlyWorking ? "default" : "outline"}
+                size="sm"
+                onClick={() => setShowCurrentlyWorking(false)}
+                className="rounded-full text-xs px-4 flex-1"
+              >
+                <User className="w-3 h-3 mr-1" />
+                Available ({availableWorkers.length})
+              </Button>
+              <Button
+                variant={showCurrentlyWorking ? "default" : "outline"}
+                size="sm"
+                onClick={() => setShowCurrentlyWorking(true)}
+                className="rounded-full text-xs px-4 flex-1"
+              >
+                <Clock className="w-3 h-3 mr-1" />
+                Working ({currentlyWorkingWorkers.length})
+              </Button>
+            </div>
+
+            {/* Filters */}
             <div className="flex gap-2 overflow-x-auto no-scrollbar">
               <Button
                 variant={sameService ? "default" : "outline"}
@@ -229,35 +268,19 @@ export function AssignWorkerSheet({
             </div>
           </div>
 
-          {/* Currently Assigned Workers - Availability Timers */}
-          {assignedBookings.length > 0 && (
-            <div className="px-4 pb-4">
-              <div className="flex items-center gap-2 mb-3">
-                <Clock className="w-4 h-4 text-slate-600" />
-                <h3 className="text-sm font-semibold text-slate-900">
-                  Currently Working ({assignedBookings.length})
-                </h3>
-              </div>
-              <div className="space-y-2 max-h-32 overflow-y-auto">
-                {assignedBookings.map(assignedBooking => (
-                  <WorkerAvailabilityTimer
-                    key={assignedBooking.id}
-                    workerId={assignedBooking.worker_id}
-                    workerName={assignedBooking.worker_name}
-                    assignedAt={assignedBooking.assigned_at}
-                    durationMinutes={30}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Available Workers */}
+          {/* Section Header */}
           <div className="px-4 pb-2">
             <div className="flex items-center gap-2 mb-3">
-              <User className="w-4 h-4 text-slate-600" />
+              {showCurrentlyWorking ? (
+                <Clock className="w-4 h-4 text-slate-600" />
+              ) : (
+                <User className="w-4 h-4 text-slate-600" />
+              )}
               <h3 className="text-sm font-semibold text-slate-900">
-                Available Workers ({filteredWorkers.length})
+                {showCurrentlyWorking 
+                  ? `Currently Working (${filteredWorkers.length})` 
+                  : `Available Workers (${filteredWorkers.length})`
+                }
               </h3>
             </div>
           </div>
@@ -324,6 +347,16 @@ export function AssignWorkerSheet({
                             </>
                           )}
                         </div>
+                        {/* Show working status for currently working workers */}
+                        {showCurrentlyWorking && (() => {
+                          const assignedBooking = assignedBookings.find(b => b.worker_id === worker.id);
+                          return assignedBooking && (
+                            <div className="mt-1 text-xs text-slate-600 flex items-center gap-1">
+                              <Clock className="w-3 h-3" />
+                              <span>Working • Started {new Date(assignedBooking.assigned_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                            </div>
+                          );
+                        })()}
                         {worker.service_types && worker.service_types.length > 0 && (
                           <div className="flex gap-1 mt-1">
                             {worker.service_types.slice(0, 2).map((service, idx) => (
@@ -348,13 +381,15 @@ export function AssignWorkerSheet({
                       size="sm"
                       className="rounded-xl bg-pink-600 hover:bg-pink-700 text-white ml-3 h-10 px-4"
                       onClick={() => handleAssignWorker(worker)}
-                      disabled={assigning === worker.id}
+                      disabled={assigning === worker.id || showCurrentlyWorking}
                     >
                       {assigning === worker.id ? (
                         <>
                           <Loader2 className="h-3 w-3 animate-spin mr-1" />
                           Assigning...
                         </>
+                      ) : showCurrentlyWorking ? (
+                        'Busy'
                       ) : (
                         'Assign'
                       )}
