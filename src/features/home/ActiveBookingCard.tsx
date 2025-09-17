@@ -351,17 +351,6 @@ const ActiveBookingCard = memo(() => {
           </Button>
         )}
 
-        {/* Chat with Support button */}
-        {(activeBooking.status === 'pending' || activeBooking.status === 'assigned') && (
-          <Button 
-            onClick={() => setOpenChat(true)}
-            variant="outline"
-            className="w-full h-10 border-[#ff007a] text-[#ff007a] hover:bg-[#ff007a] hover:text-white font-semibold rounded-lg shadow-sm"
-          >
-            <MessageCircle className="h-4 w-4 mr-2" />
-            Chat with Support
-          </Button>
-        )}
       </div>
 
       <div className="flex items-center justify-between mt-4">
