@@ -60,8 +60,9 @@ export default function PendingBookings() {
   }
 
   return (
-    <div className="bg-white/70 backdrop-blur-sm rounded-3xl p-6 shadow-xl border border-white/30">
-      <div className="mb-6">
+    <div className="bg-white/70 backdrop-blur-sm rounded-3xl shadow-xl border border-white/30 overflow-hidden">
+      {/* Header Section - Separated */}
+      <div className="p-6 border-b border-white/20 bg-gradient-to-r from-white/30 to-white/10">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div className="relative">
@@ -97,29 +98,32 @@ export default function PendingBookings() {
         </div>
       </div>
 
-      {pendingBookings.length === 0 ? (
-        <div className="text-center py-8">
-          <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
-            <Clock className="w-6 h-6 text-green-600" />
-          </div>
-          <p className="text-slate-600 font-medium">No pending bookings</p>
-          <p className="text-slate-500 text-sm">All caught up!</p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {pendingBookings.map((booking) => (
-            <div
-              key={booking.id}
-              className="cursor-pointer"
-              onClick={() => navigate(`/admin/bookings?b=${booking.id}`)}
-            >
-              <AdminBookingCard
-                booking={booking}
-              />
+      {/* Content Section - Separated */}
+      <div className="p-6">
+        {pendingBookings.length === 0 ? (
+          <div className="text-center py-8">
+            <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
+              <Clock className="w-6 h-6 text-green-600" />
             </div>
-          ))}
-        </div>
-      )}
+            <p className="text-slate-600 font-medium">No pending bookings</p>
+            <p className="text-slate-500 text-sm">All caught up!</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {pendingBookings.map((booking) => (
+              <div
+                key={booking.id}
+                className="cursor-pointer"
+                onClick={() => navigate(`/admin/bookings?b=${booking.id}`)}
+              >
+                <AdminBookingCard
+                  booking={booking}
+                />
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
