@@ -286,16 +286,14 @@ const ActiveBookingCard = memo(() => {
               {activeBooking.status === 'assigned' ? '✓ Worker Assigned' : activeBooking.status}
             </Badge>
           )}
-          {activeBooking.status === "cancelled" && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleDismiss}
-              className="p-1 h-6 w-6 text-muted-foreground hover:text-foreground"
-            >
-              <X className="w-4 h-4" />
-            </Button>
-          )}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleDismiss}
+            className="p-1 h-6 w-6 text-muted-foreground hover:text-foreground"
+          >
+            <X className="w-4 h-4" />
+          </Button>
         </div>
       </div>
 
