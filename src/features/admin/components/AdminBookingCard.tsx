@@ -502,7 +502,10 @@ export function AdminBookingCard({
             <div className="mt-2">
               <button
                 className="w-full group/worker rounded-xl bg-gradient-to-r from-emerald-50 to-green-50 border border-emerald-200 p-2 hover:from-emerald-100 hover:to-green-100 transition-all duration-200 text-left hover:shadow-md"
-                onClick={() => setSheetOpen(true)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSheetOpen(true);
+                }}
               >
                 <div className="flex items-center gap-3">
                   <div className="w-5 h-5 rounded-lg bg-gradient-to-br from-emerald-500 to-green-500 flex items-center justify-center shadow-md">
@@ -528,7 +531,10 @@ export function AdminBookingCard({
               variant="outline"
               size="sm"
               className="flex-1 border-2 border-red-300 text-red-700 hover:bg-red-50 hover:border-red-400 font-medium h-9 rounded-lg transition-all"
-              onClick={handleCancel}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleCancel();
+              }}
               disabled={saving}
             >
               {saving ? (
@@ -552,7 +558,10 @@ export function AdminBookingCard({
                   ? "from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700"
                   : serviceConfig.gradient
               )}
-              onClick={() => setSheetOpen(true)}
+              onClick={(e) => {
+                e.stopPropagation();
+                setSheetOpen(true);
+              }}
               disabled={saving}
             >
               <div className="flex items-center gap-1.5">
