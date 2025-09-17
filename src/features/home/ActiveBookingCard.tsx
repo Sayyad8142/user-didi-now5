@@ -408,6 +408,11 @@ const ActiveBookingCard = memo(() => {
             <p className="text-sm text-muted-foreground">
               Booking amount: ₹{activeBooking.price_inr}
             </p>
+            <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+              <p className="text-xs text-amber-800">
+                <strong>Note:</strong> Pay to worker after work completed & ask her amount and enter based on that, this price is not fixed currently.
+              </p>
+            </div>
           </div>
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setShowPaymentDialog(false)}>
