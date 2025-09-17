@@ -1106,6 +1106,39 @@ export type Database = {
         }
         Relationships: []
       }
+      pushcut_debug_log: {
+        Row: {
+          created_at: string
+          error: string | null
+          http_status: number | null
+          id: string
+          info: Json | null
+          message_id: string | null
+          stage: string
+          thread_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          error?: string | null
+          http_status?: number | null
+          id?: string
+          info?: Json | null
+          message_id?: string | null
+          stage: string
+          thread_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          error?: string | null
+          http_status?: number | null
+          id?: string
+          info?: Json | null
+          message_id?: string | null
+          stage?: string
+          thread_id?: string | null
+        }
+        Relationships: []
+      }
       rent_invoices: {
         Row: {
           amount: number
@@ -1539,6 +1572,10 @@ export type Database = {
         Args: { default_val: number; k: string }
         Returns: number
       }
+      _is_admin_message: {
+        Args: { rec: unknown }
+        Returns: boolean
+      }
       _sla_core_work: {
         Args: Record<PropertyKey, never>
         Returns: undefined
@@ -1924,15 +1961,25 @@ export type Database = {
         Returns: number
       }
       pushcut_notify_support: {
-        Args: {
-          p_community: string
-          p_message_id: number
-          p_preview: string
-          p_service: string
-          p_thread_id: string
-          p_user_name: string
-          p_user_phone: string
-        }
+        Args:
+          | {
+              p_community: string
+              p_message_id: number
+              p_preview: string
+              p_service: string
+              p_thread_id: string
+              p_user_name: string
+              p_user_phone: string
+            }
+          | {
+              p_community: string
+              p_message_id: string
+              p_preview: string
+              p_service: string
+              p_thread_id: string
+              p_user_name: string
+              p_user_phone: string
+            }
         Returns: undefined
       }
       register_worker: {
