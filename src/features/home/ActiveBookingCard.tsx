@@ -399,10 +399,12 @@ const ActiveBookingCard = memo(() => {
               <Input
                 id="amount"
                 type="number"
+                inputMode="numeric"
                 placeholder="Enter amount"
                 value={paymentAmount}
                 onChange={(e) => setPaymentAmount(e.target.value)}
                 className="text-lg font-semibold"
+                autoFocus={false}
               />
             </div>
             <p className="text-sm text-muted-foreground">
