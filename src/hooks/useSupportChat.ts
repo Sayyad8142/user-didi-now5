@@ -42,17 +42,18 @@ export const useSupportChat = (threadId?: string) => {
     if (!threadId || !message.trim() || sending) return;
 
     setSending(true);
-    try {
-      // Optimistic update
-      const optimisticMessage: SupportMessage = {
-        id: Date.now(), // temporary ID
-        thread_id: threadId,
-        sender,
-        message: message.trim(),
-        created_at: new Date().toISOString(),
-        seen: false,
-      };
+    // Optimistic update - use negative number for temporary ID to avoid conflicts
+    const tempId = -Date.now(); // Negative to distinguish from real IDs
+    const optimisticMessage: SupportMessage = {
+      id: tempId,
+      thread_id: threadId,
+      sender,
+      message: message.trim(),
+      created_at: new Date().toISOString(),
+      seen: false,
+    };
 
+    try {
       setMessages(prev => [...prev, optimisticMessage]);
 
       const { data, error } = await supabase
@@ -77,7 +78,7 @@ export const useSupportChat = (threadId?: string) => {
       console.error('Error sending message:', error);
       // Remove optimistic message on error
       setMessages(prev => 
-        prev.filter(msg => msg.id !== Date.now())
+        prev.filter(msg => msg.id !== tempId)
       );
     } finally {
       setSending(false);

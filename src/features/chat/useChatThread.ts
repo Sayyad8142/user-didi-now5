@@ -87,17 +87,18 @@ export const useChatThread = (bookingId?: string) => {
     if (!thread || !text.trim() || sending) return;
 
     setSending(true);
-    try {
-      // Optimistic update
-      const optimisticMessage: SupportMessage = {
-        id: Date.now(), // temporary ID
-        thread_id: thread.id,
-        sender: 'user',
-        message: text.trim(),
-        created_at: new Date().toISOString(),
-        seen: false,
-      };
+    // Use negative number for temporary ID to avoid conflicts with real bigint IDs
+    const tempId = -Date.now();
+    const optimisticMessage: SupportMessage = {
+      id: tempId,
+      thread_id: thread.id,
+      sender: 'user',
+      message: text.trim(),
+      created_at: new Date().toISOString(),
+      seen: false,
+    };
 
+    try {
       setMessages(prev => [...prev, optimisticMessage]);
 
       const { data, error } = await supabase
@@ -122,7 +123,7 @@ export const useChatThread = (bookingId?: string) => {
       console.error('Error sending message:', error);
       // Remove optimistic message on error
       setMessages(prev => 
-        prev.filter(msg => msg.id !== Date.now())
+        prev.filter(msg => msg.id !== tempId)
       );
     } finally {
       setSending(false);
