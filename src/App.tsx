@@ -51,9 +51,9 @@ const TermsScreen = lazy(() => import("./features/legal/TermsScreen").then(m => 
 const AccountSettings = lazy(() => import("./routes/profile/AccountSettings"));
 const SupportScreen = lazy(() => import("./routes/support/SupportScreen"));
 
-// Loading component
+// Loading component with pink background
 const PageLoader = () => (
-  <div className="min-h-screen flex items-center justify-center">
+  <div className="min-h-screen gradient-bg flex items-center justify-center">
     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
   </div>
 );
@@ -272,9 +272,7 @@ const App = () => {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const { updateAvailable, handleRefresh, dismissUpdate } = useWebVersion();
   
-  // Initialize warmup for performance
-  // Initialize warmup for performance
-  useAppWarmup();
+  // Remove warmup to prevent loading delays
 
   useEffect(() => {
     // Simple online/offline detection

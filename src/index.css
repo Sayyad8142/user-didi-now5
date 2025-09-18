@@ -22,6 +22,7 @@ html, body {
   height: 100vh;
   height: 100dvh; /* Dynamic viewport height for mobile */
   overflow-x: hidden;
+  background-color: #ffe6f3; /* Pink background to match app theme */
 }
 
 /* iOS status bar safe area */
