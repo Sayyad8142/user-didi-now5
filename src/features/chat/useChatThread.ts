@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/auth/AuthProvider';
+import { SupportMsg } from '@/hooks/useSupportChat';
 
 interface SupportThread {
   id: string;
@@ -12,20 +13,10 @@ interface SupportThread {
   created_at: string;
 }
 
-interface SupportMessage {
-  id: number;
-  thread_id: string;
-  sender: 'user' | 'admin';
-  message: string;
-  created_at: string;
-  seen: boolean;
-  seen_at?: string;
-}
-
 export const useChatThread = (bookingId?: string) => {
   const { user } = useAuth();
   const [thread, setThread] = useState<SupportThread | null>(null);
-  const [messages, setMessages] = useState<SupportMessage[]>([]);
+  const [messages, setMessages] = useState<SupportMsg[]>([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
 
@@ -71,13 +62,13 @@ export const useChatThread = (bookingId?: string) => {
     try {
       const { data, error } = await supabase
         .from('support_messages')
-        .select('*')
+        .select('id, thread_id, sender, message, created_at, seen, seen_at')
         .eq('thread_id', threadId)
         .order('created_at', { ascending: true });
 
       if (error) throw error;
 
-      setMessages((data || []) as SupportMessage[]);
+      setMessages((data || []) as SupportMsg[]);
     } catch (error) {
       console.error('Error loading messages:', error);
     }
@@ -87,9 +78,9 @@ export const useChatThread = (bookingId?: string) => {
     if (!thread || !text.trim() || sending) return;
 
     setSending(true);
-    // Use negative number for temporary ID to avoid conflicts with real bigint IDs
-    const tempId = -Date.now();
-    const optimisticMessage: SupportMessage = {
+    // Use string temp ID for UUID compatibility
+    const tempId = 'temp-' + Date.now();
+    const optimisticMessage: SupportMsg = {
       id: tempId,
       thread_id: thread.id,
       sender: 'user',
@@ -116,7 +107,7 @@ export const useChatThread = (bookingId?: string) => {
       // Replace optimistic message with real one
       setMessages(prev => 
         prev.map(msg => 
-          msg.id === optimisticMessage.id ? (data as SupportMessage) : msg
+          msg.id === optimisticMessage.id ? (data as SupportMsg) : msg
         )
       );
     } catch (error) {
@@ -166,7 +157,7 @@ export const useChatThread = (bookingId?: string) => {
         table: 'support_messages',
         filter: `thread_id=eq.${thread.id}`,
       }, (payload) => {
-        const newMessage = payload.new as SupportMessage;
+        const newMessage = payload.new as SupportMsg;
         
         // Don't add if it's from the current user (already optimistically added)
         if (newMessage.sender === 'admin') {

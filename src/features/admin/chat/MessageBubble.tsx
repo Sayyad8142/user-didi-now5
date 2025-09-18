@@ -3,7 +3,7 @@ import { format, isToday, isYesterday } from 'date-fns';
 import { cn } from '@/lib/utils';
 
 interface Message {
-  id: number;
+  id: string;
   sender: 'user' | 'admin';
   message: string;
   created_at: string;

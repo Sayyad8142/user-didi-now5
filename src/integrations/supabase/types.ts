@@ -1277,7 +1277,7 @@ export type Database = {
       support_messages: {
         Row: {
           created_at: string
-          id: number
+          id: string
           message: string
           seen: boolean
           seen_at: string | null
@@ -1286,7 +1286,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
-          id?: number
+          id?: string
           message: string
           seen?: boolean
           seen_at?: string | null
@@ -1295,7 +1295,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
-          id?: number
+          id?: string
           message?: string
           seen?: boolean
           seen_at?: string | null

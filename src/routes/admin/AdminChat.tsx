@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { User, MessageSquare } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { useSupportChat } from '@/hooks/useSupportChat';
+import { useSupportChat, SupportMsg } from '@/hooks/useSupportChat';
 import { cn } from '@/lib/utils';
 import { format, isSameDay } from 'date-fns';
 import { AdminBottomNav } from '@/components/AdminBottomNav';
@@ -39,14 +39,7 @@ interface ThreadWithProfile extends SupportThread {
   } | null;
 }
 
-interface SupportMessage {
-  id: number;
-  thread_id: string;
-  sender: 'user' | 'admin';
-  message: string;
-  created_at: string;
-  seen: boolean;
-}
+// Use SupportMsg from the shared hook
 
 export default function AdminChat() {
   const [threads, setThreads] = useState<ThreadWithProfile[]>([]);
