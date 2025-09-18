@@ -40,6 +40,7 @@ export function AssignWorkerSheet({
   const [assigning, setAssigning] = useState<string | null>(null);
   const [sameCommunity, setSameCommunity] = useState(false);
   const [sameService, setSameService] = useState(false);
+  const [completedWorkers, setCompletedWorkers] = useState<Set<string>>(new Set());
   const { toast } = useToast();
 
   // Fetch workers and assigned bookings when sheet opens
@@ -103,8 +104,22 @@ export function AssignWorkerSheet({
       setSearchQuery("");
       setSameCommunity(false);
       setSameService(false);
+      setCompletedWorkers(new Set());
     }
   }, [open]);
+
+  // Handle worker completion status changes
+  const handleWorkerCompletionChange = (workerId: string, isCompleted: boolean) => {
+    setCompletedWorkers(prev => {
+      const newSet = new Set(prev);
+      if (isCompleted) {
+        newSet.add(workerId);
+      } else {
+        newSet.delete(workerId);
+      }
+      return newSet;
+    });
+  };
 
   const filteredWorkers = useMemo(() => {
     let filtered = workers;
@@ -230,27 +245,33 @@ export function AssignWorkerSheet({
           </div>
 
           {/* Currently Assigned Workers - Availability Timers */}
-          {assignedBookings.length > 0 && (
-            <div className="px-4 pb-4">
-              <div className="flex items-center gap-2 mb-3">
-                <Clock className="w-4 h-4 text-slate-600" />
-                <h3 className="text-sm font-semibold text-slate-900">
-                  Currently Working ({assignedBookings.length})
-                </h3>
+          {(() => {
+            const workingBookings = assignedBookings.filter(
+              booking => !completedWorkers.has(booking.worker_id)
+            );
+            return workingBookings.length > 0 && (
+              <div className="px-4 pb-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <Clock className="w-4 h-4 text-slate-600" />
+                  <h3 className="text-sm font-semibold text-slate-900">
+                    Currently Working ({workingBookings.length})
+                  </h3>
+                </div>
+                <div className="space-y-2 max-h-32 overflow-y-auto">
+                  {workingBookings.map(assignedBooking => (
+                    <WorkerAvailabilityTimer
+                      key={assignedBooking.id}
+                      workerId={assignedBooking.worker_id}
+                      workerName={assignedBooking.worker_name}
+                      assignedAt={assignedBooking.assigned_at}
+                      durationMinutes={30}
+                      onCompletionChange={handleWorkerCompletionChange}
+                    />
+                  ))}
+                </div>
               </div>
-              <div className="space-y-2 max-h-32 overflow-y-auto">
-                {assignedBookings.map(assignedBooking => (
-                  <WorkerAvailabilityTimer
-                    key={assignedBooking.id}
-                    workerId={assignedBooking.worker_id}
-                    workerName={assignedBooking.worker_name}
-                    assignedAt={assignedBooking.assigned_at}
-                    durationMinutes={30}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* Available Workers */}
           <div className="px-4 pb-2">

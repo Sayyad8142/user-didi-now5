@@ -10,6 +10,7 @@ interface WorkerAvailabilityTimerProps {
   assignedAt: string; // ISO string of when worker was assigned
   durationMinutes?: number; // Default 30 minutes
   className?: string;
+  onCompletionChange?: (workerId: string, isCompleted: boolean) => void;
 }
 
 export function WorkerAvailabilityTimer({ 
@@ -17,7 +18,8 @@ export function WorkerAvailabilityTimer({
   workerName, 
   assignedAt, 
   durationMinutes = 30,
-  className 
+  className,
+  onCompletionChange 
 }: WorkerAvailabilityTimerProps) {
   const [timeRemaining, setTimeRemaining] = useState<number>(0);
   const [isCompleted, setIsCompleted] = useState(false);
@@ -31,7 +33,13 @@ export function WorkerAvailabilityTimer({
       const remaining = Math.max(0, totalDuration - elapsed);
       
       setTimeRemaining(remaining);
-      setIsCompleted(remaining === 0);
+      const completed = remaining === 0;
+      setIsCompleted(completed);
+      
+      // Notify parent of completion status change
+      if (onCompletionChange) {
+        onCompletionChange(workerId, completed);
+      }
     };
 
     // Update immediately
