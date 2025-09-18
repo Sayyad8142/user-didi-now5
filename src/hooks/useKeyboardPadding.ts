@@ -21,8 +21,11 @@ export function useKeyboardPadding() {
     const vv = window.visualViewport;
     if (!vv) return;
     const onResize = () => {
-      const bottom = Math.max(0, (window.innerHeight - (vv.height + vv.offsetTop)));
-      setKb(bottom);
+      // Calculate keyboard height more accurately for Android
+      const keyboardHeight = Math.max(0, (window.innerHeight - (vv.height + vv.offsetTop)));
+      // Add some buffer for Android devices
+      const adjustedHeight = keyboardHeight > 0 ? keyboardHeight + 20 : 0;
+      setKb(adjustedHeight);
     };
     vv.addEventListener('resize', onResize);
     onResize();

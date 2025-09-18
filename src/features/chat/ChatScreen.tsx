@@ -120,8 +120,11 @@ export const ChatScreen: React.FC = () => {
 
       {/* Messages list (row 2) */}
       <div 
-        className="relative overflow-y-auto px-3 py-3 safe-bottom-lg" 
-        style={{ paddingBottom: `calc(env(safe-area-inset-bottom) + ${Math.max(kb, 72)}px)` }}
+        className="relative overflow-y-auto px-3 py-3 pb-20" 
+        style={{ 
+          paddingBottom: `calc(env(safe-area-inset-bottom) + ${Math.max(kb + 120, 140)}px)`,
+          marginBottom: kb > 0 ? `${kb}px` : '0px'
+        }}
       >
         <div className="mx-auto max-w-[720px]">
           {messages.length === 0 ? (
@@ -167,8 +170,11 @@ export const ChatScreen: React.FC = () => {
 
       {/* Composer (row 3) */}
       <div 
-        className="sticky bottom-0 z-40 bg-white/95 backdrop-blur border-t safe-bottom" 
-        style={{ paddingBottom: `calc(env(safe-area-inset-bottom) + ${kb}px)` }}
+        className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur border-t" 
+        style={{ 
+          paddingBottom: `calc(env(safe-area-inset-bottom) + ${kb}px)`,
+          transform: kb > 0 ? `translateY(-${kb}px)` : 'translateY(0px)'
+        }}
       >
         <div className="mx-auto max-w-[720px] px-2 py-2">
           <div className="flex items-end gap-2">
