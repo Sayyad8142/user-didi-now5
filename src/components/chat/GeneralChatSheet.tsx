@@ -10,6 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useToast } from '@/hooks/use-toast';
 import { useSupportChat } from '@/hooks/useSupportChat';
+import { useUnseenMessages } from '@/hooks/useUnseenMessages';
 
 
 interface GeneralChatSheetProps {
@@ -34,6 +35,7 @@ export default function GeneralChatSheet({
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
   const { toast } = useToast();
+  const { markMessagesAsSeen } = useUnseenMessages();
   
   const { messages, loading, sending, sendUser } = useSupportChat(thread?.id);
 
@@ -50,6 +52,11 @@ export default function GeneralChatSheet({
         
         if (error) throw error;
         setThread(data);
+        
+        // Mark messages as seen when chat opens
+        if (data && open) {
+          markMessagesAsSeen();
+        }
       } catch (error) {
         console.error('Error getting support thread:', error);
         toast({

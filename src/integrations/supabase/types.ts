@@ -1995,6 +1995,10 @@ export type Database = {
         }
         Returns: number
       }
+      mark_support_messages_as_seen: {
+        Args: { p_thread_id: string }
+        Returns: undefined
+      }
       norm_phone: {
         Args: { p: string }
         Returns: string

@@ -77,7 +77,7 @@ const getStatusColor = (status: string) => {
 const ActiveBookingCard = memo(() => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const hasUnseenMessages = useUnseenMessages();
+  const { hasUnseenMessages, markMessagesAsSeen } = useUnseenMessages();
   const [activeBooking, setActiveBooking] = useState<Booking | null>(null);
   const [loading, setLoading] = useState(true);
   const [dismissedBookings, setDismissedBookings] = useState<Set<string>>(new Set());
@@ -385,7 +385,10 @@ const ActiveBookingCard = memo(() => {
         {/* Chat Support button */}
         {(activeBooking.status === 'pending' || activeBooking.status === 'assigned') && (
           <Button 
-            onClick={() => navigate('/chat')}
+            onClick={() => {
+              markMessagesAsSeen();
+              navigate('/chat');
+            }}
             variant="outline"
             className="w-full h-10 border-[#ff007a] text-[#ff007a] hover:bg-[#ff007a] hover:text-white font-semibold rounded-lg shadow-sm relative"
           >

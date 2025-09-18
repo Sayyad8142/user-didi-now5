@@ -52,7 +52,7 @@ export const useUnseenMessages = () => {
         table: 'support_messages',
       }, (payload) => {
         const updatedMessage = payload.new as any;
-        // If user messages are marked as seen, recheck for remaining unseen admin messages
+        // If admin messages are marked as seen, recheck for remaining unseen admin messages
         if (updatedMessage.sender === 'admin' && updatedMessage.seen) {
           checkUnseenMessages();
         }
@@ -64,5 +64,20 @@ export const useUnseenMessages = () => {
     };
   }, [user]);
 
-  return hasUnseenMessages;
+  // Function to mark messages as seen and update state
+  const markMessagesAsSeen = async () => {
+    try {
+      const { data: threadData } = await supabase.rpc('support_get_or_create_thread');
+      if (threadData) {
+        await supabase.rpc('mark_support_messages_as_seen', {
+          p_thread_id: threadData.id
+        });
+        setHasUnseenMessages(false);
+      }
+    } catch (error) {
+      console.error('Error marking messages as seen:', error);
+    }
+  };
+
+  return { hasUnseenMessages, markMessagesAsSeen };
 };

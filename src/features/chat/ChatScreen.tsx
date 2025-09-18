@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { ChevronLeft, Send } from 'lucide-react';
 import { useKeyboardPadding } from '@/hooks/useKeyboardPadding';
 import { useSupportChat } from '@/hooks/useSupportChat';
+import { useUnseenMessages } from '@/hooks/useUnseenMessages';
 import { supabase } from '@/integrations/supabase/client';
 import { format, isToday, isYesterday, isSameDay } from 'date-fns';
 import { MessageBubble } from './MessageBubble';
@@ -33,6 +34,7 @@ export const ChatScreen: React.FC = () => {
   const [input, setInput] = useState('');
   
   const kb = useKeyboardPadding();
+  const { markMessagesAsSeen } = useUnseenMessages();
   const { messages, loading, sending, send } = useSupportChat(thread?.id);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -47,6 +49,11 @@ export const ChatScreen: React.FC = () => {
         
         if (error) throw error;
         setThread(data);
+        
+        // Mark messages as seen when chat opens
+        if (data) {
+          markMessagesAsSeen();
+        }
       } catch (error) {
         console.error('Error getting thread:', error);
       } finally {

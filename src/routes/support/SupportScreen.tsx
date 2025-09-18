@@ -20,7 +20,7 @@ export default function SupportScreen() {
   const { user } = useAuth();
   const [chatOpen, setChatOpen] = useState(false);
   const [userProfile, setUserProfile] = useState<any>(null);
-  const hasUnseenMessages = useUnseenMessages();
+  const { hasUnseenMessages, markMessagesAsSeen } = useUnseenMessages();
   const searchParams = new URLSearchParams(location.search);
   const bookingId = searchParams.get("booking") || "";
 
@@ -89,7 +89,10 @@ export default function SupportScreen() {
         </button>
         
         <button 
-          onClick={() => setChatOpen(true)}
+          onClick={() => {
+            markMessagesAsSeen();
+            setChatOpen(true);
+          }}
           className="flex items-center gap-4 p-4 rounded-2xl bg-card border shadow-sm hover:shadow-md transition-shadow w-full text-left relative"
         >
           <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center">
