@@ -165,15 +165,10 @@ export default function AdminChat() {
 
   // Handle sending admin messages
   const handleSendMessage = async (message: string) => {
+    if (!selectedThread) return;
+    
     try {
-      if (!selectedThread) return;
-      
-      await supabase.from('support_messages').insert({
-        thread_id: selectedThread.id,
-        sender: 'admin',
-        message: message.trim(),
-      });
-      
+      await send(message, 'admin');
       setTimeout(scrollToBottom, 100);
     } catch (error) {
       console.error('Failed to send message:', error);
@@ -182,7 +177,6 @@ export default function AdminChat() {
         description: 'Failed to send message. Please try again.',
         variant: 'destructive',
       });
-      throw error;
     }
   };
 
