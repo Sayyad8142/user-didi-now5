@@ -186,6 +186,8 @@ export default function AdminChat() {
 
   // Set up real-time subscriptions for thread updates
   useEffect(() => {
+    console.log('🔔 Setting up admin real-time subscriptions for threads');
+    
     // Listen for new threads and thread updates
     const threadsChannel = supabase
       .channel('admin_support_threads')
@@ -193,20 +195,25 @@ export default function AdminChat() {
         event: '*',
         schema: 'public',
         table: 'support_threads',
-      }, () => {
+      }, (payload) => {
+        console.log('📊 Thread updated:', payload);
         loadThreads();
       })
       .on('postgres_changes', {
         event: 'INSERT',
         schema: 'public',
         table: 'support_messages',
-      }, () => {
+      }, (payload) => {
+        console.log('📨 New message inserted:', payload.new);
         // Reload threads when new messages come in to update last_message and unread counts
         loadThreads();
       })
-      .subscribe();
+      .subscribe((status) => {
+        console.log('🔔 Admin threads subscription status:', status);
+      });
 
     return () => {
+      console.log('🔔 Cleaning up admin threads subscription');
       supabase.removeChannel(threadsChannel);
     };
   }, []);

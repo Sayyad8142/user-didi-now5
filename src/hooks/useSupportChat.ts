@@ -109,19 +109,26 @@ export const useSupportChat = (threadId?: string) => {
   useEffect(() => {
     if (!threadId) return;
 
+    console.log(`🔔 Setting up realtime subscription for thread: ${threadId}`);
+    
     const channel = supabase
-      .channel(`support:${threadId}`)
+      .channel(`support_messages:${threadId}`)
       .on('postgres_changes', {
         event: 'INSERT',
         schema: 'public',
         table: 'support_messages',
         filter: `thread_id=eq.${threadId}`,
       }, (payload) => {
+        console.log('📥 New message received:', payload.new);
         const newMessage = payload.new as SupportMessage;
         
         // Add new message if it doesn't already exist
         setMessages(prev => {
-          if (prev.some(msg => msg.id === newMessage.id)) return prev;
+          if (prev.some(msg => msg.id === newMessage.id)) {
+            console.log('⚠️ Message already exists, skipping');
+            return prev;
+          }
+          console.log('✅ Adding new message to state');
           return [...prev, newMessage];
         });
       })
@@ -131,6 +138,7 @@ export const useSupportChat = (threadId?: string) => {
         table: 'support_messages',
         filter: `thread_id=eq.${threadId}`,
       }, (payload) => {
+        console.log('📝 Message updated:', payload.new);
         const updatedMessage = payload.new as SupportMessage;
         
         // Update message (e.g., seen status)
@@ -140,9 +148,12 @@ export const useSupportChat = (threadId?: string) => {
           )
         );
       })
-      .subscribe();
+      .subscribe((status) => {
+        console.log(`🔔 Subscription status for thread ${threadId}:`, status);
+      });
 
     return () => {
+      console.log(`🔔 Cleaning up subscription for thread: ${threadId}`);
       supabase.removeChannel(channel);
     };
   }, [threadId]);
