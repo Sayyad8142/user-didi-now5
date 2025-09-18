@@ -79,6 +79,13 @@ export function useSupportChat(threadId: string) {
     const text = message.trim();
     if (!text) return;
     
+    console.log('🔍 useSupportChat send called with:', { 
+      sender, 
+      message: text, 
+      threadId,
+      actualSender: sender // Log to verify sender value
+    });
+    
     // optimistic insert
     const temp: SupportMsg = {
       id: 'temp-' + Date.now(),
@@ -95,10 +102,14 @@ export function useSupportChat(threadId: string) {
       message: text,
       seen: false,
     });
+    
     if (error) {
+      console.error('❌ Error inserting support message:', error);
       // rollback optimistic on error
       setMsgs(prev => prev.filter(m => m.id !== temp.id));
       throw error;
+    } else {
+      console.log('✅ Support message inserted successfully');
     }
   };
 
