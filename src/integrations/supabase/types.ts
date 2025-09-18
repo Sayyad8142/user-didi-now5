@@ -971,6 +971,53 @@ export type Database = {
           },
         ]
       }
+      notification_queue: {
+        Row: {
+          body: string
+          booking_id: string | null
+          created_at: string | null
+          data: Json | null
+          id: string
+          notification_type: string
+          sent_at: string | null
+          status: string | null
+          target_user_id: string
+          title: string
+        }
+        Insert: {
+          body: string
+          booking_id?: string | null
+          created_at?: string | null
+          data?: Json | null
+          id?: string
+          notification_type: string
+          sent_at?: string | null
+          status?: string | null
+          target_user_id: string
+          title: string
+        }
+        Update: {
+          body?: string
+          booking_id?: string | null
+          created_at?: string | null
+          data?: Json | null
+          id?: string
+          notification_type?: string
+          sent_at?: string | null
+          status?: string | null
+          target_user_id?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_queue_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ops_settings: {
         Row: {
           key: string
@@ -1103,6 +1150,39 @@ export type Database = {
           photos?: Json | null
           pincode?: string | null
           type?: string | null
+        }
+        Relationships: []
+      }
+      pushcut_debug_log: {
+        Row: {
+          created_at: string
+          error: string | null
+          http_status: number | null
+          id: string
+          info: Json | null
+          message_id: string | null
+          stage: string
+          thread_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          error?: string | null
+          http_status?: number | null
+          id?: string
+          info?: Json | null
+          message_id?: string | null
+          stage: string
+          thread_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          error?: string | null
+          http_status?: number | null
+          id?: string
+          info?: Json | null
+          message_id?: string | null
+          stage?: string
+          thread_id?: string | null
         }
         Relationships: []
       }
@@ -1539,6 +1619,10 @@ export type Database = {
         Args: { default_val: number; k: string }
         Returns: number
       }
+      _is_admin_message: {
+        Args: { rec: unknown }
+        Returns: boolean
+      }
       _sla_core_work: {
         Args: Record<PropertyKey, never>
         Returns: undefined
@@ -1924,15 +2008,25 @@ export type Database = {
         Returns: number
       }
       pushcut_notify_support: {
-        Args: {
-          p_community: string
-          p_message_id: number
-          p_preview: string
-          p_service: string
-          p_thread_id: string
-          p_user_name: string
-          p_user_phone: string
-        }
+        Args:
+          | {
+              p_community: string
+              p_message_id: number
+              p_preview: string
+              p_service: string
+              p_thread_id: string
+              p_user_name: string
+              p_user_phone: string
+            }
+          | {
+              p_community: string
+              p_message_id: string
+              p_preview: string
+              p_service: string
+              p_thread_id: string
+              p_user_name: string
+              p_user_phone: string
+            }
         Returns: undefined
       }
       register_worker: {
