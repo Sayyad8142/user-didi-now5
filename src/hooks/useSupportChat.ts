@@ -11,18 +11,12 @@ export type SupportMsg = {
   seen_at?: string | null;
 };
 
-export function useSupportChat(threadId: string | undefined) {
+export function useSupportChat(threadId: string) {
   const [msgs, setMsgs] = useState<SupportMsg[]>([]);
   const [loading, setLoading] = useState(true);
   const chanRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
   useEffect(() => {
-    if (!threadId) {
-      setMsgs([]);
-      setLoading(false);
-      return;
-    }
-
     let alive = true;
     (async () => {
       setLoading(true);
@@ -37,19 +31,17 @@ export function useSupportChat(threadId: string | undefined) {
     })();
 
     // realtime (INSERT/UPDATE) scoped to this thread
-    if (threadId) {
-      const ch = supabase
-        .channel(`support_messages:${threadId}`)
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'support_messages', filter: `thread_id=eq.${threadId}` },
-          (payload) => setMsgs(prev => [...prev, payload.new as SupportMsg])
-        )
-        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'support_messages', filter: `thread_id=eq.${threadId}` },
-          (payload) => setMsgs(prev => prev.map(m => m.id === payload.new.id ? (payload.new as SupportMsg) : m))
-        )
-        .subscribe();
+    const ch = supabase
+      .channel(`support_messages:${threadId}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'support_messages', filter: `thread_id=eq.${threadId}` },
+        (payload) => setMsgs(prev => [...prev, payload.new as SupportMsg])
+      )
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'support_messages', filter: `thread_id=eq.${threadId}` },
+        (payload) => setMsgs(prev => prev.map(m => m.id === payload.new.id ? (payload.new as SupportMsg) : m))
+      )
+      .subscribe();
 
-      chanRef.current = ch;
-    }
+    chanRef.current = ch;
 
     return () => {
       alive = false;
@@ -59,7 +51,7 @@ export function useSupportChat(threadId: string | undefined) {
 
   const sendUser = async (text: string) => {
     const message = text.trim();
-    if (!message || !threadId) return;
+    if (!message) return;
     // optimistic insert (will be reconciled by realtime INSERT)
     const temp: SupportMsg = {
       id: 'temp-' + Date.now(),
@@ -85,7 +77,7 @@ export function useSupportChat(threadId: string | undefined) {
 
   const send = async (message: string, sender: 'user' | 'admin') => {
     const text = message.trim();
-    if (!text || !threadId) return;
+    if (!text) return;
     
     // optimistic insert
     const temp: SupportMsg = {
@@ -111,7 +103,6 @@ export function useSupportChat(threadId: string | undefined) {
   };
 
   const markSeen = async () => {
-    if (!threadId) return;
     try {
       await supabase.rpc('support_mark_seen', { p_thread: threadId });
       
