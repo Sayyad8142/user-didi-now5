@@ -2029,6 +2029,16 @@ export type Database = {
             }
         Returns: undefined
       }
+      pushcut_notify_support_direct: {
+        Args: {
+          p_message_id: string
+          p_open_url: string
+          p_text: string
+          p_thread_id: string
+          p_title: string
+        }
+        Returns: undefined
+      }
       register_worker: {
         Args: {
           p_community: string
