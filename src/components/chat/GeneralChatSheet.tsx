@@ -9,16 +9,8 @@ import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useToast } from '@/hooks/use-toast';
+import { useSupportChat } from '@/hooks/useSupportChat';
 
-interface Message {
-  id: string;
-  booking_id: string | null;
-  sender_id: string;
-  sender_role: 'user' | 'admin';
-  sender_name: string | null;
-  body: string;
-  created_at: string;
-}
 
 interface GeneralChatSheetProps {
   open: boolean;
@@ -36,62 +28,49 @@ export default function GeneralChatSheet({
   onOpenChange,
   userProfile
 }: GeneralChatSheetProps) {
-  const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [sending, setSending] = useState(false);
+  const [thread, setThread] = useState<any>(null);
+  const [loadingThread, setLoadingThread] = useState(true);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
   const { toast } = useToast();
+  
+  const { messages, loading, sending, sendUser } = useSupportChat(thread?.id);
 
-  // Fetch messages for general support (booking_id is null)
-  const fetchMessages = async () => {
-    if (!user) return;
-    
-    setLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from('booking_messages')
-        .select('*')
-        .is('booking_id', null)
-        .eq('sender_id', user.id)
-        .order('created_at', { ascending: true });
+  // Get or create support thread
+  useEffect(() => {
+    const getThread = async () => {
+      if (!user || !open) return;
+      
+      setLoadingThread(true);
+      try {
+        const { data, error } = await supabase.rpc('support_get_or_create_thread', {
+          p_booking_id: null // General support (no specific booking)
+        });
+        
+        if (error) throw error;
+        setThread(data);
+      } catch (error) {
+        console.error('Error getting support thread:', error);
+        toast({
+          title: "Error",
+          description: "Failed to initialize chat",
+          variant: "destructive"
+        });
+      } finally {
+        setLoadingThread(false);
+      }
+    };
 
-      if (error) throw error;
-      setMessages((data || []) as Message[]);
-    } catch (error) {
-      console.error('Error fetching messages:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load chat messages",
-        variant: "destructive"
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+    getThread();
+  }, [user, open]);
 
   // Send message
   const sendMessage = async () => {
-    if (!newMessage.trim() || sending || !user) return;
+    if (!newMessage.trim() || sending || !thread) return;
 
-    setSending(true);
     try {
-      const { data, error } = await supabase
-        .from('booking_messages')
-        .insert({
-          booking_id: null, // General support chat
-          sender_id: user.id,
-          sender_role: 'user',
-          sender_name: userProfile?.full_name || null,
-          body: newMessage.trim()
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      setMessages(prev => [...prev, data as Message]);
+      await sendUser(newMessage.trim());
       setNewMessage('');
       
       // Auto-scroll to bottom
@@ -108,49 +87,9 @@ export default function GeneralChatSheet({
         description: "Failed to send message",
         variant: "destructive"
       });
-    } finally {
-      setSending(false);
     }
   };
 
-  // Subscribe to real-time messages
-  useEffect(() => {
-    if (!open || !user) return;
-
-    fetchMessages();
-
-    const channel = supabase
-      .channel(`general-chat:${user.id}`)
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'booking_messages',
-        filter: `sender_id=eq.${user.id}`,
-      }, (payload) => {
-        const newMessage = payload.new as Message;
-        // Only add if it's a general chat message (booking_id is null)
-        if (newMessage.booking_id === null) {
-          setMessages(prev => {
-            // Check if message already exists to prevent duplicates
-            if (prev.some(msg => msg.id === newMessage.id)) return prev;
-            return [...prev, newMessage as Message];
-          });
-          
-          // Auto-scroll to bottom
-          setTimeout(() => {
-            scrollAreaRef.current?.scrollTo({
-              top: scrollAreaRef.current.scrollHeight,
-              behavior: 'smooth'
-            });
-          }, 100);
-        }
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [open, user]);
 
   // Auto-scroll when messages change
   useEffect(() => {
@@ -184,7 +123,7 @@ export default function GeneralChatSheet({
 
         {/* Messages */}
         <ScrollArea ref={scrollAreaRef} className="flex-1 px-4 py-4">
-          {loading ? (
+          {loadingThread || loading ? (
             <div className="text-center text-muted-foreground py-8">
               Loading messages...
             </div>
@@ -203,7 +142,7 @@ export default function GeneralChatSheet({
           ) : (
             <div className="space-y-4">
               {messages.map((message) => {
-                const isFromUser = message.sender_role === 'user';
+                const isFromUser = message.sender === 'user';
                 const time = new Date(message.created_at).toLocaleTimeString([], {
                   hour: '2-digit',
                   minute: '2-digit'
@@ -226,7 +165,7 @@ export default function GeneralChatSheet({
                       )}
                     >
                       <div className="whitespace-pre-wrap text-sm leading-relaxed">
-                        {message.body}
+                        {message.message}
                       </div>
                       <div
                         className={cn(
@@ -263,7 +202,7 @@ export default function GeneralChatSheet({
             />
             <Button
               onClick={sendMessage}
-              disabled={!newMessage.trim() || sending}
+              disabled={!newMessage.trim() || sending || !thread}
               className="h-[44px] w-[44px] p-0 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
             >
               <Send className="w-4 h-4" />
