@@ -1976,6 +1976,17 @@ export type Database = {
           worker_id: string
         }[]
       }
+      get_available_workers_safe: {
+        Args: { p_community?: string; p_service_type?: string }
+        Returns: {
+          full_name: string
+          id: string
+          photo_url: string
+          rating: number
+          service_types: string[]
+          total_ratings: number
+        }[]
+      }
       get_booking_assignment_status: {
         Args: { p_booking_id: string }
         Returns: Json
