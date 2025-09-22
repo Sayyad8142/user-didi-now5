@@ -268,7 +268,7 @@ export function AuthCard() {
               <Label htmlFor="flatNo" className="text-sm font-medium">
                 Flat No <span className="text-destructive">*</span>
               </Label>
-              <Input id="flatNo" type="text" placeholder="e.g., A-401, Tower 2" value={signUpData.flatNo} onChange={e => setSignUpData(prev => ({
+              <Input id="flatNo" type="text" placeholder="A-401, Tower 2" value={signUpData.flatNo} onChange={e => setSignUpData(prev => ({
               ...prev,
               flatNo: e.target.value
             }))} disabled={loading} className="rounded-xl shadow-input transition-smooth focus:ring-2 focus:ring-primary/20" />
