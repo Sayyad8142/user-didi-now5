@@ -473,6 +473,61 @@ export function AdminBookingCard({
                     </div>
                   )}
 
+                  {booking.service_type === 'cook' && (
+                    <>
+                      {booking.cook_cuisine_pref && booking.cook_cuisine_pref !== 'any' && (
+                        <div className="flex items-center gap-3 p-1.5 bg-gray-50/60 rounded-xl">
+                          <div className={cn(
+                            "w-6 h-6 rounded-lg bg-gradient-to-br flex items-center justify-center flex-shrink-0",
+                            serviceConfig.gradient
+                          )}>
+                            <ChefHat className="w-3 h-3 text-white" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">Cuisine Preference</div>
+                            <div className="font-semibold text-sm text-gray-900 capitalize">
+                              {booking.cook_cuisine_pref}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {booking.cook_gender_pref && booking.cook_gender_pref !== 'any' && (
+                        <div className="flex items-center gap-3 p-1.5 bg-gray-50/60 rounded-xl">
+                          <div className={cn(
+                            "w-6 h-6 rounded-lg bg-gradient-to-br flex items-center justify-center flex-shrink-0",
+                            serviceConfig.gradient
+                          )}>
+                            <UserCheck className="w-3 h-3 text-white" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">Cook Gender Preference</div>
+                            <div className="font-semibold text-sm text-gray-900 capitalize">
+                              {booking.cook_gender_pref}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {booking.food_pref && (
+                        <div className="flex items-center gap-3 p-1.5 bg-gray-50/60 rounded-xl">
+                          <div className={cn(
+                            "w-6 h-6 rounded-lg bg-gradient-to-br flex items-center justify-center flex-shrink-0",
+                            serviceConfig.gradient
+                          )}>
+                            <Sparkles className="w-3 h-3 text-white" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">Food Preference</div>
+                            <div className="font-semibold text-sm text-gray-900 capitalize">
+                              {booking.food_pref}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+
                   {booking.notes && (
                     <div className="flex items-start gap-3 p-1.5 bg-gray-50/60 rounded-xl">
                       <div className={cn(
