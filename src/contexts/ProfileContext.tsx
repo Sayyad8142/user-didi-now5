@@ -82,8 +82,21 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
         .single();
 
       if (fetchError) {
-        console.error('Error fetching profile:', fetchError);
-        setError('Failed to load profile');
+        if (fetchError.code === 'PGRST116') {
+          // No profile found - create one using ensureProfile
+          console.log('Profile not found, creating...');
+          try {
+            const { ensureProfile } = await import('@/features/profile/ensureProfile');
+            const newProfile = await ensureProfile();
+            setProfile(newProfile);
+          } catch (profileError) {
+            console.error('Error creating profile:', profileError);
+            setError('Failed to create profile');
+          }
+        } else {
+          console.error('Error fetching profile:', fetchError);
+          setError('Failed to load profile');
+        }
         return;
       }
 
@@ -99,6 +112,20 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
   useEffect(() => {
     fetchProfile();
   }, [user?.id, session]);
+
+  // Listen for auth state changes to refresh profile after login
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' && session?.user) {
+        // Refresh profile after successful sign in with a small delay
+        setTimeout(() => {
+          fetchProfile();
+        }, 500);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   const refresh = () => {
     fetchProfile();
