@@ -195,8 +195,8 @@ const ActiveBookingCard = memo(() => {
   const paymentReady = isAssigned;
 
   const handlePayWorker = () => {
-    // Set default amount to booking price
-    setPaymentAmount(activeBooking.price_inr?.toString() || '');
+    // Start with empty amount for user to enter
+    setPaymentAmount('');
     setShowPaymentDialog(true);
   };
 
