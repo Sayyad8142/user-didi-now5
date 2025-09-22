@@ -9,10 +9,18 @@ export function formatPhoneIN(phone: string): string {
   // Strip all non-digits
   const digits = phone.replace(/\D/g, '');
   
-  // If it starts with 91, remove the prefix to get clean 10 digits
-  const cleanDigits = digits.startsWith('91') ? digits.slice(2) : digits;
+  // If it's exactly 12 digits and starts with 91, it already has country code
+  if (digits.length === 12 && digits.startsWith('91')) {
+    return `+${digits}`;
+  }
   
-  return `+91${cleanDigits}`;
+  // If it's 10 digits, add +91 prefix (even if it starts with 91)
+  if (digits.length === 10) {
+    return `+91${digits}`;
+  }
+  
+  // For other cases, assume it needs +91 prefix
+  return `+91${digits}`;
 }
 
 /**
