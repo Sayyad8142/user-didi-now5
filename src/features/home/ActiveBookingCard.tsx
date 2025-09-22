@@ -195,7 +195,7 @@ const ActiveBookingCard = memo(() => {
   const paymentReady = isAssigned;
 
   const handlePayWorker = () => {
-    // Start with empty amount for user to enter
+    // Ensure payment amount starts empty
     setPaymentAmount('');
     setShowPaymentDialog(true);
   };
