@@ -177,7 +177,7 @@ export function BookingCard({
     const amount = parseFloat(paymentAmount);
 
     if (!workerUpi) {
-      toast.error("Worker account details not updated, cash to worker");
+      toast.error("Worker account not updated, pay cash to worker");
       return;
     }
 
