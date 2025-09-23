@@ -74,35 +74,34 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
         return;
       }
 
-      // Fetch real user profile from database
-      const { data, error: fetchError } = await supabase
-        .from('profiles')
-        .select('id, full_name, phone, community, flat_no')
-        .eq('id', user.id)
-        .single();
+      console.log('Fetching profile for user:', user.id);
 
-      if (fetchError) {
-        if (fetchError.code === 'PGRST116') {
-          // No profile found - create one using ensureProfile
-          console.log('Profile not found, creating...');
-          try {
-            const { ensureProfile } = await import('@/features/profile/ensureProfile');
-            const newProfile = await ensureProfile();
-            setProfile(newProfile);
-          } catch (profileError) {
-            console.error('Error creating profile:', profileError);
-            setError('Failed to create profile');
-          }
-        } else {
+      // Always try to ensure profile exists first
+      try {
+        const { ensureProfile } = await import('@/features/profile/ensureProfile');
+        const profileData = await ensureProfile();
+        console.log('Profile ensured successfully:', profileData);
+        setProfile(profileData);
+      } catch (profileError) {
+        console.error('Error ensuring profile:', profileError);
+        
+        // Fallback: try to fetch existing profile
+        const { data, error: fetchError } = await supabase
+          .from('profiles')
+          .select('id, full_name, phone, community, flat_no')
+          .eq('id', user.id)
+          .single();
+
+        if (fetchError) {
           console.error('Error fetching profile:', fetchError);
           setError('Failed to load profile');
+          return;
         }
-        return;
-      }
 
-      setProfile(data);
+        setProfile(data);
+      }
     } catch (err) {
-      console.error('Error:', err);
+      console.error('Error in fetchProfile:', err);
       setError('An unexpected error occurred');
     } finally {
       setLoading(false);
@@ -115,12 +114,20 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
 
   // Listen for auth state changes to refresh profile after login
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth state changed:', event, session?.user?.id);
+      
       if (event === 'SIGNED_IN' && session?.user) {
-        // Refresh profile after successful sign in with a small delay
+        // Force a profile refresh immediately on sign in
+        setLoading(true);
+        // Add a longer delay to ensure session is fully established
         setTimeout(() => {
+          console.log('Triggering profile fetch after sign in');
           fetchProfile();
-        }, 500);
+        }, 1000);
+      } else if (event === 'SIGNED_OUT') {
+        setProfile(null);
+        setLoading(false);
       }
     });
 
