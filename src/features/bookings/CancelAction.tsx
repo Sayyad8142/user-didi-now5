@@ -30,18 +30,16 @@ function useCountdown(until?: string) {
 
 export default function CancelAction({ booking, onCancel }: CancelActionProps) {
   const { toast } = useToast();
-  const { expired, mins, secs, totalMs } = useCountdown(booking.can_cancel_until);
   const [cancelling, setCancelling] = useState(false);
   
   const canShow = !booking.cancelled_at && 
                   booking.status !== 'completed' && 
-                  booking.status !== 'cancelled' &&
-                  booking.can_cancel_until;
+                  booking.status !== 'cancelled';
 
   if (!canShow) return null;
 
   async function handleCancel() {
-    if (expired || cancelling) return;
+    if (cancelling) return;
     
     if (!confirm("Are you sure you want to cancel this booking? This action cannot be undone.")) {
       return;
@@ -92,20 +90,14 @@ export default function CancelAction({ booking, onCancel }: CancelActionProps) {
   return (
     <div className="mt-3 flex items-center justify-between gap-3 p-3 bg-muted/50 rounded-lg">
       <div className="flex items-center gap-2 text-xs text-muted-foreground">
-        <Clock className="h-3 w-3" />
-        {expired ? (
-          <span>Cancellation window closed</span>
-        ) : (
-          <span>
-            Free cancel in {mins}:{secs.toString().padStart(2, '0')}
-          </span>
-        )}
+        <X className="h-3 w-3" />
+        <span>You can cancel this booking anytime</span>
       </div>
       
       <Button
         size="sm"
-        variant={expired ? "outline" : "destructive"}
-        disabled={expired || cancelling}
+        variant="destructive"
+        disabled={cancelling}
         onClick={handleCancel}
         className="h-7 px-3 text-xs"
       >
