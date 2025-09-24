@@ -45,11 +45,16 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
 
   const fetchProfile = async () => {
     try {
+      console.log('=== fetchProfile called ===');
+      console.log('User:', user?.id);
+      console.log('Session:', !!session);
+      
       setLoading(true);
       setError(null);
 
       // Check if we're in demo/guest mode first
       if (isDemoMode()) {
+        console.log('Demo mode detected');
         const demoSession = getDemoSession();
         if (demoSession?.profile) {
           setProfile(demoSession.profile);
@@ -60,6 +65,7 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
 
       // If no authenticated user, clear profile
       if (!user?.id || !session) {
+        console.log('No user or session, clearing profile');
         setProfile(null);
         setLoading(false);
         return;
@@ -74,18 +80,31 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
         return;
       }
 
-      console.log('Fetching profile for user:', user.id);
+      console.log('Starting profile fetch for user:', user.id);
+
+      // Wait a bit for session to stabilize
+      await new Promise(resolve => setTimeout(resolve, 500));
 
       // Always try to ensure profile exists first
       try {
+        console.log('Importing ensureProfile...');
         const { ensureProfile } = await import('@/features/profile/ensureProfile');
+        console.log('Calling ensureProfile...');
         const profileData = await ensureProfile();
         console.log('Profile ensured successfully:', profileData);
-        setProfile(profileData);
+        
+        if (profileData) {
+          setProfile(profileData);
+          console.log('Profile set successfully');
+        } else {
+          console.log('No profile data returned');
+          setError('Failed to load profile data');
+        }
       } catch (profileError) {
         console.error('Error ensuring profile:', profileError);
         
-        // Fallback: try to fetch existing profile
+        // Fallback: try to fetch existing profile directly
+        console.log('Trying fallback profile fetch...');
         const { data, error: fetchError } = await supabase
           .from('profiles')
           .select('id, full_name, phone, community, flat_no')
@@ -98,13 +117,20 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
           return;
         }
 
-        setProfile(data);
+        if (data) {
+          console.log('Fallback profile fetch successful:', data);
+          setProfile(data);
+        } else {
+          console.log('No profile data found');
+          setError('No profile data found');
+        }
       }
     } catch (err) {
       console.error('Error in fetchProfile:', err);
       setError('An unexpected error occurred');
     } finally {
       setLoading(false);
+      console.log('=== fetchProfile completed ===');
     }
   };
 
