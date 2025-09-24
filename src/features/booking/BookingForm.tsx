@@ -322,7 +322,8 @@ export function BookingForm() {
   if (!user || !service_type || !isValidServiceType(service_type)) {
     return null;
   }
-  if (profileLoading) {
+  // Show loading state if profile is still loading OR if we don't have profile data yet
+  if (profileLoading || !profile) {
     return <div className="min-h-screen gradient-bg pb-24">
         <div className="max-w-md mx-auto px-4 py-6">
           <div className="space-y-6">

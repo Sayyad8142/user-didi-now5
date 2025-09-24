@@ -96,15 +96,19 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
         if (profileData) {
           setProfile(profileData);
           console.log('Profile set successfully');
+          return; // Success - we're done
         } else {
-          console.log('No profile data returned');
-          setError('Failed to load profile data');
+          console.log('No profile data returned from ensureProfile');
+          // Continue to fallback
         }
       } catch (profileError) {
         console.error('Error ensuring profile:', profileError);
-        
-        // Fallback: try to fetch existing profile directly
-        console.log('Trying fallback profile fetch...');
+        // Continue to fallback
+      }
+
+      // Fallback: try to fetch existing profile directly
+      console.log('Trying fallback profile fetch...');
+      try {
         const { data, error: fetchError } = await supabase
           .from('profiles')
           .select('id, full_name, phone, community, flat_no')
@@ -124,6 +128,9 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
           console.log('No profile data found');
           setError('No profile data found');
         }
+      } catch (fallbackError) {
+        console.error('Fallback profile fetch failed:', fallbackError);
+        setError('Failed to load profile data');
       }
     } catch (err) {
       console.error('Error in fetchProfile:', err);
