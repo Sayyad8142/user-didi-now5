@@ -143,25 +143,18 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
 
   useEffect(() => {
     fetchProfile();
-  }, [user?.id, session]);
+  }, [user?.id]);
 
   // Listen for auth state changes to refresh profile after login
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log('Auth state changed:', event, session?.user?.id);
       
-      if (event === 'SIGNED_IN' && session?.user) {
-        // Force a profile refresh immediately on sign in
-        setLoading(true);
-        // Add a longer delay to ensure session is fully established
-        setTimeout(() => {
-          console.log('Triggering profile fetch after sign in');
-          fetchProfile();
-        }, 1000);
-      } else if (event === 'SIGNED_OUT') {
+      if (event === 'SIGNED_OUT') {
         setProfile(null);
         setLoading(false);
       }
+      // Don't interfere with profile loading on SIGNED_IN - let the main useEffect handle it
     });
 
     return () => subscription.unsubscribe();
