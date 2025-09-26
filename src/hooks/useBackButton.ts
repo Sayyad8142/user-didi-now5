@@ -24,7 +24,7 @@ export const useBackButton = () => {
       }
 
       // For auth flow, handle differently
-      if (location.pathname === '/auth' || location.pathname === '/auth/verify') {
+      if (location.pathname === '/auth' || location.pathname === '/auth/verify' || location.pathname === '/admin-login') {
         // Go back to home or exit if no history
         if (window.history.length > 1) {
           navigate(-1);
