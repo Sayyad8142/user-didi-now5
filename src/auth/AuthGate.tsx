@@ -24,11 +24,10 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
 
     (async () => {
       // Only run AuthGate on initial load (not on every route change)
-      // Also skip if user is explicitly navigating to home page "/"
+      // Skip auth gate for auth routes to allow direct navigation
       if (location.pathname !== '/' && ready) return;
-      
-      // Allow users to navigate to the home page regardless of portal state
-      if (location.pathname === '/' && ready) {
+      if (['/auth', '/admin-login', '/auth/verify', '/admin-verify'].includes(location.pathname)) {
+        if (!cancelled) setReady(true);
         return;
       }
 
