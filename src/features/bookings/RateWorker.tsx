@@ -73,8 +73,21 @@ export function RateWorker({ bookingId, workerId, onSubmit }: RateWorkerProps) {
           <span>({myRating.rating}/5)</span>
         </div>
         {myRating.comment && (
-          <p className="text-sm text-gray-700 italic">"{myRating.comment}"</p>
+          <p className="text-sm text-gray-700 italic mb-3">"{myRating.comment}"</p>
         )}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            // Pre-fill the form with existing rating and comment
+            setRating(myRating.rating);
+            setComment(myRating.comment || '');
+            setMyRating(null);
+          }}
+          className="text-blue-600 hover:text-blue-800 hover:bg-blue-50 border-blue-200"
+        >
+          Edit Rating
+        </Button>
       </div>
     );
   }
