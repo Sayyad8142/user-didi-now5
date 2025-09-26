@@ -35,9 +35,9 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
       const { data: { session } } = await supabase.auth.getSession();
 
       if (!session?.user) {
-        // No session at all → respect last portal and show its login
-        const portal = PortalStore.get() || 'user';
-        nav(portal === 'admin' ? '/admin-login' : '/auth', { replace: true });
+        // No session at all → default to user login for new visitors
+        // Only respect portal state if explicitly navigating to admin-login
+        nav('/auth', { replace: true });
         if (!cancelled) setReady(true);
         return;
       }
