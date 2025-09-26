@@ -24,7 +24,13 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
 
     (async () => {
       // Only run AuthGate on initial load (not on every route change)
+      // Also skip if user is explicitly navigating to home page "/"
       if (location.pathname !== '/' && ready) return;
+      
+      // Allow users to navigate to the home page regardless of portal state
+      if (location.pathname === '/' && ready) {
+        return;
+      }
 
       // 1) Hydrate Supabase session from storage
       const { data: { session } } = await supabase.auth.getSession();
