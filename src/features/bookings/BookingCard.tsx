@@ -161,9 +161,8 @@ export function BookingCard({
     }
   };
 
-  // Check if payment should be enabled (show immediately when assigned)
-  const isAssigned = row.status === 'assigned';
-  const paymentReady = isAssigned;
+  // Check if payment should be enabled (show for assigned/accepted/on_the_way/started)
+  const paymentReady = ['assigned', 'accepted', 'on_the_way', 'started'].includes(row.status);
 
   const handlePayWorker = () => {
     // Ensure payment amount starts empty
