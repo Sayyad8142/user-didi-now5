@@ -99,7 +99,7 @@ const ActiveBookingCard = memo(() => {
         .from('bookings')
         .select('*')
         .eq('user_id', user.id)
-        .or(`and(status.in.(pending,assigned),booking_type.eq.instant),and(status.in.(pending,assigned),booking_type.eq.scheduled,scheduled_date.gte.${today}),and(status.eq.cancelled,cancel_source.eq.admin,cancelled_at.gte.${thirtyMinutesAgo})`)
+        .or(`and(status.in.(pending,assigned,accepted,on_the_way,started),booking_type.eq.instant),and(status.in.(pending,assigned,accepted,on_the_way,started),booking_type.eq.scheduled,scheduled_date.gte.${today}),and(status.eq.cancelled,cancel_source.eq.admin,cancelled_at.gte.${thirtyMinutesAgo})`)
         .order('created_at', { ascending: false })
         .limit(1)
         .single();
