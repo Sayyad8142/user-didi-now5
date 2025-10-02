@@ -11,7 +11,7 @@ export function HolidayNotice() {
             Store Closed due to public holiday for today
           </h3>
           <p className="text-sm text-amber-800 dark:text-amber-200">
-            Today store is closed due to public holiday. We are not accepting bookings for today.
+            Currently booked bookings will be fulfilled shortly.
           </p>
         </div>
       </CardContent>
