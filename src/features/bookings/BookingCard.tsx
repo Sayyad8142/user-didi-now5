@@ -363,8 +363,8 @@ export function BookingCard({
             </Button>
           )}
 
-          {/* Rate Worker - show for assigned/completed bookings */}
-          {(row.status === 'assigned' || row.status === 'completed') && row.worker_id && (
+          {/* Rate Worker - show for assigned/accepted/on_the_way/started/completed bookings */}
+          {['assigned', 'accepted', 'on_the_way', 'started', 'completed'].includes(row.status) && row.worker_id && (
             <RateWorker 
               bookingId={row.id}
               workerId={row.worker_id}
