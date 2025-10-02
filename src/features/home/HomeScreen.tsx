@@ -3,25 +3,19 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Phone, MessageCircle, Shield } from 'lucide-react';
 import { useUnseenMessages } from '@/hooks/useUnseenMessages';
-import { useBookingsEnabled } from '@/hooks/useBookingsEnabled';
 import { HomeHeader } from './HomeHeader';
 import { HeroCarousel } from './HeroCarousel';
 import { ServicesRow } from './ServicesRow';
 import { ServiceHours } from './ServiceHours';
 import { FeatureCarousel } from './FeatureCarousel';
 import { ActiveBookingCard } from './ActiveBookingCard';
-import { HolidayBanner } from './HolidayBanner';
 import { openExternalUrl } from '@/lib/nativeOpen';
 import FaqSection from './FaqSection';
 export function HomeScreen() {
   const navigate = useNavigate();
   const { hasUnseenMessages, markMessagesAsSeen } = useUnseenMessages();
-  const { data: bookingsSettings } = useBookingsEnabled();
-  
   const handleServiceSelect = (service: 'maid' | 'cook' | 'bathroom_cleaning') => {
-    if (bookingsSettings?.enabled) {
-      navigate(`/book/${service}`);
-    }
+    navigate(`/book/${service}`);
   };
   return <div className="min-h-screen gradient-bg pb-24">
       <header className="sticky top-0 z-50 bg-slate-50">
@@ -31,13 +25,7 @@ export function HomeScreen() {
       </header>
       <div className="max-w-md mx-auto px-4 space-y-4 bg-slate-50">
         <HeroCarousel />
-        {!bookingsSettings?.enabled && bookingsSettings?.message && (
-          <HolidayBanner message={bookingsSettings.message} />
-        )}
-        <ServicesRow 
-          onServiceSelect={handleServiceSelect} 
-          disabled={!bookingsSettings?.enabled}
-        />
+        <ServicesRow onServiceSelect={handleServiceSelect} />
         <ActiveBookingCard />
         <ServiceHours />
         <FeatureCarousel />
