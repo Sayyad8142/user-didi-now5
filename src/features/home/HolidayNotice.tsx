@@ -8,7 +8,7 @@ export function HolidayNotice() {
         <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-500 mt-0.5 flex-shrink-0" />
         <div>
           <h3 className="font-semibold text-amber-900 dark:text-amber-100 mb-1">
-            Store Closed Today
+            Store Closed due to public holiday for today
           </h3>
           <p className="text-sm text-amber-800 dark:text-amber-200">
             Today store is closed due to public holiday. We are not accepting bookings for today.
