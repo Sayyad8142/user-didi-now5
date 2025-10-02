@@ -11,17 +11,10 @@ import { FeatureCarousel } from './FeatureCarousel';
 import { ActiveBookingCard } from './ActiveBookingCard';
 import { openExternalUrl } from '@/lib/nativeOpen';
 import FaqSection from './FaqSection';
-import { HolidayNotice } from './HolidayNotice';
-
 export function HomeScreen() {
   const navigate = useNavigate();
   const { hasUnseenMessages, markMessagesAsSeen } = useUnseenMessages();
-  
-  // Holiday mode - bookings disabled for today
-  const isHoliday = true;
-  
   const handleServiceSelect = (service: 'maid' | 'cook' | 'bathroom_cleaning') => {
-    if (isHoliday) return;
     navigate(`/book/${service}`);
   };
   return <div className="min-h-screen gradient-bg pb-24">
@@ -32,8 +25,7 @@ export function HomeScreen() {
       </header>
       <div className="max-w-md mx-auto px-4 space-y-4 bg-slate-50">
         <HeroCarousel />
-        {isHoliday && <HolidayNotice />}
-        <ServicesRow onServiceSelect={handleServiceSelect} disabled={isHoliday} />
+        <ServicesRow onServiceSelect={handleServiceSelect} />
         <ActiveBookingCard />
         <ServiceHours />
         <FeatureCarousel />
