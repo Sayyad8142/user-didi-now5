@@ -262,14 +262,14 @@ const ActiveBookingCard = memo(() => {
 
   return (
     <Card className={`p-4 border-2 ${
-      activeBooking.status === 'assigned' 
+      ['assigned', 'accepted', 'on_the_way', 'started'].includes(activeBooking.status)
         ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-200' 
         : 'bg-gradient-to-r from-primary/5 to-primary/10 border-primary/20'
     }`}>
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-3">
           <div className={`p-2 rounded-lg ${
-            activeBooking.status === 'assigned' ? 'bg-green-100' : 'bg-primary/10'
+            ['assigned', 'accepted', 'on_the_way', 'started'].includes(activeBooking.status) ? 'bg-green-100' : 'bg-primary/10'
           }`}>
             {getServiceIcon(activeBooking.service_type)}
           </div>
@@ -287,7 +287,7 @@ const ActiveBookingCard = memo(() => {
             <LoadingWorkerBadge variant="simple" size="sm" />
           ) : (
             <Badge className={`text-xs ${getStatusColor(activeBooking.status)}`}>
-              {activeBooking.status === 'assigned' ? '✓ Worker Assigned' : activeBooking.status}
+              {['assigned', 'accepted', 'on_the_way', 'started'].includes(activeBooking.status) ? '✓ Worker Assigned' : activeBooking.status}
             </Badge>
           )}
           <Button
