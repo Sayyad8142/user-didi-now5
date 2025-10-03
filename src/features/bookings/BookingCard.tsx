@@ -260,6 +260,17 @@ export function BookingCard({
             <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Location</p>
             <p className="font-semibold text-gray-900 text-sm">{booking.community}</p>
             <p className="text-xs text-gray-600">Flat {booking.flat_no}</p>
+            {booking.booking_type === 'instant' ? (
+              <p className="text-xs text-gray-600 mt-0.5">
+                <Clock className="h-3 w-3 inline mr-1" />
+                {format(new Date(booking.created_at), 'dd MMM yyyy, hh:mm a')}
+              </p>
+            ) : booking.scheduled_date && booking.scheduled_time ? (
+              <p className="text-xs text-gray-600 mt-0.5">
+                <Clock className="h-3 w-3 inline mr-1" />
+                {formatDateTime(booking.scheduled_date, booking.scheduled_time)}
+              </p>
+            ) : null}
           </div>
         </div>
 
