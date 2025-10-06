@@ -328,6 +328,7 @@ export type Database = {
       }
       bookings: {
         Row: {
+          accepted_at: string | null
           assigned_at: string | null
           auto_complete_after_minutes: number | null
           auto_complete_at: string | null
@@ -353,6 +354,7 @@ export type Database = {
           is_demo: boolean
           maid_tasks: Database["public"]["Enums"]["maid_task"][] | null
           notes: string | null
+          on_the_way_at: string | null
           pay_enabled_at: string | null
           payout_amount: number | null
           prealert_sent: boolean
@@ -360,6 +362,7 @@ export type Database = {
           scheduled_date: string | null
           scheduled_time: string | null
           service_type: string
+          started_at: string | null
           status: string
           updated_at: string
           user_id: string
@@ -371,6 +374,7 @@ export type Database = {
           worker_upi: string | null
         }
         Insert: {
+          accepted_at?: string | null
           assigned_at?: string | null
           auto_complete_after_minutes?: number | null
           auto_complete_at?: string | null
@@ -396,6 +400,7 @@ export type Database = {
           is_demo?: boolean
           maid_tasks?: Database["public"]["Enums"]["maid_task"][] | null
           notes?: string | null
+          on_the_way_at?: string | null
           pay_enabled_at?: string | null
           payout_amount?: number | null
           prealert_sent?: boolean
@@ -403,6 +408,7 @@ export type Database = {
           scheduled_date?: string | null
           scheduled_time?: string | null
           service_type: string
+          started_at?: string | null
           status?: string
           updated_at?: string
           user_id: string
@@ -414,6 +420,7 @@ export type Database = {
           worker_upi?: string | null
         }
         Update: {
+          accepted_at?: string | null
           assigned_at?: string | null
           auto_complete_after_minutes?: number | null
           auto_complete_at?: string | null
@@ -439,6 +446,7 @@ export type Database = {
           is_demo?: boolean
           maid_tasks?: Database["public"]["Enums"]["maid_task"][] | null
           notes?: string | null
+          on_the_way_at?: string | null
           pay_enabled_at?: string | null
           payout_amount?: number | null
           prealert_sent?: boolean
@@ -446,6 +454,7 @@ export type Database = {
           scheduled_date?: string | null
           scheduled_time?: string | null
           service_type?: string
+          started_at?: string | null
           status?: string
           updated_at?: string
           user_id?: string
@@ -749,44 +758,21 @@ export type Database = {
       }
       fcm_tokens: {
         Row: {
-          created_at: string | null
-          device_id: string | null
-          id: string
-          is_active: boolean | null
-          platform: string | null
           token: string
-          updated_at: string | null
-          worker_id: string
+          updated_at: string
+          user_id: string
         }
         Insert: {
-          created_at?: string | null
-          device_id?: string | null
-          id?: string
-          is_active?: boolean | null
-          platform?: string | null
           token: string
-          updated_at?: string | null
-          worker_id: string
+          updated_at?: string
+          user_id: string
         }
         Update: {
-          created_at?: string | null
-          device_id?: string | null
-          id?: string
-          is_active?: boolean | null
-          platform?: string | null
           token?: string
-          updated_at?: string | null
-          worker_id?: string
+          updated_at?: string
+          user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "fcm_tokens_worker_id_fkey"
-            columns: ["worker_id"]
-            isOneToOne: false
-            referencedRelation: "workers"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       feedback: {
         Row: {
@@ -2347,6 +2333,104 @@ export type Database = {
         Args: { data: string }
         Returns: string
       }
+      try_accept_booking: {
+        Args: { p_booking_id: string }
+        Returns: {
+          accepted_at: string | null
+          assigned_at: string | null
+          auto_complete_after_minutes: number | null
+          auto_complete_at: string | null
+          bathroom_count: number | null
+          booking_type: string
+          can_cancel_until: string | null
+          cancel_reason: string | null
+          cancel_source: string | null
+          cancelled_at: string | null
+          community: string
+          completed_at: string | null
+          confirmed_at: string | null
+          cook_cuisine_pref: string | null
+          cook_gender_pref: string | null
+          created_at: string
+          cust_name: string
+          cust_phone: string
+          family_count: number | null
+          flat_no: string
+          flat_size: string | null
+          food_pref: string | null
+          id: string
+          is_demo: boolean
+          maid_tasks: Database["public"]["Enums"]["maid_task"][] | null
+          notes: string | null
+          on_the_way_at: string | null
+          pay_enabled_at: string | null
+          payout_amount: number | null
+          prealert_sent: boolean
+          price_inr: number | null
+          scheduled_date: string | null
+          scheduled_time: string | null
+          service_type: string
+          started_at: string | null
+          status: string
+          updated_at: string
+          user_id: string
+          user_marked_paid_at: string | null
+          worker_id: string | null
+          worker_name: string | null
+          worker_phone: string | null
+          worker_photo_url: string | null
+          worker_upi: string | null
+        }
+      }
+      try_accept_pending: {
+        Args: { p_booking_id: string }
+        Returns: {
+          accepted_at: string | null
+          assigned_at: string | null
+          auto_complete_after_minutes: number | null
+          auto_complete_at: string | null
+          bathroom_count: number | null
+          booking_type: string
+          can_cancel_until: string | null
+          cancel_reason: string | null
+          cancel_source: string | null
+          cancelled_at: string | null
+          community: string
+          completed_at: string | null
+          confirmed_at: string | null
+          cook_cuisine_pref: string | null
+          cook_gender_pref: string | null
+          created_at: string
+          cust_name: string
+          cust_phone: string
+          family_count: number | null
+          flat_no: string
+          flat_size: string | null
+          food_pref: string | null
+          id: string
+          is_demo: boolean
+          maid_tasks: Database["public"]["Enums"]["maid_task"][] | null
+          notes: string | null
+          on_the_way_at: string | null
+          pay_enabled_at: string | null
+          payout_amount: number | null
+          prealert_sent: boolean
+          price_inr: number | null
+          scheduled_date: string | null
+          scheduled_time: string | null
+          service_type: string
+          started_at: string | null
+          status: string
+          updated_at: string
+          user_id: string
+          user_marked_paid_at: string | null
+          worker_id: string | null
+          worker_name: string | null
+          worker_phone: string | null
+          worker_photo_url: string | null
+          worker_upi: string | null
+        }
+      }
       update_booking_status: {
         Args: { p_booking_id: string; p_status: string }
         Returns: Json
@@ -2363,7 +2447,7 @@ export type Database = {
         Args:
           | { is_available_param: boolean; worker_id_param: string }
           | { p_is_available: boolean }
-        Returns: undefined
+        Returns: Json
       }
       update_worker_fcm_token: {
         Args: { p_fcm_token: string; p_worker_id: string }
