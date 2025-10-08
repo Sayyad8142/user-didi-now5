@@ -3,3 +3,6 @@ project_id = "paywwbuqycovjopryele"
 [functions]
 [functions.admin-upload-worker-photo]
 verify_jwt = true
+
+[functions.new-booking-telegram]
+verify_jwt = false
