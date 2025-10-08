@@ -268,10 +268,13 @@ export function AuthCard() {
               <Label htmlFor="flatNo" className="text-sm font-medium">
                 Flat No <span className="text-destructive">*</span>
               </Label>
-              <Input id="flatNo" type="text" placeholder="" value={signUpData.flatNo} onChange={e => setSignUpData(prev => ({
-              ...prev,
-              flatNo: e.target.value
-            }))} disabled={loading} className="rounded-xl shadow-input transition-smooth focus:ring-2 focus:ring-primary/20" />
+              <Input id="flatNo" type="text" inputMode="numeric" placeholder="" value={signUpData.flatNo} onChange={e => {
+              const value = e.target.value.replace(/\D/g, '');
+              setSignUpData(prev => ({
+                ...prev,
+                flatNo: value
+              }));
+            }} disabled={loading} className="rounded-xl shadow-input transition-smooth focus:ring-2 focus:ring-primary/20" />
               {errors.flatNo && <p className="text-sm text-destructive">{errors.flatNo}</p>}
             </div>
 
