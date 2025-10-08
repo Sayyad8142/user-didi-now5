@@ -1,14 +1,12 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { formatPhoneIN, isValidINPhone, extractCleanPhone } from "@/lib/auth-helpers";
+import { formatPhoneIN, isValidINPhone } from "@/lib/auth-helpers";
 import { Button } from "@/components/ui/button";
 import { PhoneInputIN } from "@/components/auth/PhoneInputIN";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { Shield, ArrowLeft } from "lucide-react";
-
-const ADMIN_PHONE = (import.meta.env.VITE_ADMIN_PHONE || "+919000666986").replace(/\s/g,"");
 
 export default function AdminLogin() {
   const nav = useNavigate();
@@ -27,10 +25,8 @@ export default function AdminLogin() {
       }
       
       const e164 = formatPhoneIN(phone);
-      if (e164 !== formatPhoneIN(extractCleanPhone(ADMIN_PHONE))) {
-        throw new Error("Not an authorized admin number");
-      }
       
+      // Send OTP - backend will validate admin status after verification
       const { error } = await supabase.auth.signInWithOtp({ 
         phone: e164, 
         options: { shouldCreateUser: true } 
@@ -55,6 +51,17 @@ export default function AdminLogin() {
         type: "sms" 
       });
       if (error) throw error;
+      
+      // Verify admin status using backend function
+      const { data: isAdminData, error: adminCheckError } = await supabase.rpc('is_admin');
+      
+      if (adminCheckError) {
+        throw new Error("Failed to verify admin status");
+      }
+      
+      if (!isAdminData) {
+        throw new Error("Not an authorized admin number");
+      }
       
       // Store admin login timestamp for persistence
       localStorage.setItem('admin_login_time', Date.now().toString());
