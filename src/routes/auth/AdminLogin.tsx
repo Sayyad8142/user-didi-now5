@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { formatPhoneIN, isValidINPhone } from "@/lib/auth-helpers";
@@ -9,6 +9,7 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Shield, ArrowLeft, Mail, Smartphone } from "lucide-react";
+import { createAdminUser } from "@/lib/createAdminUser";
 
 export default function AdminLogin() {
   const nav = useNavigate();
@@ -20,6 +21,20 @@ export default function AdminLogin() {
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+
+  // Auto-create admin user on component mount
+  useEffect(() => {
+    const initAdminUser = async () => {
+      try {
+        await createAdminUser('team@didisnow.com', 'Didinow@123');
+        console.log('Admin user ensured');
+      } catch (error) {
+        // Ignore if user already exists
+        console.log('Admin user check:', error);
+      }
+    };
+    initAdminUser();
+  }, []);
 
   async function sendOtp() {
     setErr(null); 
