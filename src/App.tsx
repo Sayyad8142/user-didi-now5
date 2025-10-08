@@ -26,6 +26,7 @@ const FAQs = lazy(() => import("./pages/FAQs"));
 const BookingForm = lazy(() => import("./features/booking/BookingForm").then(m => ({ default: m.BookingForm })));
 const ScheduleScreen = lazy(() => import("./features/booking/ScheduleScreen").then(m => ({ default: m.ScheduleScreen })));
 const ChatScreen = lazy(() => import("./features/chat/ChatScreen").then(m => ({ default: m.ChatScreen })));
+const TelegramSetup = lazy(() => import("./pages/TelegramSetup"));
 
 // Lazy load admin pages
 const AdminGate = lazy(() => import("./features/admin/AdminGate").then(m => ({ default: m.AdminGate })));
@@ -258,6 +259,14 @@ const AppContent = () => {
           element={
             <AdminGate>
               <AdminBookings />
+            </AdminGate>
+          } 
+        />
+        <Route 
+          path="/telegram-setup" 
+          element={
+            <AdminGate>
+              <TelegramSetup />
             </AdminGate>
           } 
         />
