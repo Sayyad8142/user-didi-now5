@@ -153,7 +153,7 @@ export default function AdminUsers() {
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">Flat Number:</span>
-                  <span className="text-sm font-medium">{selectedUser.flat_no}</span>
+                  <span className="text-sm font-medium">{selectedUser.flat_no || 'Not provided'}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">Total Bookings:</span>
@@ -303,7 +303,7 @@ export default function AdminUsers() {
                           
                           <div className="flex items-center gap-2 text-xs text-muted-foreground">
                             <Home className="h-3 w-3" />
-                            <span>{user.community} - {user.flat_no}</span>
+                            <span>{user.community}{user.flat_no ? ` - ${user.flat_no}` : ''}</span>
                           </div>
                           
                           <div className="flex items-center gap-2 text-xs text-muted-foreground">
