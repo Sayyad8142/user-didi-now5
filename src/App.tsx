@@ -264,11 +264,7 @@ const AppContent = () => {
         />
         <Route 
           path="/telegram-setup" 
-          element={
-            <AdminGate>
-              <TelegramSetup />
-            </AdminGate>
-          } 
+          element={<TelegramSetup />} 
         />
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
         <Route path="*" element={<NotFound />} />
