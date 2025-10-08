@@ -32,7 +32,7 @@ export default function TestTelegram() {
     };
 
     try {
-      const functionUrl = 'https://paywwbuqycovjopryele.supabase.co/functions/v1/new-booking-telegram';
+      const functionUrl = 'https://paywwbuqycovjopryele.functions.supabase.co/new-booking-telegram';
       
       console.log('Sending test payload to:', functionUrl);
       console.log('Payload:', JSON.stringify(testPayload, null, 2));
@@ -41,8 +41,8 @@ export default function TestTelegram() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          // Add x-webhook-secret header if you set WEBHOOK_SHARED_SECRET
-          // 'x-webhook-secret': 'your_secret_here'
+          // Uncomment if WEBHOOK_SHARED_SECRET is set:
+          // 'x-webhook-secret': '<YOUR_WEBHOOK_SHARED_SECRET>',
         },
         body: JSON.stringify(testPayload)
       });
@@ -58,7 +58,7 @@ export default function TestTelegram() {
         data
       });
 
-      if (res.ok && data.success) {
+      if (res.ok && (data.ok || data.success)) {
         toast({
           title: "✅ Test Successful!",
           description: "Telegram message sent. Check your Telegram chat!",
@@ -66,7 +66,7 @@ export default function TestTelegram() {
       } else {
         toast({
           title: "❌ Test Failed",
-          description: data.error || "Unknown error occurred",
+          description: data?.error || JSON.stringify(data),
           variant: "destructive",
         });
       }
@@ -99,7 +99,7 @@ export default function TestTelegram() {
           <div className="space-y-2">
             <p className="text-sm text-muted-foreground">
               Function URL: <code className="bg-muted px-2 py-1 rounded">
-                https://paywwbuqycovjopryele.supabase.co/functions/v1/new-booking-telegram
+                https://paywwbuqycovjopryele.functions.supabase.co/new-booking-telegram
               </code>
             </p>
             <p className="text-sm text-muted-foreground">
