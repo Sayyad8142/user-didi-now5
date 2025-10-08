@@ -20,7 +20,7 @@ serve(async (req) => {
     if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
       console.error('Missing Telegram credentials');
       return new Response(
-        JSON.stringify({ error: 'Missing Telegram configuration' }),
+        JSON.stringify({ ok: false, error: 'Missing Telegram configuration' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -31,7 +31,7 @@ serve(async (req) => {
       if (providedSecret !== WEBHOOK_SECRET) {
         console.error('Invalid webhook secret');
         return new Response(
-          JSON.stringify({ error: 'Unauthorized' }),
+          JSON.stringify({ ok: false, error: 'Unauthorized' }),
           { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
@@ -44,7 +44,7 @@ serve(async (req) => {
     if (payload.type !== 'INSERT' || payload.table !== 'bookings') {
       console.log('Ignoring non-INSERT event or non-bookings table');
       return new Response(
-        JSON.stringify({ message: 'Event ignored' }),
+        JSON.stringify({ ok: true, message: 'Event ignored' }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -53,12 +53,12 @@ serve(async (req) => {
     if (!record) {
       console.error('No record found in payload');
       return new Response(
-        JSON.stringify({ error: 'No record in payload' }),
+        JSON.stringify({ ok: false, error: 'No record in payload' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Format the Telegram message
+    // Format the Telegram message - PLAIN TEXT ONLY
     const serviceType = record.service_type || 'N/A';
     const bookingType = record.booking_type || 'N/A';
     const community = record.community || 'N/A';
@@ -69,22 +69,15 @@ serve(async (req) => {
     const userName = record.cust_name || 'N/A';
     const userPhone = record.cust_phone || 'N/A';
     const bookingId = record.id || 'N/A';
-    const status = record.status || 'pending';
 
-    const message = `🔔 *NEW BOOKING ALERT* 🔔
-
-📋 *Service:* ${serviceType}
-🏷 *Type:* ${bookingType}
-🏘 *Community:* ${community}
-🏠 *Flat:* ${flatNo}
-📅 *Scheduled:* ${scheduledDate} ${scheduledTime}
-💰 *Price:* ${price}
-📊 *Status:* ${status}
-
-👤 *Customer:* ${userName}
-📞 *Phone:* ${userPhone}
-
-🆔 *Booking ID:* ${bookingId}`;
+    const message = `🆕 NEW BOOKING ALERT
+Service: ${serviceType}
+Type: ${bookingType}
+Community: ${community}
+Flat: ${flatNo}
+Price: ${price}
+Customer: ${userName} (${userPhone})
+Booking ID: ${bookingId}`;
 
     // Send message to Telegram
     const telegramUrl = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
@@ -97,7 +90,6 @@ serve(async (req) => {
       body: JSON.stringify({
         chat_id: TELEGRAM_CHAT_ID,
         text: message,
-        parse_mode: 'Markdown',
       }),
     });
 
@@ -106,7 +98,7 @@ serve(async (req) => {
     if (!telegramResponse.ok) {
       console.error('Telegram API error:', telegramData);
       return new Response(
-        JSON.stringify({ error: 'Failed to send Telegram message', details: telegramData }),
+        JSON.stringify({ ok: false, error: 'Telegram failed', details: telegramData }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -114,7 +106,7 @@ serve(async (req) => {
     console.log('Telegram message sent successfully:', telegramData);
 
     return new Response(
-      JSON.stringify({ success: true, message: 'Telegram notification sent', telegram_response: telegramData }),
+      JSON.stringify({ ok: true }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
