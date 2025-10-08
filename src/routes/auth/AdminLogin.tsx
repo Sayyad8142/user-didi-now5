@@ -1,21 +1,18 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { formatPhoneIN, isValidINPhone } from "@/lib/auth-helpers";
+import { formatPhoneIN, isValidINPhone, extractCleanPhone } from "@/lib/auth-helpers";
 import { Button } from "@/components/ui/button";
 import { PhoneInputIN } from "@/components/auth/PhoneInputIN";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Shield, ArrowLeft, Mail, Smartphone } from "lucide-react";
+import { Shield, ArrowLeft } from "lucide-react";
+
+const ADMIN_PHONE = (import.meta.env.VITE_ADMIN_PHONE || "+919000666986").replace(/\s/g,"");
 
 export default function AdminLogin() {
   const nav = useNavigate();
-  const [loginMethod, setLoginMethod] = useState<"phone" | "email">("phone");
   const [phone, setPhone] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [otpSent, setOtpSent] = useState(false);
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
@@ -30,8 +27,10 @@ export default function AdminLogin() {
       }
       
       const e164 = formatPhoneIN(phone);
+      if (e164 !== formatPhoneIN(extractCleanPhone(ADMIN_PHONE))) {
+        throw new Error("Not an authorized admin number");
+      }
       
-      // Send OTP - backend will validate admin status after verification
       const { error } = await supabase.auth.signInWithOtp({ 
         phone: e164, 
         options: { shouldCreateUser: true } 
@@ -42,45 +41,6 @@ export default function AdminLogin() {
       setErr(e.message || "Failed to send OTP"); 
     } finally { 
       setBusy(false); 
-    }
-  }
-
-  async function loginWithEmail() {
-    setErr(null);
-    setBusy(true);
-    try {
-      if (!email || !password) {
-        throw new Error("Please enter email and password");
-      }
-
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-      if (error) throw error;
-
-      // Verify admin status using backend function
-      const { data: isAdminData, error: adminCheckError } = await supabase.rpc('is_admin');
-      
-      if (adminCheckError) {
-        throw new Error("Failed to verify admin status");
-      }
-      
-      if (!isAdminData) {
-        // Sign out if not admin
-        await supabase.auth.signOut();
-        throw new Error("Not an authorized admin account");
-      }
-
-      // Set admin portal
-      const { PortalStore } = await import('@/lib/portal');
-      PortalStore.set('admin');
-      
-      nav("/admin", { replace: true });
-    } catch (e: any) {
-      setErr(e.message || "Login failed");
-    } finally {
-      setBusy(false);
     }
   }
 
@@ -95,17 +55,6 @@ export default function AdminLogin() {
         type: "sms" 
       });
       if (error) throw error;
-      
-      // Verify admin status using backend function
-      const { data: isAdminData, error: adminCheckError } = await supabase.rpc('is_admin');
-      
-      if (adminCheckError) {
-        throw new Error("Failed to verify admin status");
-      }
-      
-      if (!isAdminData) {
-        throw new Error("Not an authorized admin number");
-      }
       
       // Store admin login timestamp for persistence
       localStorage.setItem('admin_login_time', Date.now().toString());
@@ -134,83 +83,7 @@ export default function AdminLogin() {
         </CardHeader>
         
         <CardContent className="space-y-6">
-          {/* Login Method Toggle */}
-          <div className="flex gap-2 p-1 bg-muted rounded-lg">
-            <Button
-              type="button"
-              variant={loginMethod === "phone" ? "default" : "ghost"}
-              className="flex-1"
-              onClick={() => {
-                setLoginMethod("phone");
-                setErr(null);
-              }}
-            >
-              <Smartphone className="w-4 h-4 mr-2" />
-              Phone
-            </Button>
-            <Button
-              type="button"
-              variant={loginMethod === "email" ? "default" : "ghost"}
-              className="flex-1"
-              onClick={() => {
-                setLoginMethod("email");
-                setErr(null);
-              }}
-            >
-              <Mail className="w-4 h-4 mr-2" />
-              Email
-            </Button>
-          </div>
-
-          {loginMethod === "email" ? (
-            <>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="team@didisnow.com"
-                    disabled={busy}
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Enter password"
-                    disabled={busy}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && email && password) {
-                        loginWithEmail();
-                      }
-                    }}
-                  />
-                </div>
-
-                {err && (
-                  <p className="text-sm text-destructive animate-in slide-in-from-top-1 duration-200">
-                    {err}
-                  </p>
-                )}
-              </div>
-
-              <Button 
-                onClick={loginWithEmail} 
-                disabled={busy || !email || !password} 
-                className="w-full h-12 text-base font-medium"
-                size="lg"
-              >
-                {busy ? "Signing in..." : "Sign In"}
-              </Button>
-            </>
-          ) : !otpSent ? (
+          {!otpSent ? (
             <>
               <PhoneInputIN
                 value={phone}
