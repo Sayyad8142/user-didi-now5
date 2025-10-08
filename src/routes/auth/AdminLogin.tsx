@@ -8,7 +8,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { Shield, ArrowLeft } from "lucide-react";
 
-const ADMIN_PHONE = (import.meta.env.VITE_ADMIN_PHONE || "+919000666986").replace(/\s/g,"");
+const ADMIN_PHONES = (import.meta.env.VITE_ADMIN_PHONES || "+919000666986,+918688790320")
+  .split(",")
+  .map(p => p.trim().replace(/\s/g, ""));
 
 export default function AdminLogin() {
   const nav = useNavigate();
@@ -27,7 +29,10 @@ export default function AdminLogin() {
       }
       
       const e164 = formatPhoneIN(phone);
-      if (e164 !== formatPhoneIN(extractCleanPhone(ADMIN_PHONE))) {
+      const isAuthorized = ADMIN_PHONES.some(adminPhone => 
+        e164 === formatPhoneIN(extractCleanPhone(adminPhone))
+      );
+      if (!isAuthorized) {
         throw new Error("Not an authorized admin number");
       }
       
