@@ -97,35 +97,26 @@ export function TermsScreen() {
   };
 
   const renderMarkdown = (markdown: string) => {
-    // Simple markdown to HTML conversion for headings and basic formatting
-    const lines = markdown.split('\n');
-    let html = '';
+    // Use marked to parse markdown and DOMPurify to sanitize HTML
+    const { marked } = require('marked');
+    const DOMPurify = require('dompurify');
     
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i].trim();
-      
-      if (line.startsWith('# ')) {
-        html += `<h1 class="text-3xl font-bold text-foreground mb-6">${line.substring(2)}</h1>`;
-      } else if (line.startsWith('## ')) {
-        html += `<h2 class="text-xl font-semibold text-foreground mt-8 mb-4">${line.substring(3)}</h2>`;
-      } else if (line.startsWith('- ')) {
-        html += `<li class="ml-4">${line.substring(2)}</li>`;
-      } else if (line.startsWith('**') && line.endsWith('**')) {
-        html += `<p class="font-semibold text-foreground mb-3">${line.substring(2, line.length - 2)}</p>`;
-      } else if (line === '') {
-        html += '<div class="mb-3"></div>';
-      } else if (line.includes('team@didisnow.com')) {
-        html += `<p class="text-muted-foreground mb-3">${line.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>').replace(/team@didisnow\.com/g, '<a href="mailto:team@didisnow.com" class="text-primary underline font-medium">team@didisnow.com</a>')}</p>`;
-      } else if (line.includes('https://')) {
-        const urlRegex = /(https?:\/\/[^\s]+)/g;
-        const formattedLine = line.replace(urlRegex, '<a href="$1" class="text-primary underline" target="_blank" rel="noopener noreferrer">$1</a>');
-        html += `<p class="text-muted-foreground mb-3">${formattedLine}</p>`;
-      } else if (line.length > 0) {
-        html += `<p class="text-muted-foreground mb-3">${line.replace(/\*\*([^*]+)\*\*/g, '<strong class="font-medium">$1</strong>')}</p>`;
-      }
-    }
+    // Configure marked options
+    marked.setOptions({
+      breaks: true,
+      gfm: true
+    });
     
-    return html;
+    // Parse markdown to HTML
+    const rawHTML = marked.parse(markdown);
+    
+    // Sanitize HTML to prevent XSS attacks
+    const cleanHTML = DOMPurify.sanitize(rawHTML, {
+      ALLOWED_TAGS: ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'a', 'ul', 'ol', 'li', 'strong', 'em', 'br', 'div'],
+      ALLOWED_ATTR: ['href', 'target', 'rel', 'class']
+    });
+    
+    return cleanHTML;
   };
 
   if (loading) {
