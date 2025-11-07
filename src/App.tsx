@@ -11,6 +11,7 @@ import { BottomTabs } from "@/components/BottomTabs";
 import { useBackButton } from "@/hooks/useBackButton";
 import { useAppWarmup } from "@/hooks/useAppWarmup";
 import AuthGate from "@/auth/AuthGate";
+import { IncomingCallHandler } from "@/components/IncomingCallHandler";
 
 // Immediate load for critical pages
 import Index from "./pages/Index";
@@ -52,6 +53,7 @@ const PrivacyPolicyScreen = lazy(() => import("./features/legal/PrivacyPolicyScr
 const TermsScreen = lazy(() => import("./features/legal/TermsScreen").then(m => ({ default: m.TermsScreen })));
 const AccountSettings = lazy(() => import("./routes/profile/AccountSettings"));
 const SupportScreen = lazy(() => import("./routes/support/SupportScreen"));
+const CallPage = lazy(() => import("./pages/CallPage"));
 
 // Loading component with pink background
 const PageLoader = () => (
@@ -146,6 +148,14 @@ const AppContent = () => {
           } 
         />
         <Route 
+          path="/call" 
+          element={
+            <ProtectedRoute>
+              <CallPage />
+            </ProtectedRoute>
+          } 
+        />
+        <Route
           path="/faqs" 
           element={
             <ProtectedRoute>
@@ -315,6 +325,7 @@ const App = () => {
       <Sonner />
       <AuthGate>
         <AppContent />
+        <IncomingCallHandler />
       </AuthGate>
     </TooltipProvider>
   );
