@@ -6,3 +6,12 @@ verify_jwt = true
 
 [functions.new-booking-telegram]
 verify_jwt = false
+
+[functions.create-rtc-call]
+verify_jwt = true
+
+[functions.accept-rtc-call]
+verify_jwt = true
+
+[functions.end-rtc-call]
+verify_jwt = true
