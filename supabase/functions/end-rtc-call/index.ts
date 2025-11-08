@@ -32,13 +32,15 @@ serve(async (req) => {
       );
     }
 
-    const { rtc_call_id } = await req.json();
+    const { rtc_call_id, reason = 'completed' } = await req.json();
     if (!rtc_call_id) {
       return new Response(
         JSON.stringify({ error: 'rtc_call_id is required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    console.log(`📴 Ending RTC call: ${rtc_call_id} Reason: ${reason}`);
 
     // Get rtc_call details
     const { data: rtcCall, error: rtcError } = await supabaseClient
@@ -48,11 +50,14 @@ serve(async (req) => {
       .single();
 
     if (rtcError || !rtcCall) {
+      console.error('❌ Call not found:', rtcError);
       return new Response(
         JSON.stringify({ error: 'Call not found' }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    console.log(`📋 Current call status: ${rtcCall.status}`);
 
     // Verify user is caller or callee
     if (rtcCall.caller_id !== user.id && rtcCall.callee_id !== user.id) {
@@ -70,23 +75,31 @@ serve(async (req) => {
       duration_sec = Math.floor((endTime - startTime) / 1000);
     }
 
+    console.log(`🔄 Updating call to status: ${reason} Duration: ${duration_sec}`);
+
+    // Determine the final status based on reason
+    // Valid statuses: initiated, ringing, active, completed, failed, rejected
+    const finalStatus = ['completed', 'failed', 'rejected'].includes(reason) ? reason : 'completed';
+
     // Update rtc_calls status
     const { error: updateError } = await supabaseClient
       .from('rtc_calls')
       .update({
-        status: 'ended',
+        status: finalStatus,
         ended_at: new Date().toISOString(),
         duration_sec,
       })
       .eq('id', rtc_call_id);
 
     if (updateError) {
-      console.error('Failed to update rtc_calls status:', updateError);
+      console.error('❌ Failed to update rtc_calls status:', updateError);
       return new Response(
         JSON.stringify({ error: 'Failed to update call status' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    console.log(`✅ Call ended: ${rtc_call_id} Duration: ${duration_sec} sec`);
 
     // Optionally delete the Daily room to free up resources
     const DAILY_API_KEY = Deno.env.get('DAILY_API_KEY');
