@@ -84,12 +84,20 @@ export const CallScreen: React.FC<CallScreenProps> = ({
         });
 
         dailyRef.current.on('joined-meeting', () => {
-          console.log('[VoIP] Caller joined');
+          console.log('[VoIP] Successfully joined meeting');
+          // Don't auto-transition to ringing for incoming calls
+          if (initialState !== 'active') {
+            setCallState('ringing');
+          }
         });
 
-        dailyRef.current.on('left-meeting', () => {
-          console.log('[VoIP] Caller left');
-          handleEndCall();
+        dailyRef.current.on('left-meeting', (event: any) => {
+          console.log('[VoIP] Left meeting event:', event);
+          // Only end call if we voluntarily left
+          if (callState !== 'ended') {
+            console.log('[VoIP] Unexpected left-meeting, ending call');
+            handleEndCall();
+          }
         });
 
         dailyRef.current.on('error', (e: any) => {
@@ -111,12 +119,16 @@ export const CallScreen: React.FC<CallScreenProps> = ({
           console.warn('[VoIP] startAudio/setLocalAudio warn', e);
         }
 
-        // Auto transition to ringing after 2 seconds
-        setTimeout(() => {
-          if (mounted && callState === 'dialing') {
-            setCallState('ringing');
-          }
-        }, 2000);
+        console.log('[VoIP] Successfully initialized call');
+
+        // Only auto transition to ringing for outgoing calls
+        if (initialState === 'dialing') {
+          setTimeout(() => {
+            if (mounted && callState === 'dialing') {
+              setCallState('ringing');
+            }
+          }, 2000);
+        }
       } catch (err: any) {
         console.error('[VoIP] join() failed', err);
 
