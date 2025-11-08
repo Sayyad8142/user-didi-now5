@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Phone, PhoneOff } from 'lucide-react';
@@ -20,6 +20,23 @@ export const IncomingCallScreen: React.FC<IncomingCallScreenProps> = ({
   const { toast } = useToast();
   const navigate = useNavigate();
   const [isProcessing, setIsProcessing] = useState(false);
+
+  // Vibration pattern: [vibrate, pause, vibrate, pause, ...]
+  useEffect(() => {
+    const vibratePattern = [200, 100, 200, 100, 200];
+    
+    // Start vibration
+    if ('vibrate' in navigator) {
+      const vibrateInterval = setInterval(() => {
+        navigator.vibrate(vibratePattern);
+      }, 1000);
+
+      return () => {
+        clearInterval(vibrateInterval);
+        navigator.vibrate(0); // Stop vibration
+      };
+    }
+  }, []);
 
   const handleAccept = async () => {
     setIsProcessing(true);
@@ -84,9 +101,18 @@ export const IncomingCallScreen: React.FC<IncomingCallScreenProps> = ({
       <Card className="w-full max-w-md p-8 space-y-8 animate-in fade-in slide-in-from-bottom-4">
         {/* Caller Info */}
         <div className="text-center space-y-4">
-          <div className="w-24 h-24 mx-auto rounded-full bg-primary/10 flex items-center justify-center animate-pulse">
-            <Phone className="w-12 h-12 text-primary" />
+          {/* Ripple effect container */}
+          <div className="relative w-24 h-24 mx-auto">
+            {/* Ripple rings */}
+            <div className="absolute inset-0 rounded-full bg-primary/20 animate-[ping_1.5s_ease-in-out_infinite]" />
+            <div className="absolute inset-0 rounded-full bg-primary/20 animate-[ping_1.5s_ease-in-out_infinite_0.5s]" />
+            
+            {/* Phone icon with ringing animation */}
+            <div className="relative w-24 h-24 rounded-full bg-primary/10 flex items-center justify-center animate-ring">
+              <Phone className="w-12 h-12 text-primary" />
+            </div>
           </div>
+          
           <div>
             <p className="text-sm text-muted-foreground">Incoming Call</p>
             <h2 className="text-2xl font-bold mt-1">{callerName}</h2>

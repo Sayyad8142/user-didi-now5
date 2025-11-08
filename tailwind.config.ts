@@ -100,11 +100,16 @@ export default {
 					to: {
 						height: '0'
 					}
+				},
+				'ring': {
+					'0%, 100%': { transform: 'rotate(-15deg)' },
+					'50%': { transform: 'rotate(15deg)' }
 				}
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
-				'accordion-up': 'accordion-up 0.2s ease-out'
+				'accordion-up': 'accordion-up 0.2s ease-out',
+				'ring': 'ring 1s ease-in-out infinite'
 			}
 		}
 	},
