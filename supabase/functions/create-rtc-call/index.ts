@@ -40,17 +40,35 @@ serve(async (req) => {
       );
     }
 
-    // Get booking details to verify caller is part of booking
+    console.log(`📞 Creating RTC call for booking: ${booking_id}`);
+
+    // Get booking details
     const { data: booking, error: bookingError } = await supabaseClient
       .from('bookings')
-      .select('user_id, worker_id')
+      .select('user_id')
       .eq('id', booking_id)
       .single();
 
     if (bookingError || !booking) {
+      console.error('❌ Booking not found:', bookingError);
       return new Response(
         JSON.stringify({ error: 'Booking not found' }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Get worker assignment
+    const { data: assignment, error: assignmentError } = await supabaseClient
+      .from('assignments')
+      .select('worker_id')
+      .eq('booking_id', booking_id)
+      .single();
+
+    if (assignmentError || !assignment) {
+      console.error('❌ Worker not assigned:', assignmentError);
+      return new Response(
+        JSON.stringify({ error: 'Worker not assigned to this booking yet' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -59,10 +77,13 @@ serve(async (req) => {
     let callee_id: string;
 
     if (booking.user_id === caller_id) {
-      callee_id = booking.worker_id;
-    } else if (booking.worker_id === caller_id) {
+      // User is calling worker
+      callee_id = assignment.worker_id;
+    } else if (assignment.worker_id === caller_id) {
+      // Worker is calling user
       callee_id = booking.user_id;
     } else {
+      console.error('❌ Caller not part of booking:', caller_id);
       return new Response(
         JSON.stringify({ error: 'Caller is not part of this booking' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -71,10 +92,12 @@ serve(async (req) => {
 
     if (!callee_id) {
       return new Response(
-        JSON.stringify({ error: 'Callee not found (worker not assigned yet?)' }),
+        JSON.stringify({ error: 'Callee not found' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    console.log(`📞 Call from ${caller_id} to ${callee_id}`);
 
     // Get Daily API credentials
     const DAILY_API_KEY = Deno.env.get('DAILY_API_KEY');
@@ -89,7 +112,8 @@ serve(async (req) => {
     }
 
     // Create Daily room
-    const roomName = `booking-${booking_id}-${Date.now()}`;
+    const roomName = `call-${booking_id}-${Date.now()}`;
+    console.log(`📞 Creating Daily room: ${roomName}`);
     const roomResponse = await fetch('https://api.daily.co/v1/rooms', {
       method: 'POST',
       headers: {
@@ -118,6 +142,7 @@ serve(async (req) => {
 
     const roomData = await roomResponse.json();
     const room_id = roomData.name;
+    console.log(`✅ Room created: ${room_id}`);
 
     // Create caller token (5 min expiry)
     const callerTokenResponse = await fetch('https://api.daily.co/v1/meeting-tokens', {
@@ -167,12 +192,13 @@ serve(async (req) => {
       );
     }
 
+    console.log(`✅ Call created successfully: ${rtcCall.id}`);
+
     // TODO: Send push notification to callee
     // For now, we'll use Supabase realtime for notification
-    console.log(`Call initiated: ${rtcCall.id}, notifying callee: ${callee_id}`);
 
     // Try to get worker FCM token if callee is worker
-    if (booking.worker_id === callee_id) {
+    if (assignment.worker_id === callee_id) {
       const { data: worker } = await supabaseClient
         .from('workers')
         .select('fcm_token')
@@ -181,7 +207,7 @@ serve(async (req) => {
 
       if (worker?.fcm_token) {
         // TODO: Send FCM notification with type 'incoming_rtc' and rtc_call_id
-        console.log(`Would send FCM to worker with token: ${worker.fcm_token}`);
+        console.log(`📲 Would send FCM to worker with token: ${worker.fcm_token}`);
       }
     }
 
@@ -197,7 +223,7 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error('Error in create-rtc-call:', error);
+    console.error('❌ Error creating call:', error);
     return new Response(
       JSON.stringify({ error: error.message || 'Internal server error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
