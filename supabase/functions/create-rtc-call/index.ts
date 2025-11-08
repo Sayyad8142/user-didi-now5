@@ -43,7 +43,7 @@ serve(async (req) => {
     // Get booking details to verify caller is part of booking
     const { data: booking, error: bookingError } = await supabaseClient
       .from('bookings')
-      .select('cust_id, worker_id')
+      .select('user_id, worker_id')
       .eq('id', booking_id)
       .single();
 
@@ -58,10 +58,10 @@ serve(async (req) => {
     const caller_id = user.id;
     let callee_id: string;
 
-    if (booking.cust_id === caller_id) {
+    if (booking.user_id === caller_id) {
       callee_id = booking.worker_id;
     } else if (booking.worker_id === caller_id) {
-      callee_id = booking.cust_id;
+      callee_id = booking.user_id;
     } else {
       return new Response(
         JSON.stringify({ error: 'Caller is not part of this booking' }),
