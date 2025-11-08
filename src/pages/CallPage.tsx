@@ -6,14 +6,13 @@ export default function CallPage() {
   const location = useLocation();
   const state = location.state as any;
 
-  if (!state || !state.rtcCallId || !state.roomId || !state.token) {
+  if (!state || !state.rtcCallId || !state.roomUrl || !state.token) {
     return <Navigate to="/" replace />;
   }
 
   return (
     <CallScreen
       rtcCallId={state.rtcCallId}
-      roomId={state.roomId}
       roomUrl={state.roomUrl}
       token={state.token}
       callerName={state.callerName}

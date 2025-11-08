@@ -4,14 +4,13 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Phone, PhoneOff, Mic, MicOff, Volume2, VolumeX } from 'lucide-react';
 import { useCallTimer } from '@/hooks/useCallTimer';
-import { createDailyCallClient, endDailyCall } from '@/utils/dailyClient';
+import DailyIframe, { DailyCall } from '@daily-co/daily-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { DailyCall } from '@daily-co/daily-js';
+import { toast } from 'sonner';
 
 interface CallScreenProps {
   rtcCallId: string;
-  roomId: string;
   roomUrl: string;
   token: string;
   callerName: string;
@@ -20,18 +19,17 @@ interface CallScreenProps {
 
 export const CallScreen: React.FC<CallScreenProps> = ({
   rtcCallId,
-  roomId,
   roomUrl,
   token,
   callerName,
   initialState = 'dialing',
 }) => {
   const navigate = useNavigate();
-  const { toast } = useToast();
+  const { toast: toastHook } = useToast();
   const [callState, setCallState] = useState<'dialing' | 'ringing' | 'active' | 'ended'>(initialState);
   const [isMuted, setIsMuted] = useState(false);
   const [isSpeakerOn, setIsSpeakerOn] = useState(true);
-  const [callFrame, setCallFrame] = useState<DailyCall | null>(null);
+  const dailyRef = useRef<DailyCall | null>(null);
   const { formattedTime, reset } = useCallTimer(callState === 'active');
   const isInitializing = useRef(false);
 
@@ -39,30 +37,32 @@ export const CallScreen: React.FC<CallScreenProps> = ({
     let mounted = true;
 
     const initCall = async () => {
-      // Prevent duplicate initialization (React StrictMode runs effects twice)
-      if (isInitializing.current) {
-        return;
-      }
-      
+      // Prevent duplicate initialization
+      if (isInitializing.current) return;
       isInitializing.current = true;
 
+      // Guard: make failures obvious in logs
+      if (!roomUrl || !token) {
+        console.error('[VoIP] Missing roomUrl or token', { roomUrl, token: !!token });
+        toast.error('Call Failed: missing credentials');
+        navigate(-1);
+        return;
+      }
+
       try {
-        const frame = await createDailyCallClient({
-          roomUrl,
-          token,
-          userName: 'User',
+        // Create Daily client
+        dailyRef.current = DailyIframe.createCallObject({
+          subscribeToTracksAutomatically: true,
         });
 
         if (!mounted) {
-          endDailyCall(frame);
+          dailyRef.current.destroy();
           isInitializing.current = false;
           return;
         }
 
-        setCallFrame(frame);
-
         // Listen for participant events
-        frame.on('participant-joined', (event) => {
+        dailyRef.current.on('participant-joined', (event: any) => {
           console.log('📞 Participant joined:', event);
           if (event.participant.user_name !== 'User') {
             setCallState('active');
@@ -70,25 +70,38 @@ export const CallScreen: React.FC<CallScreenProps> = ({
           }
         });
 
-        frame.on('participant-left', (event) => {
+        dailyRef.current.on('participant-left', (event: any) => {
           console.log('📞 Participant left:', event);
           handleEndCall();
         });
 
-        frame.on('left-meeting', (event) => {
-          console.log('📞 Left meeting:', event);
+        dailyRef.current.on('joined-meeting', () => {
+          console.log('[VoIP] Caller joined');
+        });
+
+        dailyRef.current.on('left-meeting', () => {
+          console.log('[VoIP] Caller left');
           handleEndCall();
         });
 
-        frame.on('error', (error) => {
-          console.error('📞 Daily error:', error);
-          toast({
-            title: 'Call Error',
-            description: 'An error occurred during the call',
-            variant: 'destructive',
-          });
+        dailyRef.current.on('error', (e: any) => {
+          console.error('[VoIP] Daily error', e);
+          toast.error(`Call Failed: ${e?.errorMsg || 'Could not connect'}`);
           handleEndCall();
         });
+
+        // Try to join
+        await dailyRef.current.join({ url: roomUrl, token });
+
+        // iOS/Safari/WebView audio unlock
+        try {
+          // @ts-ignore - some environments need explicit start
+          if (dailyRef.current.startAudio) await dailyRef.current.startAudio();
+          await dailyRef.current.setLocalAudio(true);
+          await dailyRef.current.setLocalVideo(false);
+        } catch (e) {
+          console.warn('[VoIP] startAudio/setLocalAudio warn', e);
+        }
 
         // Auto transition to ringing after 2 seconds
         setTimeout(() => {
@@ -96,15 +109,25 @@ export const CallScreen: React.FC<CallScreenProps> = ({
             setCallState('ringing');
           }
         }, 2000);
-      } catch (error) {
-        console.error('Failed to initialize call:', error);
-        isInitializing.current = false;
-        toast({
-          title: 'Call Failed',
-          description: 'Could not connect to the call',
-          variant: 'destructive',
-        });
-        navigate(-1);
+      } catch (err: any) {
+        console.error('[VoIP] join() failed', err);
+
+        // Quick retry once if token is fine but network hiccup
+        try {
+          await new Promise(r => setTimeout(r, 800));
+          await dailyRef.current?.join({ url: roomUrl, token });
+          
+          // Audio unlock again
+          // @ts-ignore
+          if (dailyRef.current?.startAudio) await dailyRef.current.startAudio();
+          await dailyRef.current?.setLocalAudio(true);
+          await dailyRef.current?.setLocalVideo(false);
+        } catch (err2: any) {
+          console.error('[VoIP] join() retry failed', err2);
+          toast.error('Call Failed: Could not connect to the call');
+          isInitializing.current = false;
+          navigate(-1);
+        }
       }
     };
 
@@ -112,12 +135,14 @@ export const CallScreen: React.FC<CallScreenProps> = ({
 
     return () => {
       mounted = false;
-      if (callFrame) {
-        endDailyCall(callFrame).catch(console.error);
+      if (dailyRef.current) {
+        dailyRef.current.leave();
+        dailyRef.current.destroy();
+        dailyRef.current = null;
       }
       isInitializing.current = false;
     };
-  }, []);
+  }, [roomUrl, token]);
 
   const handleEndCall = async () => {
     try {
@@ -130,11 +155,13 @@ export const CallScreen: React.FC<CallScreenProps> = ({
       });
 
       // Cleanup Daily
-      if (callFrame) {
-        await endDailyCall(callFrame);
+      if (dailyRef.current) {
+        dailyRef.current.leave();
+        dailyRef.current.destroy();
+        dailyRef.current = null;
       }
 
-      toast({
+      toastHook({
         title: 'Call Ended',
         description: 'The call has been ended',
       });
@@ -147,8 +174,8 @@ export const CallScreen: React.FC<CallScreenProps> = ({
   };
 
   const toggleMute = () => {
-    if (callFrame) {
-      callFrame.setLocalAudio(!isMuted);
+    if (dailyRef.current) {
+      dailyRef.current.setLocalAudio(!isMuted);
       setIsMuted(!isMuted);
     }
   };
@@ -156,7 +183,7 @@ export const CallScreen: React.FC<CallScreenProps> = ({
   const toggleSpeaker = () => {
     // Note: Speaker toggle is mostly relevant for mobile devices
     setIsSpeakerOn(!isSpeakerOn);
-    toast({
+    toastHook({
       title: isSpeakerOn ? 'Speaker Off' : 'Speaker On',
       description: isSpeakerOn ? 'Audio routing to earpiece' : 'Audio routing to speaker',
     });
