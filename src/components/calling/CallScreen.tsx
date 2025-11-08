@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -33,11 +33,19 @@ export const CallScreen: React.FC<CallScreenProps> = ({
   const [isSpeakerOn, setIsSpeakerOn] = useState(true);
   const [callFrame, setCallFrame] = useState<DailyCall | null>(null);
   const { formattedTime, reset } = useCallTimer(callState === 'active');
+  const isInitializing = useRef(false);
 
   useEffect(() => {
     let mounted = true;
 
     const initCall = async () => {
+      // Prevent duplicate initialization (React StrictMode runs effects twice)
+      if (isInitializing.current) {
+        return;
+      }
+      
+      isInitializing.current = true;
+
       try {
         const frame = await createDailyCallClient({
           roomUrl,
@@ -47,6 +55,7 @@ export const CallScreen: React.FC<CallScreenProps> = ({
 
         if (!mounted) {
           endDailyCall(frame);
+          isInitializing.current = false;
           return;
         }
 
@@ -84,6 +93,7 @@ export const CallScreen: React.FC<CallScreenProps> = ({
         }, 2000);
       } catch (error) {
         console.error('Failed to initialize call:', error);
+        isInitializing.current = false;
         toast({
           title: 'Call Failed',
           description: 'Could not connect to the call',
@@ -100,6 +110,7 @@ export const CallScreen: React.FC<CallScreenProps> = ({
       if (callFrame) {
         endDailyCall(callFrame).catch(console.error);
       }
+      isInitializing.current = false;
     };
   }, []);
 
