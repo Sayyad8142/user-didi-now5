@@ -42,10 +42,10 @@ serve(async (req) => {
 
     console.log(`📞 Creating RTC call for booking: ${booking_id}`);
 
-    // Get booking details
+    // Get booking details - worker_id is directly on the booking
     const { data: booking, error: bookingError } = await supabaseClient
       .from('bookings')
-      .select('user_id')
+      .select('user_id, worker_id')
       .eq('id', booking_id)
       .single();
 
@@ -57,15 +57,8 @@ serve(async (req) => {
       );
     }
 
-    // Get worker assignment
-    const { data: assignment, error: assignmentError } = await supabaseClient
-      .from('assignments')
-      .select('worker_id')
-      .eq('booking_id', booking_id)
-      .single();
-
-    if (assignmentError || !assignment) {
-      console.error('❌ Worker not assigned:', assignmentError);
+    if (!booking.worker_id) {
+      console.error('❌ Worker not assigned yet');
       return new Response(
         JSON.stringify({ error: 'Worker not assigned to this booking yet' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -78,22 +71,15 @@ serve(async (req) => {
 
     if (booking.user_id === caller_id) {
       // User is calling worker
-      callee_id = assignment.worker_id;
-    } else if (assignment.worker_id === caller_id) {
+      callee_id = booking.worker_id;
+    } else if (booking.worker_id === caller_id) {
       // Worker is calling user
       callee_id = booking.user_id;
     } else {
-      console.error('❌ Caller not part of booking:', caller_id);
+      console.error('❌ Caller not part of booking. User:', booking.user_id, 'Worker:', booking.worker_id, 'Caller:', caller_id);
       return new Response(
         JSON.stringify({ error: 'Caller is not part of this booking' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    if (!callee_id) {
-      return new Response(
-        JSON.stringify({ error: 'Callee not found' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -198,7 +184,7 @@ serve(async (req) => {
     // For now, we'll use Supabase realtime for notification
 
     // Try to get worker FCM token if callee is worker
-    if (assignment.worker_id === callee_id) {
+    if (booking.worker_id === callee_id) {
       const { data: worker } = await supabaseClient
         .from('workers')
         .select('fcm_token')
