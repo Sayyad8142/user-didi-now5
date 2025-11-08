@@ -38,7 +38,10 @@ export const CallScreen: React.FC<CallScreenProps> = ({
 
     const initCall = async () => {
       // Prevent duplicate initialization
-      if (isInitializing.current) return;
+      if (isInitializing.current || dailyRef.current) {
+        console.log('[VoIP] Already initializing or initialized, skipping');
+        return;
+      }
       isInitializing.current = true;
 
       // Guard: make failures obvious in logs

@@ -8,10 +8,12 @@ export const IncomingCallHandler: React.FC = () => {
   if (!incomingCall) return null;
 
   return (
-    <IncomingCallScreen
-      rtcCallId={incomingCall.rtc_call_id}
-      callerName={incomingCall.caller_name || 'Someone'}
-      onDismiss={clearIncomingCall}
-    />
+    <div className="fixed inset-0 z-[9999]">
+      <IncomingCallScreen
+        rtcCallId={incomingCall.rtc_call_id}
+        callerName={incomingCall.caller_name || 'Someone'}
+        onDismiss={clearIncomingCall}
+      />
+    </div>
   );
 };
