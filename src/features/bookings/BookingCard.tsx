@@ -428,7 +428,7 @@ export function BookingCard({
                 className="w-full h-10 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold rounded-lg shadow-sm"
               >
                 <PhoneCall className="h-4 w-4 mr-2" />
-                Free Call (VoIP)
+                Call to worker
               </Button>
             </div>
           )}
