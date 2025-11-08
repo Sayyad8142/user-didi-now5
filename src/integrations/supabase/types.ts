@@ -1559,7 +1559,9 @@ export type Database = {
         Row: {
           booking_id: string
           callee_id: string
+          callee_token: string | null
           caller_id: string
+          caller_token: string | null
           created_at: string
           duration_sec: number | null
           ended_at: string | null
@@ -1573,7 +1575,9 @@ export type Database = {
         Insert: {
           booking_id: string
           callee_id: string
+          callee_token?: string | null
           caller_id: string
+          caller_token?: string | null
           created_at?: string
           duration_sec?: number | null
           ended_at?: string | null
@@ -1587,7 +1591,9 @@ export type Database = {
         Update: {
           booking_id?: string
           callee_id?: string
+          callee_token?: string | null
           caller_id?: string
+          caller_token?: string | null
           created_at?: string
           duration_sec?: number | null
           ended_at?: string | null

@@ -34,11 +34,14 @@ serve(async (req) => {
 
     const { rtc_call_id } = await req.json();
     if (!rtc_call_id) {
+      console.error('❌ No rtc_call_id provided');
       return new Response(
         JSON.stringify({ error: 'rtc_call_id is required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    console.log(`📞 Accepting call: ${rtc_call_id}`);
 
     // Get rtc_call details and verify user is callee
     const { data: rtcCall, error: rtcError } = await supabaseClient
@@ -48,24 +51,29 @@ serve(async (req) => {
       .single();
 
     if (rtcError || !rtcCall) {
+      console.error('❌ Call not found:', rtcError);
       return new Response(
         JSON.stringify({ error: 'Call not found' }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
+    console.log(`📋 Current call status: ${rtcCall.status}`);
+
     // Verify user is callee
     if (rtcCall.callee_id !== user.id) {
+      console.error('❌ User is not the callee');
       return new Response(
         JSON.stringify({ error: 'Only callee can accept the call' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Check call status
-    if (rtcCall.status !== 'initiated') {
+    // Check call status - must be 'ringing'
+    if (rtcCall.status !== 'ringing') {
+      console.error(`❌ Invalid status for accept: ${rtcCall.status}`);
       return new Response(
-        JSON.stringify({ error: `Cannot accept call with status: ${rtcCall.status}` }),
+        JSON.stringify({ error: `Cannot accept call with status: ${rtcCall.status}. Expected 'ringing'` }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -81,7 +89,7 @@ serve(async (req) => {
       );
     }
 
-    // Create callee token (5 min expiry)
+    // Create callee token with 10 minutes expiry
     const calleeTokenResponse = await fetch('https://api.daily.co/v1/meeting-tokens', {
       method: 'POST',
       headers: {
@@ -92,14 +100,14 @@ serve(async (req) => {
         properties: {
           room_name: rtcCall.room_id,
           user_name: 'callee',
-          exp: Math.floor(Date.now() / 1000) + 300, // 5 minutes
+          exp: Math.floor(Date.now() / 1000) + 600, // 10 minutes
         },
       }),
     });
 
     if (!calleeTokenResponse.ok) {
       const errorText = await calleeTokenResponse.text();
-      console.error('Failed to create callee token:', errorText);
+      console.error(`❌ Failed to create callee token (${calleeTokenResponse.status}):`, errorText);
       return new Response(
         JSON.stringify({ error: 'Failed to create call token' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -108,8 +116,10 @@ serve(async (req) => {
 
     const calleeTokenData = await calleeTokenResponse.json();
     const callee_token = calleeTokenData.token;
+    console.log(`✅ Callee token generated`);
 
-    // Update rtc_calls status
+    // Update rtc_calls status from 'ringing' to 'active'
+    console.log(`🔄 Updating call status to 'active'`);
     const { error: updateError } = await supabaseClient
       .from('rtc_calls')
       .update({
@@ -119,25 +129,30 @@ serve(async (req) => {
       .eq('id', rtc_call_id);
 
     if (updateError) {
-      console.error('Failed to update rtc_calls status:', updateError);
+      console.error('❌ Failed to update rtc_calls status:', updateError);
       return new Response(
-        JSON.stringify({ error: 'Failed to update call status' }),
+        JSON.stringify({ error: 'Failed to update call status', details: updateError.message }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    console.log(`✅ Call accepted successfully: ${rtc_call_id}`);
+
+    // Construct full Daily.co room URL
+    const room_url = `https://${Deno.env.get('DAILY_DOMAIN')}/${rtcCall.room_id}`;
 
     return new Response(
       JSON.stringify({
         success: true,
         room_id: rtcCall.room_id,
+        room_url, // Return full Daily.co URL
         callee_token,
-        room_url: `https://${Deno.env.get('DAILY_DOMAIN')}/${rtcCall.room_id}`,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
-    console.error('Error in accept-rtc-call:', error);
+    console.error('❌ Error in accept-rtc-call:', error);
     return new Response(
       JSON.stringify({ error: error.message || 'Internal server error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

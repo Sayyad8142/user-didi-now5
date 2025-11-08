@@ -31,7 +31,7 @@ export const useIncomingRtcPush = () => {
           const { data: { user } } = await supabase.auth.getUser();
           console.log('📞 Current user:', user?.id, 'Callee:', newCall.callee_id, 'Status:', newCall.status);
           
-          if (user && newCall.callee_id === user.id && newCall.status === 'initiated') {
+          if (user && newCall.callee_id === user.id && newCall.status === 'ringing') {
             console.log('📞 Incoming call for me! Fetching booking details...');
             
             // Get booking details for caller name

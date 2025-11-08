@@ -97,9 +97,10 @@ serve(async (req) => {
       );
     }
 
-    // Create Daily room
+    // Create Daily room with 10 minutes expiry
     const roomName = `call-${booking_id}-${Date.now()}`;
     console.log(`📞 Creating Daily room: ${roomName}`);
+    
     const roomResponse = await fetch('https://api.daily.co/v1/rooms', {
       method: 'POST',
       headers: {
@@ -112,14 +113,14 @@ serve(async (req) => {
         properties: {
           start_audio_off: false,
           start_video_off: true,
-          exp: Math.floor(Date.now() / 1000) + 600, // Expires in 10 minutes
+          exp: Math.floor(Date.now() / 1000) + 600, // 10 minutes
         },
       }),
     });
 
     if (!roomResponse.ok) {
       const errorText = await roomResponse.text();
-      console.error('Failed to create Daily room:', errorText);
+      console.error(`❌ Failed to create Daily room (${roomResponse.status}):`, errorText);
       return new Response(
         JSON.stringify({ error: 'Failed to create call room' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -128,9 +129,10 @@ serve(async (req) => {
 
     const roomData = await roomResponse.json();
     const room_id = roomData.name;
-    console.log(`✅ Room created: ${room_id}`);
+    const room_url = roomData.url; // Full Daily.co URL
+    console.log(`✅ Room created: ${room_id}, URL: ${room_url}`);
 
-    // Create caller token (5 min expiry)
+    // Create caller token with 10 minutes expiry
     const callerTokenResponse = await fetch('https://api.daily.co/v1/meeting-tokens', {
       method: 'POST',
       headers: {
@@ -141,13 +143,14 @@ serve(async (req) => {
         properties: {
           room_name: room_id,
           user_name: 'caller',
-          exp: Math.floor(Date.now() / 1000) + 300, // 5 minutes
+          exp: Math.floor(Date.now() / 1000) + 600, // 10 minutes
         },
       }),
     });
 
     if (!callerTokenResponse.ok) {
-      console.error('Failed to create caller token');
+      const errorText = await callerTokenResponse.text();
+      console.error(`❌ Failed to create caller token (${callerTokenResponse.status}):`, errorText);
       return new Response(
         JSON.stringify({ error: 'Failed to create call token' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -156,8 +159,9 @@ serve(async (req) => {
 
     const callerTokenData = await callerTokenResponse.json();
     const caller_token = callerTokenData.token;
+    console.log(`✅ Caller token generated`);
 
-    // Insert rtc_calls row
+    // Insert rtc_calls row with status 'ringing'
     const { data: rtcCall, error: rtcError } = await supabaseClient
       .from('rtc_calls')
       .insert({
@@ -165,26 +169,40 @@ serve(async (req) => {
         caller_id,
         callee_id,
         room_id,
-        status: 'initiated',
+        status: 'ringing', // Changed from 'initiated' to 'ringing'
       })
       .select()
       .single();
 
     if (rtcError) {
-      console.error('Failed to insert rtc_calls row:', rtcError);
+      console.error(`❌ Failed to insert rtc_calls row:`, rtcError);
       return new Response(
-        JSON.stringify({ error: 'Failed to create call record' }),
+        JSON.stringify({ error: 'Failed to create call record', details: rtcError.message }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     console.log(`✅ Call created successfully: ${rtcCall.id}`);
 
-    // TODO: Send push notification to callee
-    // For now, we'll use Supabase realtime for notification
+    // Send FCM push notification to callee
+    if (booking.user_id === callee_id) {
+      // Callee is the user - get their FCM token
+      const { data: userFcm } = await supabaseClient
+        .from('fcm_tokens')
+        .select('token')
+        .eq('user_id', callee_id)
+        .single();
 
-    // Try to get worker FCM token if callee is worker
-    if (booking.worker_id === callee_id) {
+      if (userFcm?.token) {
+        console.log(`📲 Sending FCM notification to user: ${callee_id}`);
+        // TODO: Replace with actual FCM send implementation
+        // For now, just log it - you'll need to implement FCM sending
+        console.log(`📲 Would send FCM: { type: "INCOMING_RTC_CALL", rtcCallId: "${rtcCall.id}", callerName: "${booking.worker_name || 'Worker'}" }`);
+      } else {
+        console.log(`⚠️ No FCM token found for user: ${callee_id}`);
+      }
+    } else if (booking.worker_id === callee_id) {
+      // Callee is the worker
       const { data: worker } = await supabaseClient
         .from('workers')
         .select('fcm_token')
@@ -192,8 +210,18 @@ serve(async (req) => {
         .single();
 
       if (worker?.fcm_token) {
-        // TODO: Send FCM notification with type 'incoming_rtc' and rtc_call_id
-        console.log(`📲 Would send FCM to worker with token: ${worker.fcm_token}`);
+        console.log(`📲 Sending FCM notification to worker: ${callee_id}`);
+        // Get caller name from booking
+        const { data: callerBooking } = await supabaseClient
+          .from('bookings')
+          .select('cust_name')
+          .eq('id', booking_id)
+          .single();
+        
+        // TODO: Replace with actual FCM send implementation
+        console.log(`📲 Would send FCM: { type: "INCOMING_RTC_CALL", rtcCallId: "${rtcCall.id}", callerName: "${callerBooking?.cust_name || 'Customer'}" }`);
+      } else {
+        console.log(`⚠️ No FCM token found for worker: ${callee_id}`);
       }
     }
 
@@ -202,8 +230,8 @@ serve(async (req) => {
         success: true,
         rtc_call_id: rtcCall.id,
         room_id,
+        room_url, // Return full Daily.co URL
         caller_token,
-        room_url: roomData.url,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
