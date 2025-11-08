@@ -1,8 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { Card } from '@/components/ui/card';
-import { Phone, Clock } from 'lucide-react';
+import { Phone, Clock, ChevronDown, ChevronUp } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 
 interface CallHistoryProps {
   bookingId: string;
@@ -20,6 +25,7 @@ export const CallHistory: React.FC<CallHistoryProps> = ({ bookingId }) => {
   const [calls, setCalls] = useState<CallRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
     const fetchCalls = async () => {
@@ -76,11 +82,13 @@ export const CallHistory: React.FC<CallHistoryProps> = ({ bookingId }) => {
   if (loading) {
     return (
       <Card className="p-4">
-        <h3 className="font-semibold mb-3 flex items-center gap-2">
-          <Phone className="w-4 h-4" />
-          Call History
-        </h3>
-        <p className="text-sm text-muted-foreground">Loading...</p>
+        <div className="flex items-center justify-between">
+          <h3 className="font-semibold flex items-center gap-2">
+            <Phone className="w-4 h-4" />
+            Call History
+          </h3>
+        </div>
+        <p className="text-sm text-muted-foreground mt-3">Loading...</p>
       </Card>
     );
   }
@@ -88,48 +96,61 @@ export const CallHistory: React.FC<CallHistoryProps> = ({ bookingId }) => {
   if (calls.length === 0) {
     return (
       <Card className="p-4">
-        <h3 className="font-semibold mb-3 flex items-center gap-2">
-          <Phone className="w-4 h-4" />
-          Call History
-        </h3>
-        <p className="text-sm text-muted-foreground">No calls yet</p>
+        <div className="flex items-center justify-between">
+          <h3 className="font-semibold flex items-center gap-2">
+            <Phone className="w-4 h-4" />
+            Call History
+          </h3>
+        </div>
+        <p className="text-sm text-muted-foreground mt-3">No calls yet</p>
       </Card>
     );
   }
 
   return (
     <Card className="p-4">
-      <h3 className="font-semibold mb-3 flex items-center gap-2">
-        <Phone className="w-4 h-4" />
-        Call History
-      </h3>
-      <div className="space-y-3">
-        {calls.map((call) => (
-          <div
-            key={call.id}
-            className="flex items-center justify-between text-sm border-b pb-2 last:border-0"
-          >
-            <div className="flex items-center gap-2">
-              <Phone className="w-3 h-3 text-muted-foreground" />
-              <div>
-                <p className="font-medium">
-                  {call.caller_id === currentUserId ? 'You called' : 'Incoming call'}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {format(new Date(call.created_at), 'MMM d, h:mm a')}
-                </p>
+      <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+        <CollapsibleTrigger className="flex items-center justify-between w-full hover:opacity-70 transition-opacity">
+          <h3 className="font-semibold flex items-center gap-2">
+            <Phone className="w-4 h-4" />
+            Call History
+          </h3>
+          {isOpen ? (
+            <ChevronUp className="w-4 h-4 text-muted-foreground" />
+          ) : (
+            <ChevronDown className="w-4 h-4 text-muted-foreground" />
+          )}
+        </CollapsibleTrigger>
+        <CollapsibleContent className="mt-3">
+          <div className="space-y-3">
+            {calls.map((call) => (
+              <div
+                key={call.id}
+                className="flex items-center justify-between text-sm border-b pb-2 last:border-0"
+              >
+                <div className="flex items-center gap-2">
+                  <Phone className="w-3 h-3 text-muted-foreground" />
+                  <div>
+                    <p className="font-medium">
+                      {call.caller_id === currentUserId ? 'You called' : 'Incoming call'}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {format(new Date(call.created_at), 'MMM d, h:mm a')}
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs text-muted-foreground flex items-center gap-1">
+                    <Clock className="w-3 h-3" />
+                    {formatDuration(call.duration_sec)}
+                  </p>
+                  <p className="text-xs capitalize">{call.status}</p>
+                </div>
               </div>
-            </div>
-            <div className="text-right">
-              <p className="text-xs text-muted-foreground flex items-center gap-1">
-                <Clock className="w-3 h-3" />
-                {formatDuration(call.duration_sec)}
-              </p>
-              <p className="text-xs capitalize">{call.status}</p>
-            </div>
+            ))}
           </div>
-        ))}
-      </div>
+        </CollapsibleContent>
+      </Collapsible>
     </Card>
   );
 };
