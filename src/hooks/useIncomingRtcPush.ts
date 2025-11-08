@@ -67,11 +67,15 @@ export const useIncomingRtcPush = () => {
 
               const callerName = booking?.cust_name || 'Someone';
 
-              setIncomingCall({
+              const callData = {
                 rtc_call_id: newCall.id,
                 booking_id: newCall.booking_id,
                 caller_name: callerName,
-              });
+              };
+              
+              console.log('📞 Setting incoming call state:', callData);
+              setIncomingCall(callData);
+              console.log('📞 Incoming call state set successfully');
 
               // Vibrate pattern
               if ('vibrate' in navigator) {
