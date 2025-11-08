@@ -41,14 +41,20 @@ export const IncomingCallScreen: React.FC<IncomingCallScreenProps> = ({
   const handleAccept = async () => {
     setIsProcessing(true);
     try {
+      console.log('📞 Accepting call:', rtcCallId);
       const { data, error } = await supabase.functions.invoke('accept-rtc-call', {
         body: { rtc_call_id: rtcCallId },
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('📞 Accept call error:', error);
+        throw error;
+      }
 
-      if (data?.success) {
-        // Navigate to call screen
+      console.log('📞 Accept call response:', data);
+
+      if (data?.success && data?.room_url && data?.callee_token) {
+        // Navigate to call screen with room_url and callee_token
         navigate('/call', {
           state: {
             rtcCallId,
@@ -64,7 +70,7 @@ export const IncomingCallScreen: React.FC<IncomingCallScreenProps> = ({
         throw new Error(data?.error || 'Failed to accept call');
       }
     } catch (error) {
-      console.error('Error accepting call:', error);
+      console.error('📞 Error accepting call:', error);
       toast({
         title: 'Call Failed',
         description: 'Could not accept the call. Please try again.',

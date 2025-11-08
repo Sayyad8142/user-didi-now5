@@ -63,20 +63,25 @@ export const CallScreen: React.FC<CallScreenProps> = ({
 
         // Listen for participant events
         frame.on('participant-joined', (event) => {
-          console.log('Participant joined:', event);
+          console.log('📞 Participant joined:', event);
           if (event.participant.user_name !== 'User') {
             setCallState('active');
             reset();
           }
         });
 
-        frame.on('participant-left', () => {
-          console.log('Participant left');
+        frame.on('participant-left', (event) => {
+          console.log('📞 Participant left:', event);
+          handleEndCall();
+        });
+
+        frame.on('left-meeting', (event) => {
+          console.log('📞 Left meeting:', event);
           handleEndCall();
         });
 
         frame.on('error', (error) => {
-          console.error('Daily error:', error);
+          console.error('📞 Daily error:', error);
           toast({
             title: 'Call Error',
             description: 'An error occurred during the call',
@@ -116,6 +121,7 @@ export const CallScreen: React.FC<CallScreenProps> = ({
 
   const handleEndCall = async () => {
     try {
+      console.log('📞 Ending call:', rtcCallId);
       setCallState('ended');
       
       // End call on server
@@ -135,7 +141,7 @@ export const CallScreen: React.FC<CallScreenProps> = ({
 
       navigate(-1);
     } catch (error) {
-      console.error('Error ending call:', error);
+      console.error('📞 Error ending call:', error);
       navigate(-1);
     }
   };
