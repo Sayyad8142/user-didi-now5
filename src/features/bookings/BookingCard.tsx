@@ -425,10 +425,11 @@ export function BookingCard({
             <div className="space-y-2">
               <Button 
                 onClick={handleInitiateCall}
-                className="w-full h-10 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold rounded-lg shadow-sm"
+                disabled
+                className="w-full h-10 bg-gray-300 text-gray-500 font-semibold rounded-lg opacity-50 cursor-not-allowed"
               >
                 <PhoneCall className="h-4 w-4 mr-2" />
-                Call to worker
+                Call to worker (coming soon)
               </Button>
             </div>
           )}
