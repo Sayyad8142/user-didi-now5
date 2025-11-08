@@ -67,7 +67,8 @@ export const CallScreen: React.FC<CallScreenProps> = ({
         // Listen for participant events
         dailyRef.current.on('participant-joined', (event: any) => {
           console.log('📞 Participant joined:', event);
-          if (event.participant.user_name !== 'User') {
+          if (!event.participant.local) {
+            console.log('📞 Remote participant joined, call is now active');
             setCallState('active');
             reset();
           }
@@ -75,7 +76,11 @@ export const CallScreen: React.FC<CallScreenProps> = ({
 
         dailyRef.current.on('participant-left', (event: any) => {
           console.log('📞 Participant left:', event);
-          handleEndCall();
+          // Only end call if it's the remote participant leaving
+          if (!event.participant.local) {
+            console.log('📞 Remote participant left, ending call');
+            handleEndCall();
+          }
         });
 
         dailyRef.current.on('joined-meeting', () => {
@@ -138,8 +143,10 @@ export const CallScreen: React.FC<CallScreenProps> = ({
 
     return () => {
       mounted = false;
-      if (dailyRef.current) {
-        dailyRef.current.leave();
+      console.log('[VoIP] Cleanup - mounted:', mounted);
+      // Only destroy if we're actually unmounting (not just StrictMode cleanup)
+      if (dailyRef.current && !mounted) {
+        console.log('[VoIP] Destroying Daily instance');
         dailyRef.current.destroy();
         dailyRef.current = null;
       }
@@ -148,21 +155,27 @@ export const CallScreen: React.FC<CallScreenProps> = ({
   }, [roomUrl, token]);
 
   const handleEndCall = async () => {
+    // Prevent multiple calls to handleEndCall
+    if (callState === 'ended') {
+      console.log('📞 Call already ended, skipping');
+      return;
+    }
+
     try {
       console.log('📞 Ending call:', rtcCallId);
       setCallState('ended');
       
-      // End call on server
-      await supabase.functions.invoke('end-rtc-call', {
-        body: { rtc_call_id: rtcCallId },
-      });
-
-      // Cleanup Daily
+      // Cleanup Daily first
       if (dailyRef.current) {
         dailyRef.current.leave();
         dailyRef.current.destroy();
         dailyRef.current = null;
       }
+
+      // End call on server
+      await supabase.functions.invoke('end-rtc-call', {
+        body: { rtc_call_id: rtcCallId },
+      });
 
       toastHook({
         title: 'Call Ended',
