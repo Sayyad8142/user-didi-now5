@@ -430,14 +430,6 @@ export function BookingCard({
                 <PhoneCall className="h-4 w-4 mr-2" />
                 Free Call (VoIP)
               </Button>
-              <Button 
-                variant="outline"
-                disabled
-                className="w-full h-10 border-gray-300 text-gray-400 font-semibold rounded-lg opacity-50 cursor-not-allowed"
-              >
-                <PhoneCall className="h-4 w-4 mr-2" />
-                Private Call (PSTN) - Coming Soon
-              </Button>
             </div>
           )}
 
