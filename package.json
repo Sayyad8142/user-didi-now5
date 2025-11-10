@@ -60,6 +60,7 @@
     "dompurify": "^3.3.0",
     "embla-carousel-autoplay": "^8.6.0",
     "embla-carousel-react": "^8.6.0",
+    "firebase": "^12.5.0",
     "input-otp": "^1.4.2",
     "localforage": "^1.10.0",
     "lucide-react": "^0.462.0",

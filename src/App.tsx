@@ -12,6 +12,7 @@ import { useBackButton } from "@/hooks/useBackButton";
 import { useAppWarmup } from "@/hooks/useAppWarmup";
 import AuthGate from "@/auth/AuthGate";
 import { IncomingCallHandler } from "@/components/IncomingCallHandler";
+import { useFcmToken } from "@/hooks/useFcmToken";
 
 // Immediate load for critical pages
 import Index from "./pages/Index";
@@ -76,6 +77,9 @@ const ProtectedLayout = ({ children }: { children: React.ReactNode }) => (
 const AppContent = () => {
   // Handle hardware back button on mobile devices (inside Router context)
   useBackButton();
+  
+  // Register FCM token for push notifications
+  useFcmToken();
   
   return (
     <Suspense fallback={<PageLoader />}>
