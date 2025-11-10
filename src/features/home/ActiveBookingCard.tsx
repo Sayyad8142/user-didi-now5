@@ -371,6 +371,15 @@ const ActiveBookingCard = memo(() => {
           />
         )}
 
+        {/* Scheduled booking info */}
+        {activeBooking.booking_type === 'scheduled' && (activeBooking.status === 'pending' || activeBooking.status === 'assigned') && (
+          <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <p className="text-xs text-blue-800">
+              For scheduled bookings, we will assign worker 15 mins before scheduled time, don't worry
+            </p>
+          </div>
+        )}
+
         {/* Support button */}
         {(activeBooking.status === 'pending' || activeBooking.status === 'assigned') && (
           <Button 
