@@ -9,7 +9,7 @@ const FIREBASE_CONFIG = {
   projectId: "didi-now-worker-7b4cb",
   storageBucket: "didi-now-worker-7b4cb.appspot.com",
   messagingSenderId: "993479758920",
-  appId: "YOUR_WEB_APP_ID" // TODO: Get this from Firebase Console → Project Settings → General → Your apps → Web app
+  appId: "1:993479758920:web:1550b0d6c69afa10f6747d"
 };
 
 export function useFcmToken() {
