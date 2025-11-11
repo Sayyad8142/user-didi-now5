@@ -2,14 +2,14 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
-// Firebase configuration from environment or hardcoded
+// Firebase configuration - shared with Worker App
 const FIREBASE_CONFIG = {
-  apiKey: "AIzaSyBXq8YQ9Z1XZ9Z9Z9Z9Z9Z9Z9Z9Z9Z9Z9Z",
-  authDomain: "your-project.firebaseapp.com",
-  projectId: "your-project-id",
-  storageBucket: "your-project.appspot.com",
-  messagingSenderId: "123456789",
-  appId: "1:123456789:web:abcdef"
+  apiKey: "AIzaSyB5BxScrhv7MjYmKbY3DILVvei7NOjft0Q",
+  authDomain: "didi-now-worker-7b4cb.firebaseapp.com",
+  projectId: "didi-now-worker-7b4cb",
+  storageBucket: "didi-now-worker-7b4cb.appspot.com",
+  messagingSenderId: "993479758920",
+  appId: "YOUR_WEB_APP_ID" // TODO: Get this from Firebase Console → Project Settings → General → Your apps → Web app
 };
 
 export function useFcmToken() {
@@ -48,7 +48,7 @@ export function useFcmToken() {
 
       // Get FCM token
       const currentToken = await getToken(messaging, {
-        vapidKey: 'YOUR_VAPID_KEY_HERE'
+        vapidKey: 'BDSqlP418hdP33VE8JvLy47_9bUruhjq8_a4lwfcTDCFwf8awj9UUgLv9oMFHVPPhMQTveDZuW44NtMyYXqk82RU'
       });
 
       if (currentToken) {
