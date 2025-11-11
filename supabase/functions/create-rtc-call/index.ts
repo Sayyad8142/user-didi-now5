@@ -195,43 +195,9 @@ serve(async (req) => {
 
       if (userFcm?.token) {
         console.log(`📲 Sending FCM notification to user: ${callee_id}`);
-        
-        // Send actual FCM notification
-        const FCM_SERVER_KEY = Deno.env.get('FCM_SERVER_KEY');
-        if (FCM_SERVER_KEY) {
-          try {
-            const fcmResponse = await fetch('https://fcm.googleapis.com/fcm/send', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `key=${FCM_SERVER_KEY}`,
-              },
-              body: JSON.stringify({
-                to: userFcm.token,
-                notification: {
-                  title: '📞 Incoming Call',
-                  body: `${booking.worker_name || 'Worker'} is calling you`,
-                  icon: '/icon.png',
-                  sound: 'default',
-                },
-                data: {
-                  type: 'INCOMING_RTC_CALL',
-                  rtc_call_id: rtcCall.id,
-                  booking_id,
-                },
-                priority: 'high',
-              }),
-            });
-            const fcmResult = await fcmResponse.json();
-            if (fcmResult.success) {
-              console.log('✅ FCM sent to user');
-            } else {
-              console.error('❌ FCM failed:', fcmResult);
-            }
-          } catch (error) {
-            console.error('❌ FCM error:', error);
-          }
-        }
+        // TODO: Replace with actual FCM send implementation
+        // For now, just log it - you'll need to implement FCM sending
+        console.log(`📲 Would send FCM: { type: "INCOMING_RTC_CALL", rtcCallId: "${rtcCall.id}", callerName: "${booking.worker_name || 'Worker'}" }`);
       } else {
         console.log(`⚠️ No FCM token found for user: ${callee_id}`);
       }
@@ -252,42 +218,8 @@ serve(async (req) => {
           .eq('id', booking_id)
           .single();
         
-        // Send actual FCM notification
-        const FCM_SERVER_KEY = Deno.env.get('FCM_SERVER_KEY');
-        if (FCM_SERVER_KEY) {
-          try {
-            const fcmResponse = await fetch('https://fcm.googleapis.com/fcm/send', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `key=${FCM_SERVER_KEY}`,
-              },
-              body: JSON.stringify({
-                to: worker.fcm_token,
-                notification: {
-                  title: '📞 Incoming Call',
-                  body: `${callerBooking?.cust_name || 'Customer'} is calling you`,
-                  icon: '/icon.png',
-                  sound: 'default',
-                },
-                data: {
-                  type: 'INCOMING_RTC_CALL',
-                  rtc_call_id: rtcCall.id,
-                  booking_id,
-                },
-                priority: 'high',
-              }),
-            });
-            const fcmResult = await fcmResponse.json();
-            if (fcmResult.success) {
-              console.log('✅ FCM sent to worker');
-            } else {
-              console.error('❌ FCM failed:', fcmResult);
-            }
-          } catch (error) {
-            console.error('❌ FCM error:', error);
-          }
-        }
+        // TODO: Replace with actual FCM send implementation
+        console.log(`📲 Would send FCM: { type: "INCOMING_RTC_CALL", rtcCallId: "${rtcCall.id}", callerName: "${callerBooking?.cust_name || 'Customer'}" }`);
       } else {
         console.log(`⚠️ No FCM token found for worker: ${callee_id}`);
       }
