@@ -1,3 +1,17 @@
+// ============================================================================
+// Telegram Booking Notifications - INSTANT BOOKINGS ONLY
+// ============================================================================
+// This edge function sends Telegram notifications for NEW INSTANT bookings.
+//
+// IMPORTANT: 
+// - Only processes booking_type = 'instant'
+// - Scheduled bookings are IGNORED here
+// - Scheduled bookings are notified via run_scheduled_prealerts() function
+//   which runs 15 minutes before the scheduled time
+//
+// Triggered by: notify_telegram_new_booking() database trigger
+// ============================================================================
+
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
@@ -58,6 +72,16 @@ serve(async (req) => {
       );
     }
 
+    // CRITICAL FIX: Only send notifications for INSTANT bookings
+    // Scheduled bookings are handled by run_scheduled_prealerts() 15 minutes before scheduled time
+    if (record.booking_type === 'scheduled') {
+      console.log('Ignoring scheduled booking - will be notified 15 mins before scheduled time');
+      return new Response(
+        JSON.stringify({ ok: true, message: 'Scheduled booking ignored' }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Format the Telegram message - PLAIN TEXT ONLY
     const serviceType = record.service_type || 'N/A';
     const bookingType = record.booking_type || 'N/A';
@@ -70,7 +94,8 @@ serve(async (req) => {
     const userPhone = record.cust_phone || 'N/A';
     const bookingId = record.id || 'N/A';
 
-    const message = `🆕 NEW BOOKING ALERT
+    // Only INSTANT bookings should reach this point
+    const message = `🆕 NEW INSTANT BOOKING ALERT
 Service: ${serviceType}
 Type: ${bookingType}
 Community: ${community}

@@ -1,3 +1,17 @@
+/**
+ * Admin New Booking Alert Hook
+ * 
+ * Plays a sound alert when NEW INSTANT bookings are created.
+ * 
+ * IMPORTANT SCHEDULING LOGIC:
+ * - Only plays sound for booking_type = 'instant'
+ * - Scheduled bookings (booking_type = 'scheduled') do NOT trigger alerts here
+ * - Scheduled bookings are notified via run_scheduled_prealerts() function
+ *   which runs 15 minutes before the scheduled time
+ * 
+ * This ensures admins don't get false alerts for bookings scheduled hours/days ahead.
+ */
+
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -105,13 +119,22 @@ export function useNewBookingAlert() {
       .channel("bookings-sound")
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "bookings" }, (payload) => {
         const id = payload.new?.id as string | undefined;
-        console.log("🔔 Booking INSERT event received:", { id, status: payload.new?.status, enabled });
+        const bookingType = payload.new?.booking_type as string | undefined;
+        const status = payload.new?.status as string | undefined;
+        
+        console.log("🔔 Booking INSERT event received:", { id, bookingType, status, enabled });
+        
         if (!id) return;
         if (seenIdsRef.current.has(id)) return; // de-dupe by id
         seenIdsRef.current.add(id);
-        if (payload.new?.status === "pending") {
-          console.log("🎵 Playing sound for new pending booking:", id);
+        
+        // CRITICAL FIX: Only play sound for INSTANT bookings
+        // Scheduled bookings should NOT trigger alerts until 15 mins before scheduled time
+        if (status === "pending" && bookingType === "instant") {
+          console.log("🎵 Playing sound for new INSTANT booking:", id);
           play();
+        } else if (bookingType === "scheduled") {
+          console.log("⏰ Scheduled booking detected - skipping alert (will notify 15 mins before scheduled time):", id);
         }
       })
       .subscribe();
