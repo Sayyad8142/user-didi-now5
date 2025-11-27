@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Users, TrendingUp } from 'lucide-react';
+import { Users, Activity, CheckCircle2, AlertCircle, Clock } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { cn } from '@/lib/utils';
 
 interface WorkerCount {
   service: string;
@@ -63,11 +64,22 @@ export function WorkerAvailabilityCard() {
   const getAvailabilityColor = (level: 'high' | 'medium' | 'low') => {
     switch (level) {
       case 'high':
-        return 'bg-green-500';
+        return 'from-emerald-500 to-green-600';
       case 'medium':
-        return 'bg-yellow-500';
+        return 'from-amber-400 to-orange-500';
       case 'low':
-        return 'bg-red-500';
+        return 'from-rose-400 to-red-500';
+    }
+  };
+
+  const getAvailabilityIcon = (level: 'high' | 'medium' | 'low') => {
+    switch (level) {
+      case 'high':
+        return CheckCircle2;
+      case 'medium':
+        return Clock;
+      case 'low':
+        return AlertCircle;
     }
   };
 
@@ -84,16 +96,24 @@ export function WorkerAvailabilityCard() {
 
   if (loading) {
     return (
-      <Card className="shadow-card border-border/50 bg-gradient-to-br from-white via-white to-primary/5">
-        <CardContent className="p-5">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center animate-pulse">
-              <Users className="w-5 h-5 text-primary" />
+      <Card className="relative overflow-hidden border border-border/50 bg-card rounded-3xl shadow-lg">
+        <CardContent className="p-6">
+          <div className="flex items-center gap-4 mb-6">
+            <div className="relative">
+              <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center animate-pulse">
+                <Users className="w-6 h-6 text-primary" />
+              </div>
+              <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full animate-pulse" />
             </div>
             <div className="flex-1">
-              <div className="h-5 w-32 bg-muted rounded animate-pulse mb-1" />
-              <div className="h-3 w-24 bg-muted rounded animate-pulse" />
+              <div className="h-6 w-40 bg-muted/50 rounded-lg animate-pulse mb-2" />
+              <div className="h-4 w-32 bg-muted/30 rounded animate-pulse" />
             </div>
+          </div>
+          <div className="space-y-4">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-16 bg-muted/20 rounded-2xl animate-pulse" />
+            ))}
           </div>
         </CardContent>
       </Card>
@@ -105,54 +125,96 @@ export function WorkerAvailabilityCard() {
   }
 
   return (
-    <Card className="shadow-card border-border/50 bg-gradient-to-br from-white via-white to-primary/5 overflow-hidden">
-      <CardContent className="p-5">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-            <Users className="w-5 h-5 text-primary" />
+    <Card className="relative overflow-hidden border border-border/50 bg-gradient-to-br from-card via-card to-primary/5 rounded-3xl shadow-lg hover:shadow-xl transition-all duration-300">
+      <div className="absolute top-0 right-0 w-40 h-40 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+      <div className="absolute bottom-0 left-0 w-32 h-32 bg-accent/5 rounded-full blur-2xl translate-y-1/2 -translate-x-1/2" />
+      
+      <CardContent className="relative p-6">
+        {/* Header */}
+        <div className="flex items-center gap-4 mb-6">
+          <div className="relative">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center backdrop-blur-sm">
+              <Users className="w-6 h-6 text-primary" />
+            </div>
+            <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full animate-pulse shadow-lg shadow-green-500/50" />
           </div>
           <div className="flex-1">
-            <h3 className="font-semibold text-foreground">Worker Availability</h3>
-            <p className="text-xs text-muted-foreground">Real-time service status</p>
+            <h3 className="text-lg font-bold text-foreground mb-0.5">Worker Availability</h3>
+            <div className="flex items-center gap-1.5">
+              <Activity className="w-3.5 h-3.5 text-primary animate-pulse" />
+              <p className="text-sm text-muted-foreground font-medium">Live service status</p>
+            </div>
           </div>
-          <TrendingUp className="w-4 h-4 text-primary animate-pulse" />
         </div>
 
+        {/* Service Cards */}
         <div className="space-y-3">
           {workerCounts.map(({ service, count, label }) => {
             const level = getAvailabilityLevel(count);
-            const barColor = getAvailabilityColor(level);
+            const gradientColor = getAvailabilityColor(level);
             const statusText = getAvailabilityText(level);
+            const StatusIcon = getAvailabilityIcon(level);
             const percentage = Math.min(100, (count / 10) * 100);
 
             return (
-              <div key={service} className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium text-foreground">{label}</span>
-                    <span className="text-xs text-muted-foreground">•</span>
-                    <span className="font-bold text-primary">{count}</span>
+              <div 
+                key={service} 
+                className="group relative p-4 rounded-2xl bg-background/80 backdrop-blur-sm border border-border/50 hover:border-primary/30 transition-all duration-300 hover:shadow-md"
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    <div className={cn(
+                      "w-8 h-8 rounded-xl flex items-center justify-center",
+                      level === 'high' ? 'bg-green-500/10' : 
+                      level === 'medium' ? 'bg-amber-500/10' : 
+                      'bg-rose-500/10'
+                    )}>
+                      <StatusIcon className={cn(
+                        "w-4 h-4",
+                        level === 'high' ? 'text-green-600' : 
+                        level === 'medium' ? 'text-amber-600' : 
+                        'text-rose-600'
+                      )} />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-foreground text-base">{label}</span>
+                        <div className={cn(
+                          "px-2.5 py-0.5 rounded-full text-xs font-bold shadow-sm",
+                          level === 'high' ? 'bg-green-500 text-white' : 
+                          level === 'medium' ? 'bg-amber-500 text-white' : 
+                          'bg-rose-500 text-white'
+                        )}>
+                          {count}
+                        </div>
+                      </div>
+                      <p className={cn(
+                        "text-xs font-medium mt-0.5",
+                        level === 'high' ? 'text-green-600' : 
+                        level === 'medium' ? 'text-amber-600' : 
+                        'text-rose-600'
+                      )}>
+                        {statusText}
+                      </p>
+                    </div>
                   </div>
-                  <span className={`text-xs font-medium ${
-                    level === 'high' ? 'text-green-600' : 
-                    level === 'medium' ? 'text-yellow-600' : 
-                    'text-red-600'
-                  }`}>
-                    {statusText}
-                  </span>
                 </div>
                 
-                {/* Availability Bar */}
-                <div className="relative h-2 w-full bg-muted rounded-full overflow-hidden">
+                {/* Gradient Progress Bar */}
+                <div className="relative h-1.5 w-full bg-muted/50 rounded-full overflow-hidden">
                   <div 
-                    className={`h-full rounded-full transition-all duration-500 ${barColor}`}
+                    className={cn(
+                      "h-full rounded-full transition-all duration-700 ease-out bg-gradient-to-r shadow-sm",
+                      gradientColor
+                    )}
                     style={{ width: `${percentage}%` }}
                   />
-                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" 
-                       style={{ 
-                         backgroundSize: '200% 100%',
-                         animation: 'shimmer 2s infinite'
-                       }} 
+                  <div 
+                    className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent"
+                    style={{ 
+                      backgroundSize: '200% 100%',
+                      animation: 'shimmer 2.5s infinite linear'
+                    }} 
                   />
                 </div>
               </div>
@@ -160,11 +222,14 @@ export function WorkerAvailabilityCard() {
           })}
         </div>
 
-        {/* Footer Message */}
-        <div className="mt-4 pt-3 border-t border-border/50">
-          <p className="text-xs text-center text-muted-foreground">
-            ✨ Booking confirmed instantly when workers available
-          </p>
+        {/* Footer Badge */}
+        <div className="mt-5 pt-4 border-t border-border/30">
+          <div className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-primary/5 border border-primary/10">
+            <div className="w-2 h-2 bg-primary rounded-full animate-pulse" />
+            <p className="text-xs font-medium text-foreground/80">
+              Instant booking confirmation when available
+            </p>
+          </div>
         </div>
       </CardContent>
     </Card>
