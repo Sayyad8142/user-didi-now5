@@ -565,6 +565,7 @@ export type Database = {
         Row: {
           center_lat: number | null
           center_lng: number | null
+          city: string | null
           created_at: string
           flat_format: string | null
           id: string
@@ -577,6 +578,7 @@ export type Database = {
         Insert: {
           center_lat?: number | null
           center_lng?: number | null
+          city?: string | null
           created_at?: string
           flat_format?: string | null
           id?: string
@@ -589,6 +591,7 @@ export type Database = {
         Update: {
           center_lat?: number | null
           center_lng?: number | null
+          city?: string | null
           created_at?: string
           flat_format?: string | null
           id?: string
@@ -937,24 +940,36 @@ export type Database = {
           building_id: string | null
           community_id: string
           created_at: string | null
+          display_name: string | null
+          door: number | null
           flat_no: string
+          floor: number | null
           id: string
+          tower: number | null
           updated_at: string | null
         }
         Insert: {
           building_id?: string | null
           community_id: string
           created_at?: string | null
+          display_name?: string | null
+          door?: number | null
           flat_no: string
+          floor?: number | null
           id?: string
+          tower?: number | null
           updated_at?: string | null
         }
         Update: {
           building_id?: string | null
           community_id?: string
           created_at?: string | null
+          display_name?: string | null
+          door?: number | null
           flat_no?: string
+          floor?: number | null
           id?: string
+          tower?: number | null
           updated_at?: string | null
         }
         Relationships: [
