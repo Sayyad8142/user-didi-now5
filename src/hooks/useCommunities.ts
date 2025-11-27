@@ -6,6 +6,7 @@ interface Community {
   name: string;
   value: string;
   is_active: boolean;
+  flat_format?: string;
 }
 
 export function useCommunities() {
@@ -20,7 +21,7 @@ export function useCommunities() {
 
       const { data, error: fetchError } = await supabase
         .from('communities')
-        .select('id, name, value, is_active')
+        .select('id, name, value, is_active, flat_format')
         .eq('is_active', true)
         .order('name');
 

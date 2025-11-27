@@ -13,7 +13,10 @@ import { useToast } from '@/hooks/use-toast';
 import { CleaningLoader } from '@/components/ui/cleaning-loader';
 import { normalizePhone } from '@/features/profile/ensureProfile';
 import { useCommunities } from '@/hooks/useCommunities';
+import { useBuildings } from '@/hooks/useBuildings';
+import { useFlats } from '@/hooks/useFlats';
 import { isDemoCredentials, setDemoSession, setGuestSession } from '@/lib/demo';
+import { FlatSearchInput } from './FlatSearchInput';
 export function AuthCard() {
   const navigate = useNavigate();
   const {
@@ -36,9 +39,26 @@ export function AuthCard() {
   const [signUpData, setSignUpData] = useState({
     fullName: '',
     phone: '',
-    community: '',
+    communityId: '',
+    communityValue: '',
+    buildingId: '',
+    flatId: '',
     flatNo: ''
   });
+
+  // Get selected community details
+  const selectedCommunity = communities.find(c => c.id === signUpData.communityId);
+  const isPHF = selectedCommunity?.flat_format === 'phf_code';
+
+  // Fetch buildings based on selected community
+  const { buildings, loading: buildingsLoading } = useBuildings(signUpData.communityId || null);
+
+  // Fetch flats based on selected building or community (for PHF)
+  const { flats, loading: flatsLoading } = useFlats(
+    signUpData.buildingId || null,
+    signUpData.communityId || null,
+    isPHF
+  );
 
   // Validation errors
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -62,11 +82,19 @@ export function AuthCard() {
     } else if (!isValidINPhone(signUpData.phone)) {
       newErrors.phone = 'Please enter a valid 10-digit mobile number';
     }
-    if (!signUpData.community) {
-      newErrors.community = 'Please select your community';
+    if (!signUpData.communityId) {
+      newErrors.communityId = 'Please select your community';
     }
-    if (!signUpData.flatNo.trim()) {
-      newErrors.flatNo = 'Flat number is required';
+    
+    // Check if community uses PHF format
+    const selectedCommunity = communities.find(c => c.id === signUpData.communityId);
+    const isPHF = selectedCommunity?.flat_format === 'phf_code';
+    
+    if (!isPHF && !signUpData.buildingId) {
+      newErrors.buildingId = 'Please select your building';
+    }
+    if (!signUpData.flatId) {
+      newErrors.flatId = 'Please select your flat';
     }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -246,37 +274,79 @@ export function AuthCard() {
               <Label htmlFor="community" className="text-sm font-medium">
                 Community Name <span className="text-destructive">*</span>
               </Label>
-              <Select value={signUpData.community} onValueChange={value => setSignUpData(prev => ({
-              ...prev,
-              community: value
-            }))} disabled={loading || communitiesLoading}>
+              <Select value={signUpData.communityId} onValueChange={value => {
+                const community = communities.find(c => c.id === value);
+                setSignUpData(prev => ({
+                  ...prev,
+                  communityId: value,
+                  communityValue: community?.value || '',
+                  buildingId: '',
+                  flatId: '',
+                  flatNo: ''
+                }));
+              }} disabled={loading || communitiesLoading}>
                 <SelectTrigger className="rounded-xl shadow-input transition-smooth focus:ring-2 focus:ring-primary/20">
                   <SelectValue placeholder={communitiesLoading ? "Loading communities..." : communitiesError ? "Error loading communities" : "Select your community"} />
                 </SelectTrigger>
                 <SelectContent>
-                  {communities.map(community => <SelectItem key={community.id} value={community.value}>
+                  {communities.map(community => <SelectItem key={community.id} value={community.id}>
                       {community.name}
                     </SelectItem>)}
                 </SelectContent>
               </Select>
-              {errors.community && <p className="text-sm text-destructive">{errors.community}</p>}
+              {errors.communityId && <p className="text-sm text-destructive">{errors.communityId}</p>}
               {communitiesError && <p className="text-sm text-destructive">Failed to load communities. Please try again.</p>}
             </div>
 
-            {/* Flat Number */}
-            <div className="space-y-2">
-              <Label htmlFor="flatNo" className="text-sm font-medium">
-                Flat No <span className="text-destructive">*</span>
-              </Label>
-              <Input id="flatNo" type="text" inputMode="numeric" placeholder="" value={signUpData.flatNo} onChange={e => {
-              const value = e.target.value.replace(/\D/g, '');
-              setSignUpData(prev => ({
-                ...prev,
-                flatNo: value
-              }));
-            }} disabled={loading} className="rounded-xl shadow-input transition-smooth focus:ring-2 focus:ring-primary/20" />
-              {errors.flatNo && <p className="text-sm text-destructive">{errors.flatNo}</p>}
-            </div>
+            {/* Building - Only show if not PHF format */}
+            {signUpData.communityId && !isPHF && (
+              <div className="space-y-2">
+                <Label htmlFor="building" className="text-sm font-medium">
+                  Building / Tower <span className="text-destructive">*</span>
+                </Label>
+                <Select 
+                  value={signUpData.buildingId} 
+                  onValueChange={value => setSignUpData(prev => ({
+                    ...prev,
+                    buildingId: value,
+                    flatId: '',
+                    flatNo: ''
+                  }))} 
+                  disabled={loading || buildingsLoading || !signUpData.communityId}
+                >
+                  <SelectTrigger className="rounded-xl shadow-input transition-smooth focus:ring-2 focus:ring-primary/20">
+                    <SelectValue placeholder={buildingsLoading ? "Loading buildings..." : "Select your building"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {buildings.map(building => (
+                      <SelectItem key={building.id} value={building.id}>
+                        {building.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {errors.buildingId && <p className="text-sm text-destructive">{errors.buildingId}</p>}
+              </div>
+            )}
+
+            {/* Flat Number - Searchable Input */}
+            {signUpData.communityId && (isPHF || signUpData.buildingId) && (
+              <FlatSearchInput
+                flats={flats}
+                value={signUpData.flatNo}
+                onSelect={(flatId, flatNo) => {
+                  setSignUpData(prev => ({
+                    ...prev,
+                    flatId,
+                    flatNo
+                  }));
+                }}
+                disabled={loading || (isPHF ? !signUpData.communityId : !signUpData.buildingId)}
+                loading={flatsLoading}
+                error={errors.flatId}
+                placeholder="Enter your flat number"
+              />
+            )}
 
             <Button onClick={handleSendOTP} disabled={loading} className="w-full h-12 rounded-full gradient-primary shadow-button transition-spring hover:scale-[1.02] disabled:scale-100">
               {loading && <CleaningLoader size="sm" className="mr-2" />}
