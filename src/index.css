@@ -243,4 +243,17 @@ html, body { margin: 0 !important; padding: 0 !important; }
   .pb-safe-or-20 {
     padding-bottom: max(env(safe-area-inset-bottom), 5rem);
   }
+  
+  @keyframes shimmer {
+    0% {
+      background-position: -200% 0;
+    }
+    100% {
+      background-position: 200% 0;
+    }
+  }
+  
+  .animate-shimmer {
+    animation: shimmer 2s infinite;
+  }
 }
