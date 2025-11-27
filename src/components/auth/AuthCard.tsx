@@ -16,6 +16,7 @@ import { useCommunities } from '@/hooks/useCommunities';
 import { useBuildings } from '@/hooks/useBuildings';
 import { useFlats } from '@/hooks/useFlats';
 import { isDemoCredentials, setDemoSession, setGuestSession } from '@/lib/demo';
+import { FlatSearchInput } from './FlatSearchInput';
 export function AuthCard() {
   const navigate = useNavigate();
   const {
@@ -328,37 +329,23 @@ export function AuthCard() {
               </div>
             )}
 
-            {/* Flat Number - Dropdown selection */}
+            {/* Flat Number - Searchable Input */}
             {signUpData.communityId && (isPHF || signUpData.buildingId) && (
-              <div className="space-y-2">
-                <Label htmlFor="flat" className="text-sm font-medium">
-                  Flat No <span className="text-destructive">*</span>
-                </Label>
-                <Select 
-                  value={signUpData.flatId} 
-                  onValueChange={value => {
-                    const selectedFlat = flats.find(f => f.id === value);
-                    setSignUpData(prev => ({
-                      ...prev,
-                      flatId: value,
-                      flatNo: selectedFlat?.flat_no || ''
-                    }));
-                  }} 
-                  disabled={loading || flatsLoading || (isPHF ? !signUpData.communityId : !signUpData.buildingId)}
-                >
-                  <SelectTrigger className="rounded-xl shadow-input transition-smooth focus:ring-2 focus:ring-primary/20">
-                    <SelectValue placeholder={flatsLoading ? "Loading flats..." : "Select your flat"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {flats.map(flat => (
-                      <SelectItem key={flat.id} value={flat.id}>
-                        {flat.flat_no}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {errors.flatId && <p className="text-sm text-destructive">{errors.flatId}</p>}
-              </div>
+              <FlatSearchInput
+                flats={flats}
+                value={signUpData.flatNo}
+                onSelect={(flatId, flatNo) => {
+                  setSignUpData(prev => ({
+                    ...prev,
+                    flatId,
+                    flatNo
+                  }));
+                }}
+                disabled={loading || (isPHF ? !signUpData.communityId : !signUpData.buildingId)}
+                loading={flatsLoading}
+                error={errors.flatId}
+                placeholder="Enter your flat number"
+              />
             )}
 
             <Button onClick={handleSendOTP} disabled={loading} className="w-full h-12 rounded-full gradient-primary shadow-button transition-spring hover:scale-[1.02] disabled:scale-100">
