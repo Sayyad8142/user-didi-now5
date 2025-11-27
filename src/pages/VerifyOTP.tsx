@@ -18,10 +18,7 @@ interface LocationState {
   signupData?: {
     fullName: string;
     phone: string;
-    communityId: string;
-    communityValue: string;
-    buildingId: string;
-    flatId: string;
+    community: string;
     flatNo: string;
   } | null;
   adminLogin?: boolean;
@@ -130,11 +127,8 @@ export default function VerifyOTP() {
           .from('profiles')
           .update({
             full_name: state.signupData.fullName,
-            community: state.signupData.communityValue,
+            community: state.signupData.community,
             flat_no: state.signupData.flatNo,
-            community_id: state.signupData.communityId,
-            building_id: state.signupData.buildingId || null,
-            flat_id: state.signupData.flatId,
           })
           .eq('id', profile.id);
 
