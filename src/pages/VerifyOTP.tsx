@@ -126,6 +126,36 @@ export default function VerifyOTP() {
 
       // If signup mode with additional data, update the profile
       if (state?.mode === 'signup' && state.signupData && profile) {
+        console.log('📝 Updating profile with signup data:', {
+          fullName: state.signupData.fullName,
+          communityId: state.signupData.communityId,
+          communityValue: state.signupData.communityValue,
+          flatNo: state.signupData.flatNo,
+          flatId: state.signupData.flatId,
+          buildingId: state.signupData.buildingId
+        });
+
+        // Validate required fields before update
+        if (!state.signupData.communityValue) {
+          console.error('❌ Community value is missing!');
+          toast({
+            title: 'Signup Error',
+            description: 'Community information is missing. Please try signing up again.',
+            variant: 'destructive',
+          });
+          return;
+        }
+
+        if (!state.signupData.flatId || !state.signupData.flatNo) {
+          console.error('❌ Flat information is missing!');
+          toast({
+            title: 'Signup Error',
+            description: 'Flat information is missing. Please try signing up again.',
+            variant: 'destructive',
+          });
+          return;
+        }
+
         const { error: updateError } = await supabase
           .from('profiles')
           .update({
@@ -139,18 +169,20 @@ export default function VerifyOTP() {
           .eq('id', profile.id);
 
         if (updateError) {
-          console.error('Profile update error:', updateError);
+          console.error('❌ Profile update error:', updateError);
           toast({
-            title: 'Warning',
-            description: 'Account created but profile setup incomplete. Please complete your profile.',
+            title: 'Signup Failed',
+            description: `Failed to complete profile setup: ${updateError.message}`,
             variant: 'destructive',
           });
-        } else {
-          toast({
-            title: 'Welcome to Didi Now!',
-            description: 'Your account has been created successfully.',
-          });
+          return;
         }
+
+        console.log('✅ Profile updated successfully');
+        toast({
+          title: 'Welcome to Didi Now!',
+          description: 'Your account has been created successfully.',
+        });
       } else {
         toast({
           title: 'Welcome back!',
