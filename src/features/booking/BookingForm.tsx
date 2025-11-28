@@ -267,6 +267,27 @@ export function BookingForm() {
   const createBooking = async (bookingType: 'instant' | 'scheduled', scheduledDate: string | null, scheduledTime: string | null, price: number) => {
     if (!profile || !user || !service_type) return;
     if (service_type !== 'cook' && service_type !== 'bathroom_cleaning' && !selectedFlatSize) return;
+    
+    // Validate community before booking
+    if (!profile.community || profile.community === 'other') {
+      console.error('❌ Invalid community in profile:', profile.community);
+      toast({
+        title: "Profile Incomplete",
+        description: "Please complete your profile with community information before booking.",
+        variant: "destructive"
+      });
+      navigate('/profile/settings');
+      return;
+    }
+
+    console.log('📝 Creating booking:', {
+      serviceType: service_type,
+      bookingType,
+      community: profile.community,
+      flatNo: profile.flat_no,
+      price
+    });
+
     setSubmitting(true);
     try {
       const bookingData = {
@@ -290,18 +311,23 @@ export function BookingForm() {
         community: profile.community,
         flat_no: profile.flat_no
       };
-      const {
-        error
-      } = await supabase.from('bookings').insert([bookingData]);
+      
+      console.log('📤 Sending booking data to database:', bookingData);
+      
+      const { data, error } = await supabase.from('bookings').insert([bookingData]).select();
+      
       if (error) {
-        console.error('Booking error:', error);
+        console.error('❌ Booking error:', error);
         toast({
           title: "Booking Failed",
-          description: "There was an error creating your booking. Please try again.",
+          description: `Error: ${error.message || 'Please try again.'}`,
           variant: "destructive"
         });
         return;
       }
+      
+      console.log('✅ Booking created successfully:', data);
+      
       toast({
         title: "Booking received!",
         description: bookingType === 'instant' ? "Service will arrive in 10 minutes." : "Your booking has been scheduled successfully."
@@ -309,7 +335,7 @@ export function BookingForm() {
       setScheduleSheetOpen(false);
       navigate('/home');
     } catch (err) {
-      console.error('Booking error:', err);
+      console.error('❌ Booking error:', err);
       toast({
         title: "Error",
         description: "An unexpected error occurred. Please try again.",

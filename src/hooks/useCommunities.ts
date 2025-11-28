@@ -19,6 +19,8 @@ export function useCommunities() {
       setLoading(true);
       setError(null);
 
+      console.log('🏘️  Fetching active communities...');
+
       const { data, error: fetchError } = await supabase
         .from('communities')
         .select('id, name, value, is_active, flat_format')
@@ -26,14 +28,20 @@ export function useCommunities() {
         .order('name');
 
       if (fetchError) {
-        console.error('Error fetching communities:', fetchError);
+        console.error('❌ Error fetching communities:', fetchError);
         setError('Failed to load communities');
         return;
       }
 
+      console.log(`✅ Loaded ${data?.length || 0} active communities:`, data);
+      
+      if (!data || data.length === 0) {
+        console.warn('⚠️  No active communities found!');
+      }
+
       setCommunities(data || []);
     } catch (err) {
-      console.error('Error:', err);
+      console.error('❌ Error:', err);
       setError('An unexpected error occurred');
     } finally {
       setLoading(false);
