@@ -285,7 +285,11 @@ export function BookingForm() {
       bookingType,
       community: profile.community,
       flatNo: profile.flat_no,
-      price
+      userId: user.id,
+      price,
+      scheduledDate,
+      scheduledTime,
+      timestamp: new Date().toISOString()
     });
 
     setSubmitting(true);
@@ -317,7 +321,13 @@ export function BookingForm() {
       const { data, error } = await supabase.from('bookings').insert([bookingData]).select();
       
       if (error) {
-        console.error('❌ Booking error:', error);
+        console.error('❌ Booking error:', {
+          error,
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        });
         toast({
           title: "Booking Failed",
           description: `Error: ${error.message || 'Please try again.'}`,
