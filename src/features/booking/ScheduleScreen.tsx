@@ -88,8 +88,35 @@ export function ScheduleScreen() {
 
     setSubmitting(true);
     try {
+      // Format date as YYYY-MM-DD for PostgreSQL DATE column
       const scheduledDate = format(selectedDate, 'yyyy-MM-dd');
-      const scheduledTime = `${selectedTime}:00`;
+      
+      // Format time as HH:MM:SS for PostgreSQL TIME column
+      // Ensure we have proper HH:MM format first, then add seconds
+      const timeMatch = selectedTime.match(/^(\d{1,2}):(\d{2})$/);
+      if (!timeMatch) {
+        console.error('❌ Invalid time format:', selectedTime);
+        toast({
+          title: "Invalid Time",
+          description: "Please select a valid time slot.",
+          variant: "destructive"
+        });
+        setSubmitting(false);
+        return;
+      }
+      const hours = timeMatch[1].padStart(2, '0');
+      const minutes = timeMatch[2];
+      const scheduledTime = `${hours}:${minutes}:00`;
+
+      console.log('📅 Scheduled booking details:', {
+        selectedDate: selectedDate.toISOString(),
+        scheduledDate,
+        selectedTime,
+        scheduledTime,
+        serviceType: service_type,
+        community: profile.community,
+        price
+      });
 
       const bookingData = {
         user_id: user.id,
@@ -112,23 +139,28 @@ export function ScheduleScreen() {
         flat_no: profile.flat_no
       };
 
-      const { error } = await supabase
+      console.log('📤 Sending scheduled booking to database:', bookingData);
+
+      const { data, error } = await supabase
         .from('bookings')
-        .insert([bookingData]);
+        .insert([bookingData])
+        .select();
 
       if (error) {
-        console.error('Booking error:', error);
+        console.error('❌ Scheduled booking error:', error);
         toast({
           title: "Booking Failed",
-          description: "There was an error creating your booking. Please try again.",
+          description: `Error: ${error.message || 'Please try again.'}`,
           variant: "destructive"
         });
         return;
       }
 
+      console.log('✅ Scheduled booking created successfully:', data);
+
       toast({
         title: "Schedule confirmed!",
-        description: "Your booking has been scheduled successfully."
+        description: "Your booking has been scheduled successfully. Worker will be assigned 15 minutes before scheduled time."
       });
 
       navigate('/home');
