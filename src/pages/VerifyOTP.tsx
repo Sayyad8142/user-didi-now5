@@ -11,6 +11,7 @@ import { maskPhone } from '@/lib/auth-helpers';
 import { CleaningLoader } from '@/components/ui/cleaning-loader';
 import { ensureProfile, waitForSession, normalizePhone } from '@/features/profile/ensureProfile';
 import { isDemoCredentials, setDemoSession } from '@/lib/demo';
+import { useProfile } from '@/contexts/ProfileContext';
 
 interface LocationState {
   phone: string;
@@ -43,6 +44,7 @@ export default function VerifyOTP() {
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
+  const { refresh: refreshProfile } = useProfile();
   
   const state = location.state as LocationState;
   
@@ -179,6 +181,10 @@ export default function VerifyOTP() {
         }
 
         console.log('✅ Profile updated successfully');
+        
+        // Refresh ProfileContext to get updated data immediately
+        refreshProfile();
+        
         toast({
           title: 'Welcome to Didi Now!',
           description: 'Your account has been created successfully.',
