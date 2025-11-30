@@ -18,3 +18,6 @@ verify_jwt = true
 
 [functions.end-rtc-call]
 verify_jwt = true
+
+[functions.send-worker-fcm]
+verify_jwt = false
