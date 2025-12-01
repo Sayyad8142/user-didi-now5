@@ -9,7 +9,8 @@ interface Profile {
   phone: string;
   community: string;
   flat_no: string;
-  building_id?: string;
+  building_id?: string | null;
+  community_id?: string | null;
 }
 
 interface ProfileContextType {
@@ -112,7 +113,7 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
       try {
         const { data, error: fetchError } = await supabase
           .from('profiles')
-          .select('id, full_name, phone, community, flat_no, building_id')
+          .select('id, full_name, phone, community, flat_no, building_id, community_id')
           .eq('id', user.id)
           .single();
 

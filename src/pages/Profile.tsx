@@ -17,7 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 export default function Profile() {
   const { profile, loading } = useProfile();
   const { communities, loading: communitiesLoading } = useCommunities();
-  const { buildings } = useBuildings(profile?.building_id ? communities.find(c => c.value === profile?.community)?.id : undefined);
+  const { buildings } = useBuildings(profile?.community_id || undefined);
   const navigate = useNavigate();
   const { toast } = useToast();
   

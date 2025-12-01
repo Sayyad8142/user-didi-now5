@@ -42,7 +42,7 @@ export async function ensureProfile() {
   // Read (no error if missing)
   const { data: existing, error: readErr } = await supabase
     .from("profiles")
-    .select("id, full_name, phone, community, flat_no, is_admin")
+    .select("id, full_name, phone, community, flat_no, is_admin, building_id, community_id")
     .eq("id", uid)
     .maybeSingle();
 
@@ -65,7 +65,7 @@ export async function ensureProfile() {
         },
         { onConflict: "id" }
       )
-      .select("id, full_name, phone, community, flat_no, is_admin")
+      .select("id, full_name, phone, community, flat_no, is_admin, building_id, community_id")
       .single();
 
     if (error) {
@@ -88,7 +88,7 @@ export async function ensureProfile() {
       .from("profiles")
       .update({ phone })
       .eq("id", uid)
-      .select("id, full_name, phone, community, flat_no, is_admin")
+      .select("id, full_name, phone, community, flat_no, is_admin, building_id, community_id")
       .single();
 
     if (error) {
