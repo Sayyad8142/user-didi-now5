@@ -7,15 +7,17 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useProfile } from '@/contexts/ProfileContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate, Link } from 'react-router-dom';
-import { User, Phone, Building, Home, LogOut, Settings, Bell, Shield, Edit3, Save, X, HelpCircle, Share2 } from 'lucide-react';
+import { User, Phone, Building, Home, LogOut, Settings, Bell, Shield, Edit3, Save, X, HelpCircle, Share2, Building2 } from 'lucide-react';
 import { openExternalUrl } from '@/lib/nativeOpen';
 import { useToast } from '@/hooks/use-toast';
 import { AppVersionDisplay } from '@/components/AppVersionDisplay';
 import { useCommunities } from '@/hooks/useCommunities';
+import { useBuildings } from '@/hooks/useBuildings';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 export default function Profile() {
   const { profile, loading } = useProfile();
   const { communities, loading: communitiesLoading } = useCommunities();
+  const { buildings } = useBuildings(profile?.building_id ? communities.find(c => c.value === profile?.community)?.id : undefined);
   const navigate = useNavigate();
   const { toast } = useToast();
   
@@ -247,6 +249,22 @@ export default function Profile() {
                 </div>
               </div>
             </div>
+
+            {profile?.building_id && (
+              <div className="group">
+                <div className="flex items-start gap-4">
+                  <div className="h-12 w-12 bg-indigo-50 rounded-2xl flex items-center justify-center group-hover:bg-indigo-100 transition-colors">
+                    <Building2 className="w-6 h-6 text-indigo-600" />
+                  </div>
+                  <div className="flex-1 space-y-1">
+                    <p className="text-sm font-medium text-gray-500 uppercase tracking-wide">Building</p>
+                    <p className="text-lg font-semibold text-gray-900">
+                      {buildings.find(b => b.id === profile?.building_id)?.name || 'Not provided'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="group">
               <div className="flex items-start gap-4">
