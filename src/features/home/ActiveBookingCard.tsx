@@ -150,9 +150,9 @@ const ActiveBookingCard = memo(() => {
       .then(({ data }) => setWorkerStats(data ?? null));
   }, [activeBooking?.worker_id]);
 
-  // Set up real-time updates (reduced frequency)
+  // Set up real-time updates
   useEffect(() => {
-    if (!user?.id || !activeBooking) return;
+    if (!user?.id) return;
 
     const channel = supabase
       .channel(`active-booking-updates-${user.id}`)
@@ -164,10 +164,8 @@ const ActiveBookingCard = memo(() => {
           filter: `user_id=eq.${user.id}`
         },
         (payload) => {
-          // Only refetch if it's our booking that changed
-          if (payload.new.id === activeBooking.id) {
-            fetchActiveBooking();
-          }
+          // Refetch whenever any booking changes to catch new cancellations
+          fetchActiveBooking();
         }
       )
       .subscribe();
@@ -175,7 +173,7 @@ const ActiveBookingCard = memo(() => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user?.id, activeBooking?.id]);
+  }, [user?.id, fetchActiveBooking]);
 
   if (loading || !activeBooking || dismissedBookings.has(activeBooking.id)) {
     return null;
