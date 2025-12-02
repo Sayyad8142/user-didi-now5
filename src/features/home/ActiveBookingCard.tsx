@@ -361,16 +361,25 @@ const ActiveBookingCard = memo(() => {
 
       {/* Cancellation messages */}
       {activeBooking.status === "cancelled" && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-3">
-          {activeBooking.cancel_source === "admin" ? (
-            <p className="text-red-800 font-medium text-sm">
-              Booking cancelled by admin - we are unable to provide helper this time. Please try again next time.
-            </p>
-          ) : (
-            <p className="text-red-800 font-medium text-sm">
-              All workers busy in work, Book again after sometime.
-            </p>
-          )}
+        <div className="space-y-3 mb-3">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+            {activeBooking.cancel_source === "admin" ? (
+              <p className="text-red-800 font-medium text-sm">
+                Booking cancelled by admin - we are unable to provide helper this time. Please try again next time.
+              </p>
+            ) : (
+              <p className="text-red-800 font-medium text-sm">
+                All workers busy in work, Book again after sometime.
+              </p>
+            )}
+          </div>
+          <Button 
+            onClick={() => openExternalUrl("tel:+918008180018")}
+            className="w-full h-10 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold rounded-lg shadow-sm"
+          >
+            <PhoneCall className="h-4 w-4 mr-2" />
+            Call Manager
+          </Button>
         </div>
       )}
 
