@@ -389,12 +389,26 @@ export function BookingCard({
           </div>
         )}
 
-        {/* Admin cancellation message */}
-        {row.status === "cancelled" && row.cancel_source === "admin" && (
+        {/* Cancellation messages */}
+        {row.status === "cancelled" && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-            <p className="text-red-800 font-medium text-sm">
-              Booking cancelled by admin - we are unable to provide helper this time. Please try again next time.
-            </p>
+            {row.cancel_source === "admin" ? (
+              <p className="text-red-800 font-medium text-sm">
+                Booking cancelled by admin - we are unable to provide helper this time. Please try again next time.
+              </p>
+            ) : row.cancel_reason === "all_workers_rejected" || row.cancel_reason?.includes("no_workers") || row.cancel_reason?.includes("timeout") ? (
+              <p className="text-red-800 font-medium text-sm">
+                All workers busy in work, your booking cancelled. Book after sometime.
+              </p>
+            ) : row.cancel_reason ? (
+              <p className="text-red-800 font-medium text-sm">
+                Cancellation reason: {row.cancel_reason}
+              </p>
+            ) : (
+              <p className="text-red-800 font-medium text-sm">
+                Booking cancelled
+              </p>
+            )}
           </div>
         )}
 
