@@ -175,7 +175,12 @@ const ActiveBookingCard = memo(() => {
     };
   }, [user?.id, fetchActiveBooking]);
 
-  if (loading || !activeBooking || dismissedBookings.has(activeBooking.id)) {
+  // Show cancelled bookings even if they were previously dismissed
+  if (loading || !activeBooking) {
+    return null;
+  }
+  
+  if (dismissedBookings.has(activeBooking.id) && activeBooking.status !== 'cancelled') {
     return null;
   }
 
