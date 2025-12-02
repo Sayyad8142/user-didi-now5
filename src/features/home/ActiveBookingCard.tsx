@@ -105,18 +105,18 @@ const ActiveBookingCard = memo(() => {
         .or(`and(status.in.(pending,assigned,accepted,on_the_way,started),booking_type.eq.instant),and(status.in.(pending,assigned,accepted,on_the_way,started),booking_type.eq.scheduled,scheduled_date.gte.${today}),and(status.eq.cancelled,cancelled_at.gte.${todayStart})`)
         .order('created_at', { ascending: false });
 
-      // Find the first booking that should be shown: prioritize non-dismissed active bookings,
-      // then show cancelled bookings (even if previously dismissed)
+      // Prioritize showing cancelled bookings over active ones (most important to show)
+      // Then show active bookings that haven't been dismissed
       let bookingToShow = null;
       if (allBookings && allBookings.length > 0) {
-        // First try to find an active booking that's not dismissed
-        bookingToShow = allBookings.find(b => 
-          b.status !== 'cancelled' && !dismissedBookings.has(b.id)
-        );
+        // First priority: show any cancelled booking from today (most recent first)
+        bookingToShow = allBookings.find(b => b.status === 'cancelled');
         
-        // If no active non-dismissed booking, show any cancelled booking from today
+        // Second priority: show active bookings that haven't been dismissed
         if (!bookingToShow) {
-          bookingToShow = allBookings.find(b => b.status === 'cancelled');
+          bookingToShow = allBookings.find(b => 
+            b.status !== 'cancelled' && !dismissedBookings.has(b.id)
+          );
         }
       }
 
