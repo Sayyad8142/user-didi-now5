@@ -97,19 +97,33 @@ const ActiveBookingCard = memo(() => {
       startOfToday.setHours(0, 0, 0, 0);
       const todayStart = startOfToday.toISOString();
       
-      const { data, error } = await supabase
+      // Fetch all matching bookings and prioritize active ones over cancelled
+      const { data: allBookings, error } = await supabase
         .from('bookings')
         .select('*')
         .eq('user_id', user.id)
         .or(`and(status.in.(pending,assigned,accepted,on_the_way,started),booking_type.eq.instant),and(status.in.(pending,assigned,accepted,on_the_way,started),booking_type.eq.scheduled,scheduled_date.gte.${today}),and(status.eq.cancelled,cancelled_at.gte.${todayStart})`)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
+        .order('created_at', { ascending: false });
 
-      if (error && error.code !== 'PGRST116') {
+      // Find the first booking that should be shown: prioritize non-dismissed active bookings,
+      // then show cancelled bookings (even if previously dismissed)
+      let bookingToShow = null;
+      if (allBookings && allBookings.length > 0) {
+        // First try to find an active booking that's not dismissed
+        bookingToShow = allBookings.find(b => 
+          b.status !== 'cancelled' && !dismissedBookings.has(b.id)
+        );
+        
+        // If no active non-dismissed booking, show any cancelled booking from today
+        if (!bookingToShow) {
+          bookingToShow = allBookings.find(b => b.status === 'cancelled');
+        }
+      }
+
+      if (error) {
         console.error('Error fetching active booking:', error);
       } else {
-        setActiveBooking(data || null);
+        setActiveBooking(bookingToShow || null);
       }
     } catch (err) {
       console.error('Error:', err);
