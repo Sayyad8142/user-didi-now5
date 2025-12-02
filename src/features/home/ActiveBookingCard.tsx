@@ -93,13 +93,15 @@ const ActiveBookingCard = memo(() => {
 
     try {
       const today = new Date().toISOString().split('T')[0];
-      const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+      const startOfToday = new Date();
+      startOfToday.setHours(0, 0, 0, 0);
+      const todayStart = startOfToday.toISOString();
       
       const { data, error } = await supabase
         .from('bookings')
         .select('*')
         .eq('user_id', user.id)
-        .or(`and(status.in.(pending,assigned,accepted,on_the_way,started),booking_type.eq.instant),and(status.in.(pending,assigned,accepted,on_the_way,started),booking_type.eq.scheduled,scheduled_date.gte.${today}),and(status.eq.cancelled,cancelled_at.gte.${thirtyMinutesAgo})`)
+        .or(`and(status.in.(pending,assigned,accepted,on_the_way,started),booking_type.eq.instant),and(status.in.(pending,assigned,accepted,on_the_way,started),booking_type.eq.scheduled,scheduled_date.gte.${today}),and(status.eq.cancelled,cancelled_at.gte.${todayStart})`)
         .order('created_at', { ascending: false })
         .limit(1)
         .single();
