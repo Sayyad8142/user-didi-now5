@@ -99,7 +99,7 @@ const ActiveBookingCard = memo(() => {
         .from('bookings')
         .select('*')
         .eq('user_id', user.id)
-        .or(`and(status.in.(pending,assigned,accepted,on_the_way,started),booking_type.eq.instant),and(status.in.(pending,assigned,accepted,on_the_way,started),booking_type.eq.scheduled,scheduled_date.gte.${today}),and(status.eq.cancelled,cancel_source.eq.admin,cancelled_at.gte.${thirtyMinutesAgo})`)
+        .or(`and(status.in.(pending,assigned,accepted,on_the_way,started),booking_type.eq.instant),and(status.in.(pending,assigned,accepted,on_the_way,started),booking_type.eq.scheduled,scheduled_date.gte.${today}),and(status.eq.cancelled,cancelled_at.gte.${thirtyMinutesAgo})`)
         .order('created_at', { ascending: false })
         .limit(1)
         .single();
@@ -340,12 +340,18 @@ const ActiveBookingCard = memo(() => {
         <AssigningProgress booking={activeBooking} />
       )}
 
-      {/* Admin cancellation message */}
-      {activeBooking.status === "cancelled" && activeBooking.cancel_source === "admin" && (
+      {/* Cancellation messages */}
+      {activeBooking.status === "cancelled" && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-3">
-          <p className="text-red-800 font-medium text-sm">
-            Booking cancelled by admin - we are unable to provide helper this time. Please try again next time.
-          </p>
+          {activeBooking.cancel_source === "admin" ? (
+            <p className="text-red-800 font-medium text-sm">
+              Booking cancelled by admin - we are unable to provide helper this time. Please try again next time.
+            </p>
+          ) : (
+            <p className="text-red-800 font-medium text-sm">
+              All workers busy in work, Book again after sometime.
+            </p>
+          )}
         </div>
       )}
 
