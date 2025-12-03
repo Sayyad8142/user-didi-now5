@@ -10,6 +10,9 @@ verify_jwt = false
 [functions.scheduled-dispatch]
 verify_jwt = false
 
+[functions.check-scheduled-bookings]
+verify_jwt = false
+
 [functions.create-rtc-call]
 verify_jwt = true
 
