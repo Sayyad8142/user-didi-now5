@@ -1,7 +1,5 @@
 // ============================================================================
-// Worker FCM Notifications - Using Legacy FCM API
-// ============================================================================
-// Uses legacy FCM HTTP API with server key (more reliable in edge functions)
+// Worker FCM Notifications - Legacy API (no JWT signing needed)
 // ============================================================================
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -12,7 +10,6 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -27,9 +24,7 @@ serve(async (req) => {
       );
     }
 
-    // Get FCM server key (legacy API)
     const serverKey = Deno.env.get('FCM_SERVER_KEY');
-    
     if (!serverKey) {
       console.error('❌ FCM_SERVER_KEY not configured');
       return new Response(
@@ -38,9 +33,8 @@ serve(async (req) => {
       );
     }
 
-    console.log('📤 Sending FCM to worker:', { title, body, has_token: !!token, token_preview: token.substring(0, 20) });
+    console.log('📤 Sending FCM:', { title, body, token_preview: token.substring(0, 20) });
 
-    // Use legacy FCM HTTP API (no JWT signing required)
     const fcmResponse = await fetch('https://fcm.googleapis.com/fcm/send', {
       method: 'POST',
       headers: {
@@ -60,11 +54,10 @@ serve(async (req) => {
     });
 
     const fcmResult = await fcmResponse.json();
-    
     console.log('📨 FCM Response:', JSON.stringify(fcmResult));
 
     if (!fcmResponse.ok || fcmResult.failure > 0) {
-      console.error('❌ FCM API error:', fcmResult);
+      console.error('❌ FCM error:', fcmResult);
       return new Response(
         JSON.stringify({ ok: false, error: 'FCM failed', details: fcmResult }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -72,14 +65,13 @@ serve(async (req) => {
     }
 
     console.log('✅ FCM sent successfully');
-
     return new Response(
       JSON.stringify({ ok: true, result: fcmResult }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
-    console.error('❌ Error in send-worker-fcm:', error);
+    console.error('❌ Error:', error);
     return new Response(
       JSON.stringify({ ok: false, error: error.message }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
