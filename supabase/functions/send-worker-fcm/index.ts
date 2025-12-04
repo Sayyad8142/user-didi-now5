@@ -48,12 +48,14 @@ async function getAccessToken() {
   const encodedPayload = encodeBase64Url(payload);
   const signatureInput = `${encodedHeader}.${encodedPayload}`;
   
-  // Import private key
-  const privateKey = serviceAccount.private_key;
+  // Import private key - handle escaped newlines from secret storage
+  const privateKey = serviceAccount.private_key
+    .replace(/\\n/g, '\n');  // Convert escaped \n to actual newlines
+  
   const pemContents = privateKey
     .replace('-----BEGIN PRIVATE KEY-----', '')
     .replace('-----END PRIVATE KEY-----', '')
-    .replace(/\s/g, '');
+    .replace(/[\r\n\s]/g, '');
   
   const binaryKey = Uint8Array.from(atob(pemContents), c => c.charCodeAt(0));
   
