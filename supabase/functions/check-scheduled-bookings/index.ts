@@ -1,5 +1,6 @@
 // ============================================================================
 // Check Scheduled Bookings - Sends FCM alerts 10-20 mins before scheduled time
+// Uses the SAME fcm_tokens table as instant bookings for consistency
 // ============================================================================
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -67,43 +68,66 @@ serve(async (req) => {
       if (diffMin <= WINDOW_MINUTES && diffMin > -5) {
         console.log(`🔔 Booking ${booking.id} is due in ${diffMin.toFixed(1)} mins - SENDING ALERTS!`);
 
-        // Find eligible workers - check workers table
-        const { data: workers, error: workersError } = await supabase
-          .from('workers')
-          .select('id, full_name, fcm_token, community, communities, service_types')
-          .eq('is_active', true)
-          .eq('is_available', true)
-          .contains('service_types', [booking.service_type]);
+        // UNIFIED: Query fcm_tokens table joined with workers (SAME as instant flow)
+        // This ensures scheduled bookings use the same FCM token source as instant bookings
+        const { data: workerTokens, error: tokensError } = await supabase
+          .from('fcm_tokens')
+          .select(`
+            token,
+            user_id,
+            workers!inner(
+              id,
+              full_name,
+              is_active,
+              is_available,
+              service_types,
+              community,
+              communities
+            )
+          `)
+          .eq('workers.is_active', true)
+          .eq('workers.is_available', true);
 
-        if (workersError) {
-          console.error(`❌ Error fetching workers:`, workersError);
+        if (tokensError) {
+          console.error(`❌ Error fetching worker tokens:`, tokensError);
           continue;
         }
 
-        console.log(`👷 Found ${workers?.length || 0} workers matching service_type=${booking.service_type}`);
+        console.log(`👷 Found ${workerTokens?.length || 0} active workers with FCM tokens`);
 
-        // Filter by community match
-        const eligibleWorkers = (workers || []).filter(worker => {
+        // Filter by service type and community match
+        const eligibleWorkers = (workerTokens || []).filter((wt: any) => {
+          const worker = wt.workers;
+          if (!worker) return false;
+          
+          // Check service type match
+          const serviceTypes = worker.service_types || [];
+          const matchesService = serviceTypes.includes(booking.service_type);
+          
+          // Check community match (empty array = matches all communities)
           const communitiesArray = worker.communities || [];
           const matchesCommunities = communitiesArray.length === 0 || 
                                      communitiesArray.includes(booking.community);
           const matchesCommunity = worker.community === booking.community || !worker.community;
-          const hasToken = !!worker.fcm_token;
           
-          console.log(`  Worker ${worker.id} (${worker.full_name}): communities=${JSON.stringify(communitiesArray)}, matchesCommunities=${matchesCommunities}, hasToken=${hasToken}`);
+          const matches = matchesService && (matchesCommunities || matchesCommunity);
           
-          return (matchesCommunities || matchesCommunity) && hasToken;
+          console.log(`  Worker ${worker.id} (${worker.full_name}): service=${matchesService}, community=${matchesCommunities || matchesCommunity}, eligible=${matches}`);
+          
+          return matches;
         });
 
-        console.log(`✅ ${eligibleWorkers.length} eligible workers with FCM tokens for booking ${booking.id}`);
+        console.log(`✅ ${eligibleWorkers.length} eligible workers for booking ${booking.id}`);
 
         let workersNotified = 0;
         let fcmSuccessCount = 0;
 
-        for (const worker of eligibleWorkers) {
+        for (const wt of eligibleWorkers) {
+          const worker = wt.workers;
           try {
-            console.log(`📤 Sending FCM to ${worker.full_name} (${worker.id}), token: ${worker.fcm_token?.substring(0, 20)}...`);
+            console.log(`📤 Sending FCM to ${worker.full_name} (${worker.id}), token: ${wt.token?.substring(0, 20)}...`);
             
+            // Call the SAME send-worker-fcm edge function used by instant bookings
             const fcmResponse = await fetch(`${SUPABASE_URL}/functions/v1/send-worker-fcm`, {
               method: 'POST',
               headers: {
@@ -111,7 +135,7 @@ serve(async (req) => {
                 'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
               },
               body: JSON.stringify({
-                token: worker.fcm_token,
+                token: wt.token,
                 title: 'Scheduled Booking',
                 body: `${booking.service_type} • ${booking.community} • Flat ${booking.flat_no || ''}`,
                 data: {
