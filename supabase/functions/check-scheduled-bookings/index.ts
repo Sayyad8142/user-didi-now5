@@ -1,5 +1,5 @@
 // ============================================================================
-// Check Scheduled Bookings - Sends FCM alerts 10-15 mins before scheduled time
+// Check Scheduled Bookings - Sends FCM alerts 10-20 mins before scheduled time
 // ============================================================================
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -67,7 +67,7 @@ serve(async (req) => {
       if (diffMin <= WINDOW_MINUTES && diffMin > -5) {
         console.log(`🔔 Booking ${booking.id} is due in ${diffMin.toFixed(1)} mins - SENDING ALERTS!`);
 
-        // Find eligible workers - check both workers.fcm_token and fcm_tokens table
+        // Find eligible workers - check workers table
         const { data: workers, error: workersError } = await supabase
           .from('workers')
           .select('id, full_name, fcm_token, community, communities, service_types')
@@ -98,10 +98,11 @@ serve(async (req) => {
         console.log(`✅ ${eligibleWorkers.length} eligible workers with FCM tokens for booking ${booking.id}`);
 
         let workersNotified = 0;
+        let fcmSuccessCount = 0;
 
         for (const worker of eligibleWorkers) {
           try {
-            console.log(`📤 Sending FCM to ${worker.full_name} (${worker.id})`);
+            console.log(`📤 Sending FCM to ${worker.full_name} (${worker.id}), token: ${worker.fcm_token?.substring(0, 20)}...`);
             
             const fcmResponse = await fetch(`${SUPABASE_URL}/functions/v1/send-worker-fcm`, {
               method: 'POST',
@@ -129,6 +130,7 @@ serve(async (req) => {
             
             if (fcmResponse.ok && fcmResult.ok) {
               workersNotified++;
+              fcmSuccessCount++;
               console.log(`✅ FCM sent successfully to ${worker.full_name}`);
 
               // Create booking_request record
@@ -148,16 +150,19 @@ serve(async (req) => {
           }
         }
 
-        // Mark booking as prealert_sent
-        await supabase.from('bookings')
-          .update({ prealert_sent: true, updated_at: new Date().toISOString() })
-          .eq('id', booking.id);
+        // ONLY mark as prealert_sent if at least one worker was notified OR booking is past due
+        if (fcmSuccessCount > 0 || diffMin <= -5) {
+          await supabase.from('bookings')
+            .update({ prealert_sent: true, updated_at: new Date().toISOString() })
+            .eq('id', booking.id);
+          console.log(`✅ Booking ${booking.id}: prealert_sent=true, ${workersNotified} workers notified`);
+        } else {
+          console.log(`⚠️ Booking ${booking.id}: FCM failed for all workers, will retry next run`);
+        }
 
-        console.log(`✅ Booking ${booking.id}: prealert_sent=true, ${workersNotified} workers notified`);
-
-        results.push({ booking_id: booking.id, workers_notified: workersNotified });
+        results.push({ booking_id: booking.id, workers_notified: workersNotified, fcm_success: fcmSuccessCount });
       } else if (diffMin <= -5) {
-        // Booking is more than 5 mins past due - mark as processed
+        // Booking is more than 5 mins past due - mark as processed to avoid spam
         console.log(`⏰ Booking ${booking.id} is ${Math.abs(diffMin).toFixed(1)} mins past due, marking prealert_sent`);
         await supabase.from('bookings')
           .update({ prealert_sent: true })
