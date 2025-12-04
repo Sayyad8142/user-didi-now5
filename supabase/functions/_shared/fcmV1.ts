@@ -1,0 +1,181 @@
+// ============================================================================
+// FCM HTTP v1 Helper - Uses Service Account for Authentication
+// ============================================================================
+
+/**
+ * Creates a signed JWT for Google OAuth2 authentication
+ */
+async function createSignedJwt(
+  clientEmail: string,
+  privateKey: string
+): Promise<string> {
+  const now = Math.floor(Date.now() / 1000);
+  const exp = now + 3600; // 1 hour expiry
+
+  const header = {
+    alg: 'RS256',
+    typ: 'JWT',
+  };
+
+  const payload = {
+    iss: clientEmail,
+    sub: clientEmail,
+    aud: 'https://oauth2.googleapis.com/token',
+    iat: now,
+    exp: exp,
+    scope: 'https://www.googleapis.com/auth/firebase.messaging',
+  };
+
+  const encoder = new TextEncoder();
+  
+  const headerB64 = btoa(JSON.stringify(header))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
+  
+  const payloadB64 = btoa(JSON.stringify(payload))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
+
+  const signatureInput = `${headerB64}.${payloadB64}`;
+
+  // Parse PEM private key
+  const pemContents = privateKey
+    .replace(/-----BEGIN PRIVATE KEY-----/g, '')
+    .replace(/-----END PRIVATE KEY-----/g, '')
+    .replace(/\\n/g, '')
+    .replace(/\n/g, '')
+    .replace(/\s/g, '');
+
+  const binaryKey = Uint8Array.from(atob(pemContents), (c) => c.charCodeAt(0));
+
+  // Import the key for signing
+  const cryptoKey = await crypto.subtle.importKey(
+    'pkcs8',
+    binaryKey,
+    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+
+  // Sign the JWT
+  const signatureBuffer = await crypto.subtle.sign(
+    'RSASSA-PKCS1-v1_5',
+    cryptoKey,
+    encoder.encode(signatureInput)
+  );
+
+  const signatureB64 = btoa(String.fromCharCode(...new Uint8Array(signatureBuffer)))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
+
+  return `${signatureInput}.${signatureB64}`;
+}
+
+/**
+ * Gets an OAuth2 access token using the service account JWT
+ */
+async function getAccessToken(
+  clientEmail: string,
+  privateKey: string
+): Promise<string> {
+  const jwt = await createSignedJwt(clientEmail, privateKey);
+
+  const response = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: new URLSearchParams({
+      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+      assertion: jwt,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('❌ OAuth2 token error:', response.status, errorText);
+    throw new Error(`Failed to get access token: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return data.access_token;
+}
+
+/**
+ * Sends an FCM push notification using HTTP v1 API
+ * 
+ * @param token - Device FCM token
+ * @param title - Notification title
+ * @param body - Notification body
+ * @param data - Optional data payload
+ */
+export async function sendFcmV1Message(
+  token: string,
+  title: string,
+  body: string,
+  data?: Record<string, string>
+): Promise<void> {
+  const projectId = Deno.env.get('FCM_PROJECT_ID');
+  const clientEmail = Deno.env.get('FCM_CLIENT_EMAIL');
+  const privateKey = Deno.env.get('FCM_PRIVATE_KEY');
+
+  if (!projectId || !clientEmail || !privateKey) {
+    const missing = [];
+    if (!projectId) missing.push('FCM_PROJECT_ID');
+    if (!clientEmail) missing.push('FCM_CLIENT_EMAIL');
+    if (!privateKey) missing.push('FCM_PRIVATE_KEY');
+    throw new Error(`Missing FCM configuration: ${missing.join(', ')}`);
+  }
+
+  console.log('🔐 Getting OAuth2 access token...');
+  const accessToken = await getAccessToken(clientEmail, privateKey);
+
+  const fcmUrl = `https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`;
+
+  const message: Record<string, unknown> = {
+    token: token,
+    notification: {
+      title: title,
+      body: body,
+    },
+    android: {
+      priority: 'high',
+      notification: {
+        sound: 'default',
+        channel_id: 'booking_alerts',
+      },
+    },
+  };
+
+  if (data) {
+    message.data = data;
+  }
+
+  console.log('📤 Sending FCM v1:', { 
+    title, 
+    body, 
+    token_preview: token.substring(0, 20) + '...',
+    has_data: !!data 
+  });
+
+  const response = await fetch(fcmUrl, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ message }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('❌ FCM v1 error:', response.status, errorText);
+    throw new Error(`FCM v1 failed: ${response.status} - ${errorText}`);
+  }
+
+  const result = await response.json();
+  console.log('✅ FCM v1 sent successfully:', result.name);
+}
