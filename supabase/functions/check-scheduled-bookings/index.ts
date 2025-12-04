@@ -1,9 +1,6 @@
 // ============================================================================
 // Check Scheduled Bookings - Sends FCM alerts 10-15 mins before scheduled time
 // ============================================================================
-// Called every minute by cron job. Finds scheduled bookings due soon and
-// sends FCM notifications to eligible workers via send-worker-fcm function.
-// ============================================================================
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -15,22 +12,20 @@ const corsHeaders = {
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-const WINDOW_MINUTES = 15; // Alert workers 15 mins before scheduled time
+const WINDOW_MINUTES = 20; // Alert workers within 20 mins of scheduled time
 
 serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   const startTime = Date.now();
-  console.log('🕐 check-scheduled-bookings: Starting check at', new Date().toISOString());
+  console.log('🕐 check-scheduled-bookings: Starting at', new Date().toISOString());
 
   try {
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // 1. Fetch all scheduled bookings that need pre-alert
-    // Scheduled bookings that are pending, not alerted, due within WINDOW_MINUTES
+    // Fetch scheduled bookings that need pre-alert
     const { data: bookings, error: bookingsError } = await supabase
       .from('bookings')
       .select('*')
@@ -41,19 +36,15 @@ serve(async (req) => {
       .not('scheduled_time', 'is', null);
 
     if (bookingsError) {
-      console.error('❌ Error fetching scheduled bookings:', bookingsError);
-      return new Response(
-        JSON.stringify({ ok: false, error: bookingsError.message }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      console.error('❌ Error fetching bookings:', bookingsError);
+      return new Response(JSON.stringify({ ok: false, error: bookingsError.message }), 
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    if (!bookings || bookings.length === 0) {
+    if (!bookings?.length) {
       console.log('📭 No scheduled bookings pending pre-alert');
-      return new Response(
-        JSON.stringify({ ok: true, message: 'No scheduled bookings to process', processed: 0 }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ ok: true, processed: 0 }), 
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     console.log(`📋 Found ${bookings.length} scheduled bookings to check`);
@@ -62,63 +53,55 @@ serve(async (req) => {
     const results: any[] = [];
 
     for (const booking of bookings) {
-      // Combine scheduled_date + scheduled_time as IST, then compare with now
-      // scheduled_date is like '2024-01-15', scheduled_time is like '14:30:00'
       const scheduledDateStr = booking.scheduled_date;
-      const scheduledTimeStr = booking.scheduled_time?.slice(0, 5) || '00:00'; // HH:MM
+      const scheduledTimeStr = booking.scheduled_time?.slice(0, 5) || '00:00';
       
       // Build IST timestamp (India is UTC+5:30)
       const scheduledAtIST = new Date(`${scheduledDateStr}T${scheduledTimeStr}:00+05:30`);
       const diffMs = scheduledAtIST.getTime() - nowUTC.getTime();
       const diffMin = diffMs / 60000;
 
-      console.log(`📅 Booking ${booking.id}: scheduled at ${scheduledAtIST.toISOString()}, diff: ${diffMin.toFixed(1)} mins`);
+      console.log(`📅 Booking ${booking.id}: scheduled=${scheduledAtIST.toISOString()}, diff=${diffMin.toFixed(1)}min, community=${booking.community}, service=${booking.service_type}`);
 
-      // Fire alerts only when 0 < diff <= WINDOW_MINUTES (i.e., due within 15 mins)
-      if (diffMin <= WINDOW_MINUTES && diffMin > 0) {
-        console.log(`🔔 Booking ${booking.id} is due in ${diffMin.toFixed(1)} mins - sending alerts!`);
+      // Fire alerts when within WINDOW_MINUTES (20 mins) of scheduled time
+      if (diffMin <= WINDOW_MINUTES && diffMin > -5) {
+        console.log(`🔔 Booking ${booking.id} is due in ${diffMin.toFixed(1)} mins - SENDING ALERTS!`);
 
-        // 2. Find eligible workers for this booking
+        // Find eligible workers - check both workers.fcm_token and fcm_tokens table
         const { data: workers, error: workersError } = await supabase
           .from('workers')
-          .select(`
-            id,
-            full_name,
-            fcm_token,
-            community,
-            communities,
-            service_types
-          `)
+          .select('id, full_name, fcm_token, community, communities, service_types')
           .eq('is_active', true)
           .eq('is_available', true)
           .contains('service_types', [booking.service_type]);
 
         if (workersError) {
-          console.error(`❌ Error fetching workers for booking ${booking.id}:`, workersError);
+          console.error(`❌ Error fetching workers:`, workersError);
           continue;
         }
 
-        // Filter workers by community match
+        console.log(`👷 Found ${workers?.length || 0} workers matching service_type=${booking.service_type}`);
+
+        // Filter by community match
         const eligibleWorkers = (workers || []).filter(worker => {
-          // Worker matches if:
-          // - communities array is empty/null (matches all)
-          // - OR communities array contains the booking's community
-          // - OR community field matches
           const communitiesArray = worker.communities || [];
           const matchesCommunities = communitiesArray.length === 0 || 
                                      communitiesArray.includes(booking.community);
           const matchesCommunity = worker.community === booking.community || !worker.community;
-          return matchesCommunities || matchesCommunity;
-        }).filter(w => w.fcm_token); // Must have FCM token
+          const hasToken = !!worker.fcm_token;
+          
+          console.log(`  Worker ${worker.id} (${worker.full_name}): communities=${JSON.stringify(communitiesArray)}, matchesCommunities=${matchesCommunities}, hasToken=${hasToken}`);
+          
+          return (matchesCommunities || matchesCommunity) && hasToken;
+        });
 
-        console.log(`👷 Found ${eligibleWorkers.length} eligible workers with FCM tokens`);
+        console.log(`✅ ${eligibleWorkers.length} eligible workers with FCM tokens for booking ${booking.id}`);
 
         let workersNotified = 0;
 
-        // 3. Send FCM to each eligible worker via send-worker-fcm edge function
         for (const worker of eligibleWorkers) {
           try {
-            console.log(`📤 Sending FCM to worker ${worker.id} (${worker.full_name})`);
+            console.log(`📤 Sending FCM to ${worker.full_name} (${worker.id})`);
             
             const fcmResponse = await fetch(`${SUPABASE_URL}/functions/v1/send-worker-fcm`, {
               method: 'POST',
@@ -146,75 +129,51 @@ serve(async (req) => {
             
             if (fcmResponse.ok && fcmResult.ok) {
               workersNotified++;
-              console.log(`✅ FCM sent to worker ${worker.id}`);
+              console.log(`✅ FCM sent successfully to ${worker.full_name}`);
 
-              // 4. Create booking_request record for tracking
-              await supabase
-                .from('booking_requests')
-                .upsert({
-                  booking_id: booking.id,
-                  worker_id: worker.id,
-                  order_sequence: workersNotified,
-                  status: 'notified',
-                  offered_at: new Date().toISOString(),
-                  timeout_at: new Date(Date.now() + 5 * 60 * 1000).toISOString(), // 5 min timeout
-                }, { onConflict: 'booking_id,worker_id' });
+              // Create booking_request record
+              await supabase.from('booking_requests').upsert({
+                booking_id: booking.id,
+                worker_id: worker.id,
+                order_sequence: workersNotified,
+                status: 'notified',
+                offered_at: new Date().toISOString(),
+                timeout_at: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+              }, { onConflict: 'booking_id,worker_id' });
             } else {
-              console.error(`❌ FCM failed for worker ${worker.id}:`, fcmResult);
+              console.error(`❌ FCM failed for ${worker.full_name}:`, fcmResult);
             }
           } catch (fcmErr) {
-            console.error(`❌ Error sending FCM to worker ${worker.id}:`, fcmErr);
+            console.error(`❌ Error sending FCM to ${worker.full_name}:`, fcmErr);
           }
         }
 
-        // 5. Mark booking as prealert_sent so it doesn't fire again
-        const { error: updateError } = await supabase
-          .from('bookings')
-          .update({ 
-            prealert_sent: true,
-            updated_at: new Date().toISOString(),
-          })
+        // Mark booking as prealert_sent
+        await supabase.from('bookings')
+          .update({ prealert_sent: true, updated_at: new Date().toISOString() })
           .eq('id', booking.id);
 
-        if (updateError) {
-          console.error(`❌ Failed to mark booking ${booking.id} as prealert_sent:`, updateError);
-        } else {
-          console.log(`✅ Booking ${booking.id} marked as prealert_sent, ${workersNotified} workers notified`);
-        }
+        console.log(`✅ Booking ${booking.id}: prealert_sent=true, ${workersNotified} workers notified`);
 
-        results.push({
-          booking_id: booking.id,
-          scheduled_at: scheduledAtIST.toISOString(),
-          workers_notified: workersNotified,
-        });
-      } else if (diffMin <= 0) {
-        // Booking time has passed - mark as prealert_sent to prevent future checks
-        console.log(`⏰ Booking ${booking.id} is past due (${diffMin.toFixed(1)} mins), marking as prealert_sent`);
-        await supabase
-          .from('bookings')
+        results.push({ booking_id: booking.id, workers_notified: workersNotified });
+      } else if (diffMin <= -5) {
+        // Booking is more than 5 mins past due - mark as processed
+        console.log(`⏰ Booking ${booking.id} is ${Math.abs(diffMin).toFixed(1)} mins past due, marking prealert_sent`);
+        await supabase.from('bookings')
           .update({ prealert_sent: true })
           .eq('id', booking.id);
       }
     }
 
     const duration = Date.now() - startTime;
-    console.log(`✅ check-scheduled-bookings completed in ${duration}ms, processed ${results.length} bookings`);
+    console.log(`✅ Completed in ${duration}ms, processed ${results.length} bookings`);
 
-    return new Response(
-      JSON.stringify({
-        ok: true,
-        message: `Processed ${results.length} scheduled bookings`,
-        results,
-        duration_ms: duration,
-      }),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return new Response(JSON.stringify({ ok: true, results, duration_ms: duration }), 
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
   } catch (error) {
-    console.error('❌ Error in check-scheduled-bookings:', error);
-    return new Response(
-      JSON.stringify({ ok: false, error: error.message }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    console.error('❌ Error:', error);
+    return new Response(JSON.stringify({ ok: false, error: error.message }), 
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 });
