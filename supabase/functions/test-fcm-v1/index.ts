@@ -1,5 +1,5 @@
 // ============================================================================
-// Worker FCM Notifications - Using FCM HTTP v1 API
+// Test FCM v1 - Verify FCM HTTP v1 configuration is working
 // ============================================================================
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -16,39 +16,35 @@ serve(async (req) => {
   }
 
   try {
-    const { token, title, body, data } = await req.json();
+    const { token } = await req.json();
     
     if (!token) {
       return new Response(
-        JSON.stringify({ ok: false, error: 'Missing FCM token' }),
+        JSON.stringify({ success: false, error: 'Missing token in request body' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Convert data values to strings (FCM v1 requires string values in data)
-    const stringData: Record<string, string> = {};
-    if (data) {
-      for (const [key, value] of Object.entries(data)) {
-        stringData[key] = String(value);
-      }
-    }
+    console.log('🧪 Testing FCM v1 with token:', token.substring(0, 20) + '...');
 
     await sendFcmV1Message(
       token,
-      title || 'New Booking',
-      body || 'You have a new booking request',
-      Object.keys(stringData).length > 0 ? stringData : undefined
+      'Didi Now FCM v1 Test',
+      'If you see this, v1 works!',
+      { test: 'true', timestamp: new Date().toISOString() }
     );
 
+    console.log('✅ FCM v1 test successful');
+
     return new Response(
-      JSON.stringify({ ok: true }),
+      JSON.stringify({ success: true }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
-    console.error('❌ Error:', error);
+    console.error('❌ FCM v1 test failed:', error);
     return new Response(
-      JSON.stringify({ ok: false, error: error.message }),
+      JSON.stringify({ success: false, error: error.message }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
