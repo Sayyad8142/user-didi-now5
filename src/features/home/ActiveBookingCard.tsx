@@ -105,17 +105,18 @@ const ActiveBookingCard = memo(() => {
         .or(`and(status.in.(pending,assigned,accepted,on_the_way,started),booking_type.eq.instant),and(status.in.(pending,assigned,accepted,on_the_way,started),booking_type.eq.scheduled,scheduled_date.gte.${today}),and(status.eq.cancelled,cancelled_at.gte.${todayStart})`)
         .order('created_at', { ascending: false });
 
-      // Prioritize showing cancelled bookings over active ones (most important to show)
-      // Then show active bookings that haven't been dismissed
+      // Prioritize active bookings over cancelled ones
       let bookingToShow = null;
       if (allBookings && allBookings.length > 0) {
-        // First priority: show any cancelled booking from today (most recent first)
-        bookingToShow = allBookings.find(b => b.status === 'cancelled');
+        // First priority: show active bookings (pending, assigned, etc.) that haven't been dismissed
+        bookingToShow = allBookings.find(b => 
+          b.status !== 'cancelled' && !dismissedBookings.has(b.id)
+        );
         
-        // Second priority: show active bookings that haven't been dismissed
+        // Second priority: show cancelled bookings from today (if no active booking)
         if (!bookingToShow) {
           bookingToShow = allBookings.find(b => 
-            b.status !== 'cancelled' && !dismissedBookings.has(b.id)
+            b.status === 'cancelled' && !dismissedBookings.has(b.id)
           );
         }
       }
@@ -189,12 +190,7 @@ const ActiveBookingCard = memo(() => {
     };
   }, [user?.id, fetchActiveBooking]);
 
-  // Show cancelled bookings even if they were previously dismissed
   if (loading || !activeBooking) {
-    return null;
-  }
-  
-  if (dismissedBookings.has(activeBooking.id) && activeBooking.status !== 'cancelled') {
     return null;
   }
 
