@@ -68,64 +68,67 @@ serve(async (req) => {
       if (diffMin <= WINDOW_MINUTES && diffMin > -5) {
         console.log(`🔔 Booking ${booking.id} is due in ${diffMin.toFixed(1)} mins - SENDING ALERTS!`);
 
-        // UNIFIED: Query fcm_tokens table joined with workers (SAME as instant flow)
-        // This ensures scheduled bookings use the same FCM token source as instant bookings
-        const { data: workerTokens, error: tokensError } = await supabase
-          .from('fcm_tokens')
-          .select(`
-            token,
-            user_id,
-            workers!inner(
-              id,
-              full_name,
-              is_active,
-              is_available,
-              service_types,
-              community,
-              communities
-            )
-          `)
-          .eq('workers.is_active', true)
-          .eq('workers.is_available', true);
+        // Step 1: Get eligible workers (active, available, matching service type)
+        const { data: workers, error: workersError } = await supabase
+          .from('workers')
+          .select('id, full_name, service_types, community, communities')
+          .eq('is_active', true)
+          .eq('is_available', true)
+          .contains('service_types', [booking.service_type]);
 
-        if (tokensError) {
-          console.error(`❌ Error fetching worker tokens:`, tokensError);
+        if (workersError) {
+          console.error(`❌ Error fetching workers:`, workersError);
           continue;
         }
 
-        console.log(`👷 Found ${workerTokens?.length || 0} active workers with FCM tokens`);
+        console.log(`👷 Found ${workers?.length || 0} active/available workers for ${booking.service_type}`);
 
-        // Filter by service type and community match
-        const eligibleWorkers = (workerTokens || []).filter((wt: any) => {
-          const worker = wt.workers;
-          if (!worker) return false;
-          
-          // Check service type match
-          const serviceTypes = worker.service_types || [];
-          const matchesService = serviceTypes.includes(booking.service_type);
-          
-          // Check community match (empty array = matches all communities)
+        // Step 2: Filter by community match
+        const communityMatchedWorkers = (workers || []).filter((worker: any) => {
           const communitiesArray = worker.communities || [];
           const matchesCommunities = communitiesArray.length === 0 || 
                                      communitiesArray.includes(booking.community);
           const matchesCommunity = worker.community === booking.community || !worker.community;
           
-          const matches = matchesService && (matchesCommunities || matchesCommunity);
-          
-          console.log(`  Worker ${worker.id} (${worker.full_name}): service=${matchesService}, community=${matchesCommunities || matchesCommunity}, eligible=${matches}`);
+          const matches = matchesCommunities || matchesCommunity;
+          console.log(`  Worker ${worker.id} (${worker.full_name}): communities=${JSON.stringify(communitiesArray)}, booking.community=${booking.community}, eligible=${matches}`);
           
           return matches;
         });
 
-        console.log(`✅ ${eligibleWorkers.length} eligible workers for booking ${booking.id}`);
+        console.log(`🎯 ${communityMatchedWorkers.length} workers match community ${booking.community}`);
+
+        // Step 3: Get FCM tokens for matched workers
+        const workerIds = communityMatchedWorkers.map((w: any) => w.id);
+        
+        const { data: fcmTokens, error: tokensError } = await supabase
+          .from('fcm_tokens')
+          .select('user_id, token')
+          .in('user_id', workerIds);
+
+        if (tokensError) {
+          console.error(`❌ Error fetching FCM tokens:`, tokensError);
+          continue;
+        }
+
+        console.log(`📱 Found ${fcmTokens?.length || 0} FCM tokens for eligible workers`);
+
+        // Step 4: Combine workers with their tokens
+        const eligibleWorkers = communityMatchedWorkers
+          .map((worker: any) => {
+            const tokenRecord = (fcmTokens || []).find((t: any) => t.user_id === worker.id);
+            return tokenRecord ? { ...worker, token: tokenRecord.token } : null;
+          })
+          .filter(Boolean);
+
+        console.log(`✅ ${eligibleWorkers.length} eligible workers with FCM tokens for booking ${booking.id}`);
 
         let workersNotified = 0;
         let fcmSuccessCount = 0;
 
-        for (const wt of eligibleWorkers) {
-          const worker = wt.workers;
+        for (const worker of eligibleWorkers) {
           try {
-            console.log(`📤 Sending FCM to ${worker.full_name} (${worker.id}), token: ${wt.token?.substring(0, 20)}...`);
+            console.log(`📤 Sending FCM to ${worker.full_name} (${worker.id}), token: ${worker.token?.substring(0, 20)}...`);
             
             // Call the SAME send-worker-fcm edge function used by instant bookings
             const fcmResponse = await fetch(`${SUPABASE_URL}/functions/v1/send-worker-fcm`, {
@@ -135,7 +138,7 @@ serve(async (req) => {
                 'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
               },
               body: JSON.stringify({
-                token: wt.token,
+                token: worker.token,
                 title: 'Scheduled Booking',
                 body: `${booking.service_type} • ${booking.community} • Flat ${booking.flat_no || ''}`,
                 data: {
