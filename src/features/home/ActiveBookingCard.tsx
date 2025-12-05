@@ -207,6 +207,8 @@ const ActiveBookingCard = memo(() => {
     newDismissed.add(activeBooking.id);
     setDismissedBookings(newDismissed);
     localStorage.setItem('dismissedBookings', JSON.stringify([...newDismissed]));
+    // Immediately hide the card
+    setActiveBooking(null);
   };
 
   // Check if payment should be enabled (show immediately when assigned)
