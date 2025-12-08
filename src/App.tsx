@@ -296,7 +296,8 @@ const App = () => {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const { updateAvailable, handleRefresh, dismissUpdate } = useWebVersion();
   
-  // Remove warmup to prevent loading delays
+  // Preload all screens in background after app starts
+  useAppWarmup();
 
   useEffect(() => {
     // Simple online/offline detection

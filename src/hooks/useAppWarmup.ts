@@ -1,32 +1,32 @@
 import { useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { useQuery } from '@tanstack/react-query';
 
-// Simple warmup without complex imports to avoid circular dependencies
+// Preload all main user screens in background after app loads
 export function useAppWarmup() {
   useEffect(() => {
-    let cancelled = false;
+    // Wait for initial render to complete, then preload in background
+    const timer = setTimeout(() => {
+      // Preload main tab screens (highest priority)
+      Promise.all([
+        import('@/pages/Home'),
+        import('@/pages/Bookings'),
+        import('@/pages/Profile'),
+        import('@/pages/FAQs'),
+      ]).catch(() => {});
 
-    const warmup = async () => {
-      try {
-        // Ensure auth session is hydrated quickly
-        await supabase.auth.getSession();
+      // Preload secondary screens after a short delay
+      setTimeout(() => {
+        Promise.all([
+          import('@/features/booking/BookingForm'),
+          import('@/features/booking/ScheduleScreen'),
+          import('@/features/chat/ChatScreen'),
+          import('@/routes/support/SupportScreen'),
+          import('@/routes/profile/AccountSettings'),
+          import('@/features/legal/PrivacyPolicyScreen'),
+          import('@/features/legal/TermsScreen'),
+        ]).catch(() => {});
+      }, 500);
+    }, 100);
 
-        // Simple preloads without complex queries
-        const routePreloads = [
-          import('@/pages/Bookings').catch(() => null),
-          import('@/pages/Profile').catch(() => null),
-          import('@/pages/FAQs').catch(() => null),
-          import('@/pages/LiveChat').catch(() => null),
-        ];
-
-        await Promise.allSettled(routePreloads);
-      } catch (error) {
-        console.warn('Warmup failed:', error);
-      }
-    };
-
-    warmup();
-    return () => { cancelled = true; };
+    return () => clearTimeout(timer);
   }, []);
 }
