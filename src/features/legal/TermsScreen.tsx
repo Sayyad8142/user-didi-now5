@@ -4,6 +4,8 @@ import { Button } from '@/components/ui/button';
 import { ArrowLeft, ExternalLink, Copy, Check, FileText } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { marked } from 'marked';
+import DOMPurify from 'dompurify';
 
 export function TermsScreen() {
   const navigate = useNavigate();
@@ -97,18 +99,8 @@ export function TermsScreen() {
   };
 
   const renderMarkdown = (markdown: string) => {
-    // Use marked to parse markdown and DOMPurify to sanitize HTML
-    const { marked } = require('marked');
-    const DOMPurify = require('dompurify');
-    
-    // Configure marked options
-    marked.setOptions({
-      breaks: true,
-      gfm: true
-    });
-    
     // Parse markdown to HTML
-    const rawHTML = marked.parse(markdown);
+    const rawHTML = marked.parse(markdown, { breaks: true, gfm: true }) as string;
     
     // Sanitize HTML to prevent XSS attacks
     const cleanHTML = DOMPurify.sanitize(rawHTML, {
