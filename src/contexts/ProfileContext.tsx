@@ -47,16 +47,15 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
 
   const fetchProfile = async () => {
     try {
-      console.log('=== fetchProfile called ===');
-      console.log('User:', user?.id);
-      console.log('Session:', !!session);
-      
-      setLoading(true);
-      setError(null);
+      // If no authenticated user, clear profile immediately
+      if (!user?.id || !session) {
+        setProfile(null);
+        setLoading(false);
+        return;
+      }
 
-      // Check if we're in demo/guest mode first
+      // Check if we're in demo/guest mode
       if (isDemoMode()) {
-        console.log('Demo mode detected');
         const demoSession = getDemoSession();
         if (demoSession?.profile) {
           setProfile(demoSession.profile);
@@ -65,81 +64,47 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
         }
       }
 
-      // If no authenticated user, clear profile
-      if (!user?.id || !session) {
-        console.log('No user or session, clearing profile');
-        setProfile(null);
-        setLoading(false);
-        return;
-      }
-
-      // Validate that user.id is a proper UUID (real Supabase user)
+      // Validate UUID format
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
       if (!uuidRegex.test(user.id)) {
-        console.log('User ID is not a valid UUID, treating as demo/guest user');
         setProfile(null);
         setLoading(false);
         return;
       }
 
-      console.log('Starting profile fetch for user:', user.id);
+      setLoading(true);
+      setError(null);
 
-      // Wait a bit for session to stabilize
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Direct fetch - faster than dynamic import
+      const { data, error: fetchError } = await supabase
+        .from('profiles')
+        .select('id, full_name, phone, community, flat_no, building_id, community_id')
+        .eq('id', user.id)
+        .single();
 
-      // Always try to ensure profile exists first
-      try {
-        console.log('Importing ensureProfile...');
+      if (!fetchError && data) {
+        setProfile(data);
+        return;
+      }
+
+      // Profile doesn't exist - create it (only on first signup)
+      if (fetchError?.code === 'PGRST116') {
         const { ensureProfile } = await import('@/features/profile/ensureProfile');
-        console.log('Calling ensureProfile...');
         const profileData = await ensureProfile();
-        console.log('Profile ensured successfully:', profileData);
-        
         if (profileData) {
           setProfile(profileData);
-          console.log('Profile set successfully');
-          return; // Success - we're done
-        } else {
-          console.log('No profile data returned from ensureProfile');
-          // Continue to fallback
-        }
-      } catch (profileError) {
-        console.error('Error ensuring profile:', profileError);
-        // Continue to fallback
-      }
-
-      // Fallback: try to fetch existing profile directly
-      console.log('Trying fallback profile fetch...');
-      try {
-        const { data, error: fetchError } = await supabase
-          .from('profiles')
-          .select('id, full_name, phone, community, flat_no, building_id, community_id')
-          .eq('id', user.id)
-          .single();
-
-        if (fetchError) {
-          console.error('Error fetching profile:', fetchError);
-          setError('Failed to load profile');
           return;
         }
+      }
 
-        if (data) {
-          console.log('Fallback profile fetch successful:', data);
-          setProfile(data);
-        } else {
-          console.log('No profile data found');
-          setError('No profile data found');
-        }
-      } catch (fallbackError) {
-        console.error('Fallback profile fetch failed:', fallbackError);
-        setError('Failed to load profile data');
+      // Handle other errors
+      if (fetchError) {
+        setError('Failed to load profile');
       }
     } catch (err) {
-      console.error('Error in fetchProfile:', err);
       setError('An unexpected error occurred');
     } finally {
       setLoading(false);
-      console.log('=== fetchProfile completed ===');
     }
   };
 
@@ -147,18 +112,14 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
     fetchProfile();
   }, [user?.id]);
 
-  // Listen for auth state changes to refresh profile after login
+  // Listen for auth state changes
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('Auth state changed:', event, session?.user?.id);
-      
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'SIGNED_OUT') {
         setProfile(null);
         setLoading(false);
       }
-      // Don't interfere with profile loading on SIGNED_IN - let the main useEffect handle it
     });
-
     return () => subscription.unsubscribe();
   }, []);
 

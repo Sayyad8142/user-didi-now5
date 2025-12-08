@@ -18,62 +18,60 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
   const nav = useNavigate();
   const location = useLocation();
   const [ready, setReady] = useState(false);
+  const [checked, setChecked] = useState(false);
 
   useEffect(() => {
+    // Skip if already checked or not on root path
+    if (checked) return;
+    
+    // Allow public routes immediately
+    const publicRoutes = ['/auth', '/admin-login', '/auth/verify', '/admin-verify', '/legal', '/legal/privacy', '/legal/terms'];
+    if (publicRoutes.some(r => location.pathname.startsWith(r))) {
+      setReady(true);
+      setChecked(true);
+      return;
+    }
+
+    // Only redirect from root path
+    if (location.pathname !== '/') {
+      setReady(true);
+      setChecked(true);
+      return;
+    }
+
     let cancelled = false;
 
     (async () => {
-      // Only run AuthGate on initial load (not on every route change)
-      // Skip auth gate for auth routes to allow direct navigation
-      if (location.pathname !== '/' && ready) return;
-      if (['/auth', '/admin-login', '/auth/verify', '/admin-verify'].includes(location.pathname)) {
-        if (!cancelled) setReady(true);
-        return;
-      }
-
-      // 1) Hydrate Supabase session from storage
       const { data: { session } } = await supabase.auth.getSession();
 
       if (!session?.user) {
-        // No session at all → default to user login for new visitors
-        // Only respect portal state if explicitly navigating to admin-login
         nav('/auth', { replace: true });
-        if (!cancelled) setReady(true);
+        if (!cancelled) { setReady(true); setChecked(true); }
         return;
       }
 
-      // 2) We have a session → determine where to land
+      // Quick admin check - use phone first (no network call)
+      let isAdmin = isAdminPhone(session.user.phone);
+      
+      if (!isAdmin) {
+        try {
+          const profile = await fetchUserProfile(session.user.id);
+          isAdmin = profile?.is_admin || false;
+        } catch {
+          // Ignore - use phone check result
+        }
+      }
+
       const lastPortal = PortalStore.get();
-      let isAdmin = false;
-
-      try {
-        const profile = await fetchUserProfile(session.user.id);
-        isAdmin = profile?.is_admin || isAdminPhone(profile?.phone || session.user.phone);
-      } catch {
-        // if profile fetch fails, fall back to phone check
-        isAdmin = isAdminPhone(session.user.phone);
-      }
-
-      // Priority order for initial route:
-      // A) lastPortal if set and allowed by role
-      // B) role-based default
-      let dest = '/home';
-      if (lastPortal === 'admin' && isAdmin) {
-        dest = '/admin';
-      } else if (isAdmin) {
-        dest = '/admin';
-      } else {
-        dest = '/home';
-      }
-
+      const dest = (isAdmin && lastPortal === 'admin') || isAdmin ? '/admin' : '/home';
+      
       nav(dest, { replace: true });
-      if (!cancelled) setReady(true);
+      if (!cancelled) { setReady(true); setChecked(true); }
     })();
 
     return () => { cancelled = true; };
-  }, [nav, location.pathname, ready]);
+  }, [nav, location.pathname, checked]);
 
-  // Block rendering until we decide the first route (prevents brief user-login flash)
   if (!ready) return null;
   return <>{children}</>;
 }
