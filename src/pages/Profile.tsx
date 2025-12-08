@@ -344,7 +344,7 @@ export default function Profile() {
           </Link>
 
           <button 
-            onClick={() => openExternalUrl('https://didinow.in')}
+            onClick={() => openExternalUrl('https://web.didisnow.com')}
             className="flex items-center justify-between h-14 px-4 bg-white/80 rounded-2xl border border-gray-100 hover:bg-white transition-spring hover:scale-[0.98] shadow-input w-full"
           >
             <div className="flex items-center gap-3">
