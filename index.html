@@ -78,19 +78,17 @@
     <script type="module" src="/src/main.tsx"></script>
     
     <script>
-      // Remove splash screen once app loads
-      window.addEventListener('load', function() {
-        setTimeout(function() {
-          const splash = document.getElementById('app-splash');
-          if (splash) {
-            splash.style.opacity = '0';
-            splash.style.transition = 'opacity 0.3s ease-out';
-            setTimeout(function() {
-              splash.remove();
-            }, 300);
-          }
-        }, 500);
-      });
+      // Remove splash screen when React signals ready
+      window.hideSplash = function() {
+        const splash = document.getElementById('app-splash');
+        if (splash) {
+          splash.style.opacity = '0';
+          splash.style.transition = 'opacity 0.3s ease-out';
+          setTimeout(function() {
+            splash.remove();
+          }, 300);
+        }
+      };
     </script>
   </body>
 </html>

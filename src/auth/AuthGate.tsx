@@ -20,6 +20,13 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
   const [checked, setChecked] = useState(false);
 
+  // Hide splash screen when ready
+  useEffect(() => {
+    if (ready && typeof window !== 'undefined' && (window as any).hideSplash) {
+      (window as any).hideSplash();
+    }
+  }, [ready]);
+
   useEffect(() => {
     // Skip if already checked or not on root path
     if (checked) return;
