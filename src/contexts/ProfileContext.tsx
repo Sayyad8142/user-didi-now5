@@ -45,13 +45,13 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
   const [error, setError] = useState<string | null>(null);
   const { user, session } = useAuth();
 
-  const fetchProfile = async () => {
+  const fetchProfile = async (): Promise<Profile | null> => {
     try {
       // If no authenticated user, clear profile immediately
       if (!user?.id || !session) {
         setProfile(null);
         setLoading(false);
-        return;
+        return null;
       }
 
       // Check if we're in demo/guest mode
@@ -60,7 +60,7 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
         if (demoSession?.profile) {
           setProfile(demoSession.profile);
           setLoading(false);
-          return;
+          return demoSession.profile;
         }
       }
 
@@ -69,7 +69,7 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
       if (!uuidRegex.test(user.id)) {
         setProfile(null);
         setLoading(false);
-        return;
+        return null;
       }
 
       setLoading(true);
@@ -84,7 +84,8 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
 
       if (!fetchError && data) {
         setProfile(data);
-        return;
+        setLoading(false);
+        return data;
       }
 
       // Profile doesn't exist - create it (only on first signup)
@@ -93,7 +94,8 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
         const profileData = await ensureProfile();
         if (profileData) {
           setProfile(profileData);
-          return;
+          setLoading(false);
+          return profileData;
         }
       }
 
@@ -101,10 +103,12 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
       if (fetchError) {
         setError('Failed to load profile');
       }
+      setLoading(false);
+      return null;
     } catch (err) {
       setError('An unexpected error occurred');
-    } finally {
       setLoading(false);
+      return null;
     }
   };
 
