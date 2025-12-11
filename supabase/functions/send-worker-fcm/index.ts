@@ -33,10 +33,15 @@ serve(async (req) => {
       }
     }
 
+    // Remove flat number from notification body (e.g., "• Flat 9198" or "• Flat 123")
+    // The flat_no is still in data payload for worker app to display in-app
+    let cleanBody = body || 'You have a new booking request';
+    cleanBody = cleanBody.replace(/\s*•\s*Flat\s*\S*/gi, '').trim();
+
     await sendFcmV1Message(
       token,
       title || 'New Booking',
-      body || 'You have a new booking request',
+      cleanBody,
       Object.keys(stringData).length > 0 ? stringData : undefined
     );
 
