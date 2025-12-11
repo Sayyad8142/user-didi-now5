@@ -139,8 +139,8 @@ serve(async (req) => {
               },
               body: JSON.stringify({
                 token: worker.token,
-                title: 'Scheduled Booking',
-                body: `${booking.service_type} • ${booking.community} • Flat ${booking.flat_no || ''}`,
+                title: 'New Booking',
+                body: `${booking.service_type} • ${booking.community}`,
                 data: {
                   type: 'BOOKING_ALERT',
                   booking_id: booking.id,
