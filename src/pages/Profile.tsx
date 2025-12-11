@@ -15,7 +15,7 @@ import { useCommunities } from '@/hooks/useCommunities';
 import { useBuildings } from '@/hooks/useBuildings';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 export default function Profile() {
-  const { profile, loading } = useProfile();
+  const { profile, loading, refresh } = useProfile();
   const { communities, loading: communitiesLoading } = useCommunities();
   const { buildings } = useBuildings(profile?.community_id || undefined);
   const navigate = useNavigate();
@@ -28,6 +28,13 @@ export default function Profile() {
     community: '',
     flat_no: ''
   });
+
+  // Refresh profile on mount if profile data is incomplete (handles new signup race condition)
+  React.useEffect(() => {
+    if (!loading && profile && !profile.full_name) {
+      refresh();
+    }
+  }, [loading, profile?.full_name]);
 
   // Initialize form when profile loads
   React.useEffect(() => {
