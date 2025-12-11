@@ -182,8 +182,8 @@ export default function VerifyOTP() {
 
         console.log('✅ Profile updated successfully');
         
-        // Refresh ProfileContext to get updated data immediately
-        refreshProfile();
+        // Refresh ProfileContext to get updated data immediately - await to ensure data is loaded before navigation
+        await refreshProfile();
         
         toast({
           title: 'Welcome to Didi Now!',
