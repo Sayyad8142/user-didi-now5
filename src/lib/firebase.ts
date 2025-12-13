@@ -15,29 +15,31 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 
-let recaptchaVerifier: any = null;
+let verifier: any = null;
 
 export function getRecaptchaVerifier(containerId: string) {
-  if (!recaptchaVerifier) {
-    recaptchaVerifier = new RecaptchaVerifier(
-      auth,
-      containerId,
-      { size: "invisible" }
-    );
+  // Ensure container exists
+  const el = document.getElementById(containerId);
+  if (!el) {
+    throw new Error(`reCAPTCHA container #${containerId} not found`);
   }
-  return recaptchaVerifier;
+
+  if (!verifier) {
+    verifier = new RecaptchaVerifier(auth, containerId, {
+      size: "invisible",
+    });
+  }
+  return verifier;
 }
 
 export function clearRecaptchaVerifier() {
-  try {
-    recaptchaVerifier?.clear();
-  } catch {}
-  recaptchaVerifier = null;
+  try { verifier?.clear?.(); } catch {}
+  verifier = null;
 }
 
 export async function sendFirebaseOTP(phoneNumber: string, containerId: string): Promise<any> {
-  const verifier = getRecaptchaVerifier(containerId);
-  const confirmationResult = await signInWithPhoneNumber(auth, phoneNumber, verifier);
+  const recaptchaVerifier = getRecaptchaVerifier(containerId);
+  const confirmationResult = await signInWithPhoneNumber(auth, phoneNumber, recaptchaVerifier);
   return confirmationResult;
 }
 
