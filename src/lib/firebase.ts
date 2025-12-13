@@ -1,13 +1,15 @@
 // @ts-nocheck
-import { initializeApp } from 'firebase/app';
-import { getAuth, signInWithPhoneNumber, RecaptchaVerifier } from 'firebase/auth';
+import { initializeApp } from "firebase/app";
+import { getAuth, RecaptchaVerifier, signInWithPhoneNumber } from "firebase/auth";
 
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || '',
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || '',
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || '',
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || '',
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '',
+  apiKey: "AIzaSyDDYRSiCCRslPT_vJ4xhMyEfQkOk_n2eH4",
+  authDomain: "didi-now-worker-7b4cb.firebaseapp.com",
+  projectId: "didi-now-worker-7b4cb",
+  storageBucket: "didi-now-worker-7b4cb.firebasestorage.app",
+  messagingSenderId: "993479758920",
+  appId: "1:993479758920:web:1550b0d6c69afa10f6747d",
+  measurementId: "G-RM3H6RH1E0"
 };
 
 const app = initializeApp(firebaseConfig);
@@ -15,29 +17,22 @@ export const auth = getAuth(app);
 
 let recaptchaVerifier: any = null;
 
-export function getRecaptchaVerifier(containerId: string): any {
-  if (recaptchaVerifier) {
-    try {
-      recaptchaVerifier.clear();
-    } catch (_) {}
+export function getRecaptchaVerifier(containerId: string) {
+  if (!recaptchaVerifier) {
+    recaptchaVerifier = new RecaptchaVerifier(
+      containerId,
+      { size: "invisible" },
+      auth
+    );
   }
-  
-  recaptchaVerifier = new RecaptchaVerifier(auth, containerId, {
-    size: 'invisible',
-    callback: () => console.log('reCAPTCHA verified'),
-    'expired-callback': () => console.log('reCAPTCHA expired')
-  });
-  
   return recaptchaVerifier;
 }
 
-export function clearRecaptchaVerifier(): void {
-  if (recaptchaVerifier) {
-    try {
-      recaptchaVerifier.clear();
-    } catch (_) {}
-    recaptchaVerifier = null;
-  }
+export function clearRecaptchaVerifier() {
+  try {
+    recaptchaVerifier?.clear();
+  } catch {}
+  recaptchaVerifier = null;
 }
 
 export async function sendFirebaseOTP(phoneNumber: string, containerId: string): Promise<any> {
