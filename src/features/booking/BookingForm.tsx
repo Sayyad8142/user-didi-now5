@@ -43,7 +43,8 @@ export function BookingForm() {
   } = useAuth();
   const {
     profile,
-    loading: profileLoading
+    loading: profileLoading,
+    refresh: refreshProfile
   } = useProfile();
   const {
     toast
@@ -148,7 +149,11 @@ export function BookingForm() {
       navigate('/home');
       return;
     }
-  }, [user, service_type, navigate]);
+    // If profile is not loaded yet but we have a user, trigger a refresh
+    if (user && !profileLoading && !profile) {
+      refreshProfile();
+    }
+  }, [user, service_type, navigate, profile, profileLoading, refreshProfile]);
   useEffect(() => {
     if (profile && service_type && service_type !== 'cook' && service_type !== 'maid' && service_type !== 'bathroom_cleaning') {
       loadPricing();
