@@ -20,9 +20,9 @@ let recaptchaVerifier: any = null;
 export function getRecaptchaVerifier(containerId: string) {
   if (!recaptchaVerifier) {
     recaptchaVerifier = new RecaptchaVerifier(
+      auth,
       containerId,
-      { size: "invisible" },
-      auth
+      { size: "invisible" }
     );
   }
   return recaptchaVerifier;
