@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -8,30 +8,23 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PhoneInputIN } from './PhoneInputIN';
 import { formatPhoneIN, isValidINPhone } from '@/lib/auth-helpers';
+import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { CleaningLoader } from '@/components/ui/cleaning-loader';
 import { useCommunities } from '@/hooks/useCommunities';
 import { useBuildings } from '@/hooks/useBuildings';
 import { useFlats } from '@/hooks/useFlats';
-import { isDemoCredentials, setDemoSession, setGuestSession } from '@/lib/demo';
+import { isDemoCredentials, setDemoSession } from '@/lib/demo';
 import { FlatSearchInput } from './FlatSearchInput';
-import { signInWithPhoneNumber, ConfirmationResult } from 'firebase/auth';
-import { auth, getRecaptchaVerifier, clearRecaptchaVerifier } from '@/lib/firebase';
 
 export function AuthCard() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { communities, loading: communitiesLoading, error: communitiesError } = useCommunities();
-  const recaptchaContainerRef = useRef<HTMLDivElement>(null);
 
-  // Form states
   const [activeTab, setActiveTab] = useState<'signin' | 'signup'>('signin');
   const [loading, setLoading] = useState(false);
-
-  // Sign In form
   const [signInPhone, setSignInPhone] = useState('');
-
-  // Sign Up form
   const [signUpData, setSignUpData] = useState({
     fullName: '',
     phone: '',
@@ -42,64 +35,31 @@ export function AuthCard() {
     flatNo: ''
   });
 
-  // Get selected community details
   const selectedCommunity = communities.find(c => c.id === signUpData.communityId);
   const isPHF = selectedCommunity?.flat_format === 'phf_code';
-
-  // Fetch buildings based on selected community
   const { buildings, loading: buildingsLoading } = useBuildings(signUpData.communityId || null);
+  const { flats, loading: flatsLoading } = useFlats(signUpData.buildingId || null, signUpData.communityId || null, isPHF);
 
-  // Fetch flats based on selected building or community (for PHF)
-  const { flats, loading: flatsLoading } = useFlats(
-    signUpData.buildingId || null,
-    signUpData.communityId || null,
-    isPHF
-  );
-
-  // Validation errors
   const [errors, setErrors] = useState<Record<string, string>>({});
-
-  // Cleanup reCAPTCHA on unmount
-  useEffect(() => {
-    return () => {
-      clearRecaptchaVerifier();
-    };
-  }, []);
 
   const validateSignIn = () => {
     const newErrors: Record<string, string> = {};
-    if (!signInPhone) {
-      newErrors.phone = 'Mobile number is required';
-    } else if (!isValidINPhone(signInPhone)) {
-      newErrors.phone = 'Please enter a valid 10-digit mobile number';
-    }
+    if (!signInPhone) newErrors.phone = 'Mobile number is required';
+    else if (!isValidINPhone(signInPhone)) newErrors.phone = 'Please enter a valid 10-digit mobile number';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const validateSignUp = () => {
     const newErrors: Record<string, string> = {};
-    if (!signUpData.fullName.trim()) {
-      newErrors.fullName = 'Full name is required';
-    }
-    if (!signUpData.phone) {
-      newErrors.phone = 'Mobile number is required';
-    } else if (!isValidINPhone(signUpData.phone)) {
-      newErrors.phone = 'Please enter a valid 10-digit mobile number';
-    }
-    if (!signUpData.communityId) {
-      newErrors.communityId = 'Please select your community';
-    }
-    
-    const selectedCommunity = communities.find(c => c.id === signUpData.communityId);
-    const isPHF = selectedCommunity?.flat_format === 'phf_code';
-    
-    if (!isPHF && !signUpData.buildingId) {
-      newErrors.buildingId = 'Please select your building';
-    }
-    if (!signUpData.flatId) {
-      newErrors.flatId = 'Please select your flat';
-    }
+    if (!signUpData.fullName.trim()) newErrors.fullName = 'Full name is required';
+    if (!signUpData.phone) newErrors.phone = 'Mobile number is required';
+    else if (!isValidINPhone(signUpData.phone)) newErrors.phone = 'Please enter a valid 10-digit mobile number';
+    if (!signUpData.communityId) newErrors.communityId = 'Please select your community';
+    const community = communities.find(c => c.id === signUpData.communityId);
+    const phf = community?.flat_format === 'phf_code';
+    if (!phf && !signUpData.buildingId) newErrors.buildingId = 'Please select your building';
+    if (!signUpData.flatId) newErrors.flatId = 'Please select your flat';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -107,19 +67,11 @@ export function AuthCard() {
   const handleSendOTP = async () => {
     const isSignUp = activeTab === 'signup';
     const phone = isSignUp ? signUpData.phone : signInPhone;
-    
-    if (isSignUp ? !validateSignUp() : !validateSignIn()) {
-      return;
-    }
+    if (isSignUp ? !validateSignUp() : !validateSignIn()) return;
 
-    // Check for demo credentials first
     if (isDemoCredentials(phone, '123456') && !isSignUp) {
-      console.log('Demo login detected');
       setDemoSession();
-      toast({
-        title: 'Demo Login Successful',
-        description: 'You are now logged in as a demo user.'
-      });
+      toast({ title: 'Demo Login Successful', description: 'You are now logged in as a demo user.' });
       navigate("/home", { replace: true });
       return;
     }
@@ -129,215 +81,88 @@ export function AuthCard() {
 
     try {
       const formattedPhone = formatPhoneIN(phone);
-      
-      // Setup invisible reCAPTCHA
-      const recaptchaVerifier = getRecaptchaVerifier('recaptcha-container');
-      
-      // Send OTP via Firebase
-      const confirmationResult: ConfirmationResult = await signInWithPhoneNumber(
-        auth,
-        formattedPhone,
-        recaptchaVerifier
-      );
-      
-      // Store confirmation result in session storage for verification page
-      // We can't pass it via state since it's a complex object
-      (window as any).__firebaseConfirmationResult = confirmationResult;
-
-      // Navigate to verification with state
-      navigate('/auth/verify', {
-        state: {
-          phone: formattedPhone,
-          mode: activeTab,
-          signupData: isSignUp ? signUpData : null,
-          redirectTo: '/home'
-        }
+      const { error } = await supabase.auth.signInWithOtp({
+        phone: formattedPhone,
+        options: { channel: 'sms', shouldCreateUser: isSignUp }
       });
       
-      toast({
-        title: 'OTP Sent',
-        description: `Verification code sent to ${formattedPhone}`
-      });
-    } catch (error: any) {
-      console.error('Send OTP error:', error);
-      clearRecaptchaVerifier();
-      
-      // Handle specific Firebase errors
-      let errorMessage = 'Failed to send OTP. Please try again.';
-      
-      if (error.code === 'auth/invalid-phone-number') {
-        errorMessage = 'Invalid phone number format.';
-      } else if (error.code === 'auth/too-many-requests') {
-        errorMessage = 'Too many attempts. Please try again later.';
-      } else if (error.code === 'auth/captcha-check-failed') {
-        errorMessage = 'reCAPTCHA verification failed. Please refresh and try again.';
-      } else if (error.code === 'auth/quota-exceeded') {
-        errorMessage = 'SMS quota exceeded. Please try again later.';
-      } else if (error.message) {
-        errorMessage = error.message;
+      if (error) {
+        if (!isSignUp) setErrors({ phone: 'Mobile number not registered, sign up first.' });
+        else throw error;
+        return;
       }
-      
-      toast({
-        title: 'Error',
-        description: errorMessage,
-        variant: 'destructive'
+
+      navigate('/auth/verify', {
+        state: { phone: formattedPhone, mode: activeTab, signupData: isSignUp ? signUpData : null, redirectTo: '/home' }
       });
+      toast({ title: 'OTP Sent', description: `Verification code sent to ${formattedPhone}` });
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message || 'Failed to send OTP.', variant: 'destructive' });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleContinueAsGuest = () => {
-    setGuestSession();
-    toast({
-      title: 'Welcome Guest!',
-      description: 'You can browse and explore our services.'
-    });
-    navigate("/home", { replace: true });
-  };
-
   return (
-    <>
-      {/* Invisible reCAPTCHA container */}
-      <div id="recaptcha-container" ref={recaptchaContainerRef}></div>
-      
-      <Card className="max-w-sm mx-auto shadow-card border-pink-100 gradient-card backdrop-blur-sm">
-        <CardContent className="p-6">
-          {/* Brand Header */}
-          <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-primary mb-2">Didi Now</h1>
-            <p className="text-muted-foreground text-lg">in 10Mins</p>
-          </div>
+    <Card className="max-w-sm mx-auto shadow-card border-pink-100 gradient-card backdrop-blur-sm">
+      <CardContent className="p-6">
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold text-primary mb-2">Didi Now</h1>
+          <p className="text-muted-foreground text-lg">in 10Mins</p>
+        </div>
 
-          <Tabs value={activeTab} onValueChange={value => setActiveTab(value as 'signin' | 'signup')}>
-            <TabsList className="grid w-full grid-cols-2 mb-6">
-              <TabsTrigger value="signin" className="rounded-lg">Sign In</TabsTrigger>
-              <TabsTrigger value="signup" className="rounded-lg">Sign Up</TabsTrigger>
-            </TabsList>
+        <Tabs value={activeTab} onValueChange={value => setActiveTab(value as 'signin' | 'signup')}>
+          <TabsList className="grid w-full grid-cols-2 mb-6">
+            <TabsTrigger value="signin" className="rounded-lg">Sign In</TabsTrigger>
+            <TabsTrigger value="signup" className="rounded-lg">Sign Up</TabsTrigger>
+          </TabsList>
 
-            {/* Sign In Tab */}
-            <TabsContent value="signin" className="space-y-6">
-              <PhoneInputIN value={signInPhone} onChange={setSignInPhone} error={errors.phone} disabled={loading} required />
+          <TabsContent value="signin" className="space-y-6">
+            <PhoneInputIN value={signInPhone} onChange={setSignInPhone} error={errors.phone} disabled={loading} required />
+            <Button onClick={handleSendOTP} disabled={loading || !signInPhone} className="w-full h-12 rounded-full gradient-primary shadow-button transition-spring hover:scale-[1.02] disabled:scale-100">
+              {loading && <CleaningLoader size="sm" className="mr-2" />}
+              Send OTP
+            </Button>
+            <div className="text-center">
+              <button type="button" onClick={() => navigate("/admin-login")} className="text-xs text-primary underline hover:no-underline transition-smooth">Admin Login</button>
+            </div>
+          </TabsContent>
 
-              <Button onClick={handleSendOTP} disabled={loading || !signInPhone} className="w-full h-12 rounded-full gradient-primary shadow-button transition-spring hover:scale-[1.02] disabled:scale-100">
-                {loading && <CleaningLoader size="sm" className="mr-2" />}
-                Send OTP
-              </Button>
-              
-              <div className="text-center">
-                <button type="button" onClick={() => navigate("/admin-login")} className="text-xs text-primary underline hover:no-underline transition-smooth">
-                  Admin Login
-                </button>
-              </div>
-            </TabsContent>
-
-            {/* Sign Up Tab */}
-            <TabsContent value="signup" className="space-y-4">
-              {/* Full Name */}
+          <TabsContent value="signup" className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="fullName" className="text-sm font-medium">Name <span className="text-destructive">*</span></Label>
+              <Input id="fullName" placeholder="Enter your full name" value={signUpData.fullName} onChange={e => setSignUpData(prev => ({ ...prev, fullName: e.target.value }))} disabled={loading} className="rounded-xl shadow-input" />
+              {errors.fullName && <p className="text-sm text-destructive">{errors.fullName}</p>}
+            </div>
+            <PhoneInputIN value={signUpData.phone} onChange={value => setSignUpData(prev => ({ ...prev, phone: value }))} error={errors.phone} disabled={loading} required />
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Community Name <span className="text-destructive">*</span></Label>
+              <Select value={signUpData.communityId} onValueChange={value => { const c = communities.find(x => x.id === value); setSignUpData(prev => ({ ...prev, communityId: value, communityValue: c?.value || '', buildingId: '', flatId: '', flatNo: '' })); }} disabled={loading || communitiesLoading}>
+                <SelectTrigger className="rounded-xl shadow-input"><SelectValue placeholder={communitiesLoading ? "Loading..." : "Select community"} /></SelectTrigger>
+                <SelectContent>{communities.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+              </Select>
+              {errors.communityId && <p className="text-sm text-destructive">{errors.communityId}</p>}
+            </div>
+            {signUpData.communityId && !isPHF && (
               <div className="space-y-2">
-                <Label htmlFor="fullName" className="text-sm font-medium">
-                  Name <span className="text-destructive">*</span>
-                </Label>
-                <Input id="fullName" type="text" placeholder="Enter your full name" value={signUpData.fullName} onChange={e => setSignUpData(prev => ({
-                ...prev,
-                fullName: e.target.value
-              }))} disabled={loading} className="rounded-xl shadow-input transition-smooth focus:ring-2 focus:ring-primary/20" />
-                {errors.fullName && <p className="text-sm text-destructive">{errors.fullName}</p>}
-              </div>
-
-              {/* Phone Input */}
-              <PhoneInputIN value={signUpData.phone} onChange={value => setSignUpData(prev => ({
-              ...prev,
-              phone: value
-            }))} error={errors.phone} disabled={loading} required />
-
-              {/* Community */}
-              <div className="space-y-2">
-                <Label htmlFor="community" className="text-sm font-medium">
-                  Community Name <span className="text-destructive">*</span>
-                </Label>
-                <Select value={signUpData.communityId} onValueChange={value => {
-                  const community = communities.find(c => c.id === value);
-                  setSignUpData(prev => ({
-                    ...prev,
-                    communityId: value,
-                    communityValue: community?.value || '',
-                    buildingId: '',
-                    flatId: '',
-                    flatNo: ''
-                  }));
-                }} disabled={loading || communitiesLoading}>
-                  <SelectTrigger className="rounded-xl shadow-input transition-smooth focus:ring-2 focus:ring-primary/20">
-                    <SelectValue placeholder={communitiesLoading ? "Loading communities..." : communitiesError ? "Error loading communities" : "Select your community"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {communities.map(community => <SelectItem key={community.id} value={community.id}>
-                        {community.name}
-                      </SelectItem>)}
-                  </SelectContent>
+                <Label className="text-sm font-medium">Building / Tower <span className="text-destructive">*</span></Label>
+                <Select value={signUpData.buildingId} onValueChange={value => setSignUpData(prev => ({ ...prev, buildingId: value, flatId: '', flatNo: '' }))} disabled={loading || buildingsLoading}>
+                  <SelectTrigger className="rounded-xl shadow-input"><SelectValue placeholder={buildingsLoading ? "Loading..." : "Select building"} /></SelectTrigger>
+                  <SelectContent>{buildings.map(b => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}</SelectContent>
                 </Select>
-                {errors.communityId && <p className="text-sm text-destructive">{errors.communityId}</p>}
-                {communitiesError && <p className="text-sm text-destructive">Failed to load communities. Please try again.</p>}
+                {errors.buildingId && <p className="text-sm text-destructive">{errors.buildingId}</p>}
               </div>
-
-              {/* Building - Only show if not PHF format */}
-              {signUpData.communityId && !isPHF && (
-                <div className="space-y-2">
-                  <Label htmlFor="building" className="text-sm font-medium">
-                    Building / Tower <span className="text-destructive">*</span>
-                  </Label>
-                  <Select 
-                    value={signUpData.buildingId} 
-                    onValueChange={value => setSignUpData(prev => ({
-                      ...prev,
-                      buildingId: value,
-                      flatId: '',
-                      flatNo: ''
-                    }))} 
-                    disabled={loading || buildingsLoading || !signUpData.communityId}
-                  >
-                    <SelectTrigger className="rounded-xl shadow-input transition-smooth focus:ring-2 focus:ring-primary/20">
-                      <SelectValue placeholder={buildingsLoading ? "Loading buildings..." : "Select your building"} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {buildings.map(building => (
-                        <SelectItem key={building.id} value={building.id}>
-                          {building.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {errors.buildingId && <p className="text-sm text-destructive">{errors.buildingId}</p>}
-                </div>
-              )}
-
-              {/* Flat Number - Searchable Input */}
-              {signUpData.communityId && (isPHF || signUpData.buildingId) && (
-                <FlatSearchInput
-                  flats={flats}
-                  value={signUpData.flatNo}
-                  onSelect={(flatId, flatNo) => {
-                    setSignUpData(prev => ({
-                      ...prev,
-                      flatId,
-                      flatNo
-                    }));
-                  }}
-                  disabled={loading || (isPHF ? !signUpData.communityId : !signUpData.buildingId)}
-                  loading={flatsLoading}
-                  error={errors.flatId}
-                  placeholder="Enter your flat number"
-                />
-              )}
-
-              <Button onClick={handleSendOTP} disabled={loading} className="w-full h-12 rounded-full gradient-primary shadow-button transition-spring hover:scale-[1.02] disabled:scale-100">
-                {loading && <CleaningLoader size="sm" className="mr-2" />}
-                Send OTP
-              </Button>
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
-    </>
+            )}
+            {signUpData.communityId && (isPHF || signUpData.buildingId) && (
+              <FlatSearchInput flats={flats} value={signUpData.flatNo} onSelect={(flatId, flatNo) => setSignUpData(prev => ({ ...prev, flatId, flatNo }))} disabled={loading} loading={flatsLoading} error={errors.flatId} placeholder="Enter flat number" />
+            )}
+            <Button onClick={handleSendOTP} disabled={loading} className="w-full h-12 rounded-full gradient-primary shadow-button transition-spring hover:scale-[1.02] disabled:scale-100">
+              {loading && <CleaningLoader size="sm" className="mr-2" />}
+              Send OTP
+            </Button>
+          </TabsContent>
+        </Tabs>
+      </CardContent>
+    </Card>
   );
 }
