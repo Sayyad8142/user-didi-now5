@@ -182,8 +182,12 @@ export default function VerifyOTP() {
 
         console.log('✅ Profile updated successfully');
         
-        // Refresh ProfileContext to get updated data immediately - await to ensure data is loaded before navigation
-        await refreshProfile();
+        // Refresh ProfileContext to get updated data - wait for the fresh profile to be loaded
+        const freshProfile = await refreshProfile();
+        console.log('✅ ProfileContext refreshed with:', freshProfile);
+        
+        // Small delay to ensure React state has propagated
+        await new Promise(resolve => setTimeout(resolve, 100));
         
         toast({
           title: 'Welcome to Didi Now!',

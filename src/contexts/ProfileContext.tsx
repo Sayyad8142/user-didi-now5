@@ -17,14 +17,14 @@ interface ProfileContextType {
   profile: Profile | null;
   loading: boolean;
   error: string | null;
-  refresh: () => Promise<void>;
+  refresh: () => Promise<Profile | null>;
 }
 
 const ProfileContext = createContext<ProfileContextType>({
   profile: null,
   loading: true,
   error: null,
-  refresh: async () => {},
+  refresh: async () => null,
 });
 
 export const useProfile = () => {
@@ -127,8 +127,9 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
     return () => subscription.unsubscribe();
   }, []);
 
-  const refresh = async () => {
-    await fetchProfile();
+  const refresh = async (): Promise<Profile | null> => {
+    const freshProfile = await fetchProfile();
+    return freshProfile;
   };
 
   return (
