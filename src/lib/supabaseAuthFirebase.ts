@@ -2,12 +2,24 @@ import { supabase } from '@/integrations/supabase/client';
 import { auth } from './firebase';
 
 export async function signInToSupabaseWithFirebaseToken(idToken: string) {
-  const { data, error } = await supabase.auth.signInWithIdToken({
-    provider: 'firebase',
+  // Try Firebase provider first (Supabase third-party auth naming can differ)
+  let res = await supabase.auth.signInWithIdToken({
+    provider: "firebase",
     token: idToken,
-  });
-  if (error) throw error;
-  return { user: data.user, session: data.session };
+  } as any);
+
+  // If provider not allowed, try alternate provider keys
+  if (res.error?.message?.includes("not allowed") || res.error?.message?.includes("provider")) {
+    res = await supabase.auth.signInWithIdToken({
+      provider: "firebase-phone",
+      token: idToken,
+    } as any);
+  }
+
+  // If still failing, throw the original error
+  if (res.error) throw res.error;
+
+  return { user: res.data.user, session: res.data.session };
 }
 
 export async function authenticateWithSupabase() {
