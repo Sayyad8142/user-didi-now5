@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -8,25 +8,21 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PhoneInputIN } from './PhoneInputIN';
 import { formatPhoneIN, isValidINPhone } from '@/lib/auth-helpers';
-import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { CleaningLoader } from '@/components/ui/cleaning-loader';
-import { normalizePhone } from '@/features/profile/ensureProfile';
 import { useCommunities } from '@/hooks/useCommunities';
 import { useBuildings } from '@/hooks/useBuildings';
 import { useFlats } from '@/hooks/useFlats';
 import { isDemoCredentials, setDemoSession, setGuestSession } from '@/lib/demo';
 import { FlatSearchInput } from './FlatSearchInput';
+import { signInWithPhoneNumber, ConfirmationResult } from 'firebase/auth';
+import { auth, getRecaptchaVerifier, clearRecaptchaVerifier } from '@/lib/firebase';
+
 export function AuthCard() {
   const navigate = useNavigate();
-  const {
-    toast
-  } = useToast();
-  const {
-    communities,
-    loading: communitiesLoading,
-    error: communitiesError
-  } = useCommunities();
+  const { toast } = useToast();
+  const { communities, loading: communitiesLoading, error: communitiesError } = useCommunities();
+  const recaptchaContainerRef = useRef<HTMLDivElement>(null);
 
   // Form states
   const [activeTab, setActiveTab] = useState<'signin' | 'signup'>('signin');
@@ -62,6 +58,14 @@ export function AuthCard() {
 
   // Validation errors
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Cleanup reCAPTCHA on unmount
+  useEffect(() => {
+    return () => {
+      clearRecaptchaVerifier();
+    };
+  }, []);
+
   const validateSignIn = () => {
     const newErrors: Record<string, string> = {};
     if (!signInPhone) {
@@ -72,6 +76,7 @@ export function AuthCard() {
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
+
   const validateSignUp = () => {
     const newErrors: Record<string, string> = {};
     if (!signUpData.fullName.trim()) {
@@ -86,7 +91,6 @@ export function AuthCard() {
       newErrors.communityId = 'Please select your community';
     }
     
-    // Check if community uses PHF format
     const selectedCommunity = communities.find(c => c.id === signUpData.communityId);
     const isPHF = selectedCommunity?.flat_format === 'phf_code';
     
@@ -99,36 +103,11 @@ export function AuthCard() {
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
-  const checkIfUserExists = async (phone: string): Promise<boolean> => {
-    try {
-      // Use the same normalization function used during profile creation
-      const normalizedPhone = normalizePhone(phone);
-      const formattedPhone = formatPhoneIN(phone);
-      console.log('Checking user existence for:', {
-        phone,
-        normalizedPhone,
-        formattedPhone
-      });
 
-      // Check if user exists in profiles table with either format
-      const {
-        data,
-        error
-      } = await supabase.from('profiles').select('id, phone').in('phone', [normalizedPhone, formattedPhone]).maybeSingle();
-      if (error) {
-        console.error('Error checking user existence:', error);
-        return false;
-      }
-      console.log('User existence check result:', data);
-      return !!data;
-    } catch (error) {
-      console.error('Error checking user existence:', error);
-      return false;
-    }
-  };
   const handleSendOTP = async () => {
     const isSignUp = activeTab === 'signup';
     const phone = isSignUp ? signUpData.phone : signInPhone;
+    
     if (isSignUp ? !validateSignUp() : !validateSignIn()) {
       return;
     }
@@ -141,47 +120,29 @@ export function AuthCard() {
         title: 'Demo Login Successful',
         description: 'You are now logged in as a demo user.'
       });
-      navigate("/home", {
-        replace: true
-      });
+      navigate("/home", { replace: true });
       return;
     }
+
     setLoading(true);
     setErrors({});
+
     try {
       const formattedPhone = formatPhoneIN(phone);
-      if (!isSignUp) {
-        // Sign In: do not create user; show friendly error if not found
-        const {
-          error
-        } = await supabase.auth.signInWithOtp({
-          phone: formattedPhone,
-          options: {
-            channel: 'sms',
-            shouldCreateUser: false
-          }
-        });
-        if (error) {
-          // Supabase returns different messages; normalize to our copy
-          setErrors({
-            phone: 'Mobile number not registered, sign up first.'
-          });
-          setLoading(false);
-          return;
-        }
-      } else {
-        // Sign Up: allow creating a new user
-        const {
-          error
-        } = await supabase.auth.signInWithOtp({
-          phone: formattedPhone,
-          options: {
-            channel: 'sms',
-            shouldCreateUser: true
-          }
-        });
-        if (error) throw error;
-      }
+      
+      // Setup invisible reCAPTCHA
+      const recaptchaVerifier = getRecaptchaVerifier('recaptcha-container');
+      
+      // Send OTP via Firebase
+      const confirmationResult: ConfirmationResult = await signInWithPhoneNumber(
+        auth,
+        formattedPhone,
+        recaptchaVerifier
+      );
+      
+      // Store confirmation result in session storage for verification page
+      // We can't pass it via state since it's a complex object
+      (window as any).__firebaseConfirmationResult = confirmationResult;
 
       // Navigate to verification with state
       navigate('/auth/verify', {
@@ -192,168 +153,191 @@ export function AuthCard() {
           redirectTo: '/home'
         }
       });
+      
       toast({
         title: 'OTP Sent',
         description: `Verification code sent to ${formattedPhone}`
       });
     } catch (error: any) {
       console.error('Send OTP error:', error);
+      clearRecaptchaVerifier();
+      
+      // Handle specific Firebase errors
+      let errorMessage = 'Failed to send OTP. Please try again.';
+      
+      if (error.code === 'auth/invalid-phone-number') {
+        errorMessage = 'Invalid phone number format.';
+      } else if (error.code === 'auth/too-many-requests') {
+        errorMessage = 'Too many attempts. Please try again later.';
+      } else if (error.code === 'auth/captcha-check-failed') {
+        errorMessage = 'reCAPTCHA verification failed. Please refresh and try again.';
+      } else if (error.code === 'auth/quota-exceeded') {
+        errorMessage = 'SMS quota exceeded. Please try again later.';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
       toast({
         title: 'Error',
-        description: error.message || 'Failed to send OTP. Please try again.',
+        description: errorMessage,
         variant: 'destructive'
       });
     } finally {
       setLoading(false);
     }
   };
+
   const handleContinueAsGuest = () => {
     setGuestSession();
     toast({
       title: 'Welcome Guest!',
       description: 'You can browse and explore our services.'
     });
-    navigate("/home", {
-      replace: true
-    });
+    navigate("/home", { replace: true });
   };
-  return <Card className="max-w-sm mx-auto shadow-card border-pink-100 gradient-card backdrop-blur-sm">
-      <CardContent className="p-6">
-        {/* Brand Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-primary mb-2">Didi Now</h1>
-          <p className="text-muted-foreground text-lg">in 10Mins</p>
-        </div>
 
-        <Tabs value={activeTab} onValueChange={value => setActiveTab(value as 'signin' | 'signup')}>
-          <TabsList className="grid w-full grid-cols-2 mb-6">
-            <TabsTrigger value="signin" className="rounded-lg">Sign In</TabsTrigger>
-            <TabsTrigger value="signup" className="rounded-lg">Sign Up</TabsTrigger>
-          </TabsList>
+  return (
+    <>
+      {/* Invisible reCAPTCHA container */}
+      <div id="recaptcha-container" ref={recaptchaContainerRef}></div>
+      
+      <Card className="max-w-sm mx-auto shadow-card border-pink-100 gradient-card backdrop-blur-sm">
+        <CardContent className="p-6">
+          {/* Brand Header */}
+          <div className="text-center mb-8">
+            <h1 className="text-3xl font-bold text-primary mb-2">Didi Now</h1>
+            <p className="text-muted-foreground text-lg">in 10Mins</p>
+          </div>
 
-          {/* Sign In Tab */}
-          <TabsContent value="signin" className="space-y-6">
-            <PhoneInputIN value={signInPhone} onChange={setSignInPhone} error={errors.phone} disabled={loading} required />
+          <Tabs value={activeTab} onValueChange={value => setActiveTab(value as 'signin' | 'signup')}>
+            <TabsList className="grid w-full grid-cols-2 mb-6">
+              <TabsTrigger value="signin" className="rounded-lg">Sign In</TabsTrigger>
+              <TabsTrigger value="signup" className="rounded-lg">Sign Up</TabsTrigger>
+            </TabsList>
 
-            <Button onClick={handleSendOTP} disabled={loading || !signInPhone} className="w-full h-12 rounded-full gradient-primary shadow-button transition-spring hover:scale-[1.02] disabled:scale-100">
-              {loading && <CleaningLoader size="sm" className="mr-2" />}
-              Send OTP
-            </Button>
-            
-            
-            
-            <div className="text-center">
-              <button type="button" onClick={() => navigate("/admin-login")} className="text-xs text-primary underline hover:no-underline transition-smooth">
-                Admin Login
-              </button>
-            </div>
-          </TabsContent>
+            {/* Sign In Tab */}
+            <TabsContent value="signin" className="space-y-6">
+              <PhoneInputIN value={signInPhone} onChange={setSignInPhone} error={errors.phone} disabled={loading} required />
 
-          {/* Sign Up Tab */}
-          <TabsContent value="signup" className="space-y-4">
-            {/* Full Name */}
-            <div className="space-y-2">
-              <Label htmlFor="fullName" className="text-sm font-medium">
-                Name <span className="text-destructive">*</span>
-              </Label>
-              <Input id="fullName" type="text" placeholder="Enter your full name" value={signUpData.fullName} onChange={e => setSignUpData(prev => ({
-              ...prev,
-              fullName: e.target.value
-            }))} disabled={loading} className="rounded-xl shadow-input transition-smooth focus:ring-2 focus:ring-primary/20" />
-              {errors.fullName && <p className="text-sm text-destructive">{errors.fullName}</p>}
-            </div>
-
-            {/* Phone Input */}
-            <PhoneInputIN value={signUpData.phone} onChange={value => setSignUpData(prev => ({
-            ...prev,
-            phone: value
-          }))} error={errors.phone} disabled={loading} required />
-
-            {/* Community */}
-            <div className="space-y-2">
-              <Label htmlFor="community" className="text-sm font-medium">
-                Community Name <span className="text-destructive">*</span>
-              </Label>
-              <Select value={signUpData.communityId} onValueChange={value => {
-                const community = communities.find(c => c.id === value);
-                setSignUpData(prev => ({
-                  ...prev,
-                  communityId: value,
-                  communityValue: community?.value || '',
-                  buildingId: '',
-                  flatId: '',
-                  flatNo: ''
-                }));
-              }} disabled={loading || communitiesLoading}>
-                <SelectTrigger className="rounded-xl shadow-input transition-smooth focus:ring-2 focus:ring-primary/20">
-                  <SelectValue placeholder={communitiesLoading ? "Loading communities..." : communitiesError ? "Error loading communities" : "Select your community"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {communities.map(community => <SelectItem key={community.id} value={community.id}>
-                      {community.name}
-                    </SelectItem>)}
-                </SelectContent>
-              </Select>
-              {errors.communityId && <p className="text-sm text-destructive">{errors.communityId}</p>}
-              {communitiesError && <p className="text-sm text-destructive">Failed to load communities. Please try again.</p>}
-            </div>
-
-            {/* Building - Only show if not PHF format */}
-            {signUpData.communityId && !isPHF && (
-              <div className="space-y-2">
-                <Label htmlFor="building" className="text-sm font-medium">
-                  Building / Tower <span className="text-destructive">*</span>
-                </Label>
-                <Select 
-                  value={signUpData.buildingId} 
-                  onValueChange={value => setSignUpData(prev => ({
-                    ...prev,
-                    buildingId: value,
-                    flatId: '',
-                    flatNo: ''
-                  }))} 
-                  disabled={loading || buildingsLoading || !signUpData.communityId}
-                >
-                  <SelectTrigger className="rounded-xl shadow-input transition-smooth focus:ring-2 focus:ring-primary/20">
-                    <SelectValue placeholder={buildingsLoading ? "Loading buildings..." : "Select your building"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {buildings.map(building => (
-                      <SelectItem key={building.id} value={building.id}>
-                        {building.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {errors.buildingId && <p className="text-sm text-destructive">{errors.buildingId}</p>}
+              <Button onClick={handleSendOTP} disabled={loading || !signInPhone} className="w-full h-12 rounded-full gradient-primary shadow-button transition-spring hover:scale-[1.02] disabled:scale-100">
+                {loading && <CleaningLoader size="sm" className="mr-2" />}
+                Send OTP
+              </Button>
+              
+              <div className="text-center">
+                <button type="button" onClick={() => navigate("/admin-login")} className="text-xs text-primary underline hover:no-underline transition-smooth">
+                  Admin Login
+                </button>
               </div>
-            )}
+            </TabsContent>
 
-            {/* Flat Number - Searchable Input */}
-            {signUpData.communityId && (isPHF || signUpData.buildingId) && (
-              <FlatSearchInput
-                flats={flats}
-                value={signUpData.flatNo}
-                onSelect={(flatId, flatNo) => {
+            {/* Sign Up Tab */}
+            <TabsContent value="signup" className="space-y-4">
+              {/* Full Name */}
+              <div className="space-y-2">
+                <Label htmlFor="fullName" className="text-sm font-medium">
+                  Name <span className="text-destructive">*</span>
+                </Label>
+                <Input id="fullName" type="text" placeholder="Enter your full name" value={signUpData.fullName} onChange={e => setSignUpData(prev => ({
+                ...prev,
+                fullName: e.target.value
+              }))} disabled={loading} className="rounded-xl shadow-input transition-smooth focus:ring-2 focus:ring-primary/20" />
+                {errors.fullName && <p className="text-sm text-destructive">{errors.fullName}</p>}
+              </div>
+
+              {/* Phone Input */}
+              <PhoneInputIN value={signUpData.phone} onChange={value => setSignUpData(prev => ({
+              ...prev,
+              phone: value
+            }))} error={errors.phone} disabled={loading} required />
+
+              {/* Community */}
+              <div className="space-y-2">
+                <Label htmlFor="community" className="text-sm font-medium">
+                  Community Name <span className="text-destructive">*</span>
+                </Label>
+                <Select value={signUpData.communityId} onValueChange={value => {
+                  const community = communities.find(c => c.id === value);
                   setSignUpData(prev => ({
                     ...prev,
-                    flatId,
-                    flatNo
+                    communityId: value,
+                    communityValue: community?.value || '',
+                    buildingId: '',
+                    flatId: '',
+                    flatNo: ''
                   }));
-                }}
-                disabled={loading || (isPHF ? !signUpData.communityId : !signUpData.buildingId)}
-                loading={flatsLoading}
-                error={errors.flatId}
-                placeholder="Enter your flat number"
-              />
-            )}
+                }} disabled={loading || communitiesLoading}>
+                  <SelectTrigger className="rounded-xl shadow-input transition-smooth focus:ring-2 focus:ring-primary/20">
+                    <SelectValue placeholder={communitiesLoading ? "Loading communities..." : communitiesError ? "Error loading communities" : "Select your community"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {communities.map(community => <SelectItem key={community.id} value={community.id}>
+                        {community.name}
+                      </SelectItem>)}
+                  </SelectContent>
+                </Select>
+                {errors.communityId && <p className="text-sm text-destructive">{errors.communityId}</p>}
+                {communitiesError && <p className="text-sm text-destructive">Failed to load communities. Please try again.</p>}
+              </div>
 
-            <Button onClick={handleSendOTP} disabled={loading} className="w-full h-12 rounded-full gradient-primary shadow-button transition-spring hover:scale-[1.02] disabled:scale-100">
-              {loading && <CleaningLoader size="sm" className="mr-2" />}
-              Send OTP
-            </Button>
-          </TabsContent>
-        </Tabs>
-      </CardContent>
-    </Card>;
+              {/* Building - Only show if not PHF format */}
+              {signUpData.communityId && !isPHF && (
+                <div className="space-y-2">
+                  <Label htmlFor="building" className="text-sm font-medium">
+                    Building / Tower <span className="text-destructive">*</span>
+                  </Label>
+                  <Select 
+                    value={signUpData.buildingId} 
+                    onValueChange={value => setSignUpData(prev => ({
+                      ...prev,
+                      buildingId: value,
+                      flatId: '',
+                      flatNo: ''
+                    }))} 
+                    disabled={loading || buildingsLoading || !signUpData.communityId}
+                  >
+                    <SelectTrigger className="rounded-xl shadow-input transition-smooth focus:ring-2 focus:ring-primary/20">
+                      <SelectValue placeholder={buildingsLoading ? "Loading buildings..." : "Select your building"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {buildings.map(building => (
+                        <SelectItem key={building.id} value={building.id}>
+                          {building.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {errors.buildingId && <p className="text-sm text-destructive">{errors.buildingId}</p>}
+                </div>
+              )}
+
+              {/* Flat Number - Searchable Input */}
+              {signUpData.communityId && (isPHF || signUpData.buildingId) && (
+                <FlatSearchInput
+                  flats={flats}
+                  value={signUpData.flatNo}
+                  onSelect={(flatId, flatNo) => {
+                    setSignUpData(prev => ({
+                      ...prev,
+                      flatId,
+                      flatNo
+                    }));
+                  }}
+                  disabled={loading || (isPHF ? !signUpData.communityId : !signUpData.buildingId)}
+                  loading={flatsLoading}
+                  error={errors.flatId}
+                  placeholder="Enter your flat number"
+                />
+              )}
+
+              <Button onClick={handleSendOTP} disabled={loading} className="w-full h-12 rounded-full gradient-primary shadow-button transition-spring hover:scale-[1.02] disabled:scale-100">
+                {loading && <CleaningLoader size="sm" className="mr-2" />}
+                Send OTP
+              </Button>
+            </TabsContent>
+          </Tabs>
+        </CardContent>
+      </Card>
+    </>
+  );
 }

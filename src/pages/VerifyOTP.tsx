@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,9 @@ import { CleaningLoader } from '@/components/ui/cleaning-loader';
 import { ensureProfile, waitForSession, normalizePhone } from '@/features/profile/ensureProfile';
 import { isDemoCredentials, setDemoSession } from '@/lib/demo';
 import { useProfile } from '@/contexts/ProfileContext';
+import { ConfirmationResult, signInWithPhoneNumber } from 'firebase/auth';
+import { auth, getRecaptchaVerifier, clearRecaptchaVerifier } from '@/lib/firebase';
+import { authenticateWithSupabase } from '@/lib/supabaseAuthFirebase';
 
 interface LocationState {
   phone: string;
@@ -45,6 +48,7 @@ export default function VerifyOTP() {
   const location = useLocation();
   const { toast } = useToast();
   const { refresh: refreshProfile } = useProfile();
+  const recaptchaContainerRef = useRef<HTMLDivElement>(null);
   
   const state = location.state as LocationState;
   
@@ -52,12 +56,25 @@ export default function VerifyOTP() {
   const adminIntent = state?.adminLogin || false;
   const redirectTo = state?.redirectTo || (adminIntent ? "/admin" : "/home");
   
+  // Get confirmation result from window (set by AuthCard)
+  const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(
+    () => (window as any).__firebaseConfirmationResult || null
+  );
+  
   // Redirect if no state
   useEffect(() => {
     if (!phone) {
       navigate('/auth');
     }
   }, [phone, navigate]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      clearRecaptchaVerifier();
+      delete (window as any).__firebaseConfirmationResult;
+    };
+  }, []);
 
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
@@ -89,7 +106,6 @@ export default function VerifyOTP() {
     try {
       // Check for demo credentials
       if (isDemoCredentials(phone, otp)) {
-        // Handle demo login
         console.log('Demo login detected');
         setDemoSession();
         
@@ -98,7 +114,6 @@ export default function VerifyOTP() {
           description: 'You are now logged in as a demo user.',
         });
         
-        // Navigate directly for demo user
         if (redirectTo) {
           navigate(redirectTo, { replace: true });
         } else {
@@ -107,20 +122,19 @@ export default function VerifyOTP() {
         return;
       }
 
-      // Verify OTP for regular users
-      const { error: verifyError } = await supabase.auth.verifyOtp({
-        type: "sms",
-        token: otp.trim(),
-        phone, // must match the phone used to send OTP
-      });
-
-      if (verifyError) {
-        const errorMsg = /expired|invalid/i.test(verifyError.message)
-          ? "OTP expired or invalid. Resend and try again."
-          : verifyError.message;
-        setError(errorMsg);
+      // Verify OTP with Firebase
+      if (!confirmationResult) {
+        setError('Session expired. Please go back and resend OTP.');
         return;
       }
+
+      const userCredential = await confirmationResult.confirm(otp.trim());
+      console.log('Firebase OTP verified, user:', userCredential.user.uid);
+
+      // Now authenticate with Supabase using Firebase token
+      console.log('Authenticating with Supabase using Firebase token...');
+      await authenticateWithSupabase();
+      console.log('Supabase authentication successful');
 
       // Ensure session is set and profile exists
       await waitForSession();
@@ -182,7 +196,7 @@ export default function VerifyOTP() {
 
         console.log('✅ Profile updated successfully');
         
-        // Refresh ProfileContext to get updated data - wait for the fresh profile to be loaded
+        // Refresh ProfileContext to get updated data
         const freshProfile = await refreshProfile();
         console.log('✅ ProfileContext refreshed with:', freshProfile);
         
@@ -203,7 +217,6 @@ export default function VerifyOTP() {
       // Set portal based on where user is going
       const { PortalStore } = await import('@/lib/portal');
       
-      // Prefer explicit redirect target; else admin check
       if (redirectTo) {
         if (redirectTo.includes('/admin')) {
           PortalStore.set('admin');
@@ -222,7 +235,18 @@ export default function VerifyOTP() {
       }
     } catch (error: any) {
       console.error('Verify OTP error:', error);
-      const errorMsg = error.message ?? "Verification failed";
+      
+      // Handle specific Firebase errors
+      let errorMsg = error.message ?? "Verification failed";
+      
+      if (error.code === 'auth/invalid-verification-code') {
+        errorMsg = 'Invalid OTP. Please check and try again.';
+      } else if (error.code === 'auth/code-expired') {
+        errorMsg = 'OTP expired. Please resend and try again.';
+      } else if (error.code === 'auth/too-many-requests') {
+        errorMsg = 'Too many attempts. Please try again later.';
+      }
+      
       setError(errorMsg);
       toast({
         title: 'Verification Failed',
@@ -241,18 +265,19 @@ export default function VerifyOTP() {
     setError('');
 
     try {
-      const { error } = await supabase.auth.signInWithOtp({
+      // Setup invisible reCAPTCHA
+      const recaptchaVerifier = getRecaptchaVerifier('recaptcha-container-verify');
+      
+      // Send OTP via Firebase
+      const newConfirmationResult = await signInWithPhoneNumber(
+        auth,
         phone,
-        options: {
-          channel: 'sms',
-          shouldCreateUser: true,
-        },
-      });
-
-      if (error) {
-        setError(error.message);
-        return;
-      }
+        recaptchaVerifier
+      );
+      
+      // Update confirmation result
+      setConfirmationResult(newConfirmationResult);
+      (window as any).__firebaseConfirmationResult = newConfirmationResult;
 
       setCountdown(30);
       setOtp('');
@@ -263,10 +288,20 @@ export default function VerifyOTP() {
       });
     } catch (error: any) {
       console.error('Resend OTP error:', error);
-      setError(error.message || 'Failed to resend OTP. Please try again.');
+      clearRecaptchaVerifier();
+      
+      let errorMessage = 'Failed to resend OTP. Please try again.';
+      
+      if (error.code === 'auth/too-many-requests') {
+        errorMessage = 'Too many attempts. Please try again later.';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      setError(errorMessage);
       toast({
         title: 'Error',
-        description: error.message || 'Failed to resend OTP. Please try again.',
+        description: errorMessage,
         variant: 'destructive',
       });
     } finally {
@@ -275,6 +310,8 @@ export default function VerifyOTP() {
   };
 
   const handleBack = () => {
+    clearRecaptchaVerifier();
+    delete (window as any).__firebaseConfirmationResult;
     navigate('/auth');
   };
 
@@ -284,6 +321,9 @@ export default function VerifyOTP() {
 
   return (
     <div className="min-h-screen gradient-bg flex items-center justify-center p-4">
+      {/* Invisible reCAPTCHA container for resend */}
+      <div id="recaptcha-container-verify" ref={recaptchaContainerRef}></div>
+      
       <div className="w-full max-w-md space-y-4">
         {/* Success Alert */}
         <Alert className="border-green-200 bg-green-50 text-green-800">
