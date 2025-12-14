@@ -222,10 +222,24 @@ export function BookingCard({
     const user = firebaseAuth.currentUser;
     if (!user) return;
 
+    // Get profile UUID from firebase_uid
+    const { data: profileData } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('firebase_uid', user.uid)
+      .single();
+    
+    if (!profileData) {
+      console.error('[BookingCard] Profile not found for Firebase UID:', user.uid);
+      return;
+    }
+    
+    console.log('[BookingCard] Submitting rating with profile.id:', profileData.id, 'firebase_uid:', user.uid);
+    
     await supabase.from('worker_ratings').insert({
       booking_id: row.id,
       worker_id: row.worker_id,
-      user_id: user.uid,
+      user_id: profileData.id, // Use Supabase UUID, not Firebase UID
       rating,
       comment: comment ?? null,
     });

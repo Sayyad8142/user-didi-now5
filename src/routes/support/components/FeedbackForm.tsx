@@ -31,14 +31,26 @@ export default function FeedbackForm({ bookingId = "" }: FeedbackFormProps) {
     
     try {
       const user = firebaseAuth.currentUser;
-      const user_id = user?.uid;
       
-      if (!user_id) {
+      if (!user?.uid) {
         throw new Error("User not authenticated");
       }
       
+      // Get profile UUID from firebase_uid
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('firebase_uid', user.uid)
+        .single();
+      
+      if (!profileData) {
+        throw new Error("Profile not found");
+      }
+      
+      console.log('[FeedbackForm] Submitting feedback with profile.id:', profileData.id, 'firebase_uid:', user.uid);
+      
       const { error } = await supabase.from("feedback").insert({
-        user_id,
+        user_id: profileData.id, // Use Supabase UUID, not Firebase UID
         booking_id: bookingId || null,
         category,
         rating,
