@@ -71,8 +71,18 @@ export const useUnseenMessages = () => {
 
   // Function to mark messages as seen and update state
   const markMessagesAsSeen = async () => {
+    // Guard: wait for profile to exist before making any calls
+    if (!profile?.id) {
+      console.log('[useUnseenMessages] Skipping markMessagesAsSeen - no profile yet');
+      return;
+    }
+    
     try {
-      const { data: threadData } = await supabase.rpc('support_get_or_create_thread');
+      const { data: threadData, error: rpcError } = await supabase.rpc('support_get_or_create_thread');
+      if (rpcError) {
+        console.error('Error in support_get_or_create_thread:', rpcError);
+        return;
+      }
       if (threadData) {
         await supabase.rpc('mark_support_messages_as_seen', {
           p_thread_id: threadData.id
