@@ -6,6 +6,7 @@ import { auth as firebaseAuth } from '@/lib/firebase';
 
 interface Profile {
   id: string;
+  firebase_uid?: string | null;
   full_name: string;
   phone: string;
   community: string;
