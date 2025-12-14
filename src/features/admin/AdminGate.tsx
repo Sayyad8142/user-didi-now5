@@ -39,7 +39,7 @@ export function AdminGate({ children }: { children: ReactNode }) {
       
       // Check database for is_admin flag
       try {
-        const { data: prof } = await supabase.from("profiles").select("is_admin").eq("id", user.uid).maybeSingle();
+        const { data: prof } = await supabase.from("profiles").select("is_admin").eq("firebase_uid", user.uid).maybeSingle();
         if (prof?.is_admin) {
           allow = true;
         }

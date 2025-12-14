@@ -16,8 +16,8 @@ async function getUserRole() {
     const { data } = await supabase
       .from('profiles')
       .select('is_admin, phone')
-      .eq('id', user.uid)
-      .single();
+      .eq('firebase_uid', user.uid)
+      .maybeSingle();
     
     const isAdmin = data?.is_admin || isAdminPhone(data?.phone || user.phoneNumber);
     return isAdmin ? 'admin' : 'user';
