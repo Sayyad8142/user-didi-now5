@@ -39,8 +39,8 @@ export default function ConsentGate({ children }: { children: React.ReactNode })
 
       const { data: p } = await supabase
         .from("profiles")
-        .select("id, full_name, phone, legal_version, tos_accepted_at, privacy_accepted_at")
-        .eq("id", uid)
+        .select("id, full_name, phone, legal_version, tos_accepted_at, privacy_accepted_at, firebase_uid")
+        .eq("firebase_uid", uid)
         .single();
 
       setProfile(p);
@@ -79,7 +79,7 @@ export default function ConsentGate({ children }: { children: React.ReactNode })
       const { error } = await supabase
         .from("profiles")
         .update(updateData)
-        .eq("id", profile.id);
+        .eq("firebase_uid", profile.firebase_uid);
       
       if (error) {
         console.error('Profile update error:', error);
