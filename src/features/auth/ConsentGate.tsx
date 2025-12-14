@@ -66,9 +66,10 @@ export default function ConsentGate({ children }: { children: React.ReactNode })
   }, []);
 
   async function accept() {
-    const uid = userId || profile?.id;
-    if (!uid) {
-      console.error('No user ID available');
+    // userId is the Firebase UID from onAuthStateChanged
+    const firebaseUid = userId;
+    if (!firebaseUid) {
+      console.error('No Firebase UID available');
       return;
     }
     if (!agreeTos || !agreePriv) return;
@@ -82,10 +83,15 @@ export default function ConsentGate({ children }: { children: React.ReactNode })
       };
       if (ver) updateData.legal_version = ver;
 
-      const { error } = await supabase
+      console.log('Updating profile with firebase_uid:', firebaseUid);
+      
+      const { error, data } = await supabase
         .from("profiles")
         .update(updateData)
-        .eq("firebase_uid", uid);
+        .eq("firebase_uid", firebaseUid)
+        .select();
+      
+      console.log('Profile update result:', { error, data });
       
       if (error) {
         console.error('Profile update error:', error);
@@ -94,8 +100,29 @@ export default function ConsentGate({ children }: { children: React.ReactNode })
           window.location.href = '/auth';
           return;
         }
-      } else {
+      } else if (data && data.length > 0) {
         setState("ok");
+      } else {
+        // No rows updated - profile might not exist yet, create it
+        console.log('No profile found to update, trying to create one');
+        const { error: insertError } = await supabase
+          .from("profiles")
+          .insert({
+            firebase_uid: firebaseUid,
+            full_name: firebaseAuth.currentUser?.phoneNumber || 'User',
+            phone: firebaseAuth.currentUser?.phoneNumber || '',
+            community: 'unknown',
+            flat_no: '',
+            tos_accepted_at: now,
+            privacy_accepted_at: now,
+            legal_version: ver || undefined,
+          });
+        
+        if (insertError) {
+          console.error('Profile insert error:', insertError);
+        } else {
+          setState("ok");
+        }
       }
     } catch (err) {
       console.error('Consent accept error:', err);
