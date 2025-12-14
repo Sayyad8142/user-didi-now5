@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { auth as firebaseAuth } from "@/lib/firebase";
+import { onAuthStateChanged } from "firebase/auth";
 import { Button } from "@/components/ui/button";
 import { Link, useNavigate } from "react-router-dom";
 import { CheckCircle, FileText, Shield } from "lucide-react";
@@ -23,24 +24,34 @@ export default function ConsentGate({ children }: { children: React.ReactNode })
   const [agreeTos, setAgreeTos] = useState(false);
   const [agreePriv, setAgreePriv] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
   const nav = useNavigate();
 
   useEffect(() => {
-    (async () => {
-      const user = firebaseAuth.currentUser;
+    // Wait for Firebase auth to be ready
+    const unsubscribe = onAuthStateChanged(firebaseAuth, async (user) => {
       const v = await getCurrentLegalVersion();
       setVer(v);
       const uid = user?.uid;
+      setUserId(uid || null);
+      
       if (!uid) { 
         setState("ok"); 
         return; 
       }
 
-      const { data: p } = await supabase
+      const { data: p, error } = await supabase
         .from("profiles")
         .select("id, full_name, phone, legal_version, tos_accepted_at, privacy_accepted_at")
         .eq("id", uid)
         .single();
+
+      if (error) {
+        console.error('Profile fetch error:', error);
+        // If no profile found, let them through (they'll need to complete signup)
+        setState("ok");
+        return;
+      }
 
       setProfile(p);
       const acceptedCurrent =
@@ -49,24 +60,21 @@ export default function ConsentGate({ children }: { children: React.ReactNode })
         (!!v ? p?.legal_version === v : true);
 
       setState(acceptedCurrent ? "ok" : "needs-consent");
-    })();
+    });
+
+    return () => unsubscribe();
   }, []);
 
   async function accept() {
-    if (!profile?.id) return;
+    const uid = userId || profile?.id;
+    if (!uid) {
+      console.error('No user ID available');
+      return;
+    }
     if (!agreeTos || !agreePriv) return;
     setBusy(true);
     
     try {
-      // Ensure we have a valid Firebase user
-      const user = firebaseAuth.currentUser;
-      
-      if (!user) {
-        console.error('No Firebase user');
-        window.location.href = '/auth';
-        return;
-      }
-
       const now = new Date().toISOString();
       const updateData: Record<string, any> = {
         tos_accepted_at: now,
@@ -77,7 +85,7 @@ export default function ConsentGate({ children }: { children: React.ReactNode })
       const { error } = await supabase
         .from("profiles")
         .update(updateData)
-        .eq("id", profile.id);
+        .eq("id", uid);
       
       if (error) {
         console.error('Profile update error:', error);
