@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -14,6 +14,9 @@ import { isDemoCredentials, setDemoSession } from '@/lib/demo';
 import { useProfile } from '@/contexts/ProfileContext';
 import { sendFirebaseOTP, clearRecaptchaVerifier } from '@/lib/firebase';
 import { signInToSupabaseWithFirebaseToken } from '@/lib/supabaseAuthFirebase';
+
+const SUPABASE_URL = "https://paywwbuqycovjopryele.supabase.co";
+const PROVIDER_NAME = "firebase";
 
 interface LocationState {
   phone: string;
@@ -35,6 +38,7 @@ const RESEND_MS = 30000;
 export default function VerifyOTP() {
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const { toast } = useToast();
   const { refresh: refreshProfile } = useProfile();
   const state = location.state as LocationState;
@@ -46,12 +50,14 @@ export default function VerifyOTP() {
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [debugError, setDebugError] = useState<any>(null);
   const [now, setNow] = useState(Date.now());
   const [resendAt, setResendAt] = useState<number>(() => {
     const last = Number(sessionStorage.getItem("otp_last_sent") || "0");
     return last ? last + RESEND_MS : Date.now();
   });
 
+  const showDebug = import.meta.env.DEV || searchParams.get('debug') === '1';
   const canResend = now >= resendAt;
   const countdown = Math.max(0, Math.ceil((resendAt - now) / 1000));
 
@@ -124,6 +130,7 @@ export default function VerifyOTP() {
       navigate(redirectTo || (isAdminPhone(profile?.phone) ? "/admin" : "/home"), { replace: true });
     } catch (e: any) {
       console.error('Verify OTP error:', e);
+      setDebugError(e);
       if (e.code === 'auth/invalid-verification-code') {
         setError('Invalid OTP. Please check and try again.');
       } else if (e.code === 'auth/code-expired') {
@@ -171,6 +178,25 @@ export default function VerifyOTP() {
     <div className="min-h-screen gradient-bg flex items-center justify-center p-4">
       <div id="recaptcha-container-verify" />
       <div className="w-full max-w-md space-y-4">
+        {showDebug && (
+          <div className="bg-yellow-100 border border-yellow-400 text-yellow-800 text-xs p-3 rounded-lg font-mono">
+            <div><strong>DEBUG INFO</strong></div>
+            <div>Supabase URL: {SUPABASE_URL}</div>
+            <div>Provider: {PROVIDER_NAME}</div>
+            {debugError && (
+              <div className="mt-2 break-all">
+                <strong>Error:</strong>
+                <div>Status: {debugError?.status ?? 'N/A'}</div>
+                <div>Code: {debugError?.code ?? 'N/A'}</div>
+                <div>Message: {debugError?.message ?? 'N/A'}</div>
+                <details className="mt-1">
+                  <summary className="cursor-pointer">Full Error JSON</summary>
+                  <pre className="whitespace-pre-wrap text-[10px] mt-1">{JSON.stringify(debugError, null, 2)}</pre>
+                </details>
+              </div>
+            )}
+          </div>
+        )}
         <Alert className="border-green-200 bg-green-50 text-green-800">
           <CheckCircle2 className="h-4 w-4" />
           <AlertDescription>Verification code sent to {savedPhone}</AlertDescription>
