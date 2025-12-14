@@ -16,7 +16,15 @@ import { useProfile } from '@/contexts/ProfileContext';
 interface LocationState {
   phone: string;
   mode: 'signin' | 'signup';
-  signupData?: { fullName: string; phone: string; communityId: string; communityValue: string; buildingId: string; flatId: string; flatNo: string; } | null;
+  signupData?: {
+    fullName: string;
+    phone: string;
+    communityId: string;
+    communityValue: string;
+    buildingId: string;
+    flatId: string;
+    flatNo: string;
+  } | null;
   adminLogin?: boolean;
   redirectTo?: string;
 }
@@ -25,132 +33,244 @@ function isAdminPhone(phone?: string | null) {
   const env = import.meta.env.VITE_ADMIN_PHONES ?? "";
   const target = normalizePhone(phone ?? "");
   if (!target) return false;
-  return env.split(",").map((s: string) => normalizePhone(s.trim())).filter(Boolean).includes(target);
+  return env
+    .split(",")
+    .map(s => normalizePhone(s.trim()))
+    .filter(Boolean)
+    .includes(target);
 }
-
-const RESEND_MS = 30000;
 
 export default function VerifyOTP() {
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
   const { refresh: refreshProfile } = useProfile();
+  
   const state = location.state as LocationState;
-  const savedPhone = state?.phone || sessionStorage.getItem("otp_phone") || "";
-  const phone = normalizePhone(savedPhone);
+  
+  const phone = state?.phone || "";
   const adminIntent = state?.adminLogin || false;
   const redirectTo = state?.redirectTo || (adminIntent ? "/admin" : "/home");
+  
+  // Redirect if no state
+  useEffect(() => {
+    if (!phone) {
+      navigate('/auth');
+    }
+  }, [phone, navigate]);
 
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
+  const [countdown, setCountdown] = useState(30);
   const [error, setError] = useState('');
-  const [now, setNow] = useState(Date.now());
-  const [resendAt, setResendAt] = useState<number>(() => {
-    const last = Number(sessionStorage.getItem("otp_last_sent") || "0");
-    return last ? last + RESEND_MS : Date.now();
-  });
 
-  const canResend = now >= resendAt;
-  const countdown = Math.max(0, Math.ceil((resendAt - now) / 1000));
-
+  // Countdown timer
   useEffect(() => {
-    if (!phone) navigate('/auth');
-  }, [phone, navigate]);
-
-  useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 250);
-    return () => clearInterval(t);
-  }, []);
+    if (countdown > 0) {
+      const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [countdown]);
 
   const handleVerifyOTP = async () => {
-    if (!phone) { setError("Session expired."); return; }
-    if (otp.trim().length !== 6) { setError('Please enter the complete 6-digit code'); return; }
-    setLoading(true); setError('');
+    if (!phone) {
+      setError("Session expired. Please resend OTP.");
+      return;
+    }
+    if (otp.trim().length !== 6) {
+      setError('Please enter the complete 6-digit code');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
 
     try {
-      if (isDemoCredentials(phone, otp)) { 
-        setDemoSession(); 
-        toast({ title: 'Demo Login Successful' }); 
-        navigate(redirectTo || "/home", { replace: true }); 
-        return; 
-      }
-
-      // Use Supabase native OTP verification
-      const { error: verifyError } = await supabase.auth.verifyOtp({
-        type: "sms",
-        token: otp.trim(),
-        phone
-      });
-
-      if (verifyError) {
-        if (/expired|invalid/i.test(verifyError.message)) {
-          setError('OTP expired/invalid. Resend and try again.');
+      // Check for demo credentials
+      if (isDemoCredentials(phone, otp)) {
+        // Handle demo login
+        console.log('Demo login detected');
+        setDemoSession();
+        
+        toast({
+          title: 'Demo Login Successful',
+          description: 'You are now logged in as a demo user.',
+        });
+        
+        // Navigate directly for demo user
+        if (redirectTo) {
+          navigate(redirectTo, { replace: true });
         } else {
-          setError(verifyError.message);
+          navigate("/home", { replace: true });
         }
         return;
       }
 
+      // Verify OTP for regular users
+      const { error: verifyError } = await supabase.auth.verifyOtp({
+        type: "sms",
+        token: otp.trim(),
+        phone, // must match the phone used to send OTP
+      });
+
+      if (verifyError) {
+        const errorMsg = /expired|invalid/i.test(verifyError.message)
+          ? "OTP expired or invalid. Resend and try again."
+          : verifyError.message;
+        setError(errorMsg);
+        return;
+      }
+
+      // Ensure session is set and profile exists
       await waitForSession();
       const profile = await ensureProfile();
 
+      // If signup mode with additional data, update the profile
       if (state?.mode === 'signup' && state.signupData && profile) {
-        if (!state.signupData.communityValue || !state.signupData.flatId) { 
-          toast({ title: 'Signup Error', description: 'Missing data.', variant: 'destructive' }); 
-          return; 
+        console.log('📝 Updating profile with signup data:', {
+          fullName: state.signupData.fullName,
+          communityId: state.signupData.communityId,
+          communityValue: state.signupData.communityValue,
+          flatNo: state.signupData.flatNo,
+          flatId: state.signupData.flatId,
+          buildingId: state.signupData.buildingId
+        });
+
+        // Validate required fields before update
+        if (!state.signupData.communityValue) {
+          console.error('❌ Community value is missing!');
+          toast({
+            title: 'Signup Error',
+            description: 'Community information is missing. Please try signing up again.',
+            variant: 'destructive',
+          });
+          return;
         }
-        const { error: updateError } = await supabase.from('profiles').update({ 
-          full_name: state.signupData.fullName, 
-          community: state.signupData.communityValue, 
-          flat_no: state.signupData.flatNo, 
-          community_id: state.signupData.communityId, 
-          building_id: state.signupData.buildingId || null, 
-          flat_id: state.signupData.flatId 
-        }).eq('id', profile.id);
+
+        if (!state.signupData.flatId || !state.signupData.flatNo) {
+          console.error('❌ Flat information is missing!');
+          toast({
+            title: 'Signup Error',
+            description: 'Flat information is missing. Please try signing up again.',
+            variant: 'destructive',
+          });
+          return;
+        }
+
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({
+            full_name: state.signupData.fullName,
+            community: state.signupData.communityValue,
+            flat_no: state.signupData.flatNo,
+            community_id: state.signupData.communityId,
+            building_id: state.signupData.buildingId || null,
+            flat_id: state.signupData.flatId,
+          })
+          .eq('id', profile.id);
+
+        if (updateError) {
+          console.error('❌ Profile update error:', updateError);
+          toast({
+            title: 'Signup Failed',
+            description: `Failed to complete profile setup: ${updateError.message}`,
+            variant: 'destructive',
+          });
+          return;
+        }
+
+        console.log('✅ Profile updated successfully');
         
-        if (updateError) { 
-          toast({ title: 'Signup Failed', description: updateError.message, variant: 'destructive' }); 
-          return; 
-        }
-        await refreshProfile();
-        await new Promise(r => setTimeout(r, 100));
-        toast({ title: 'Welcome to Didi Now!' });
-      } else { 
-        toast({ title: 'Welcome back!' }); 
+        // Refresh ProfileContext to get updated data - wait for the fresh profile to be loaded
+        const freshProfile = await refreshProfile();
+        console.log('✅ ProfileContext refreshed with:', freshProfile);
+        
+        // Small delay to ensure React state has propagated
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        toast({
+          title: 'Welcome to Didi Now!',
+          description: 'Your account has been created successfully.',
+        });
+      } else {
+        toast({
+          title: 'Welcome back!',
+          description: 'You have been signed in successfully.',
+        });
       }
 
+      // Set portal based on where user is going
       const { PortalStore } = await import('@/lib/portal');
-      if (redirectTo?.includes('/admin')) PortalStore.set('admin'); 
-      else PortalStore.set('user');
-      navigate(redirectTo || (isAdminPhone(profile?.phone) ? "/admin" : "/home"), { replace: true });
-    } catch (e: any) {
-      console.error('Verify OTP error:', e);
-      setError(e.message ?? "Verification failed");
-    } finally { 
-      setLoading(false); 
+      
+      // Prefer explicit redirect target; else admin check
+      if (redirectTo) {
+        if (redirectTo.includes('/admin')) {
+          PortalStore.set('admin');
+        } else {
+          PortalStore.set('user');
+        }
+        navigate(redirectTo, { replace: true });
+        return;
+      }
+      if (isAdminPhone(profile?.phone) || adminIntent) {
+        PortalStore.set('admin');
+        navigate("/admin", { replace: true });
+      } else {
+        PortalStore.set('user');
+        navigate("/home", { replace: true });
+      }
+    } catch (error: any) {
+      console.error('Verify OTP error:', error);
+      const errorMsg = error.message ?? "Verification failed";
+      setError(errorMsg);
+      toast({
+        title: 'Verification Failed',
+        description: errorMsg,
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleResendOTP = async () => {
-    if (!phone || !canResend) return;
-    setError('');
+    if (!phone || countdown > 0) return;
     
+    setResendLoading(true);
+    setError('');
+
     try {
       const { error } = await supabase.auth.signInWithOtp({
         phone,
-        options: { shouldCreateUser: true }
+        options: {
+          channel: 'sms',
+          shouldCreateUser: true,
+        },
       });
 
-      if (error) throw error;
+      if (error) {
+        setError(error.message);
+        return;
+      }
 
-      const ts = Date.now();
-      sessionStorage.setItem("otp_last_sent", String(ts));
-      setResendAt(ts + RESEND_MS);
+      setCountdown(30);
       setOtp('');
-      toast({ title: 'OTP Resent' });
-    } catch (e: any) {
-      console.error('Resend OTP error:', e);
-      setError(e.message || 'Failed to resend OTP.');
+      setError('');
+      toast({
+        title: 'OTP Resent',
+        description: `New verification code sent to ${phone}`,
+      });
+    } catch (error: any) {
+      console.error('Resend OTP error:', error);
+      setError(error.message || 'Failed to resend OTP. Please try again.');
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to resend OTP. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setResendLoading(false);
     }
   };
 
@@ -158,48 +278,77 @@ export default function VerifyOTP() {
     navigate('/auth');
   };
 
-  if (!phone) return null;
+  if (!phone) {
+    return null; // Will redirect to auth
+  }
 
   return (
     <div className="min-h-screen gradient-bg flex items-center justify-center p-4">
       <div className="w-full max-w-md space-y-4">
+        {/* Success Alert */}
         <Alert className="border-green-200 bg-green-50 text-green-800">
           <CheckCircle2 className="h-4 w-4" />
-          <AlertDescription>Verification code sent to {savedPhone}</AlertDescription>
+          <AlertDescription>
+            Verification code sent to {phone}
+          </AlertDescription>
         </Alert>
-        
+
         <Card className="shadow-card border-pink-100 gradient-card backdrop-blur-sm">
           <CardContent className="p-6">
-            <Button variant="ghost" size="sm" onClick={handleBack} className="mb-4 p-2">
+            {/* Back Button */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleBack}
+              className="mb-4 p-2 hover:bg-black/5"
+            >
               <ArrowLeft className="w-5 h-5" />
             </Button>
-            
+
+            {/* Header */}
             <div className="text-center mb-8">
               <h1 className="text-2xl font-bold text-foreground mb-2">Verify OTP</h1>
               <p className="text-muted-foreground">
                 Enter the 6-digit code sent to<br />
-                <span className="font-mono font-medium">{maskPhone(savedPhone)}</span>
+                <span className="font-mono font-medium">{maskPhone(phone)}</span>
               </p>
             </div>
-            
+
+            {/* OTP Input */}
             <div className="mb-6">
-              <OtpBoxes value={otp} onChange={setOtp} disabled={loading} error={error} />
+              <OtpBoxes
+                value={otp}
+                onChange={setOtp}
+                disabled={loading}
+                error={error}
+              />
             </div>
-            
-            <Button 
-              onClick={handleVerifyOTP} 
-              disabled={loading || otp.length !== 6} 
-              className="w-full h-12 rounded-full gradient-primary shadow-button mb-4"
+
+            {/* Verify Button */}
+            <Button
+              onClick={handleVerifyOTP}
+              disabled={loading || otp.length !== 6}
+              className="w-full h-12 rounded-full gradient-primary shadow-button transition-spring hover:scale-[1.02] disabled:scale-100 mb-4"
             >
               {loading && <CleaningLoader size="sm" className="mr-2" />}
               {state?.mode === 'signup' ? 'Verify & Create Account' : 'Verify & Continue'}
             </Button>
-            
+
+            {/* Resend OTP */}
             <div className="text-center">
               {countdown > 0 ? (
-                <p className="text-sm text-muted-foreground">Resend OTP in {countdown}s</p>
+                <p className="text-sm text-muted-foreground">
+                  Resend OTP in {countdown}s
+                </p>
               ) : (
-                <Button variant="ghost" size="sm" onClick={handleResendOTP} className="text-primary">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleResendOTP}
+                  disabled={resendLoading}
+                  className="text-primary hover:text-primary-dark"
+                >
+                  {resendLoading && <CleaningLoader size="sm" className="mr-1" />}
                   Resend OTP
                 </Button>
               )}
