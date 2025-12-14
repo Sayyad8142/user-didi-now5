@@ -22,8 +22,8 @@ export async function waitForFirebaseUser(timeoutMs = 5000) {
 
 /**
  * Ensure a profile row exists for current Firebase user.
- * - Uses Firebase UID as the profile id
- * - Idempotent upsert on id
+ * - Uses firebase_uid column to link Firebase UID to profile
+ * - UUID is auto-generated for the profile id
  * - Normalizes phone to +91XXXXXXXXXX
  * - Returns the profile
  * - Throws with detailed error if RLS/policies block it
@@ -35,41 +35,38 @@ export async function ensureProfile() {
 
   console.log("[ensureProfile] Firebase UID:", uid, "Phone:", phone);
 
-  // Read (no error if missing)
+  // Read by firebase_uid (no error if missing)
   const { data: existing, error: readErr } = await supabase
     .from("profiles")
-    .select("id, full_name, phone, community, flat_no, is_admin, building_id, community_id")
-    .eq("id", uid)
+    .select("id, firebase_uid, full_name, phone, community, flat_no, is_admin, building_id, community_id")
+    .eq("firebase_uid", uid)
     .maybeSingle();
 
   if (readErr) {
     console.error("[ensureProfile] Read error:", readErr);
-    // continue; we'll attempt upsert which gives clearer RLS errors
+    // continue; we'll attempt insert which gives clearer RLS errors
   }
 
   // Create if missing
   if (!existing) {
-    console.log("[ensureProfile] Creating new profile for:", uid);
+    console.log("[ensureProfile] Creating new profile for Firebase UID:", uid);
     const { data, error } = await supabase
       .from("profiles")
-      .upsert(
-        {
-          id: uid,
-          full_name: phone || "User",
-          phone: phone || null,
-          community: "other", // Default community to satisfy NOT NULL constraint
-          flat_no: "",
-        },
-        { onConflict: "id" }
-      )
-      .select("id, full_name, phone, community, flat_no, is_admin, building_id, community_id")
+      .insert({
+        firebase_uid: uid,
+        full_name: phone || "User",
+        phone: phone || "",
+        community: "other", // Default community to satisfy NOT NULL constraint
+        flat_no: "",
+      })
+      .select("id, firebase_uid, full_name, phone, community, flat_no, is_admin, building_id, community_id")
       .single();
 
     if (error) {
-      console.error("[ensureProfile] Upsert error:", error);
+      console.error("[ensureProfile] Insert error:", error);
       // Surface real cause to the UI:
       const msg = error.message || String(error);
-      // Common cause: RLS insert policy missing or id != auth.uid()
+      // Common cause: RLS insert policy missing or firebase_uid != auth.uid()
       throw new Error(
         msg.includes("row-level security")
           ? "RLS blocked profile insert. Ensure insert policy allows Firebase auth.uid()."
@@ -82,12 +79,12 @@ export async function ensureProfile() {
 
   // Update phone if not normalized
   if (phone && existing.phone !== phone) {
-    console.log("[ensureProfile] Updating phone for:", uid);
+    console.log("[ensureProfile] Updating phone for Firebase UID:", uid);
     const { data, error } = await supabase
       .from("profiles")
       .update({ phone })
-      .eq("id", uid)
-      .select("id, full_name, phone, community, flat_no, is_admin, building_id, community_id")
+      .eq("firebase_uid", uid)
+      .select("id, firebase_uid, full_name, phone, community, flat_no, is_admin, building_id, community_id")
       .single();
 
     if (error) {

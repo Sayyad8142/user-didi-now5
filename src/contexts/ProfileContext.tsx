@@ -77,14 +77,14 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
       setLoading(true);
       setError(null);
 
-      console.log('[ProfileContext] Fetching profile for:', user.id);
+      console.log('[ProfileContext] Fetching profile for Firebase UID:', user.id);
 
-      // Fetch profile using Firebase UID
+      // Fetch profile using firebase_uid column (not the UUID id column)
       const { data, error: fetchError } = await supabase
         .from('profiles')
-        .select('id, full_name, phone, community, flat_no, building_id, community_id')
-        .eq('id', user.id)
-        .single();
+        .select('id, firebase_uid, full_name, phone, community, flat_no, building_id, community_id')
+        .eq('firebase_uid', user.id)
+        .maybeSingle();
 
       if (!fetchError && data) {
         console.log('[ProfileContext] Profile found:', data.id);

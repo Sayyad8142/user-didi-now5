@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/components/auth/AuthProvider';
+import { useProfile } from '@/contexts/ProfileContext';
 import { SupportMsg } from '@/hooks/useSupportChat';
 
 interface SupportThread {
@@ -14,21 +14,21 @@ interface SupportThread {
 }
 
 export const useChatThread = (bookingId?: string) => {
-  const { user } = useAuth();
+  const { profile } = useProfile();
   const [thread, setThread] = useState<SupportThread | null>(null);
   const [messages, setMessages] = useState<SupportMsg[]>([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
 
   const getOrCreateThread = useCallback(async () => {
-    if (!user) return;
+    if (!profile?.id) return;
 
     try {
-      // First try to get existing thread
+      // First try to get existing thread using profile UUID
       const { data: existingThread, error: fetchError } = await supabase
         .from('support_threads')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', profile.id)
         .maybeSingle();
 
       if (fetchError) throw fetchError;
@@ -42,7 +42,7 @@ export const useChatThread = (bookingId?: string) => {
       const { data: newThread, error: createError } = await supabase
         .from('support_threads')
         .insert({
-          user_id: user.id,
+          user_id: profile.id, // Use profile UUID, not Firebase UID
           booking_id: bookingId || null,
         })
         .select()
@@ -56,7 +56,7 @@ export const useChatThread = (bookingId?: string) => {
       console.error('Error getting/creating thread:', error);
       return null;
     }
-  }, [user, bookingId]);
+  }, [profile?.id, bookingId]);
 
   const loadMessages = useCallback(async (threadId: string) => {
     try {
@@ -136,14 +136,14 @@ export const useChatThread = (bookingId?: string) => {
       }
     };
 
-    if (user) {
+    if (profile?.id) {
       init();
     }
 
     return () => {
       mounted = false;
     };
-  }, [user, getOrCreateThread, loadMessages]);
+  }, [profile?.id, getOrCreateThread, loadMessages]);
 
   // Set up realtime subscription
   useEffect(() => {
