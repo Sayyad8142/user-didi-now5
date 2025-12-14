@@ -51,5 +51,3 @@ export async function verifyFirebaseOTP(confirmationResult: any, code: string): 
   const userCredential = await confirmationResult.confirm(code);
   return userCredential;
 }
-
-export default app;
