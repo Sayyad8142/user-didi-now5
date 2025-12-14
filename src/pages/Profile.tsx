@@ -6,6 +6,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useProfile } from '@/contexts/ProfileContext';
 import { supabase } from '@/integrations/supabase/client';
+import { auth as firebaseAuth } from '@/lib/firebase';
+import { signOut } from 'firebase/auth';
 import { useNavigate, Link } from 'react-router-dom';
 import { User, Phone, Building, Home, LogOut, Settings, Bell, Shield, Edit3, Save, X, HelpCircle, Share2, Building2 } from 'lucide-react';
 import { openExternalUrl } from '@/lib/nativeOpen';
@@ -95,7 +97,7 @@ export default function Profile() {
   const handleSignOut = async () => {
     try {
       const { PortalStore } = await import('@/lib/portal');
-      await supabase.auth.signOut();
+      await signOut(firebaseAuth);
       PortalStore.clear();
       navigate('/auth');
       toast({

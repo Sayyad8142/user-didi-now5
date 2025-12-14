@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { auth as firebaseAuth } from '@/lib/firebase';
 
 export interface IncomingCallData {
   rtc_call_id: string;
@@ -31,7 +32,7 @@ export const useIncomingRtcPush = () => {
     const setupIncomingCallListener = async () => {
       console.log('📞 Setting up incoming call listener...');
       
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = firebaseAuth.currentUser;
       if (!user) {
         console.log('📞 No authenticated user, skipping setup');
         return;
@@ -46,7 +47,7 @@ export const useIncomingRtcPush = () => {
             event: 'INSERT',
             schema: 'public',
             table: 'rtc_calls',
-            filter: `callee_id=eq.${user.id}`,
+            filter: `callee_id=eq.${user.uid}`,
           },
           async (payload) => {
             console.log('📞 RTC call received:', payload);

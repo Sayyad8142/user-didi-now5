@@ -1,6 +1,7 @@
 import { useEffect, useState, ReactNode } from "react";
 import { Navigate, useLocation, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { auth as firebaseAuth } from "@/lib/firebase";
 import { normalizePhone } from "@/features/profile/ensureProfile";
 
 const ADMIN_PHONE = (import.meta.env.VITE_ADMIN_PHONE || "+919000666986").replace(/\s/g,"");
@@ -20,7 +21,7 @@ export function AdminGate({ children }: { children: ReactNode }) {
   useEffect(() => {
     let mounted = true;
     (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = firebaseAuth.currentUser;
       if (!user) { 
         mounted && setOk(false); 
         mounted && setLoading(false); 
@@ -29,7 +30,7 @@ export function AdminGate({ children }: { children: ReactNode }) {
       
       // Server-side verification only - check if user is admin
       let allow = false;
-      const phone = (user.phone || user.user_metadata?.phone_number || "").toString();
+      const phone = (user.phoneNumber || "").toString();
       
       // Check if phone is whitelisted
       if (normalizePhone(phone) === normalizePhone(ADMIN_PHONE)) {
@@ -38,7 +39,7 @@ export function AdminGate({ children }: { children: ReactNode }) {
       
       // Check database for is_admin flag
       try {
-        const { data: prof } = await supabase.from("profiles").select("is_admin").eq("id", user.id).maybeSingle();
+        const { data: prof } = await supabase.from("profiles").select("is_admin").eq("id", user.uid).maybeSingle();
         if (prof?.is_admin) {
           allow = true;
         }

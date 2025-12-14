@@ -1,58 +1,58 @@
 import { Navigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { auth as firebaseAuth } from '@/lib/firebase';
 import { isAdminPhone } from '@/features/auth/isAdmin';
 
-async function getSession() {
-  const { data: { session } } = await supabase.auth.getSession();
-  return session;
+async function getFirebaseUser() {
+  return firebaseAuth.currentUser;
 }
 
 async function getUserRole() {
-  const session = await getSession();
-  if (!session?.user) return null;
+  const user = firebaseAuth.currentUser;
+  if (!user) return null;
   
   try {
     const { data } = await supabase
       .from('profiles')
       .select('is_admin, phone')
-      .eq('id', session.user.id)
+      .eq('id', user.uid)
       .single();
     
-    const isAdmin = data?.is_admin || isAdminPhone(data?.phone || session.user.phone);
+    const isAdmin = data?.is_admin || isAdminPhone(data?.phone || user.phoneNumber);
     return isAdmin ? 'admin' : 'user';
   } catch {
     // fallback to phone check
-    return isAdminPhone(session.user.phone) ? 'admin' : 'user';
+    return isAdminPhone(user.phoneNumber) ? 'admin' : 'user';
   }
 }
 
 export function AdminRoute({ children }: { children: JSX.Element }) {
-  const { data: session } = useQuery({ 
-    queryKey: ['session'], 
-    queryFn: getSession, 
+  const { data: user } = useQuery({ 
+    queryKey: ['firebaseUser'], 
+    queryFn: getFirebaseUser, 
     staleTime: 60_000 
   });
   
   const { data: role } = useQuery({ 
     queryKey: ['role'], 
     queryFn: getUserRole, 
-    enabled: !!session?.user, 
+    enabled: !!user, 
     staleTime: 60_000 
   });
 
-  if (!session?.user) return <Navigate to="/admin-login" replace />;
+  if (!user) return <Navigate to="/admin-login" replace />;
   if (role && role !== 'admin') return <Navigate to="/home" replace />;
   return children;
 }
 
 export function UserRoute({ children }: { children: JSX.Element }) {
-  const { data: session } = useQuery({ 
-    queryKey: ['session'], 
-    queryFn: getSession, 
+  const { data: user } = useQuery({ 
+    queryKey: ['firebaseUser'], 
+    queryFn: getFirebaseUser, 
     staleTime: 60_000 
   });
   
-  if (!session?.user) return <Navigate to="/auth" replace />;
+  if (!user) return <Navigate to="/auth" replace />;
   return children;
 }

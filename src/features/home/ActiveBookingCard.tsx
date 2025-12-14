@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Sparkles, ChefHat, ShowerHead, ArrowRight, X, CreditCard, PhoneCall, MessageCircle, Star } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { auth as firebaseAuth } from '@/lib/firebase';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { prettyServiceName } from '@/features/booking/utils';
 import AssigningProgress from '@/features/bookings/AssigningProgress';
@@ -265,13 +266,13 @@ const ActiveBookingCard = memo(() => {
   };
 
   const handleSubmitRating = async (rating: number, comment?: string) => {
-    const user = (await supabase.auth.getUser()).data.user;
+    const user = firebaseAuth.currentUser;
     if (!user) return;
 
     await supabase.from('worker_ratings').insert({
       booking_id: activeBooking.id,
       worker_id: activeBooking.worker_id,
-      user_id: user.id,
+      user_id: user.uid,
       rating,
       comment: comment ?? null,
     });

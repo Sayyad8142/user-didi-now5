@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { auth as firebaseAuth } from '@/lib/firebase';
 import type { BookingMessage } from '@/lib/types';
 
 export async function fetchMessages(bookingId: string) {
@@ -15,13 +16,13 @@ export async function sendMessage(bookingId: string, body: string, opts: {
   senderRole: 'user'|'admin',
   senderName?: string | null
 }) {
-  const user = (await supabase.auth.getUser()).data.user;
+  const user = firebaseAuth.currentUser;
   if (!user) throw new Error('Not authenticated');
   const { data, error } = await supabase
     .from('booking_messages')
     .insert({
       booking_id: bookingId,
-      sender_id: user.id,
+      sender_id: user.uid,
       sender_role: opts.senderRole,
       sender_name: opts.senderName ?? null,
       body: body.trim(),

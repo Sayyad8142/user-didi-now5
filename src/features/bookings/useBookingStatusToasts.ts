@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { auth as firebaseAuth } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 
 export function useBookingStatusToasts(enabled: boolean = true) {
@@ -12,13 +13,9 @@ export function useBookingStatusToasts(enabled: boolean = true) {
     
     let mounted = true;
     
-    // Get current user ID
-    const initUser = async () => {
-      const { data } = await supabase.auth.getUser();
-      userIdRef.current = data.user?.id ?? null;
-    };
-    
-    initUser();
+    // Get current user ID from Firebase
+    const user = firebaseAuth.currentUser;
+    userIdRef.current = user?.uid ?? null;
 
     const channel = supabase
       .channel("booking-status-toasts")
