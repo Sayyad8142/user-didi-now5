@@ -2807,6 +2807,7 @@ export type Database = {
         }[]
       }
       get_ops_setting: { Args: { p_key: string }; Returns: string }
+      get_profile_id: { Args: never; Returns: string }
       get_setting: {
         Args: { p_default: string; p_key: string }
         Returns: string
