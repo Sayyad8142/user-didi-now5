@@ -1,17 +1,23 @@
 import { createContext, useContext, useEffect, useState } from 'react';
-import { User, Session } from '@supabase/supabase-js';
-import { supabase } from '@/integrations/supabase/client';
+import { User as FirebaseUser, onAuthStateChanged } from 'firebase/auth';
+import { auth as firebaseAuth } from '@/lib/firebase';
 import { getDemoSession, isDemoMode, clearDemoSession } from '@/lib/demo';
 
+// Create a compatible user interface
+interface AuthUser {
+  id: string;
+  phone?: string | null;
+}
+
 interface AuthContextType {
-  user: User | null;
-  session: Session | null;
+  user: AuthUser | null;
+  firebaseUser: FirebaseUser | null;
   loading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
-  session: null,
+  firebaseUser: null,
   loading: true,
 });
 
@@ -28,104 +34,82 @@ interface AuthProviderProps {
 }
 
 export function AuthProvider({ children }: AuthProviderProps) {
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let mounted = true;
 
-    // Listen for demo mode changes (triggered by setDemoSession/clearDemoSession)
+    // Listen for demo mode changes
     const handleDemoModeChange = (_event: Event) => {
       if (!mounted) return;
       const demo = getDemoSession();
       if (demo) {
-        setUser(demo.user as User);
-        setSession(null);
+        setUser(demo.user as AuthUser);
+        setFirebaseUser(null);
         setLoading(false);
       } else {
         setUser(null);
-        setSession(null);
+        setFirebaseUser(null);
         setLoading(false);
       }
     };
     window.addEventListener('demo-mode-changed', handleDemoModeChange as EventListener);
 
-    // Set up auth state listener FIRST
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        if (!mounted) return;
-        
-        console.log('Auth state changed:', event, session?.user?.id);
-        
-        // If we get a real auth session, clear any demo/guest sessions
-        if (session?.user) {
-          clearDemoSession();
-        }
-        
-        setSession(session);
-        setUser(session?.user ?? null);
-        setLoading(false);
-      }
-    );
-
     // Check for demo mode first
     if (isDemoMode()) {
       const demoSession = getDemoSession();
       if (demoSession && mounted) {
-        setUser(demoSession.user as User);
-        setSession(null); // Demo/guest mode doesn't use real sessions
+        setUser(demoSession.user as AuthUser);
+        setFirebaseUser(null);
         setLoading(false);
-        return; // Don't fetch real session if in demo mode
       }
     }
 
-    // Get initial session for real users
-    const initializeSession = async () => {
+    // Listen for Firebase auth state changes
+    const unsubscribe = onAuthStateChanged(firebaseAuth, (fbUser) => {
       if (!mounted) return;
       
-      try {
-        const { data: { session }, error } = await supabase.auth.getSession();
+      console.log('[AuthProvider] Firebase auth state changed:', fbUser?.uid ?? 'null');
+      
+      if (fbUser) {
+        // Clear any demo sessions when we have a real user
+        clearDemoSession();
         
-        if (error) {
-          console.error('Error getting session:', error);
-          if (mounted) {
-            setLoading(false);
+        setFirebaseUser(fbUser);
+        setUser({
+          id: fbUser.uid,
+          phone: fbUser.phoneNumber,
+        });
+      } else {
+        // Check if we're in demo mode
+        if (isDemoMode()) {
+          const demoSession = getDemoSession();
+          if (demoSession) {
+            setUser(demoSession.user as AuthUser);
+            setFirebaseUser(null);
+          } else {
+            setUser(null);
+            setFirebaseUser(null);
           }
-          return;
-        }
-        
-        console.log('Initial session:', session?.user?.id);
-        
-        if (mounted) {
-          // If we have a real auth session, clear any demo/guest sessions
-          if (session?.user) {
-            clearDemoSession();
-          }
-          
-          setSession(session);
-          setUser(session?.user ?? null);
-          setLoading(false);
-        }
-      } catch (error) {
-        console.error('Error initializing session:', error);
-        if (mounted) {
-          setLoading(false);
+        } else {
+          setUser(null);
+          setFirebaseUser(null);
         }
       }
-    };
-
-    initializeSession();
+      setLoading(false);
+    });
 
     return () => {
       mounted = false;
-      subscription.unsubscribe();
+      unsubscribe();
       window.removeEventListener('demo-mode-changed', handleDemoModeChange as EventListener);
     };
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, session, loading }}>
+    <AuthContext.Provider value={{ user, firebaseUser, loading }}>
       {children}
     </AuthContext.Provider>
   );

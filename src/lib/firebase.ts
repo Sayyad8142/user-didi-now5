@@ -13,7 +13,11 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-export const auth = getAuth(app);
+const auth = getAuth(app);
+
+// Export auth for use in Supabase client accessToken
+export { auth };
+export default app;
 
 let verifier: any = null;
 

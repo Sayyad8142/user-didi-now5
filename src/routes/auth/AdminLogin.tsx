@@ -1,12 +1,13 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { formatPhoneIN, isValidINPhone, extractCleanPhone } from "@/lib/auth-helpers";
 import { Button } from "@/components/ui/button";
 import { PhoneInputIN } from "@/components/auth/PhoneInputIN";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { Shield, ArrowLeft } from "lucide-react";
+import { sendFirebaseOTP, clearRecaptchaVerifier, auth as firebaseAuth } from "@/lib/firebase";
+import { ensureProfile } from "@/features/profile/ensureProfile";
 
 const ADMIN_PHONES = (import.meta.env.VITE_ADMIN_PHONES || "+919000666986,+918688790320")
   .split(",")
@@ -19,6 +20,13 @@ export default function AdminLogin() {
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+
+  // Cleanup recaptcha on unmount
+  useEffect(() => {
+    return () => {
+      clearRecaptchaVerifier();
+    };
+  }, []);
 
   async function sendOtp() {
     setErr(null); 
@@ -36,13 +44,15 @@ export default function AdminLogin() {
         throw new Error("Not an authorized admin number");
       }
       
-      const { error } = await supabase.auth.signInWithOtp({ 
-        phone: e164, 
-        options: { shouldCreateUser: true } 
-      });
-      if (error) throw error;
+      // Use Firebase Phone Auth
+      const confirmationResult = await sendFirebaseOTP(e164, 'admin-recaptcha-container');
+      (window as any).__adminFirebaseConfirmationResult = confirmationResult;
+      
+      sessionStorage.setItem("admin_otp_phone", e164);
       setOtpSent(true);
     } catch (e: any) { 
+      console.error('Admin send OTP error:', e);
+      clearRecaptchaVerifier();
       setErr(e.message || "Failed to send OTP"); 
     } finally { 
       setBusy(false); 
@@ -53,25 +63,51 @@ export default function AdminLogin() {
     setErr(null); 
     setBusy(true);
     try {
+      const confirmationResult = (window as any).__adminFirebaseConfirmationResult;
+      if (!confirmationResult) {
+        throw new Error("Session expired. Please request a new OTP.");
+      }
+
+      // Verify OTP with Firebase
+      console.log("[AdminAuth] Verifying OTP with Firebase...");
+      const userCredential = await confirmationResult.confirm(code.trim());
+      console.log("[AdminAuth] Firebase OTP verified, user:", userCredential.user.uid);
+
+      // Wait for Firebase auth state
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      const currentUser = firebaseAuth.currentUser;
+      if (!currentUser) {
+        throw new Error("Firebase authentication failed");
+      }
+
       const e164 = formatPhoneIN(phone);
-      const { data, error } = await supabase.auth.verifyOtp({ 
-        phone: e164, 
-        token: code, 
-        type: "sms" 
-      });
-      if (error) throw error;
       
       // Store admin login timestamp for persistence
       localStorage.setItem('admin_login_time', Date.now().toString());
       localStorage.setItem('admin_phone', e164);
       
+      // Ensure profile exists
+      await ensureProfile();
+      
       // Set admin portal
       const { PortalStore } = await import('@/lib/portal');
       PortalStore.set('admin');
+
+      // Cleanup
+      delete (window as any).__adminFirebaseConfirmationResult;
+      sessionStorage.removeItem("admin_otp_phone");
       
       nav("/admin", { replace: true });
     } catch (e: any) { 
-      setErr(e.message || "Invalid code"); 
+      console.error('Admin verify error:', e);
+      if (e.code === 'auth/invalid-verification-code') {
+        setErr('Invalid OTP. Please check and try again.');
+      } else if (e.code === 'auth/code-expired') {
+        setErr('OTP expired. Please request a new one.');
+      } else {
+        setErr(e.message || "Invalid code"); 
+      }
     } finally { 
       setBusy(false); 
     }
@@ -79,6 +115,7 @@ export default function AdminLogin() {
 
   return (
     <div className="min-h-screen-safe bg-gradient-to-br from-background to-muted/20 flex items-center justify-center p-4 pt-safe pb-safe">
+      <div id="admin-recaptcha-container" />
       <Card className="w-full max-w-sm mx-auto shadow-xl border-0 bg-card/95 backdrop-blur">
         <CardHeader className="text-center space-y-4">
           <div className="mx-auto w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
@@ -157,6 +194,7 @@ export default function AdminLogin() {
                   setOtpSent(false);
                   setCode("");
                   setErr(null);
+                  clearRecaptchaVerifier();
                 }} 
                 variant="ghost"
                 className="w-full text-muted-foreground hover:text-foreground"
