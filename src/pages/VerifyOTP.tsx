@@ -7,11 +7,13 @@ import { OtpBoxes } from '@/components/auth/OtpBoxes';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, CheckCircle2 } from 'lucide-react';
-import { maskPhone } from '@/lib/auth-helpers';
+import { maskPhone, formatPhoneIN } from '@/lib/auth-helpers';
 import { CleaningLoader } from '@/components/ui/cleaning-loader';
 import { ensureProfile, waitForSession, normalizePhone } from '@/features/profile/ensureProfile';
 import { isDemoCredentials, setDemoSession } from '@/lib/demo';
 import { useProfile } from '@/contexts/ProfileContext';
+import { sendFirebaseOTP, clearRecaptchaVerifier } from '@/lib/firebase';
+import { signInToSupabaseWithFirebaseToken } from '@/lib/supabaseAuthFirebase';
 
 interface LocationState {
   phone: string;
@@ -75,21 +77,18 @@ export default function VerifyOTP() {
         return; 
       }
 
-      // Use Supabase native OTP verification
-      const { error: verifyError } = await supabase.auth.verifyOtp({
-        type: "sms",
-        token: otp.trim(),
-        phone
-      });
-
-      if (verifyError) {
-        if (/expired|invalid/i.test(verifyError.message)) {
-          setError('OTP expired/invalid. Resend and try again.');
-        } else {
-          setError(verifyError.message);
-        }
+      // Use Firebase OTP verification
+      const confirmationResult = (window as any).__firebaseConfirmationResult;
+      if (!confirmationResult) {
+        setError('Session expired. Please go back and request a new OTP.');
         return;
       }
+
+      const userCredential = await confirmationResult.confirm(otp.trim());
+      const idToken = await userCredential.user.getIdToken(true);
+
+      // Sign in to Supabase with Firebase token
+      await signInToSupabaseWithFirebaseToken(idToken);
 
       await waitForSession();
       const profile = await ensureProfile();
@@ -125,7 +124,13 @@ export default function VerifyOTP() {
       navigate(redirectTo || (isAdminPhone(profile?.phone) ? "/admin" : "/home"), { replace: true });
     } catch (e: any) {
       console.error('Verify OTP error:', e);
-      setError(e.message ?? "Verification failed");
+      if (e.code === 'auth/invalid-verification-code') {
+        setError('Invalid OTP. Please check and try again.');
+      } else if (e.code === 'auth/code-expired') {
+        setError('OTP expired. Please request a new one.');
+      } else {
+        setError(e.message ?? "Verification failed");
+      }
     } finally { 
       setLoading(false); 
     }
@@ -136,12 +141,13 @@ export default function VerifyOTP() {
     setError('');
     
     try {
-      const { error } = await supabase.auth.signInWithOtp({
-        phone,
-        options: { shouldCreateUser: true }
-      });
+      // Clear old confirmation result
+      clearRecaptchaVerifier();
+      (window as any).__firebaseConfirmationResult = null;
 
-      if (error) throw error;
+      // Send new OTP via Firebase
+      const confirmationResult = await sendFirebaseOTP(phone, 'recaptcha-container-verify');
+      (window as any).__firebaseConfirmationResult = confirmationResult;
 
       const ts = Date.now();
       sessionStorage.setItem("otp_last_sent", String(ts));
@@ -150,6 +156,7 @@ export default function VerifyOTP() {
       toast({ title: 'OTP Resent' });
     } catch (e: any) {
       console.error('Resend OTP error:', e);
+      clearRecaptchaVerifier();
       setError(e.message || 'Failed to resend OTP.');
     }
   };
@@ -162,6 +169,7 @@ export default function VerifyOTP() {
 
   return (
     <div className="min-h-screen gradient-bg flex items-center justify-center p-4">
+      <div id="recaptcha-container-verify" />
       <div className="w-full max-w-md space-y-4">
         <Alert className="border-green-200 bg-green-50 text-green-800">
           <CheckCircle2 className="h-4 w-4" />
