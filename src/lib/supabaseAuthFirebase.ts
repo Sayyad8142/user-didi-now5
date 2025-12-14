@@ -2,20 +2,20 @@ import { supabase } from '@/integrations/supabase/client';
 import { auth } from './firebase';
 
 export async function signInToSupabaseWithFirebaseToken(idToken: string) {
-  console.log("[Firebase Auth] Signing in to Supabase with Firebase token...");
-  
-  const res = await supabase.auth.signInWithIdToken({
+  console.log("[Auth] Signing into Supabase with Firebase token (provider=firebase)");
+
+  const { data, error } = await supabase.auth.signInWithIdToken({
     provider: "firebase",
     token: idToken,
   } as any);
 
-  if (res.error) {
-    console.error("[Firebase Auth] Error:", res.error.message);
-    throw res.error;
+  if (error) {
+    console.error("[Auth] Supabase signInWithIdToken error:", error);
+    throw error;
   }
 
-  console.log("[Firebase Auth] Success! User:", res.data.user?.id);
-  return { user: res.data.user, session: res.data.session };
+  console.log("[Auth] Supabase session created:", !!data?.session);
+  return data;
 }
 
 export async function authenticateWithSupabase() {
