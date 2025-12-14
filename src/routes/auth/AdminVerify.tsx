@@ -1,18 +1,18 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { ensureProfile, normalizePhone } from "@/features/profile/ensureProfile";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { CleaningLoader } from '@/components/ui/cleaning-loader';
+import { sendFirebaseOTP, clearRecaptchaVerifier, auth as firebaseAuth } from "@/lib/firebase";
 
 const RESEND_MS = 30000;
 
 export default function AdminVerify() {
   const nav = useNavigate();
   const location = useLocation() as any;
-  const savedPhone = location.state?.phone || sessionStorage.getItem("otp_phone") || "";
+  const savedPhone = location.state?.phone || sessionStorage.getItem("admin_otp_phone") || "";
   const phone = normalizePhone(savedPhone);
 
   const [code, setCode] = useState("");
@@ -20,7 +20,7 @@ export default function AdminVerify() {
   const [sending, setSending] = useState(false);
   const [now, setNow] = useState(Date.now());
   const [resendAt, setResendAt] = useState<number>(() => {
-    const last = Number(sessionStorage.getItem("otp_last_sent") || "0");
+    const last = Number(sessionStorage.getItem("admin_otp_last_sent") || "0");
     return last ? last + RESEND_MS : Date.now();
   });
   
@@ -32,6 +32,12 @@ export default function AdminVerify() {
     return () => clearInterval(t);
   }, []);
 
+  useEffect(() => {
+    return () => {
+      clearRecaptchaVerifier();
+    };
+  }, []);
+
   async function verify(e?: React.FormEvent) {
     e?.preventDefault();
     if (code.trim().length !== 6 || !phone) return;
@@ -39,24 +45,43 @@ export default function AdminVerify() {
     setError(null);
     
     try {
-      const { error } = await supabase.auth.verifyOtp({ 
-        type: "sms", 
-        token: code.trim(), 
-        phone 
-      });
-      
-      if (error) {
-        setError(/expired|invalid/i.test(error.message) 
-          ? "OTP expired/invalid. Resend and try again." 
-          : error.message);
+      const confirmationResult = (window as any).__adminFirebaseConfirmationResult;
+      if (!confirmationResult) {
+        setError("Session expired. Please go back and request a new OTP.");
         return;
       }
+
+      // Verify OTP with Firebase
+      console.log("[AdminVerify] Verifying OTP with Firebase...");
+      const userCredential = await confirmationResult.confirm(code.trim());
+      console.log("[AdminVerify] Firebase OTP verified, user:", userCredential.user.uid);
+
+      // Wait for Firebase auth state
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      const currentUser = firebaseAuth.currentUser;
+      if (!currentUser) {
+        throw new Error("Firebase authentication failed");
+      }
       
-      // Ensure profile exists; this will now wait for session and upsert with clear errors
+      // Ensure profile exists
       await ensureProfile();
+
+      // Cleanup
+      delete (window as any).__adminFirebaseConfirmationResult;
+      sessionStorage.removeItem("admin_otp_phone");
+      sessionStorage.removeItem("admin_otp_last_sent");
+      
       nav("/admin", { replace: true });
     } catch (e: any) {
-      setError(e.message ?? "Verification failed");
+      console.error('AdminVerify error:', e);
+      if (e.code === 'auth/invalid-verification-code') {
+        setError('Invalid OTP. Please check and try again.');
+      } else if (e.code === 'auth/code-expired') {
+        setError('OTP expired. Please request a new one.');
+      } else {
+        setError(e.message ?? "Verification failed");
+      }
     } finally {
       setSending(false);
     }
@@ -65,20 +90,22 @@ export default function AdminVerify() {
   async function resend() {
     if (!phone || !canResend) return;
     setError(null);
+    setSending(true);
     
     try {
-      const { error } = await supabase.auth.signInWithOtp({ 
-        phone, 
-        options: { shouldCreateUser: true } 
-      });
-      
-      if (error) throw error;
+      // Use Firebase Phone Auth
+      const confirmationResult = await sendFirebaseOTP(phone, 'admin-recaptcha-container-verify');
+      (window as any).__adminFirebaseConfirmationResult = confirmationResult;
       
       const ts = Date.now();
-      sessionStorage.setItem("otp_last_sent", String(ts));
+      sessionStorage.setItem("admin_otp_last_sent", String(ts));
       setResendAt(ts + RESEND_MS);
     } catch (err: any) {
+      console.error('Admin resend OTP error:', err);
+      clearRecaptchaVerifier();
       setError(err.message || "Failed to resend OTP");
+    } finally {
+      setSending(false);
     }
   }
 
@@ -105,6 +132,7 @@ export default function AdminVerify() {
 
   return (
     <div className="min-h-screen gradient-bg flex items-center justify-center p-4">
+      <div id="admin-recaptcha-container-verify" />
       <Card className="w-full max-w-sm shadow-card border-pink-100 gradient-card backdrop-blur-sm">
         <CardContent className="p-6 space-y-6">
           <div className="text-center">
@@ -143,7 +171,7 @@ export default function AdminVerify() {
               type="button"
               variant="outline"
               onClick={resend}
-              disabled={!canResend}
+              disabled={!canResend || sending}
               className="w-full h-11 rounded-full border-border hover:bg-accent hover:text-accent-foreground disabled:opacity-60"
             >
               {canResend ? "Resend OTP" : `Resend OTP in ${left}s`}
