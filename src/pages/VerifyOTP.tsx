@@ -95,9 +95,10 @@ export default function VerifyOTP() {
       }
 
       // Verify OTP with Firebase
-      console.log("[Auth] Verifying OTP with Firebase...");
+      console.log("[AUTH] Verifying OTP with Firebase...");
       const userCredential = await confirmationResult.confirm(otp.trim());
-      console.log("[Auth] Firebase OTP verified, user:", userCredential.user.uid);
+      const fbUser = userCredential.user;
+      console.log("[AUTH] Firebase UID:", fbUser.uid);
 
       // Wait for Firebase auth state to be ready
       await new Promise(resolve => setTimeout(resolve, 500));
@@ -105,23 +106,25 @@ export default function VerifyOTP() {
       // Check if Firebase user is authenticated
       const currentUser = firebaseAuth.currentUser;
       if (!currentUser) {
-        console.error("[Auth] Firebase currentUser is null after OTP verification");
+        console.error("[AUTH] Firebase currentUser is null after OTP verification");
         throw new Error("Firebase authentication failed - no current user");
       }
-      console.log("[Auth] Firebase currentUser confirmed:", currentUser.uid);
+      console.log("[AUTH] Firebase currentUser confirmed:", currentUser.uid);
 
       // Get Firebase ID token to verify it works
       const idToken = await currentUser.getIdToken(true);
-      console.log("[Auth] Got Firebase ID token, length:", idToken?.length);
+      console.log("[AUTH] Got Firebase ID token, length:", idToken?.length);
 
       // Clear OTP session data
       sessionStorage.removeItem("otp_phone");
       sessionStorage.removeItem("otp_last_sent");
       delete (window as any).__firebaseConfirmationResult;
 
-      // Ensure profile exists in Supabase
-      // The Supabase client will automatically use the Firebase JWT via accessToken
-      await ensureProfile();
+      // Ensure profile exists in Supabase - uses firebase_uid, NOT id
+      // ensureProfile queries by firebase_uid and inserts WITHOUT setting id (UUID auto-generated)
+      const profileResult = await ensureProfile();
+      console.log("[AUTH] Profile UUID:", profileResult?.id, "Firebase UID:", profileResult?.firebase_uid);
+      
       await refreshProfile();
 
       toast({ title: 'Welcome!', description: 'You are now logged in.' });
