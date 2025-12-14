@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { auth as firebaseAuth } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Star } from "lucide-react";
@@ -30,27 +29,15 @@ export default function FeedbackForm({ bookingId = "" }: FeedbackFormProps) {
     setSubmitted(false);
     
     try {
-      const user = firebaseAuth.currentUser;
+      const { data: user } = await supabase.auth.getUser();
+      const user_id = user.user?.id;
       
-      if (!user?.uid) {
+      if (!user_id) {
         throw new Error("User not authenticated");
       }
       
-      // Get profile UUID from firebase_uid
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('firebase_uid', user.uid)
-        .single();
-      
-      if (!profileData) {
-        throw new Error("Profile not found");
-      }
-      
-      console.log('[FeedbackForm] Submitting feedback with profile.id:', profileData.id, 'firebase_uid:', user.uid);
-      
       const { error } = await supabase.from("feedback").insert({
-        user_id: profileData.id, // Use Supabase UUID, not Firebase UID
+        user_id,
         booking_id: bookingId || null,
         category,
         rating,

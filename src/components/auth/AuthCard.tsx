@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -15,7 +15,7 @@ import { useBuildings } from '@/hooks/useBuildings';
 import { useFlats } from '@/hooks/useFlats';
 import { isDemoCredentials, setDemoSession } from '@/lib/demo';
 import { FlatSearchInput } from './FlatSearchInput';
-import { sendFirebaseOTP, clearRecaptchaVerifier } from '@/lib/firebase';
+import { supabase } from '@/integrations/supabase/client';
 
 export function AuthCard() {
   const navigate = useNavigate();
@@ -64,13 +64,6 @@ export function AuthCard() {
     return Object.keys(newErrors).length === 0;
   };
 
-  // Cleanup recaptcha on unmount
-  useEffect(() => {
-    return () => {
-      clearRecaptchaVerifier();
-    };
-  }, []);
-
   const handleSendOTP = async () => {
     const isSignUp = activeTab === 'signup';
     const phone = isSignUp ? signUpData.phone : signInPhone;
@@ -89,13 +82,17 @@ export function AuthCard() {
     try {
       const formattedPhone = formatPhoneIN(phone);
       
-      // Use Firebase Phone Auth
-      const confirmationResult = await sendFirebaseOTP(formattedPhone, 'recaptcha-container');
+      // Use Supabase native phone OTP
+      const { error } = await supabase.auth.signInWithOtp({
+        phone: formattedPhone,
+        options: { shouldCreateUser: true }
+      });
 
-      // Store confirmation result for verify page
+      if (error) throw error;
+
+      // Store phone for verify page
       sessionStorage.setItem("otp_phone", formattedPhone);
       sessionStorage.setItem("otp_last_sent", String(Date.now()));
-      (window as any).__firebaseConfirmationResult = confirmationResult;
 
       navigate('/auth/verify', {
         state: { phone: formattedPhone, mode: activeTab, signupData: isSignUp ? signUpData : null, redirectTo: '/home' }
@@ -103,15 +100,10 @@ export function AuthCard() {
       toast({ title: 'OTP Sent', description: `Verification code sent to ${formattedPhone}` });
     } catch (error: any) {
       console.error('Send OTP error:', error);
-      clearRecaptchaVerifier();
       
       let errorMessage = 'Failed to send OTP. Please try again.';
-      if (error.code === 'auth/invalid-phone-number') {
-        errorMessage = 'Invalid phone number format.';
-      } else if (error.code === 'auth/too-many-requests') {
+      if (error.message?.includes('rate limit')) {
         errorMessage = 'Too many attempts. Please try again later.';
-      } else if (error.code === 'auth/captcha-check-failed') {
-        errorMessage = 'reCAPTCHA verification failed. Please refresh and try again.';
       } else if (error.message) {
         errorMessage = error.message;
       }
@@ -124,7 +116,6 @@ export function AuthCard() {
 
   return (
     <Card className="max-w-sm mx-auto shadow-card border-pink-100 gradient-card backdrop-blur-sm">
-      <div id="recaptcha-container" />
       <CardContent className="p-6">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-primary mb-2">Didi Now</h1>

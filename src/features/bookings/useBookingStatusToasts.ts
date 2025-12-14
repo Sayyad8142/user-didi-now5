@@ -1,20 +1,24 @@
 import { useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useProfile } from "@/contexts/ProfileContext";
 import { useToast } from "@/hooks/use-toast";
 
 export function useBookingStatusToasts(enabled: boolean = true) {
   const { toast } = useToast();
-  const { profile } = useProfile();
   const lastStatusRef = useRef<Map<string, string>>(new Map());
+  const userIdRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!enabled || !profile?.id) return;
+    if (!enabled) return;
     
     let mounted = true;
     
-    // Use profile.id (Supabase UUID), not Firebase UID
-    const profileId = profile.id;
+    // Get current user ID
+    const initUser = async () => {
+      const { data } = await supabase.auth.getUser();
+      userIdRef.current = data.user?.id ?? null;
+    };
+    
+    initUser();
 
     const channel = supabase
       .channel("booking-status-toasts")
@@ -31,8 +35,8 @@ export function useBookingStatusToasts(enabled: boolean = true) {
           const booking = payload.new;
           if (!booking?.id) return;
           
-          // Only show toasts for current user's bookings - compare UUID to UUID
-          if (profileId && booking.user_id !== profileId) return;
+          // Only show toasts for current user's bookings
+          if (userIdRef.current && booking.user_id !== userIdRef.current) return;
 
           const previousStatus = lastStatusRef.current.get(booking.id) ?? payload.old?.status;
           const currentStatus = booking.status as string;
@@ -68,5 +72,5 @@ export function useBookingStatusToasts(enabled: boolean = true) {
       mounted = false;
       supabase.removeChannel(channel);
     };
-  }, [toast, enabled, profile?.id]);
+  }, [toast, enabled]);
 }

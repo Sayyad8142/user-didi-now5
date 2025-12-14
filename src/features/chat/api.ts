@@ -1,5 +1,4 @@
 import { supabase } from '@/integrations/supabase/client';
-import { auth as firebaseAuth } from '@/lib/firebase';
 import type { BookingMessage } from '@/lib/types';
 
 export async function fetchMessages(bookingId: string) {
@@ -12,35 +11,17 @@ export async function fetchMessages(bookingId: string) {
   return (data ?? []) as BookingMessage[];
 }
 
-// Helper to get profile UUID from Firebase UID
-async function getProfileId(): Promise<string> {
-  const user = firebaseAuth.currentUser;
-  if (!user) throw new Error('Not authenticated');
-  
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('id')
-    .eq('firebase_uid', user.uid)
-    .maybeSingle();
-    
-  if (error) throw error;
-  if (!data?.id) throw new Error('Profile not found');
-  
-  return data.id;
-}
-
 export async function sendMessage(bookingId: string, body: string, opts: {
   senderRole: 'user'|'admin',
   senderName?: string | null
 }) {
-  // Get profile UUID instead of Firebase UID
-  const profileId = await getProfileId();
-  
+  const user = (await supabase.auth.getUser()).data.user;
+  if (!user) throw new Error('Not authenticated');
   const { data, error } = await supabase
     .from('booking_messages')
     .insert({
       booking_id: bookingId,
-      sender_id: profileId, // Use profile UUID, not Firebase UID
+      sender_id: user.id,
       sender_role: opts.senderRole,
       sender_name: opts.senderName ?? null,
       body: body.trim(),

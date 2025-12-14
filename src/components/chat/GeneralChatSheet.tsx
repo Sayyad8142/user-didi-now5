@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Send, Phone, User, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
-import { useProfile } from '@/contexts/ProfileContext';
+import { useAuth } from '@/components/auth/AuthProvider';
 import { useToast } from '@/hooks/use-toast';
 import { useSupportChat } from '@/hooks/useSupportChat';
 import { useUnseenMessages } from '@/hooks/useUnseenMessages';
@@ -33,16 +33,16 @@ export default function GeneralChatSheet({
   const [thread, setThread] = useState<any>(null);
   const [loadingThread, setLoadingThread] = useState(true);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
-  const { profile } = useProfile();
+  const { user } = useAuth();
   const { toast } = useToast();
   const { markMessagesAsSeen } = useUnseenMessages();
   
   const { messages, loading, sending, sendUser } = useSupportChat(thread?.id);
 
-  // Get or create support thread - wait for profile to exist (has Supabase UUID)
+  // Get or create support thread
   useEffect(() => {
     const getThread = async () => {
-      if (!profile?.id || !open) return;
+      if (!user || !open) return;
       
       setLoadingThread(true);
       try {
@@ -70,7 +70,7 @@ export default function GeneralChatSheet({
     };
 
     getThread();
-  }, [profile?.id, open]);
+  }, [user, open]);
 
   // Send message
   const sendMessage = async () => {

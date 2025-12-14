@@ -1,7 +1,5 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { auth as firebaseAuth } from "@/lib/firebase";
-import { onAuthStateChanged } from "firebase/auth";
 import { Button } from "@/components/ui/button";
 import { Link, useNavigate } from "react-router-dom";
 import { CheckCircle, FileText, Shield } from "lucide-react";
@@ -24,34 +22,26 @@ export default function ConsentGate({ children }: { children: React.ReactNode })
   const [agreeTos, setAgreeTos] = useState(false);
   const [agreePriv, setAgreePriv] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [userId, setUserId] = useState<string | null>(null);
   const nav = useNavigate();
 
   useEffect(() => {
-    // Wait for Firebase auth to be ready
-    const unsubscribe = onAuthStateChanged(firebaseAuth, async (user) => {
-      const v = await getCurrentLegalVersion();
+    (async () => {
+      const [{ data: auth }, v] = await Promise.all([
+        supabase.auth.getUser(),
+        getCurrentLegalVersion(),
+      ]);
       setVer(v);
-      const uid = user?.uid;
-      setUserId(uid || null);
-      
+      const uid = auth.user?.id;
       if (!uid) { 
         setState("ok"); 
         return; 
       }
 
-      const { data: p, error } = await supabase
+      const { data: p } = await supabase
         .from("profiles")
-        .select("id, firebase_uid, full_name, phone, legal_version, tos_accepted_at, privacy_accepted_at")
-        .eq("firebase_uid", uid)
-        .maybeSingle();
-
-      if (error) {
-        console.error('Profile fetch error:', error);
-        // If no profile found, let them through (they'll need to complete signup)
-        setState("ok");
-        return;
-      }
+        .select("id, full_name, phone, legal_version, tos_accepted_at, privacy_accepted_at")
+        .eq("id", uid)
+        .single();
 
       setProfile(p);
       const acceptedCurrent =
@@ -60,22 +50,25 @@ export default function ConsentGate({ children }: { children: React.ReactNode })
         (!!v ? p?.legal_version === v : true);
 
       setState(acceptedCurrent ? "ok" : "needs-consent");
-    });
-
-    return () => unsubscribe();
+    })();
   }, []);
 
   async function accept() {
-    // userId is the Firebase UID from onAuthStateChanged
-    const firebaseUid = userId;
-    if (!firebaseUid) {
-      console.error('No Firebase UID available');
-      return;
-    }
+    if (!profile?.id) return;
     if (!agreeTos || !agreePriv) return;
     setBusy(true);
     
     try {
+      // Ensure we have a valid session first
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session) {
+        console.error('Session error:', sessionError);
+        // Redirect to auth if session is invalid
+        window.location.href = '/auth';
+        return;
+      }
+
       const now = new Date().toISOString();
       const updateData: Record<string, any> = {
         tos_accepted_at: now,
@@ -83,15 +76,10 @@ export default function ConsentGate({ children }: { children: React.ReactNode })
       };
       if (ver) updateData.legal_version = ver;
 
-      console.log('Updating profile with firebase_uid:', firebaseUid);
-      
-      const { error, data } = await supabase
+      const { error } = await supabase
         .from("profiles")
         .update(updateData)
-        .eq("firebase_uid", firebaseUid)
-        .select();
-      
-      console.log('Profile update result:', { error, data });
+        .eq("id", profile.id);
       
       if (error) {
         console.error('Profile update error:', error);
@@ -100,29 +88,8 @@ export default function ConsentGate({ children }: { children: React.ReactNode })
           window.location.href = '/auth';
           return;
         }
-      } else if (data && data.length > 0) {
-        setState("ok");
       } else {
-        // No rows updated - profile might not exist yet, create it
-        console.log('No profile found to update, trying to create one');
-        const { error: insertError } = await supabase
-          .from("profiles")
-          .insert({
-            firebase_uid: firebaseUid,
-            full_name: firebaseAuth.currentUser?.phoneNumber || 'User',
-            phone: firebaseAuth.currentUser?.phoneNumber || '',
-            community: 'unknown',
-            flat_no: '',
-            tos_accepted_at: now,
-            privacy_accepted_at: now,
-            legal_version: ver || undefined,
-          });
-        
-        if (insertError) {
-          console.error('Profile insert error:', insertError);
-        } else {
-          setState("ok");
-        }
+        setState("ok");
       }
     } catch (err) {
       console.error('Consent accept error:', err);

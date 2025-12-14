@@ -9,9 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Sparkles, ChefHat, ShowerHead, ArrowRight, X, CreditCard, PhoneCall, MessageCircle, Star } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { auth as firebaseAuth } from '@/lib/firebase';
 import { useAuth } from '@/components/auth/AuthProvider';
-import { useProfile } from '@/contexts/ProfileContext';
 import { prettyServiceName } from '@/features/booking/utils';
 import AssigningProgress from '@/features/bookings/AssigningProgress';
 import AutoCompleteCountdown from '@/components/AutoCompleteCountdown';
@@ -78,7 +76,6 @@ const getStatusColor = (status: string) => {
 
 const ActiveBookingCard = memo(() => {
   const { user } = useAuth();
-  const { profile } = useProfile();
   const navigate = useNavigate();
   const { hasUnseenMessages, markMessagesAsSeen } = useUnseenMessages();
   const [activeBooking, setActiveBooking] = useState<Booking | null>(null);
@@ -92,9 +89,7 @@ const ActiveBookingCard = memo(() => {
   const [showWorkerRatings, setShowWorkerRatings] = useState(false);
 
   const fetchActiveBooking = useCallback(async () => {
-    if (!profile?.id) return;
-    
-    console.log('[ActiveBookingCard] Fetching bookings for profile.id:', profile.id);
+    if (!user) return;
 
     try {
       const today = new Date().toISOString().split('T')[0];
@@ -106,7 +101,7 @@ const ActiveBookingCard = memo(() => {
       const { data: allBookings, error } = await supabase
         .from('bookings')
         .select('*')
-        .eq('user_id', profile.id) // Use Supabase UUID, not Firebase UID
+        .eq('user_id', user.id)
         .or(`and(status.in.(pending,assigned,accepted,on_the_way,started),booking_type.eq.instant),and(status.in.(pending,assigned,accepted,on_the_way,started),booking_type.eq.scheduled,scheduled_date.gte.${today}),and(status.eq.cancelled,cancelled_at.gte.${todayStart})`)
         .order('created_at', { ascending: false });
 
@@ -147,13 +142,13 @@ const ActiveBookingCard = memo(() => {
   }, []);
 
   useEffect(() => {
-    if (profile?.id) {
+    if (user?.id) {
       fetchActiveBooking();
     } else {
       setLoading(false);
       setActiveBooking(null);
     }
-  }, [profile?.id, fetchActiveBooking]);
+  }, [user?.id]);
 
   // Load worker rating stats
   useEffect(() => {
@@ -172,18 +167,16 @@ const ActiveBookingCard = memo(() => {
 
   // Set up real-time updates
   useEffect(() => {
-    if (!profile?.id) return;
-
-    console.log('[ActiveBookingCard] Setting up realtime for profile.id:', profile.id);
+    if (!user?.id) return;
 
     const channel = supabase
-      .channel(`active-booking-updates-${profile.id}`)
+      .channel(`active-booking-updates-${user.id}`)
       .on("postgres_changes", 
         { 
           event: "UPDATE", 
           schema: "public", 
           table: "bookings",
-          filter: `user_id=eq.${profile.id}` // Use Supabase UUID, not Firebase UID
+          filter: `user_id=eq.${user.id}`
         },
         (payload) => {
           // Refetch whenever any booking changes to catch new cancellations
@@ -195,7 +188,7 @@ const ActiveBookingCard = memo(() => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [profile?.id, fetchActiveBooking]);
+  }, [user?.id, fetchActiveBooking]);
 
   if (loading || !activeBooking) {
     return null;
@@ -272,27 +265,13 @@ const ActiveBookingCard = memo(() => {
   };
 
   const handleSubmitRating = async (rating: number, comment?: string) => {
-    const user = firebaseAuth.currentUser;
+    const user = (await supabase.auth.getUser()).data.user;
     if (!user) return;
 
-    // Get profile UUID from firebase_uid
-    const { data: profileData } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('firebase_uid', user.uid)
-      .single();
-    
-    if (!profileData) {
-      console.error('[ActiveBookingCard] Profile not found for Firebase UID:', user.uid);
-      return;
-    }
-    
-    console.log('[ActiveBookingCard] Submitting rating with profile.id:', profileData.id, 'firebase_uid:', user.uid);
-    
     await supabase.from('worker_ratings').insert({
       booking_id: activeBooking.id,
       worker_id: activeBooking.worker_id,
-      user_id: profileData.id, // Use Supabase UUID, not Firebase UID
+      user_id: user.id,
       rating,
       comment: comment ?? null,
     });

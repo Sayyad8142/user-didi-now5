@@ -1,6 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useProfile } from '@/contexts/ProfileContext';
 
 export interface IncomingCallData {
   rtc_call_id: string;
@@ -12,7 +11,6 @@ export const useIncomingRtcPush = () => {
   const [incomingCall, setIncomingCall] = useState<IncomingCallData | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const hasInteracted = useRef(false);
-  const { profile } = useProfile();
 
   // Track user interaction for autoplay
   useEffect(() => {
@@ -33,14 +31,13 @@ export const useIncomingRtcPush = () => {
     const setupIncomingCallListener = async () => {
       console.log('📞 Setting up incoming call listener...');
       
-      if (!profile?.id) {
-        console.log('📞 No profile loaded, skipping setup');
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        console.log('📞 No authenticated user, skipping setup');
         return;
       }
 
-      console.log('📞 Subscribing to calls for profile.id:', profile.id);
-
-      // Subscribe to rtc_calls filtered by callee_id (use Supabase UUID, not Firebase UID)
+      // Subscribe to rtc_calls filtered by callee_id
       const channel = supabase
         .channel('incoming-rtc-calls')
         .on(
@@ -49,7 +46,7 @@ export const useIncomingRtcPush = () => {
             event: 'INSERT',
             schema: 'public',
             table: 'rtc_calls',
-            filter: `callee_id=eq.${profile.id}`, // Use Supabase UUID
+            filter: `callee_id=eq.${user.id}`,
           },
           async (payload) => {
             console.log('📞 RTC call received:', payload);
@@ -124,7 +121,7 @@ export const useIncomingRtcPush = () => {
     };
 
     setupIncomingCallListener();
-  }, [profile?.id]);
+  }, []);
 
   return {
     incomingCall,

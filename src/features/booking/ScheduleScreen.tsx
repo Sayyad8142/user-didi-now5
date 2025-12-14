@@ -119,7 +119,7 @@ export function ScheduleScreen() {
       });
 
       const bookingData = {
-        user_id: profile.id, // Use profile UUID, not Firebase UID
+        user_id: user.id,
         service_type,
         booking_type: 'scheduled',
         scheduled_date: scheduledDate,

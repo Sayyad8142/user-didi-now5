@@ -30,8 +30,8 @@ export default function SupportScreen() {
       supabase
         .from('profiles')
         .select('full_name, phone, community, flat_no')
-        .eq('firebase_uid', user.id)
-        .maybeSingle()
+        .eq('id', user.id)
+        .single()
         .then(({ data }) => setUserProfile(data));
     }
   }, [user]);

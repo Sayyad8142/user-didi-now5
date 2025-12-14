@@ -32,24 +32,6 @@ serve(async (req) => {
       );
     }
 
-    // Get the profile UUID from Firebase UID
-    const { data: callerProfile, error: profileError } = await supabaseClient
-      .from('profiles')
-      .select('id')
-      .eq('firebase_uid', user.id)
-      .single();
-
-    if (profileError || !callerProfile) {
-      console.error('❌ Profile not found for Firebase UID:', user.id);
-      return new Response(
-        JSON.stringify({ error: 'Profile not found' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const caller_id = callerProfile.id; // Use Supabase UUID, not Firebase UID
-    console.log(`📞 Caller profile.id: ${caller_id}, firebase_uid: ${user.id}`);
-
     const { booking_id } = await req.json();
     if (!booking_id) {
       return new Response(
@@ -63,7 +45,7 @@ serve(async (req) => {
     // Get booking details - worker_id is directly on the booking
     const { data: booking, error: bookingError } = await supabaseClient
       .from('bookings')
-      .select('user_id, worker_id, cust_name, worker_name')
+      .select('user_id, worker_id')
       .eq('id', booking_id)
       .single();
 
@@ -83,7 +65,8 @@ serve(async (req) => {
       );
     }
 
-    // Determine callee based on who the caller is
+    // Determine caller and callee
+    const caller_id = user.id;
     let callee_id: string;
 
     if (booking.user_id === caller_id) {

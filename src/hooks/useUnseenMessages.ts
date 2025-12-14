@@ -1,23 +1,18 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useProfile } from '@/contexts/ProfileContext';
+import { useAuth } from '@/components/auth/AuthProvider';
 
 export const useUnseenMessages = () => {
   const [hasUnseenMessages, setHasUnseenMessages] = useState(false);
-  const { profile } = useProfile();
+  const { user } = useAuth();
 
   useEffect(() => {
-    // Wait for profile to exist (has Supabase UUID) before making any calls
-    if (!profile?.id) return;
+    if (!user) return;
 
     const checkUnseenMessages = async () => {
       try {
         // Get or create support thread for user
-        const { data: threadData, error: rpcError } = await supabase.rpc('support_get_or_create_thread');
-        if (rpcError) {
-          console.error('Error in support_get_or_create_thread:', rpcError);
-          return;
-        }
+        const { data: threadData } = await supabase.rpc('support_get_or_create_thread');
         if (!threadData) return;
 
         // Check for unseen admin messages
@@ -67,22 +62,12 @@ export const useUnseenMessages = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [profile?.id]);
+  }, [user]);
 
   // Function to mark messages as seen and update state
   const markMessagesAsSeen = async () => {
-    // Guard: wait for profile to exist before making any calls
-    if (!profile?.id) {
-      console.log('[useUnseenMessages] Skipping markMessagesAsSeen - no profile yet');
-      return;
-    }
-    
     try {
-      const { data: threadData, error: rpcError } = await supabase.rpc('support_get_or_create_thread');
-      if (rpcError) {
-        console.error('Error in support_get_or_create_thread:', rpcError);
-        return;
-      }
+      const { data: threadData } = await supabase.rpc('support_get_or_create_thread');
       if (threadData) {
         await supabase.rpc('mark_support_messages_as_seen', {
           p_thread_id: threadData.id

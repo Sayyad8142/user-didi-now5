@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Phone, Clock, ChevronDown, ChevronUp } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { auth as firebaseAuth } from '@/lib/firebase';
 import { format } from 'date-fns';
 import {
   Collapsible,
@@ -31,8 +30,8 @@ export const CallHistory: React.FC<CallHistoryProps> = ({ bookingId }) => {
   useEffect(() => {
     const fetchCalls = async () => {
       try {
-        const user = firebaseAuth.currentUser;
-        setCurrentUserId(user?.uid || null);
+        const { data: { user } } = await supabase.auth.getUser();
+        setCurrentUserId(user?.id || null);
 
         const { data, error } = await supabase
           .from('rtc_calls')

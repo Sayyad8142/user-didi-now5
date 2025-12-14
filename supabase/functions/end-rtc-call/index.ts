@@ -32,17 +32,6 @@ serve(async (req) => {
       );
     }
 
-    // Get the Supabase profile UUID from Firebase UID
-    // user.id is the Firebase UID (string), we need the profile.id (UUID)
-    const { data: profile, error: profileError } = await supabaseClient
-      .from('profiles')
-      .select('id')
-      .eq('firebase_uid', user.id)
-      .maybeSingle();
-
-    const profileId = profile?.id;
-    console.log(`[end-rtc-call] Firebase UID: ${user.id}, Profile UUID: ${profileId}`);
-
     const { rtc_call_id, reason = 'completed' } = await req.json();
     if (!rtc_call_id) {
       return new Response(
@@ -70,8 +59,8 @@ serve(async (req) => {
 
     console.log(`📋 Current call status: ${rtcCall.status}`);
 
-    // Verify user is caller or callee - compare using Supabase UUID
-    if (profileId && rtcCall.caller_id !== profileId && rtcCall.callee_id !== profileId) {
+    // Verify user is caller or callee
+    if (rtcCall.caller_id !== user.id && rtcCall.callee_id !== user.id) {
       return new Response(
         JSON.stringify({ error: 'Only call participants can end the call' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

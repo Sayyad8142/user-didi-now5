@@ -13,11 +13,7 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-
-// Export auth for use in Supabase client accessToken
-export { auth };
-export default app;
+export const auth = getAuth(app);
 
 let verifier: any = null;
 
@@ -51,3 +47,5 @@ export async function verifyFirebaseOTP(confirmationResult: any, code: string): 
   const userCredential = await confirmationResult.confirm(code);
   return userCredential;
 }
+
+export default app;

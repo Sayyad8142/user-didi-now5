@@ -12,8 +12,6 @@ import { WorkersTable } from '@/features/admin/workers/WorkersTable';
 import { LegalPDFs } from '@/features/admin/settings/LegalPDFs';
 import AdminFaqsTab from '@/features/admin/settings/AdminFaqsTab';
 import { supabase } from '@/integrations/supabase/client';
-import { auth as firebaseAuth } from '@/lib/firebase';
-import { signOut } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { toast } from 'sonner';
 
@@ -38,8 +36,15 @@ export default function AdminSettings() {
       const { PortalStore } = await import('@/lib/portal');
       PortalStore.clear();
       
-      // Sign out from Firebase
-      await signOut(firebaseAuth);
+      // Sign out from Supabase (handle gracefully even if session doesn't exist)
+      const { error } = await supabase.auth.signOut();
+      
+      // Don't throw error if session doesn't exist - this is expected in some cases
+      if (error && !error.message.includes('session')) {
+        console.error('Logout error:', error);
+        toast.error(error.message || 'Failed to logout');
+        return;
+      }
       
       console.log('Logout successful, redirecting...');
       toast.success('Logged out successfully');

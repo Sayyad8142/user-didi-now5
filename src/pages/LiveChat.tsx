@@ -8,7 +8,6 @@ import { CleaningPulse } from '@/components/ui/cleaning-loader';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/auth/AuthProvider';
-import { useProfile } from '@/contexts/ProfileContext';
 import { useToast } from '@/hooks/use-toast';
 
 interface Message {
@@ -30,21 +29,23 @@ export default function LiveChat() {
   const [userProfile, setUserProfile] = useState<any>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
-  const { profile } = useProfile();
   const { toast } = useToast();
 
-  // Update local profile state when profile from context changes
+  // Fetch user profile
   useEffect(() => {
-    if (profile) {
-      setUserProfile(profile);
+    if (user) {
+      supabase
+        .from('profiles')
+        .select('full_name, phone, community, flat_no')
+        .eq('id', user.id)
+        .single()
+        .then(({ data }) => setUserProfile(data));
     }
-  }, [profile]);
+  }, [user]);
 
   // Fetch messages for general support (booking_id is null)
   const fetchMessages = async () => {
-    if (!profile?.id) return;
-    
-    console.log('[LiveChat] Fetching messages for profile.id:', profile.id);
+    if (!user) return;
     
     setLoading(true);
     try {
@@ -52,7 +53,7 @@ export default function LiveChat() {
         .from('booking_messages')
         .select('*')
         .is('booking_id', null)
-        .eq('sender_id', profile.id) // Use Supabase UUID, not Firebase UID
+        .eq('sender_id', user.id)
         .order('created_at', { ascending: true });
 
       if (error) throw error;
@@ -71,9 +72,7 @@ export default function LiveChat() {
 
   // Send message
   const sendMessage = async () => {
-    if (!newMessage.trim() || sending || !profile?.id) return;
-
-    console.log('[LiveChat] Sending message with profile.id:', profile.id);
+    if (!newMessage.trim() || sending || !user) return;
 
     setSending(true);
     try {
@@ -81,7 +80,7 @@ export default function LiveChat() {
         .from('booking_messages')
         .insert({
           booking_id: null, // General support chat
-          sender_id: profile.id, // Use Supabase UUID, not Firebase UID
+          sender_id: user.id,
           sender_role: 'user',
           sender_name: userProfile?.full_name || null,
           body: newMessage.trim()
@@ -115,17 +114,17 @@ export default function LiveChat() {
 
   // Subscribe to real-time messages
   useEffect(() => {
-    if (!profile?.id) return;
+    if (!user) return;
 
     fetchMessages();
 
     const channel = supabase
-      .channel(`general-chat:${profile.id}`)
+      .channel(`general-chat:${user.id}`)
       .on('postgres_changes', {
         event: 'INSERT',
         schema: 'public',
         table: 'booking_messages',
-        filter: `sender_id=eq.${profile.id}`, // Use Supabase UUID, not Firebase UID
+        filter: `sender_id=eq.${user.id}`,
       }, (payload) => {
         const newMessage = payload.new as Message;
         // Only add if it's a general chat message (booking_id is null)
@@ -150,7 +149,7 @@ export default function LiveChat() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [profile?.id]);
+  }, [user]);
 
   // Auto-scroll when messages change
   useEffect(() => {

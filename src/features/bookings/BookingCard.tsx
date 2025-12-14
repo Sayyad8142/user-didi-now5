@@ -12,7 +12,6 @@ import { formatDateTime } from '@/features/bookings/dt';
 import { format } from 'date-fns';
 import { PhoneCall, Sparkles, ChefHat, ShowerHead, Clock, User, MapPin, Timer, CreditCard, Star, MessageCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { auth as firebaseAuth } from '@/lib/firebase';
 import AssigningProgress from '@/features/bookings/AssigningProgress';
 import AutoCompleteCountdown from '@/components/AutoCompleteCountdown';
 import { useBookingRealtime } from '@/features/bookings/useBookingRealtime';
@@ -219,27 +218,13 @@ export function BookingCard({
   };
 
   const handleSubmitRating = async (rating: number, comment?: string) => {
-    const user = firebaseAuth.currentUser;
+    const user = (await supabase.auth.getUser()).data.user;
     if (!user) return;
 
-    // Get profile UUID from firebase_uid
-    const { data: profileData } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('firebase_uid', user.uid)
-      .single();
-    
-    if (!profileData) {
-      console.error('[BookingCard] Profile not found for Firebase UID:', user.uid);
-      return;
-    }
-    
-    console.log('[BookingCard] Submitting rating with profile.id:', profileData.id, 'firebase_uid:', user.uid);
-    
     await supabase.from('worker_ratings').insert({
       booking_id: row.id,
       worker_id: row.worker_id,
-      user_id: profileData.id, // Use Supabase UUID, not Firebase UID
+      user_id: user.id,
       rating,
       comment: comment ?? null,
     });

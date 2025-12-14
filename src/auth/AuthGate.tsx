@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { auth as firebaseAuth } from '@/lib/firebase';
-import { onAuthStateChanged } from 'firebase/auth';
+import { supabase } from '@/integrations/supabase/client';
 import { PortalStore } from '@/lib/portal';
 import { isAdminPhone } from '@/features/auth/isAdmin';
 
@@ -31,18 +30,24 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    // Root path only: check Firebase auth state and redirect
-    const unsubscribe = onAuthStateChanged(firebaseAuth, (user) => {
-      if (!user) {
-        console.log("[AuthGate] No Firebase user, redirecting to /auth");
+    // Root path only: check session and redirect
+    let cancelled = false;
+
+    // Use auth state listener instead of getSession to avoid duplicate calls
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (cancelled) return;
+      
+      // Only act on initial session or sign in
+      if (event !== 'INITIAL_SESSION' && event !== 'SIGNED_IN') return;
+
+      if (!session?.user) {
         nav('/auth', { replace: true });
         setReady(true);
         return;
       }
 
-      console.log("[AuthGate] Firebase user found:", user.uid);
       // Quick admin check using phone (no network call)
-      const isAdmin = isAdminPhone(user.phoneNumber);
+      const isAdmin = isAdminPhone(session.user.phone);
       const lastPortal = PortalStore.get();
       const dest = isAdmin && lastPortal === 'admin' ? '/admin' : '/home';
       
@@ -50,7 +55,10 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
       setReady(true);
     });
 
-    return () => unsubscribe();
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+    };
   }, [nav, location.pathname]);
 
   if (!ready) return null;

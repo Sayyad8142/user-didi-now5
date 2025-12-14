@@ -1,8 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { auth as firebaseAuth } from "@/lib/firebase";
-import { signOut } from "firebase/auth";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Download, Trash2 } from "lucide-react";
 
@@ -47,8 +45,8 @@ export default function AccountSettings() {
       if (deleteError) throw deleteError;
 
       // 2) delete auth user via Edge Function
-      const user = firebaseAuth.currentUser;
-      const token = user ? await user.getIdToken() : null;
+      const { data: sess } = await supabase.auth.getSession();
+      const token = sess?.session?.access_token;
       
       if (token) {
         const res = await supabase.functions.invoke('delete-auth-user', {
@@ -64,7 +62,7 @@ export default function AccountSettings() {
 
       // 3) sign out and redirect
       const { PortalStore } = await import('@/lib/portal');
-      await signOut(firebaseAuth);
+      await supabase.auth.signOut();
       PortalStore.clear();
       navigate("/auth?deleted=1");
     } catch (e: any) {

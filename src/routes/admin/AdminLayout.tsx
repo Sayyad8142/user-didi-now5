@@ -59,7 +59,20 @@ export default function AdminLayout() {
     load(filterStatus);
   }, [filterStatus]);
 
-  // Auth state change handling is now done via Firebase in AuthGate
+  // Clear any session expired banners on auth state change
+  useEffect(() => {
+    const {
+      data: {
+        subscription
+      }
+    } = supabase.auth.onAuthStateChange(event => {
+      if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
+        // Clear any global banner state if it exists
+        // This prevents sticky "Session expired" banners
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, []);
 
   // realtime
   useBookingsRealtime(row => {
