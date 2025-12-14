@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { auth as firebaseAuth } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { Link, useNavigate } from "react-router-dom";
 import { CheckCircle, FileText, Shield } from "lucide-react";
@@ -26,12 +27,10 @@ export default function ConsentGate({ children }: { children: React.ReactNode })
 
   useEffect(() => {
     (async () => {
-      const [{ data: auth }, v] = await Promise.all([
-        supabase.auth.getUser(),
-        getCurrentLegalVersion(),
-      ]);
+      const user = firebaseAuth.currentUser;
+      const v = await getCurrentLegalVersion();
       setVer(v);
-      const uid = auth.user?.id;
+      const uid = user?.uid;
       if (!uid) { 
         setState("ok"); 
         return; 
@@ -59,12 +58,11 @@ export default function ConsentGate({ children }: { children: React.ReactNode })
     setBusy(true);
     
     try {
-      // Ensure we have a valid session first
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      // Ensure we have a valid Firebase user
+      const user = firebaseAuth.currentUser;
       
-      if (sessionError || !session) {
-        console.error('Session error:', sessionError);
-        // Redirect to auth if session is invalid
+      if (!user) {
+        console.error('No Firebase user');
         window.location.href = '/auth';
         return;
       }

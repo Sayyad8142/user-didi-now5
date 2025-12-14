@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { auth as firebaseAuth } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Star } from "lucide-react";
@@ -29,8 +30,8 @@ export default function FeedbackForm({ bookingId = "" }: FeedbackFormProps) {
     setSubmitted(false);
     
     try {
-      const { data: user } = await supabase.auth.getUser();
-      const user_id = user.user?.id;
+      const user = firebaseAuth.currentUser;
+      const user_id = user?.uid;
       
       if (!user_id) {
         throw new Error("User not authenticated");

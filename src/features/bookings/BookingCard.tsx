@@ -12,6 +12,7 @@ import { formatDateTime } from '@/features/bookings/dt';
 import { format } from 'date-fns';
 import { PhoneCall, Sparkles, ChefHat, ShowerHead, Clock, User, MapPin, Timer, CreditCard, Star, MessageCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { auth as firebaseAuth } from '@/lib/firebase';
 import AssigningProgress from '@/features/bookings/AssigningProgress';
 import AutoCompleteCountdown from '@/components/AutoCompleteCountdown';
 import { useBookingRealtime } from '@/features/bookings/useBookingRealtime';
@@ -218,13 +219,13 @@ export function BookingCard({
   };
 
   const handleSubmitRating = async (rating: number, comment?: string) => {
-    const user = (await supabase.auth.getUser()).data.user;
+    const user = firebaseAuth.currentUser;
     if (!user) return;
 
     await supabase.from('worker_ratings').insert({
       booking_id: row.id,
       worker_id: row.worker_id,
-      user_id: user.id,
+      user_id: user.uid,
       rating,
       comment: comment ?? null,
     });
