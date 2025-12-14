@@ -32,6 +32,17 @@ serve(async (req) => {
       );
     }
 
+    // Get the Supabase profile UUID from Firebase UID
+    // user.id is the Firebase UID (string), we need the profile.id (UUID)
+    const { data: profile, error: profileError } = await supabaseClient
+      .from('profiles')
+      .select('id')
+      .eq('firebase_uid', user.id)
+      .maybeSingle();
+
+    const profileId = profile?.id;
+    console.log(`[accept-rtc-call] Firebase UID: ${user.id}, Profile UUID: ${profileId}`);
+
     const { rtc_call_id } = await req.json();
     if (!rtc_call_id) {
       console.error('❌ No rtc_call_id provided');
@@ -60,8 +71,8 @@ serve(async (req) => {
 
     console.log(`📋 Current call status: ${rtcCall.status}`);
 
-    // Verify user is callee
-    if (rtcCall.callee_id !== user.id) {
+    // Verify user is callee - compare using Supabase UUID
+    if (!profileId || rtcCall.callee_id !== profileId) {
       console.error('❌ User is not the callee');
       return new Response(
         JSON.stringify({ error: 'Only callee can accept the call' }),
