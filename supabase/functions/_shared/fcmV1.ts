@@ -135,24 +135,23 @@ export async function sendFcmV1Message(
 
   const fcmUrl = `https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`;
 
-  const message: Record<string, unknown> = {
-    token: token,
-    notification: {
-      title: title,
-      body: body,
-    },
-    android: {
-      priority: 'high',
-      notification: {
-        sound: 'default',
-        channel_id: 'booking_alerts',
-      },
-    },
+  // Build data payload - always include title/body in data for overlay display
+  const dataPayload: Record<string, string> = {
+    ...data,
+    title: title,
+    body: body,
   };
 
-  if (data) {
-    message.data = data;
-  }
+  const message: Record<string, unknown> = {
+    token: token,
+    // DATA-ONLY message for native overlay support
+    // The app intercepts this and displays a custom overlay instead of system notification
+    data: dataPayload,
+    android: {
+      priority: 'high',
+      // Direct to data handler for overlay support
+    },
+  };
 
   console.log('📤 Sending FCM v1:', { 
     title, 
