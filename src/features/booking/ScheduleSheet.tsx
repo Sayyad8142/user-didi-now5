@@ -180,7 +180,7 @@ export function ScheduleSheet({ open, onOpenChange, onSchedule, loading }: Sched
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogAction className="w-full rounded-full bg-primary">
-                Okay
+                Agree & Continue
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
