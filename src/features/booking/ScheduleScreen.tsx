@@ -119,7 +119,7 @@ export function ScheduleScreen() {
       });
 
       const bookingData = {
-        user_id: user.id,
+        user_id: profile.id,
         service_type,
         booking_type: 'scheduled',
         scheduled_date: scheduledDate,

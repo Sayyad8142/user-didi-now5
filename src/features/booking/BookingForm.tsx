@@ -300,7 +300,7 @@ export function BookingForm() {
     setSubmitting(true);
     try {
       const bookingData = {
-        user_id: user.id,
+        user_id: profile.id,
         service_type,
         booking_type: bookingType,
         scheduled_date: scheduledDate,
