@@ -171,7 +171,7 @@ export function ScheduleSheet({ open, onOpenChange, onSchedule, loading }: Sched
               <AlertDialogDescription className="text-sm text-muted-foreground space-y-3">
                 <p>
                   Between 3:00 PM and 7:00 PM, worker availability is limited.
-                  There is a lower chance of maid confirmation during these hours.
+                  There is a lower chance of worker confirmation during these hours.
                 </p>
                 <p className="font-medium text-foreground">
                   For 100% booking confirmation, we recommend booking between 6:00 AM and 3:00 PM.
