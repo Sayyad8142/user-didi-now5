@@ -20,6 +20,21 @@ import {
   type TimeSegment 
 } from './slot-utils';
 import { format } from 'date-fns';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+
+// Check if time slot is between 3PM (15:00) and 7PM (19:00)
+const isLimitedAvailabilitySlot = (time: string): boolean => {
+  const [hours] = time.split(':').map(Number);
+  return hours >= 15 && hours <= 19;
+};
 
 export function ScheduleScreen() {
   const { service_type } = useParams<{ service_type: string }>();
@@ -34,6 +49,7 @@ export function ScheduleScreen() {
   const [activeSegment, setActiveSegment] = useState<TimeSegment>('Morning');
   const [submitting, setSubmitting] = useState(false);
   const [price, setPrice] = useState<number | null>(null);
+  const [showAvailabilityWarning, setShowAvailabilityWarning] = useState(false);
 
   const flatSize = searchParams.get('flat');
   const priceParam = searchParams.get('price');
@@ -306,7 +322,12 @@ export function ScheduleScreen() {
                         key={slot}
                         variant="outline"
                         disabled={isPast}
-                        onClick={() => setSelectedTime(slot)}
+                        onClick={() => {
+                          setSelectedTime(slot);
+                          if (isLimitedAvailabilitySlot(slot)) {
+                            setShowAvailabilityWarning(true);
+                          }
+                        }}
                         className={`relative rounded-xl border-2 h-12 px-2 text-xs flex flex-col items-center justify-center ${
                           isSelected
                             ? 'border-primary bg-primary/10 text-primary'
@@ -338,10 +359,35 @@ export function ScheduleScreen() {
                 <span>Confirming...</span>
               </div>
             ) : (
-              'Confirm Schedule'
+            'Confirm Schedule'
             )}
           </Button>
         </div>
+
+        {/* Limited Availability Warning Dialog */}
+        <AlertDialog open={showAvailabilityWarning} onOpenChange={setShowAvailabilityWarning}>
+          <AlertDialogContent className="max-w-sm rounded-2xl">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-lg font-semibold text-foreground">
+                Note
+              </AlertDialogTitle>
+              <AlertDialogDescription className="text-sm text-muted-foreground space-y-3">
+                <p>
+                  Between 3:00 PM and 7:00 PM, worker availability is limited.
+                  There is a lower chance of maid confirmation during these hours.
+                </p>
+                <p className="font-medium text-foreground">
+                  For 100% booking confirmation, we recommend booking between 6:00 AM and 3:00 PM.
+                </p>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogAction className="w-full rounded-full bg-primary">
+                Okay
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   );

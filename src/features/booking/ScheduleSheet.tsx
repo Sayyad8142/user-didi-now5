@@ -14,6 +14,15 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { cn } from '@/lib/utils';
 
 interface ScheduleSheetProps {
@@ -30,10 +39,17 @@ const TIME_OPTIONS = [
   '18:00', '18:30', '19:00'
 ];
 
+// Check if time slot is between 3PM (15:00) and 7PM (19:00)
+const isLimitedAvailabilitySlot = (time: string): boolean => {
+  const [hours] = time.split(':').map(Number);
+  return hours >= 15 && hours <= 19;
+};
+
 export function ScheduleSheet({ open, onOpenChange, onSchedule, loading }: ScheduleSheetProps) {
   const [selectedDate, setSelectedDate] = useState<Date>();
   const [selectedTime, setSelectedTime] = useState<string>('');
   const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const [showAvailabilityWarning, setShowAvailabilityWarning] = useState(false);
 
   const handleSchedule = () => {
     if (selectedDate && selectedTime) {
@@ -94,12 +110,17 @@ export function ScheduleSheet({ open, onOpenChange, onSchedule, loading }: Sched
             </label>
             <div className="grid grid-cols-4 gap-2">
               {TIME_OPTIONS.map((time) => (
-                <Button
-                  key={time}
-                  variant={selectedTime === time ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setSelectedTime(time)}
-                  className={cn(
+                  <Button
+                    key={time}
+                    variant={selectedTime === time ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => {
+                      setSelectedTime(time);
+                      if (isLimitedAvailabilitySlot(time)) {
+                        setShowAvailabilityWarning(true);
+                      }
+                    }}
+                    className={cn(
                     "rounded-lg text-xs",
                     selectedTime === time && "bg-primary text-white"
                   )}
@@ -135,10 +156,35 @@ export function ScheduleSheet({ open, onOpenChange, onSchedule, loading }: Sched
               <>
                 <Clock className="w-4 h-4 mr-2" />
                 Schedule Booking
-              </>
+            </>
             )}
           </Button>
         </div>
+
+        {/* Limited Availability Warning Dialog */}
+        <AlertDialog open={showAvailabilityWarning} onOpenChange={setShowAvailabilityWarning}>
+          <AlertDialogContent className="max-w-sm rounded-2xl">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-lg font-semibold text-foreground">
+                Note
+              </AlertDialogTitle>
+              <AlertDialogDescription className="text-sm text-muted-foreground space-y-3">
+                <p>
+                  Between 3:00 PM and 7:00 PM, worker availability is limited.
+                  There is a lower chance of maid confirmation during these hours.
+                </p>
+                <p className="font-medium text-foreground">
+                  For 100% booking confirmation, we recommend booking between 6:00 AM and 3:00 PM.
+                </p>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogAction className="w-full rounded-full bg-primary">
+                Okay
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </SheetContent>
     </Sheet>
   );
