@@ -239,14 +239,6 @@ export function AuthCard() {
               {loading && <CleaningLoader size="sm" className="mr-2" />}
               Send OTP
             </Button>
-            
-            
-            
-            <div className="text-center">
-              <button type="button" onClick={() => navigate("/admin-login")} className="text-xs text-primary underline hover:no-underline transition-smooth">
-                Admin Login
-              </button>
-            </div>
           </TabsContent>
 
           {/* Sign Up Tab */}
