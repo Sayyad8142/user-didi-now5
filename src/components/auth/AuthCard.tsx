@@ -94,7 +94,13 @@ export function AuthCard() {
       newErrors.buildingId = 'Please select your building';
     }
     if (!signUpData.flatId) {
-      newErrors.flatId = 'Please select your flat';
+      newErrors.flatId = 'Please select a valid flat from the list';
+    } else {
+      // Verify flatId exists in the flats list
+      const flatExists = flats.some(f => f.id === signUpData.flatId);
+      if (!flatExists) {
+        newErrors.flatId = 'Please select a valid flat from the list';
+      }
     }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;

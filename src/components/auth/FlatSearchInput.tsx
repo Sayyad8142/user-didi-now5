@@ -58,8 +58,12 @@ export function FlatSearchInput({
     setSearchTerm(newValue);
     setIsOpen(true);
     
-    // If input is cleared, clear selection
-    if (!newValue) {
+    // Always clear selection when typing - user must select from dropdown
+    // Only keep selection if the typed value exactly matches a flat
+    const exactMatch = flats.find(f => f.flat_no.toLowerCase() === newValue.toLowerCase());
+    if (exactMatch) {
+      onSelect(exactMatch.id, exactMatch.flat_no);
+    } else {
       onSelect('', '');
     }
   };
