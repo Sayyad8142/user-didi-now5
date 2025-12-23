@@ -27,3 +27,6 @@ verify_jwt = false
 
 [functions.test-fcm-v1]
 verify_jwt = false
+
+[functions.send-user-fcm]
+verify_jwt = false

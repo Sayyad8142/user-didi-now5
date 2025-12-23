@@ -7,7 +7,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useProfile } from '@/contexts/ProfileContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate, Link } from 'react-router-dom';
-import { User, Phone, Building, Home, LogOut, Settings, Bell, Shield, Edit3, Save, X, HelpCircle, Share2, Building2 } from 'lucide-react';
+import { User, Phone, Building, Home, LogOut, Settings, Shield, Edit3, Save, X, HelpCircle, Share2, Building2 } from 'lucide-react';
+import { NotificationButton } from '@/features/notifications/NotificationButton';
 import { openExternalUrl } from '@/lib/nativeOpen';
 import { useToast } from '@/hooks/use-toast';
 import { AppVersionDisplay } from '@/components/AppVersionDisplay';
@@ -295,6 +296,9 @@ export default function Profile() {
             </div>
           </div>
         </div>
+
+        {/* Notifications */}
+        <NotificationButton />
 
         {/* Legal Links */}
         <div className="space-y-3">
