@@ -1,8 +1,8 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useToast } from '@/hooks/use-toast';
-import { getFcmToken, isFirebaseConfigured } from '@/lib/firebase';
+import { getFcmToken, isFirebaseConfigured, onForegroundMessage, showForegroundNotification } from '@/lib/firebase';
 
 export function useRegisterUserFcmToken() {
   const [isRegistering, setIsRegistering] = useState(false);
@@ -10,14 +10,37 @@ export function useRegisterUserFcmToken() {
   const { user } = useAuth();
   const { toast } = useToast();
 
+  // Set up foreground message listener
+  useEffect(() => {
+    if (!isFirebaseConfigured()) return;
+
+    const unsubscribe = onForegroundMessage((payload) => {
+      console.log('📩 Foreground notification:', payload);
+      
+      // Show toast for in-app notification
+      const title = payload.data?.title || payload.notification?.title || 'Notification';
+      const body = payload.data?.body || payload.notification?.body || '';
+      
+      toast({
+        title,
+        description: body,
+      });
+
+      // Also show browser notification
+      showForegroundNotification(payload);
+    });
+
+    return unsubscribe;
+  }, [toast]);
+
   const registerToken = useCallback(async (showToast = true): Promise<boolean> => {
     if (!user?.id) {
-      console.warn('No user logged in');
+      console.warn('⚠️ No user logged in');
       return false;
     }
 
     if (!isFirebaseConfigured()) {
-      console.warn('Firebase not configured');
+      console.warn('⚠️ Firebase not configured');
       if (showToast) {
         toast({
           title: 'Notifications unavailable',
@@ -64,14 +87,17 @@ export function useRegisterUserFcmToken() {
         if (showToast) {
           toast({
             title: 'Error',
-            description: 'Failed to get notification token',
+            description: 'Failed to get notification token. Try again.',
             variant: 'destructive',
           });
         }
         return false;
       }
 
-      // Upsert token to database
+      // Get device info
+      const deviceInfo = `${navigator.userAgent.substring(0, 100)}`;
+
+      // Upsert token to database - use composite key (user_id, token)
       const { error } = await supabase
         .from('fcm_tokens')
         .upsert(
@@ -82,19 +108,32 @@ export function useRegisterUserFcmToken() {
           },
           {
             onConflict: 'user_id',
+            ignoreDuplicates: false,
           }
         );
 
       if (error) {
-        console.error('Error saving FCM token:', error);
-        if (showToast) {
-          toast({
-            title: 'Error',
-            description: 'Failed to save notification settings',
-            variant: 'destructive',
+        console.error('❌ Error saving FCM token:', error);
+        
+        // Try insert if upsert fails
+        const { error: insertError } = await supabase
+          .from('fcm_tokens')
+          .insert({
+            user_id: user.id,
+            token: fcmToken,
+            updated_at: new Date().toISOString(),
           });
+        
+        if (insertError && !insertError.message.includes('duplicate')) {
+          if (showToast) {
+            toast({
+              title: 'Error',
+              description: 'Failed to save notification settings',
+              variant: 'destructive',
+            });
+          }
+          return false;
         }
-        return false;
       }
 
       setIsRegistered(true);
@@ -110,7 +149,7 @@ export function useRegisterUserFcmToken() {
       return true;
 
     } catch (error) {
-      console.error('Error registering FCM token:', error);
+      console.error('❌ Error registering FCM token:', error);
       if (showToast) {
         toast({
           title: 'Error',
@@ -128,15 +167,25 @@ export function useRegisterUserFcmToken() {
   const checkExistingToken = useCallback(async (): Promise<boolean> => {
     if (!user?.id) return false;
 
-    const { data } = await supabase
-      .from('fcm_tokens')
-      .select('token')
-      .eq('user_id', user.id)
-      .single();
+    try {
+      const { data, error } = await supabase
+        .from('fcm_tokens')
+        .select('token')
+        .eq('user_id', user.id)
+        .maybeSingle();
 
-    const hasToken = !!data?.token;
-    setIsRegistered(hasToken);
-    return hasToken;
+      if (error) {
+        console.error('❌ Error checking existing token:', error);
+        return false;
+      }
+
+      const hasToken = !!data?.token;
+      setIsRegistered(hasToken);
+      return hasToken;
+    } catch (err) {
+      console.error('❌ Error in checkExistingToken:', err);
+      return false;
+    }
   }, [user?.id]);
 
   return {
@@ -144,6 +193,6 @@ export function useRegisterUserFcmToken() {
     checkExistingToken,
     isRegistering,
     isRegistered,
-    isSupported: 'Notification' in window && isFirebaseConfigured(),
+    isSupported: typeof window !== 'undefined' && 'Notification' in window && isFirebaseConfigured(),
   };
 }
