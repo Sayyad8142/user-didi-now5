@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Bell, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useRegisterUserFcmToken } from './useRegisterUserFcmToken';
+import { isNativeApp, checkNativePushPermission } from '@/lib/capacitor-push';
 import { isFirebaseConfigured } from '@/lib/firebase';
 
 const BANNER_DISMISSED_KEY = 'notification_banner_dismissed';
@@ -11,21 +12,29 @@ export function NotificationBanner() {
   const { registerToken, isRegistering, isRegistered, isSupported } = useRegisterUserFcmToken();
 
   useEffect(() => {
-    // Don't show if not supported or Firebase not configured
-    if (!isSupported || !isFirebaseConfigured()) return;
+    const checkAndShowBanner = async () => {
+      // Don't show if not supported
+      if (!isSupported) return;
 
-    // Don't show if already dismissed
-    const dismissed = localStorage.getItem(BANNER_DISMISSED_KEY);
-    if (dismissed) return;
+      // Don't show if already dismissed
+      const dismissed = localStorage.getItem(BANNER_DISMISSED_KEY);
+      if (dismissed) return;
 
-    // Don't show if already granted
-    if ('Notification' in window && Notification.permission === 'granted') return;
+      if (isNativeApp()) {
+        // Native app - check Capacitor push permission
+        const permission = await checkNativePushPermission();
+        if (permission === 'granted' || permission === 'denied') return;
+      } else {
+        // Web - check browser notification permission
+        if (!isFirebaseConfigured()) return;
+        if ('Notification' in window && Notification.permission !== 'default') return;
+      }
 
-    // Don't show if already denied
-    if ('Notification' in window && Notification.permission === 'denied') return;
+      // Show banner for first-time users
+      setShowBanner(true);
+    };
 
-    // Show banner for first-time users
-    setShowBanner(true);
+    checkAndShowBanner();
   }, [isSupported]);
 
   const handleEnable = async () => {
