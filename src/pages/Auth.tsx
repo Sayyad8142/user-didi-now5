@@ -7,7 +7,7 @@ export default function Auth() {
       <img 
         src={authHero} 
         alt="Instant maid service" 
-        className="w-full max-w-md mb-6 rounded-lg"
+        className="w-full max-w-xs mb-4 rounded-lg"
       />
       <AuthCard />
     </div>
