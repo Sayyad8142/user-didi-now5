@@ -2,14 +2,14 @@
 importScripts('https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/9.22.0/firebase-messaging-compat.js');
 
-// Firebase config - replace these placeholders with your actual Firebase config values
+// Firebase config
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT_ID.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyDDYRSiCCRslPT_vJ4xhMyEfQkOk_n2eH4",
+  authDomain: "didi-now-worker-7b4cb.firebaseapp.com",
+  projectId: "didi-now-worker-7b4cb",
+  storageBucket: "didi-now-worker-7b4cb.firebasestorage.app",
+  messagingSenderId: "993479758920",
+  appId: "1:993479758920:web:1550b0d6c69afa10f6747d"
 };
 
 // Initialize Firebase
