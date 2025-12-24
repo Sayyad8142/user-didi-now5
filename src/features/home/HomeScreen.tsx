@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Phone, MessageCircle, Shield } from 'lucide-react';
+import { Phone, MessageCircle } from 'lucide-react';
 import { useUnseenMessages } from '@/hooks/useUnseenMessages';
 import { HomeHeader } from './HomeHeader';
 import { HeroCarousel } from './HeroCarousel';
@@ -12,6 +12,8 @@ import { FeatureCarousel } from './FeatureCarousel';
 import { ActiveBookingCard } from './ActiveBookingCard';
 import { openExternalUrl } from '@/lib/nativeOpen';
 import FaqSection from './FaqSection';
+import { NotificationBanner } from '@/features/notifications/NotificationBanner';
+import { NotificationButtonCompact } from '@/features/notifications/NotificationButtonCompact';
 export function HomeScreen() {
   const navigate = useNavigate();
   const { hasUnseenMessages, markMessagesAsSeen } = useUnseenMessages();
@@ -25,9 +27,16 @@ export function HomeScreen() {
         </div>
       </header>
       <div className="max-w-md mx-auto px-4 space-y-4 bg-slate-50">
+        {/* First-time notification banner */}
+        <NotificationBanner />
+        
         <HeroCarousel />
         <ServicesRow onServiceSelect={handleServiceSelect} />
         <ActiveBookingCard />
+        
+        {/* Notification enable button for users who haven't enabled yet */}
+        <NotificationButtonCompact />
+        
         <ServiceHours />
         <WorkerAvailabilityCard />
         <FeatureCarousel />
