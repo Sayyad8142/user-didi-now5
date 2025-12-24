@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useToast } from '@/hooks/use-toast';
 import { getFcmToken, isFirebaseConfigured, onForegroundMessage, showForegroundNotification } from '@/lib/firebase';
+import { isNativeApp, registerNativePush, checkNativePushPermission, setupNativePushListeners } from '@/lib/capacitor-push';
 
 export function useRegisterUserFcmToken() {
   const [isRegistering, setIsRegistering] = useState(false);
@@ -10,27 +11,48 @@ export function useRegisterUserFcmToken() {
   const { user } = useAuth();
   const { toast } = useToast();
 
-  // Set up foreground message listener
+  // Set up notification listeners based on platform
   useEffect(() => {
-    if (!isFirebaseConfigured()) return;
+    if (isNativeApp()) {
+      // Native push notification listeners
+      const cleanup = setupNativePushListeners(
+        (notification) => {
+          console.log('📩 Native notification received:', notification);
+          toast({
+            title: notification.title || 'Notification',
+            description: notification.body || '',
+          });
+        },
+        (action) => {
+          console.log('📩 Native notification tapped:', action);
+          // Handle notification tap - could navigate to relevant screen
+          const data = action.notification.data;
+          if (data?.booking_id) {
+            window.location.href = `/bookings?id=${data.booking_id}`;
+          }
+        }
+      );
+      return cleanup;
+    } else {
+      // Web foreground message listener
+      if (!isFirebaseConfigured()) return;
 
-    const unsubscribe = onForegroundMessage((payload) => {
-      console.log('📩 Foreground notification:', payload);
-      
-      // Show toast for in-app notification
-      const title = payload.data?.title || payload.notification?.title || 'Notification';
-      const body = payload.data?.body || payload.notification?.body || '';
-      
-      toast({
-        title,
-        description: body,
+      const unsubscribe = onForegroundMessage((payload) => {
+        console.log('📩 Foreground notification:', payload);
+        
+        const title = payload.data?.title || payload.notification?.title || 'Notification';
+        const body = payload.data?.body || payload.notification?.body || '';
+        
+        toast({
+          title,
+          description: body,
+        });
+
+        showForegroundNotification(payload);
       });
 
-      // Also show browser notification
-      showForegroundNotification(payload);
-    });
-
-    return unsubscribe;
+      return unsubscribe;
+    }
   }, [toast]);
 
   const registerToken = useCallback(async (showToast = true): Promise<boolean> => {
@@ -39,49 +61,80 @@ export function useRegisterUserFcmToken() {
       return false;
     }
 
-    if (!isFirebaseConfigured()) {
-      console.warn('⚠️ Firebase not configured');
-      if (showToast) {
-        toast({
-          title: 'Notifications unavailable',
-          description: 'Push notifications are not configured yet',
-          variant: 'destructive',
-        });
-      }
-      return false;
-    }
-
-    // Check if notifications are supported
-    if (!('Notification' in window)) {
-      if (showToast) {
-        toast({
-          title: 'Not supported',
-          description: 'Push notifications are not supported in this browser',
-          variant: 'destructive',
-        });
-      }
-      return false;
-    }
-
     setIsRegistering(true);
 
     try {
-      // Request permission
-      const permission = await Notification.requestPermission();
-      
-      if (permission !== 'granted') {
-        if (showToast) {
-          toast({
-            title: 'Permission denied',
-            description: 'Please enable notifications in your browser settings',
-            variant: 'destructive',
-          });
-        }
-        return false;
-      }
+      let fcmToken: string | null = null;
 
-      // Get FCM token
-      const fcmToken = await getFcmToken();
+      if (isNativeApp()) {
+        // Native app - use Capacitor Push Notifications
+        console.log('📱 Registering native push notifications...');
+        const result = await registerNativePush();
+        
+        if (!result) {
+          if (showToast) {
+            const permission = await checkNativePushPermission();
+            if (permission === 'denied') {
+              toast({
+                title: 'Permission denied',
+                description: 'Please enable notifications in your device settings',
+                variant: 'destructive',
+              });
+            } else {
+              toast({
+                title: 'Error',
+                description: 'Failed to enable notifications. Please try again.',
+                variant: 'destructive',
+              });
+            }
+          }
+          return false;
+        }
+        
+        fcmToken = result.token;
+      } else {
+        // Web app - use Firebase Web Push
+        if (!isFirebaseConfigured()) {
+          console.warn('⚠️ Firebase not configured');
+          if (showToast) {
+            toast({
+              title: 'Notifications unavailable',
+              description: 'Push notifications are not configured yet',
+              variant: 'destructive',
+            });
+          }
+          return false;
+        }
+
+        // Check if notifications are supported in browser
+        if (!('Notification' in window)) {
+          if (showToast) {
+            toast({
+              title: 'Not supported',
+              description: 'Push notifications are not supported in this browser',
+              variant: 'destructive',
+            });
+          }
+          return false;
+        }
+
+        // Request permission
+        const permission = await Notification.requestPermission();
+        
+        if (permission !== 'granted') {
+          if (showToast) {
+            toast({
+              title: 'Permission denied',
+              description: 'Please enable notifications in your browser settings',
+              variant: 'destructive',
+            });
+          }
+          return false;
+        }
+
+        // Get FCM token
+        fcmToken = await getFcmToken();
+      }
       
       if (!fcmToken) {
         if (showToast) {
@@ -94,10 +147,7 @@ export function useRegisterUserFcmToken() {
         return false;
       }
 
-      // Get device info
-      const deviceInfo = `${navigator.userAgent.substring(0, 100)}`;
-
-      // Upsert token to database - use composite key (user_id, token)
+      // Upsert token to database
       const { error } = await supabase
         .from('fcm_tokens')
         .upsert(
@@ -188,11 +238,14 @@ export function useRegisterUserFcmToken() {
     }
   }, [user?.id]);
 
+  // Determine if notifications are supported on this platform
+  const isSupported = isNativeApp() || (typeof window !== 'undefined' && 'Notification' in window && isFirebaseConfigured());
+
   return {
     registerToken,
     checkExistingToken,
     isRegistering,
     isRegistered,
-    isSupported: typeof window !== 'undefined' && 'Notification' in window && isFirebaseConfigured(),
+    isSupported,
   };
 }

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Bell, BellOff, Loader2 } from 'lucide-react';
 import { useRegisterUserFcmToken } from './useRegisterUserFcmToken';
+import { isNativeApp, checkNativePushPermission } from '@/lib/capacitor-push';
 import { isFirebaseConfigured } from '@/lib/firebase';
 
 export function NotificationButton() {
@@ -12,27 +13,36 @@ export function NotificationButton() {
     isSupported 
   } = useRegisterUserFcmToken();
   
-  const [permissionState, setPermissionState] = useState<NotificationPermission | null>(null);
+  const [permissionState, setPermissionState] = useState<'granted' | 'denied' | 'prompt'>('prompt');
 
   useEffect(() => {
-    // Check current permission state
-    if ('Notification' in window) {
-      setPermissionState(Notification.permission);
-    }
-    // Check if token already registered
+    const checkPermission = async () => {
+      if (isNativeApp()) {
+        const permission = await checkNativePushPermission();
+        setPermissionState(permission);
+      } else if ('Notification' in window) {
+        setPermissionState(Notification.permission as 'granted' | 'denied' | 'prompt');
+      }
+    };
+    
+    checkPermission();
     checkExistingToken();
   }, [checkExistingToken]);
 
-  // Don't show if not supported or Firebase not configured
-  if (!isSupported || !isFirebaseConfigured()) {
+  // Show button for native apps or web with Firebase configured
+  if (!isSupported) {
     return null;
   }
 
   const handleClick = async () => {
     await registerToken(true);
+    
     // Update permission state after request
-    if ('Notification' in window) {
-      setPermissionState(Notification.permission);
+    if (isNativeApp()) {
+      const permission = await checkNativePushPermission();
+      setPermissionState(permission);
+    } else if ('Notification' in window) {
+      setPermissionState(Notification.permission as 'granted' | 'denied' | 'prompt');
     }
   };
 
@@ -73,7 +83,7 @@ export function NotificationButton() {
           </span>
           {isDenied && (
             <span className="text-xs text-gray-500">
-              Enable in browser settings
+              Enable in {isNativeApp() ? 'device' : 'browser'} settings
             </span>
           )}
         </div>

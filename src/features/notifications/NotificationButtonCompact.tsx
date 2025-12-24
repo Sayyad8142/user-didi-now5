@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Bell, BellOff, Loader2, Check } from 'lucide-react';
+import { Bell, BellOff, Loader2 } from 'lucide-react';
 import { useRegisterUserFcmToken } from './useRegisterUserFcmToken';
+import { isNativeApp, checkNativePushPermission } from '@/lib/capacitor-push';
 import { isFirebaseConfigured } from '@/lib/firebase';
 
 export function NotificationButtonCompact() {
@@ -12,24 +13,35 @@ export function NotificationButtonCompact() {
     isSupported 
   } = useRegisterUserFcmToken();
   
-  const [permissionState, setPermissionState] = useState<NotificationPermission | null>(null);
+  const [permissionState, setPermissionState] = useState<'granted' | 'denied' | 'prompt'>('prompt');
 
   useEffect(() => {
-    if ('Notification' in window) {
-      setPermissionState(Notification.permission);
-    }
+    const checkPermission = async () => {
+      if (isNativeApp()) {
+        const permission = await checkNativePushPermission();
+        setPermissionState(permission);
+      } else if ('Notification' in window) {
+        setPermissionState(Notification.permission as 'granted' | 'denied' | 'prompt');
+      }
+    };
+    
+    checkPermission();
     checkExistingToken();
   }, [checkExistingToken]);
 
-  // Don't show if not supported or Firebase not configured
-  if (!isSupported || !isFirebaseConfigured()) {
+  // Don't show if not supported
+  if (!isSupported) {
     return null;
   }
 
   const handleClick = async () => {
     await registerToken(true);
-    if ('Notification' in window) {
-      setPermissionState(Notification.permission);
+    
+    if (isNativeApp()) {
+      const permission = await checkNativePushPermission();
+      setPermissionState(permission);
+    } else if ('Notification' in window) {
+      setPermissionState(Notification.permission as 'granted' | 'denied' | 'prompt');
     }
   };
 
@@ -66,7 +78,7 @@ export function NotificationButtonCompact() {
         </span>
         <span className="text-xs text-gray-500">
           {isDenied 
-            ? 'Enable in browser settings' 
+            ? `Enable in ${isNativeApp() ? 'device' : 'browser'} settings` 
             : 'Get updates on your bookings'}
         </span>
       </div>
