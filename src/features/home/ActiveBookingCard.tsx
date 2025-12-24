@@ -97,10 +97,10 @@ const ActiveBookingCard = memo(() => {
       startOfToday.setHours(0, 0, 0, 0);
       const todayStart = startOfToday.toISOString();
       
-      // Fetch all matching bookings and prioritize active ones over cancelled
+      // Fetch all matching bookings with worker's current UPI and prioritize active ones over cancelled
       const { data: allBookings, error } = await supabase
         .from('bookings')
-        .select('*')
+        .select('*, workers:worker_id(upi_id)')
         .eq('user_id', user.id)
         .or(`and(status.in.(pending,assigned,accepted,on_the_way,started),booking_type.eq.instant),and(status.in.(pending,assigned,accepted,on_the_way,started),booking_type.eq.scheduled,scheduled_date.gte.${today}),and(status.eq.cancelled,cancelled_at.gte.${todayStart})`)
         .order('created_at', { ascending: false });
@@ -109,15 +109,24 @@ const ActiveBookingCard = memo(() => {
       let bookingToShow = null;
       if (allBookings && allBookings.length > 0) {
         // First priority: show active bookings (pending, assigned, etc.) that haven't been dismissed
-        bookingToShow = allBookings.find(b => 
+        const activeBooking = allBookings.find(b => 
           b.status !== 'cancelled' && !dismissedBookings.has(b.id)
         );
         
         // Second priority: show cancelled bookings from today (if no active booking)
-        if (!bookingToShow) {
-          bookingToShow = allBookings.find(b => 
-            b.status === 'cancelled' && !dismissedBookings.has(b.id)
-          );
+        const cancelledBooking = allBookings.find(b => 
+          b.status === 'cancelled' && !dismissedBookings.has(b.id)
+        );
+        
+        const rawBooking = activeBooking || cancelledBooking;
+        if (rawBooking) {
+          // Use worker's current UPI if booking snapshot is missing it
+          const workerData = rawBooking.workers as { upi_id: string | null } | null;
+          bookingToShow = {
+            ...rawBooking,
+            worker_upi: rawBooking.worker_upi || workerData?.upi_id || null,
+            workers: undefined // Remove the join data
+          };
         }
       }
 
