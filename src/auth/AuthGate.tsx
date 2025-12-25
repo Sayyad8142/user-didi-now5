@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
 import { PortalStore } from '@/lib/portal';
 import { isAdminPhone } from '@/features/auth/isAdmin';
+import { onFirebaseAuthStateChanged, getCurrentUser } from '@/lib/firebase';
+import { isDemoMode, getDemoSession } from '@/lib/demo';
 
 export default function AuthGate({ children }: { children: React.ReactNode }) {
   const nav = useNavigate();
@@ -30,24 +31,41 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    // Root path only: check session and redirect
+    // Check for demo mode first
+    if (isDemoMode()) {
+      const demoSession = getDemoSession();
+      if (demoSession) {
+        nav('/home', { replace: true });
+        setReady(true);
+        return;
+      }
+    }
+
+    // Check for existing Firebase user first (faster than listener)
+    const currentUser = getCurrentUser();
+    if (currentUser) {
+      const isAdmin = isAdminPhone(currentUser.phoneNumber);
+      const lastPortal = PortalStore.get();
+      const dest = isAdmin && lastPortal === 'admin' ? '/admin' : '/home';
+      nav(dest, { replace: true });
+      setReady(true);
+      return;
+    }
+
+    // Root path: listen for Firebase auth state
     let cancelled = false;
 
-    // Use auth state listener instead of getSession to avoid duplicate calls
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const unsubscribe = onFirebaseAuthStateChanged((user) => {
       if (cancelled) return;
-      
-      // Only act on initial session or sign in
-      if (event !== 'INITIAL_SESSION' && event !== 'SIGNED_IN') return;
 
-      if (!session?.user) {
+      if (!user) {
         nav('/auth', { replace: true });
         setReady(true);
         return;
       }
 
-      // Quick admin check using phone (no network call)
-      const isAdmin = isAdminPhone(session.user.phone);
+      // Quick admin check using phone
+      const isAdmin = isAdminPhone(user.phoneNumber);
       const lastPortal = PortalStore.get();
       const dest = isAdmin && lastPortal === 'admin' ? '/admin' : '/home';
       
@@ -57,7 +75,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
 
     return () => {
       cancelled = true;
-      subscription.unsubscribe();
+      unsubscribe();
     };
   }, [nav, location.pathname]);
 

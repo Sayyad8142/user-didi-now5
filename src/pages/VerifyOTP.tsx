@@ -9,9 +9,10 @@ import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, CheckCircle2 } from 'lucide-react';
 import { maskPhone } from '@/lib/auth-helpers';
 import { CleaningLoader } from '@/components/ui/cleaning-loader';
-import { ensureProfile, waitForSession, normalizePhone } from '@/features/profile/ensureProfile';
+import { normalizePhone } from '@/features/profile/ensureProfile';
 import { isDemoCredentials, setDemoSession } from '@/lib/demo';
 import { useProfile } from '@/contexts/ProfileContext';
+import { verifyOtp, sendOtp, getCurrentUser, setupRecaptcha } from '@/lib/firebase';
 
 interface LocationState {
   phone: string;
@@ -73,6 +74,56 @@ export default function VerifyOTP() {
     }
   }, [countdown]);
 
+  // Ensure profile exists after Firebase auth
+  const ensureFirebaseProfile = async (firebaseUid: string, phoneNumber: string) => {
+    try {
+      // Check if profile exists
+      const { data: existingProfile, error: fetchError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('firebase_uid', firebaseUid)
+        .maybeSingle();
+
+      if (fetchError && fetchError.code !== 'PGRST116') {
+        console.error('Error fetching profile:', fetchError);
+        throw fetchError;
+      }
+
+      if (existingProfile) {
+        console.log('✅ Profile exists:', existingProfile.id);
+        return existingProfile;
+      }
+
+      // Create new profile for signup
+      console.log('📝 Creating new profile for Firebase user:', firebaseUid);
+      const { data: newProfile, error: insertError } = await supabase
+        .from('profiles')
+        .insert({
+          firebase_uid: firebaseUid,
+          phone: normalizePhone(phoneNumber),
+          full_name: state?.signupData?.fullName || 'User',
+          community: state?.signupData?.communityValue || 'default',
+          flat_no: state?.signupData?.flatNo || 'N/A',
+          community_id: state?.signupData?.communityId || null,
+          building_id: state?.signupData?.buildingId || null,
+          flat_id: state?.signupData?.flatId || null,
+        })
+        .select()
+        .single();
+
+      if (insertError) {
+        console.error('Error creating profile:', insertError);
+        throw insertError;
+      }
+
+      console.log('✅ Profile created:', newProfile.id);
+      return newProfile;
+    } catch (error) {
+      console.error('Error in ensureFirebaseProfile:', error);
+      throw error;
+    }
+  };
+
   const handleVerifyOTP = async () => {
     if (!phone) {
       setError("Session expired. Please resend OTP.");
@@ -89,7 +140,6 @@ export default function VerifyOTP() {
     try {
       // Check for demo credentials
       if (isDemoCredentials(phone, otp)) {
-        // Handle demo login
         console.log('Demo login detected');
         setDemoSession();
         
@@ -98,63 +148,45 @@ export default function VerifyOTP() {
           description: 'You are now logged in as a demo user.',
         });
         
-        // Navigate directly for demo user
-        if (redirectTo) {
-          navigate(redirectTo, { replace: true });
-        } else {
-          navigate("/home", { replace: true });
-        }
+        navigate(redirectTo || "/home", { replace: true });
         return;
       }
 
-      // Verify OTP for regular users
-      const { error: verifyError } = await supabase.auth.verifyOtp({
-        type: "sms",
-        token: otp.trim(),
-        phone, // must match the phone used to send OTP
-      });
+      // Verify OTP via Firebase
+      const result = await verifyOtp(otp.trim());
 
-      if (verifyError) {
-        const errorMsg = /expired|invalid/i.test(verifyError.message)
-          ? "OTP expired or invalid. Resend and try again."
-          : verifyError.message;
-        setError(errorMsg);
+      if (!result.success) {
+        setError(result.error || 'Invalid OTP');
+        setLoading(false);
         return;
       }
 
-      // Ensure session is set and profile exists
-      await waitForSession();
-      const profile = await ensureProfile();
+      console.log('✅ Firebase auth successful:', result.user?.uid);
+
+      // Ensure profile exists in Supabase
+      const profile = await ensureFirebaseProfile(result.user!.uid, phone);
 
       // If signup mode with additional data, update the profile
       if (state?.mode === 'signup' && state.signupData && profile) {
-        console.log('📝 Updating profile with signup data:', {
-          fullName: state.signupData.fullName,
-          communityId: state.signupData.communityId,
-          communityValue: state.signupData.communityValue,
-          flatNo: state.signupData.flatNo,
-          flatId: state.signupData.flatId,
-          buildingId: state.signupData.buildingId
-        });
+        console.log('📝 Updating profile with signup data');
 
-        // Validate required fields before update
         if (!state.signupData.communityValue) {
-          console.error('❌ Community value is missing!');
           toast({
             title: 'Signup Error',
             description: 'Community information is missing. Please try signing up again.',
             variant: 'destructive',
           });
+          setLoading(false);
           return;
         }
 
         if (!state.signupData.flatId || !state.signupData.flatNo) {
-          console.error('❌ Flat information is missing!');
           toast({
             title: 'Signup Error',
             description: 'Flat information is missing. Please try signing up again.',
             variant: 'destructive',
           });
+          setLoading(false);
           return;
         }
 
@@ -177,17 +209,13 @@ export default function VerifyOTP() {
             description: `Failed to complete profile setup: ${updateError.message}`,
             variant: 'destructive',
           });
+          setLoading(false);
           return;
         }
 
         console.log('✅ Profile updated successfully');
         
-        // Refresh ProfileContext to get updated data - wait for the fresh profile to be loaded
-        const freshProfile = await refreshProfile();
-        console.log('✅ ProfileContext refreshed with:', freshProfile);
-        
-        // Small delay to ensure React state has propagated
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await refreshProfile();
         
         toast({
           title: 'Welcome to Didi Now!',
@@ -195,15 +223,14 @@ export default function VerifyOTP() {
         });
       } else {
         toast({
-          title: 'Welcome back!',
-          description: 'You have been signed in successfully.',
+          title: 'Login Successful',
+          description: 'Welcome back!',
         });
       }
 
       // Set portal based on where user is going
       const { PortalStore } = await import('@/lib/portal');
       
-      // Prefer explicit redirect target; else admin check
       if (redirectTo) {
         if (redirectTo.includes('/admin')) {
           PortalStore.set('admin');
@@ -213,6 +240,7 @@ export default function VerifyOTP() {
         navigate(redirectTo, { replace: true });
         return;
       }
+
       if (isAdminPhone(profile?.phone) || adminIntent) {
         PortalStore.set('admin');
         navigate("/admin", { replace: true });
@@ -241,16 +269,16 @@ export default function VerifyOTP() {
     setError('');
 
     try {
-      const { error } = await supabase.auth.signInWithOtp({
-        phone,
-        options: {
-          channel: 'sms',
-          shouldCreateUser: true,
-        },
-      });
+      // Setup reCAPTCHA again for resend
+      setupRecaptcha('recaptcha-container-verify');
+      
+      // Small delay for reCAPTCHA setup
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      const result = await sendOtp(phone);
 
-      if (error) {
-        setError(error.message);
+      if (!result.success) {
+        setError(result.error || 'Failed to resend OTP');
         return;
       }
 
@@ -279,7 +307,7 @@ export default function VerifyOTP() {
   };
 
   if (!phone) {
-    return null; // Will redirect to auth
+    return null;
   }
 
   return (
@@ -353,6 +381,9 @@ export default function VerifyOTP() {
                 </Button>
               )}
             </div>
+
+            {/* Invisible reCAPTCHA container for resend */}
+            <div id="recaptcha-container-verify"></div>
           </CardContent>
         </Card>
       </div>
