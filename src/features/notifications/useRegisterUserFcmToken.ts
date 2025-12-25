@@ -70,27 +70,34 @@ export function useRegisterUserFcmToken() {
         // Native app - use Capacitor Push Notifications
         console.log('📱 Registering native push notifications...');
         const result = await registerNativePush();
-        
-        if (!result) {
+
+        if (!result || !result.ok) {
           if (showToast) {
-            const permission = await checkNativePushPermission();
-            if (permission === 'denied') {
+            if (result && result.ok === false && result.reason === 'permission_denied') {
               toast({
                 title: 'Permission denied',
                 description: 'Please enable notifications in your device settings',
                 variant: 'destructive',
               });
+            } else if (result && result.ok === false && result.reason === 'timeout') {
+              toast({
+                title: 'Could not get device token',
+                description:
+                  'Please reinstall the latest app build (with Firebase config) and ensure Google Play services is enabled.',
+                variant: 'destructive',
+              });
             } else {
               toast({
                 title: 'Error',
-                description: 'Failed to enable notifications. Please try again.',
+                description:
+                  'Push setup failed. Please reinstall the latest app build and try again.',
                 variant: 'destructive',
               });
             }
           }
           return false;
         }
-        
+
         fcmToken = result.token;
       } else {
         // Web app - use Firebase Web Push
