@@ -182,16 +182,14 @@ export async function sendFcmV1Message(
 
   const message: Record<string, unknown> = {
     token: token,
-    // Include notification for web push display
-    notification: {
-      title: title,
-      body: body,
-    },
-    // Also include data for app handling
+    // Data-only message for native apps (allows custom handling)
+    // Title/body in data payload so native app can display custom UI
     data: dataPayload,
     android: {
       priority: 'high',
+      // No notification block - native app handles display
     },
+    // Web push needs notification block for browser display
     webpush: {
       notification: {
         title: title,
@@ -201,6 +199,22 @@ export async function sendFcmV1Message(
       },
       fcm_options: {
         link: '/',
+      },
+    },
+    // APNS for iOS
+    apns: {
+      headers: {
+        'apns-priority': '10',
+      },
+      payload: {
+        aps: {
+          alert: {
+            title: title,
+            body: body,
+          },
+          sound: 'default',
+          badge: 1,
+        },
       },
     },
   };
