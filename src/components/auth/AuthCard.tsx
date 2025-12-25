@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -17,16 +17,12 @@ import { useBuildings } from '@/hooks/useBuildings';
 import { useFlats } from '@/hooks/useFlats';
 import { isDemoCredentials, setDemoSession, setGuestSession } from '@/lib/demo';
 import { FlatSearchInput } from './FlatSearchInput';
+import { sendOtp, setupRecaptcha } from '@/lib/firebase';
+
 export function AuthCard() {
   const navigate = useNavigate();
-  const {
-    toast
-  } = useToast();
-  const {
-    communities,
-    loading: communitiesLoading,
-    error: communitiesError
-  } = useCommunities();
+  const { toast } = useToast();
+  const { communities, loading: communitiesLoading, error: communitiesError } = useCommunities();
 
   // Form states
   const [activeTab, setActiveTab] = useState<'signin' | 'signup'>('signin');
@@ -62,6 +58,16 @@ export function AuthCard() {
 
   // Validation errors
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Setup reCAPTCHA on mount
+  useEffect(() => {
+    // Small delay to ensure container is rendered
+    const timer = setTimeout(() => {
+      setupRecaptcha('recaptcha-container');
+    }, 500);
+    return () => clearTimeout(timer);
+  }, []);
+
   const validateSignIn = () => {
     const newErrors: Record<string, string> = {};
     if (!signInPhone) {
@@ -72,6 +78,7 @@ export function AuthCard() {
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
+
   const validateSignUp = () => {
     const newErrors: Record<string, string> = {};
     if (!signUpData.fullName.trim()) {
@@ -86,7 +93,6 @@ export function AuthCard() {
       newErrors.communityId = 'Please select your community';
     }
     
-    // Check if community uses PHF format
     const selectedCommunity = communities.find(c => c.id === signUpData.communityId);
     const isPHF = selectedCommunity?.flat_format === 'phf_code';
     
@@ -96,7 +102,6 @@ export function AuthCard() {
     if (!signUpData.flatId) {
       newErrors.flatId = 'Please select a valid flat from the list';
     } else {
-      // Verify flatId exists in the flats list
       const flatExists = flats.some(f => f.id === signUpData.flatId);
       if (!flatExists) {
         newErrors.flatId = 'Please select a valid flat from the list';
@@ -105,36 +110,33 @@ export function AuthCard() {
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
+
   const checkIfUserExists = async (phone: string): Promise<boolean> => {
     try {
-      // Use the same normalization function used during profile creation
       const normalizedPhone = normalizePhone(phone);
       const formattedPhone = formatPhoneIN(phone);
-      console.log('Checking user existence for:', {
-        phone,
-        normalizedPhone,
-        formattedPhone
-      });
 
-      // Check if user exists in profiles table with either format
-      const {
-        data,
-        error
-      } = await supabase.from('profiles').select('id, phone').in('phone', [normalizedPhone, formattedPhone]).maybeSingle();
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, phone')
+        .in('phone', [normalizedPhone, formattedPhone])
+        .maybeSingle();
+
       if (error) {
         console.error('Error checking user existence:', error);
         return false;
       }
-      console.log('User existence check result:', data);
       return !!data;
     } catch (error) {
       console.error('Error checking user existence:', error);
       return false;
     }
   };
+
   const handleSendOTP = async () => {
     const isSignUp = activeTab === 'signup';
     const phone = isSignUp ? signUpData.phone : signInPhone;
+
     if (isSignUp ? !validateSignUp() : !validateSignIn()) {
       return;
     }
@@ -147,46 +149,33 @@ export function AuthCard() {
         title: 'Demo Login Successful',
         description: 'You are now logged in as a demo user.'
       });
-      navigate("/home", {
-        replace: true
-      });
+      navigate("/home", { replace: true });
       return;
     }
+
     setLoading(true);
     setErrors({});
+
     try {
       const formattedPhone = formatPhoneIN(phone);
+
+      // For sign in, check if user exists first
       if (!isSignUp) {
-        // Sign In: do not create user; show friendly error if not found
-        const {
-          error
-        } = await supabase.auth.signInWithOtp({
-          phone: formattedPhone,
-          options: {
-            channel: 'sms',
-            shouldCreateUser: false
-          }
-        });
-        if (error) {
-          // Supabase returns different messages; normalize to our copy
-          setErrors({
-            phone: 'Mobile number not registered, sign up first.'
-          });
+        const userExists = await checkIfUserExists(phone);
+        if (!userExists) {
+          setErrors({ phone: 'Mobile number not registered, sign up first.' });
           setLoading(false);
           return;
         }
-      } else {
-        // Sign Up: allow creating a new user
-        const {
-          error
-        } = await supabase.auth.signInWithOtp({
-          phone: formattedPhone,
-          options: {
-            channel: 'sms',
-            shouldCreateUser: true
-          }
-        });
-        if (error) throw error;
+      }
+
+      // Send OTP via Firebase
+      const result = await sendOtp(formattedPhone);
+      
+      if (!result.success) {
+        setErrors({ phone: result.error || 'Failed to send OTP' });
+        setLoading(false);
+        return;
       }
 
       // Navigate to verification with state
@@ -198,6 +187,7 @@ export function AuthCard() {
           redirectTo: '/home'
         }
       });
+
       toast({
         title: 'OTP Sent',
         description: `Verification code sent to ${formattedPhone}`
@@ -213,17 +203,18 @@ export function AuthCard() {
       setLoading(false);
     }
   };
+
   const handleContinueAsGuest = () => {
     setGuestSession();
     toast({
       title: 'Welcome Guest!',
       description: 'You can browse and explore our services.'
     });
-    navigate("/home", {
-      replace: true
-    });
+    navigate("/home", { replace: true });
   };
-  return <Card className="max-w-sm mx-auto shadow-card border-pink-100 gradient-card backdrop-blur-sm">
+
+  return (
+    <Card className="max-w-sm mx-auto shadow-card border-pink-100 gradient-card backdrop-blur-sm">
       <CardContent className="p-6">
         {/* Brand Header */}
         <div className="text-center mb-8">
@@ -241,7 +232,11 @@ export function AuthCard() {
           <TabsContent value="signin" className="space-y-6">
             <PhoneInputIN value={signInPhone} onChange={setSignInPhone} error={errors.phone} disabled={loading} required />
 
-            <Button onClick={handleSendOTP} disabled={loading || !signInPhone} className="w-full h-12 rounded-full gradient-primary shadow-button transition-spring hover:scale-[1.02] disabled:scale-100">
+            <Button 
+              onClick={handleSendOTP} 
+              disabled={loading || !signInPhone} 
+              className="w-full h-12 rounded-full gradient-primary shadow-button transition-spring hover:scale-[1.02] disabled:scale-100"
+            >
               {loading && <CleaningLoader size="sm" className="mr-2" />}
               Send OTP
             </Button>
@@ -254,42 +249,56 @@ export function AuthCard() {
               <Label htmlFor="fullName" className="text-sm font-medium">
                 Name <span className="text-destructive">*</span>
               </Label>
-              <Input id="fullName" type="text" placeholder="Enter your full name" value={signUpData.fullName} onChange={e => setSignUpData(prev => ({
-              ...prev,
-              fullName: e.target.value
-            }))} disabled={loading} className="rounded-xl shadow-input transition-smooth focus:ring-2 focus:ring-primary/20" />
+              <Input 
+                id="fullName" 
+                type="text" 
+                placeholder="Enter your full name" 
+                value={signUpData.fullName} 
+                onChange={e => setSignUpData(prev => ({ ...prev, fullName: e.target.value }))} 
+                disabled={loading} 
+                className="rounded-xl shadow-input transition-smooth focus:ring-2 focus:ring-primary/20" 
+              />
               {errors.fullName && <p className="text-sm text-destructive">{errors.fullName}</p>}
             </div>
 
             {/* Phone Input */}
-            <PhoneInputIN value={signUpData.phone} onChange={value => setSignUpData(prev => ({
-            ...prev,
-            phone: value
-          }))} error={errors.phone} disabled={loading} required />
+            <PhoneInputIN 
+              value={signUpData.phone} 
+              onChange={value => setSignUpData(prev => ({ ...prev, phone: value }))} 
+              error={errors.phone} 
+              disabled={loading} 
+              required 
+            />
 
             {/* Community */}
             <div className="space-y-2">
               <Label htmlFor="community" className="text-sm font-medium">
                 Community Name <span className="text-destructive">*</span>
               </Label>
-              <Select value={signUpData.communityId} onValueChange={value => {
-                const community = communities.find(c => c.id === value);
-                setSignUpData(prev => ({
-                  ...prev,
-                  communityId: value,
-                  communityValue: community?.value || '',
-                  buildingId: '',
-                  flatId: '',
-                  flatNo: ''
-                }));
-              }} disabled={loading || communitiesLoading}>
+              <Select 
+                value={signUpData.communityId} 
+                onValueChange={value => {
+                  const community = communities.find(c => c.id === value);
+                  setSignUpData(prev => ({
+                    ...prev,
+                    communityId: value,
+                    communityValue: community?.value || '',
+                    buildingId: '',
+                    flatId: '',
+                    flatNo: ''
+                  }));
+                }} 
+                disabled={loading || communitiesLoading}
+              >
                 <SelectTrigger className="rounded-xl shadow-input transition-smooth focus:ring-2 focus:ring-primary/20">
                   <SelectValue placeholder={communitiesLoading ? "Loading communities..." : communitiesError ? "Error loading communities" : "Select your community"} />
                 </SelectTrigger>
                 <SelectContent>
-                  {communities.map(community => <SelectItem key={community.id} value={community.id}>
+                  {communities.map(community => (
+                    <SelectItem key={community.id} value={community.id}>
                       {community.name}
-                    </SelectItem>)}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               {errors.communityId && <p className="text-sm text-destructive">{errors.communityId}</p>}
@@ -346,12 +355,20 @@ export function AuthCard() {
               />
             )}
 
-            <Button onClick={handleSendOTP} disabled={loading} className="w-full h-12 rounded-full gradient-primary shadow-button transition-spring hover:scale-[1.02] disabled:scale-100">
+            <Button 
+              onClick={handleSendOTP} 
+              disabled={loading} 
+              className="w-full h-12 rounded-full gradient-primary shadow-button transition-spring hover:scale-[1.02] disabled:scale-100"
+            >
               {loading && <CleaningLoader size="sm" className="mr-2" />}
               Send OTP
             </Button>
           </TabsContent>
         </Tabs>
+
+        {/* Invisible reCAPTCHA container */}
+        <div id="recaptcha-container"></div>
       </CardContent>
-    </Card>;
+    </Card>
+  );
 }

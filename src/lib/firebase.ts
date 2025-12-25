@@ -1,19 +1,32 @@
-// Firebase Web Push Configuration
+// Firebase Configuration for Phone Auth and Web Push
 import { initializeApp, FirebaseApp, getApps } from 'firebase/app';
+import { 
+  getAuth, 
+  Auth,
+  signInWithPhoneNumber, 
+  RecaptchaVerifier, 
+  ConfirmationResult,
+  onAuthStateChanged,
+  User,
+  signOut as firebaseSignOut
+} from 'firebase/auth';
 import { getMessaging, Messaging, getToken, onMessage, MessagePayload } from 'firebase/messaging';
 
-// Firebase config from environment variables
+// Firebase config (hardcoded as per project requirements)
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || '',
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || '',
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || '',
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || '',
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID ?? import.meta.env.VITE_FIREBASE_SENDER_ID ?? '',
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || '',
+  apiKey: "AIzaSyCJJ7PqGC890D92R5m5P5bHRB7k6AyomKo",
+  authDomain: "didinowusernew.firebaseapp.com",
+  projectId: "didinowusernew",
+  storageBucket: "didinowusernew.firebasestorage.app",
+  messagingSenderId: "767811736462",
+  appId: "1:767811736462:web:b4ac74852f1f56db1ccadf"
 };
 
 let app: FirebaseApp | null = null;
+let auth: Auth | null = null;
 let messaging: Messaging | null = null;
+let recaptchaVerifier: RecaptchaVerifier | null = null;
+let confirmationResult: ConfirmationResult | null = null;
 
 // Check if Firebase is configured
 export const isFirebaseConfigured = (): boolean => {
@@ -28,13 +41,12 @@ export const isFirebaseConfigured = (): boolean => {
 // Initialize Firebase (lazy, singleton)
 export const getFirebaseApp = (): FirebaseApp | null => {
   if (!isFirebaseConfigured()) {
-    console.warn('⚠️ Firebase not configured - missing env variables');
+    console.warn('⚠️ Firebase not configured');
     return null;
   }
   
   if (!app) {
     try {
-      // Check if already initialized
       const existingApps = getApps();
       if (existingApps.length > 0) {
         app = existingApps[0];
@@ -50,9 +62,175 @@ export const getFirebaseApp = (): FirebaseApp | null => {
   return app;
 };
 
+// Get Firebase Auth instance
+export const getFirebaseAuth = (): Auth | null => {
+  const firebaseApp = getFirebaseApp();
+  if (!firebaseApp) return null;
+  
+  if (!auth) {
+    try {
+      auth = getAuth(firebaseApp);
+      console.log('✅ Firebase Auth initialized');
+    } catch (error) {
+      console.error('❌ Firebase Auth init error:', error);
+      return null;
+    }
+  }
+  return auth;
+};
+
+// Setup invisible reCAPTCHA verifier
+export const setupRecaptcha = (containerId: string = 'recaptcha-container'): RecaptchaVerifier | null => {
+  const authInstance = getFirebaseAuth();
+  if (!authInstance) {
+    console.error('❌ Auth not available for reCAPTCHA');
+    return null;
+  }
+
+  try {
+    // Clear existing verifier
+    if (recaptchaVerifier) {
+      recaptchaVerifier.clear();
+      recaptchaVerifier = null;
+    }
+
+    recaptchaVerifier = new RecaptchaVerifier(authInstance, containerId, {
+      size: 'invisible',
+      callback: () => {
+        console.log('✅ reCAPTCHA solved');
+      },
+      'expired-callback': () => {
+        console.log('⚠️ reCAPTCHA expired');
+      }
+    });
+
+    return recaptchaVerifier;
+  } catch (error) {
+    console.error('❌ reCAPTCHA setup error:', error);
+    return null;
+  }
+};
+
+// Send OTP to phone number
+export const sendOtp = async (phoneNumber: string): Promise<{ success: boolean; error?: string }> => {
+  const authInstance = getFirebaseAuth();
+  if (!authInstance) {
+    return { success: false, error: 'Firebase Auth not initialized' };
+  }
+
+  try {
+    // Setup reCAPTCHA if not already done
+    if (!recaptchaVerifier) {
+      const verifier = setupRecaptcha();
+      if (!verifier) {
+        return { success: false, error: 'Failed to setup reCAPTCHA' };
+      }
+    }
+
+    console.log('📱 Sending OTP to:', phoneNumber);
+    confirmationResult = await signInWithPhoneNumber(authInstance, phoneNumber, recaptchaVerifier!);
+    console.log('✅ OTP sent successfully');
+    
+    return { success: true };
+  } catch (error: any) {
+    console.error('❌ Send OTP error:', error);
+    
+    // Reset reCAPTCHA on error
+    if (recaptchaVerifier) {
+      try {
+        recaptchaVerifier.clear();
+      } catch {}
+      recaptchaVerifier = null;
+    }
+
+    // Parse Firebase errors
+    let errorMessage = 'Failed to send OTP';
+    if (error.code === 'auth/invalid-phone-number') {
+      errorMessage = 'Invalid phone number format';
+    } else if (error.code === 'auth/too-many-requests') {
+      errorMessage = 'Too many attempts. Please try again later.';
+    } else if (error.code === 'auth/captcha-check-failed') {
+      errorMessage = 'reCAPTCHA verification failed. Please try again.';
+    } else if (error.message) {
+      errorMessage = error.message;
+    }
+
+    return { success: false, error: errorMessage };
+  }
+};
+
+// Verify OTP code
+export const verifyOtp = async (code: string): Promise<{ success: boolean; user?: User; error?: string }> => {
+  if (!confirmationResult) {
+    return { success: false, error: 'No OTP request found. Please request OTP first.' };
+  }
+
+  try {
+    console.log('🔐 Verifying OTP...');
+    const result = await confirmationResult.confirm(code);
+    console.log('✅ OTP verified successfully');
+    
+    // Clear confirmation result after successful verification
+    confirmationResult = null;
+    
+    return { success: true, user: result.user };
+  } catch (error: any) {
+    console.error('❌ Verify OTP error:', error);
+
+    let errorMessage = 'Invalid OTP';
+    if (error.code === 'auth/invalid-verification-code') {
+      errorMessage = 'Invalid verification code. Please try again.';
+    } else if (error.code === 'auth/code-expired') {
+      errorMessage = 'OTP has expired. Please request a new one.';
+    } else if (error.message) {
+      errorMessage = error.message;
+    }
+
+    return { success: false, error: errorMessage };
+  }
+};
+
+// Get current Firebase user
+export const getCurrentUser = (): User | null => {
+  const authInstance = getFirebaseAuth();
+  return authInstance?.currentUser ?? null;
+};
+
+// Listen for auth state changes
+export const onFirebaseAuthStateChanged = (callback: (user: User | null) => void): (() => void) => {
+  const authInstance = getFirebaseAuth();
+  if (!authInstance) {
+    console.warn('⚠️ Auth not available for state listener');
+    return () => {};
+  }
+  
+  return onAuthStateChanged(authInstance, callback);
+};
+
+// Sign out
+export const signOut = async (): Promise<void> => {
+  const authInstance = getFirebaseAuth();
+  if (authInstance) {
+    await firebaseSignOut(authInstance);
+    console.log('✅ Signed out');
+  }
+};
+
+// Get Firebase ID token for Supabase
+export const getFirebaseIdToken = async (): Promise<string | null> => {
+  const user = getCurrentUser();
+  if (!user) return null;
+  
+  try {
+    return await user.getIdToken();
+  } catch (error) {
+    console.error('❌ Error getting ID token:', error);
+    return null;
+  }
+};
+
 // Get Firebase Messaging instance
 export const getFirebaseMessaging = (): Messaging | null => {
-  // Check if we're in a browser with service worker support
   if (typeof window === 'undefined' || !('serviceWorker' in navigator)) {
     console.warn('⚠️ Service workers not supported');
     return null;
@@ -73,6 +251,9 @@ export const getFirebaseMessaging = (): Messaging | null => {
   return messaging;
 };
 
+// VAPID key for web push
+const VAPID_KEY = 'BDSqlP418hdP33VE8JvLy47_9bUruhjq8_a4lwfcTDCFwf8awj9UUgLv9oMFHVPPhMQTveDZuW44NtMyYXqk82RU';
+
 // Get FCM token for web push
 export const getFcmToken = async (): Promise<string | null> => {
   const messagingInstance = getFirebaseMessaging();
@@ -81,14 +262,7 @@ export const getFcmToken = async (): Promise<string | null> => {
     return null;
   }
 
-  const vapidKey = import.meta.env.VITE_FIREBASE_VAPID_KEY;
-  if (!vapidKey) {
-    console.error('❌ Missing VITE_FIREBASE_VAPID_KEY');
-    return null;
-  }
-
   try {
-    // Register service worker first
     let registration: ServiceWorkerRegistration;
     
     try {
@@ -96,17 +270,14 @@ export const getFcmToken = async (): Promise<string | null> => {
         scope: '/'
       });
       console.log('✅ Service worker registered:', registration.scope);
-      
-      // Wait for the service worker to be ready
       await navigator.serviceWorker.ready;
     } catch (swError) {
       console.error('❌ Service worker registration failed:', swError);
       throw swError;
     }
 
-    // Get FCM token with the service worker registration
     const token = await getToken(messagingInstance, {
-      vapidKey,
+      vapidKey: VAPID_KEY,
       serviceWorkerRegistration: registration,
     });
 
@@ -114,7 +285,7 @@ export const getFcmToken = async (): Promise<string | null> => {
       console.log('✅ FCM token obtained:', token.substring(0, 20) + '...');
       return token;
     } else {
-      console.warn('⚠️ No FCM token available - permission may be denied');
+      console.warn('⚠️ No FCM token available');
       return null;
     }
   } catch (error) {
@@ -142,7 +313,6 @@ export const showForegroundNotification = (payload: MessagePayload): void => {
   const title = payload.data?.title || payload.notification?.title || 'Didi Now';
   const body = payload.data?.body || payload.notification?.body || '';
   
-  // Use browser Notification API for foreground
   if ('Notification' in window && Notification.permission === 'granted') {
     new Notification(title, {
       body,
