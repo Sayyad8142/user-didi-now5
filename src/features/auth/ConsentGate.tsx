@@ -170,11 +170,6 @@ export default function ConsentGate({ children }: { children: React.ReactNode })
             </div>
           </div>
 
-          {ver && (
-            <div className="text-xs text-muted-foreground bg-muted rounded p-2">
-              Legal version: {ver}
-            </div>
-          )}
         </div>
 
         <div className="space-y-3">
