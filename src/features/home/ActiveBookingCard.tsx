@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Sparkles, ChefHat, ShowerHead, ArrowRight, X, CreditCard, PhoneCall, MessageCircle, Star } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/components/auth/AuthProvider';
+import { useProfile } from '@/contexts/ProfileContext';
 import { prettyServiceName } from '@/features/booking/utils';
 import AssigningProgress from '@/features/bookings/AssigningProgress';
 import AutoCompleteCountdown from '@/components/AutoCompleteCountdown';
@@ -75,7 +75,7 @@ const getStatusColor = (status: string) => {
 };
 
 const ActiveBookingCard = memo(() => {
-  const { user } = useAuth();
+  const { profile } = useProfile();
   const navigate = useNavigate();
   const { hasUnseenMessages, markMessagesAsSeen } = useUnseenMessages();
   const [activeBooking, setActiveBooking] = useState<Booking | null>(null);
@@ -89,7 +89,7 @@ const ActiveBookingCard = memo(() => {
   const [showWorkerRatings, setShowWorkerRatings] = useState(false);
 
   const fetchActiveBooking = useCallback(async () => {
-    if (!user) return;
+    if (!profile?.id) return;
 
     try {
       const today = new Date().toISOString().split('T')[0];
@@ -101,7 +101,7 @@ const ActiveBookingCard = memo(() => {
       const { data: allBookings, error } = await supabase
         .from('bookings')
         .select('*, workers:worker_id(upi_id)')
-        .eq('user_id', user.id)
+        .eq('user_id', profile.id)
         .or(`and(status.in.(pending,assigned,accepted,on_the_way,started),booking_type.eq.instant),and(status.in.(pending,assigned,accepted,on_the_way,started),booking_type.eq.scheduled,scheduled_date.gte.${today}),and(status.eq.cancelled,cancelled_at.gte.${todayStart})`)
         .order('created_at', { ascending: false });
 
@@ -140,7 +140,7 @@ const ActiveBookingCard = memo(() => {
     } finally {
       setLoading(false);
     }
-  }, [user?.id]);
+  }, [profile?.id]);
 
   // Load dismissed bookings from localStorage
   useEffect(() => {
@@ -151,13 +151,13 @@ const ActiveBookingCard = memo(() => {
   }, []);
 
   useEffect(() => {
-    if (user?.id) {
+    if (profile?.id) {
       fetchActiveBooking();
     } else {
       setLoading(false);
       setActiveBooking(null);
     }
-  }, [user?.id]);
+  }, [profile?.id]);
 
   // Load worker rating stats
   useEffect(() => {
@@ -176,16 +176,16 @@ const ActiveBookingCard = memo(() => {
 
   // Set up real-time updates
   useEffect(() => {
-    if (!user?.id) return;
+    if (!profile?.id) return;
 
     const channel = supabase
-      .channel(`active-booking-updates-${user.id}`)
+      .channel(`active-booking-updates-${profile.id}`)
       .on("postgres_changes", 
         { 
           event: "UPDATE", 
           schema: "public", 
           table: "bookings",
-          filter: `user_id=eq.${user.id}`
+          filter: `user_id=eq.${profile.id}`
         },
         (payload) => {
           // Refetch whenever any booking changes to catch new cancellations
@@ -197,7 +197,7 @@ const ActiveBookingCard = memo(() => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user?.id, fetchActiveBooking]);
+  }, [profile?.id, fetchActiveBooking]);
 
   if (loading || !activeBooking) {
     return null;
