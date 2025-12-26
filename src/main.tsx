@@ -6,18 +6,25 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider } from "@/components/auth/AuthProvider";
 import { ProfileProvider } from "@/contexts/ProfileContext";
-import { Capacitor } from "@capacitor/core";
-import { SplashScreen } from "@capacitor/splash-screen";
 import App from "./App.tsx";
 import "./index.css";
 
 // Hide splash screen once app is loaded (for native apps)
-if (Capacitor.isNativePlatform()) {
-  // Hide splash after a short delay to ensure WebView is ready
-  setTimeout(() => {
-    SplashScreen.hide();
-  }, 500);
-}
+// Use dynamic import to avoid module resolution conflicts
+(async () => {
+  try {
+    const { Capacitor } = await import("@capacitor/core");
+    if (Capacitor.isNativePlatform()) {
+      const { SplashScreen } = await import("@capacitor/splash-screen");
+      // Hide splash after a short delay to ensure WebView is ready
+      setTimeout(() => {
+        SplashScreen.hide();
+      }, 500);
+    }
+  } catch (e) {
+    // Capacitor not available (web build)
+  }
+})();
 
 // Set dynamic --vh for mobile viewport
 const setVH = () => {
