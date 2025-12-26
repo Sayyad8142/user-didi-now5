@@ -103,25 +103,34 @@ export default function VerifyOTP() {
 
       let byPhone: any = null;
       if (phoneCandidates.length > 0) {
+        // Use list query (not maybeSingle) to avoid errors if legacy duplicates exist.
         const orExpr = phoneCandidates.map(p => `phone.eq.${p}`).join(',');
-        const { data, error: byPhoneErr } = await supabase
+        const { data: rows, error: byPhoneErr } = await supabase
           .from('profiles')
           .select('*')
           .or(orExpr)
-          .maybeSingle();
+          .order('updated_at', { ascending: false })
+          .limit(1);
 
-        if (byPhoneErr && byPhoneErr.code !== 'PGRST116') {
+        if (byPhoneErr) {
           console.error('Error fetching profile by phone:', byPhoneErr);
           throw byPhoneErr;
         }
 
-        byPhone = data ?? null;
+        byPhone = rows?.[0] ?? null;
       }
 
       if (byPhone) {
-        // Phone is already registered: attach firebase_uid (or error if linked elsewhere)
+        // Phone is already registered: attach/re-link firebase_uid
+        // (This can happen if the Firebase user was recreated and got a new UID.)
         if (byPhone.firebase_uid && byPhone.firebase_uid !== firebaseUid) {
-          throw new Error('This phone number is already linked to another account.');
+          console.warn(
+            'ℹ️ Re-linking phone to new firebase_uid:',
+            byPhone.id,
+            byPhone.firebase_uid,
+            '→',
+            firebaseUid
+          );
         }
 
         const { data: updated, error: updateErr } = await supabase
