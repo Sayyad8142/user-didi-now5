@@ -192,6 +192,14 @@ export default function ConsentGate({ children }: { children: React.ReactNode })
           </Button>
 
           <Button
+            variant="outline"
+            onClick={() => setState("ok")}
+            className="w-full"
+          >
+            Skip for now
+          </Button>
+
+          <Button
             variant="ghost"
             onClick={() => nav("/legal")}
             className="w-full text-muted-foreground"
