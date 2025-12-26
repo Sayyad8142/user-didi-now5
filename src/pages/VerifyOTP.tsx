@@ -76,31 +76,77 @@ export default function VerifyOTP() {
 
   // Ensure profile exists after Firebase auth
   const ensureFirebaseProfile = async (firebaseUid: string, phoneNumber: string) => {
+    const normalized = normalizePhone(phoneNumber);
+
     try {
-      // Check if profile exists
-      const { data: existingProfile, error: fetchError } = await supabase
+      // 1) Prefer lookup by firebase_uid
+      const { data: byUid, error: byUidErr } = await supabase
         .from('profiles')
         .select('*')
         .eq('firebase_uid', firebaseUid)
         .maybeSingle();
 
-      if (fetchError && fetchError.code !== 'PGRST116') {
-        console.error('Error fetching profile:', fetchError);
-        throw fetchError;
+      if (byUidErr && byUidErr.code !== 'PGRST116') {
+        console.error('Error fetching profile by firebase_uid:', byUidErr);
+        throw byUidErr;
       }
 
-      if (existingProfile) {
-        console.log('✅ Profile exists:', existingProfile.id);
-        return existingProfile;
+      if (byUid) {
+        console.log('✅ Profile exists (firebase_uid):', byUid.id);
+        return byUid;
       }
 
-      // Create new profile for signup
+      // 2) Fallback: lookup by phone (handles older rows where firebase_uid was empty)
+      const phoneCandidates = Array.from(
+        new Set([normalized, phoneNumber].map(s => (s ?? '').trim()).filter(Boolean))
+      );
+
+      let byPhone: any = null;
+      if (phoneCandidates.length > 0) {
+        const orExpr = phoneCandidates.map(p => `phone.eq.${p}`).join(',');
+        const { data, error: byPhoneErr } = await supabase
+          .from('profiles')
+          .select('*')
+          .or(orExpr)
+          .maybeSingle();
+
+        if (byPhoneErr && byPhoneErr.code !== 'PGRST116') {
+          console.error('Error fetching profile by phone:', byPhoneErr);
+          throw byPhoneErr;
+        }
+
+        byPhone = data ?? null;
+      }
+
+      if (byPhone) {
+        // Phone is already registered: attach firebase_uid (or error if linked elsewhere)
+        if (byPhone.firebase_uid && byPhone.firebase_uid !== firebaseUid) {
+          throw new Error('This phone number is already linked to another account.');
+        }
+
+        const { data: updated, error: updateErr } = await supabase
+          .from('profiles')
+          .update({ firebase_uid: firebaseUid, phone: normalized || byPhone.phone })
+          .eq('id', byPhone.id)
+          .select()
+          .single();
+
+        if (updateErr) {
+          console.error('Error updating existing profile with firebase_uid:', updateErr);
+          throw updateErr;
+        }
+
+        console.log('✅ Profile linked to Firebase UID:', updated.id);
+        return updated;
+      }
+
+      // 3) Create new profile
       console.log('📝 Creating new profile for Firebase user:', firebaseUid);
       const { data: newProfile, error: insertError } = await supabase
         .from('profiles')
         .insert({
           firebase_uid: firebaseUid,
-          phone: normalizePhone(phoneNumber),
+          phone: normalized,
           full_name: state?.signupData?.fullName || 'User',
           community: state?.signupData?.communityValue || 'default',
           flat_no: state?.signupData?.flatNo || 'N/A',
