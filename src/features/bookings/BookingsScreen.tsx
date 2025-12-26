@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CleaningLoader } from '@/components/ui/cleaning-loader';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/components/auth/AuthProvider';
+import { useProfile } from '@/contexts/ProfileContext';
 import { useQuery } from '@tanstack/react-query';
 import { BookingCard } from './BookingCard';
 import { EmptyState } from './EmptyState';
@@ -38,7 +38,7 @@ interface Booking {
 // Using React Query for caching & SWR; local cache removed
 
 export function BookingsScreen() {
-  const { user } = useAuth();
+  const { profile } = useProfile();
   const navigate = useNavigate();
   
 // Only enable realtime/toasts after initial load
@@ -47,14 +47,14 @@ const [activeTab, setActiveTab] = useState('upcoming');
 
 // Optimized data fetching with pagination and minimal fields
 const { data: allBookings = [], isLoading, isFetching, isSuccess, refetch } = useQuery<Booking[]>({
-  queryKey: ['bookings', user?.id],
-  enabled: !!user,
+  queryKey: ['bookings', profile?.id],
+  enabled: !!profile?.id,
   queryFn: async () => {
     // Fetch all essential fields including worker payment info
     const { data, error } = await supabase
       .from('bookings')
       .select('*')
-      .eq('user_id', user!.id)
+      .eq('user_id', profile!.id)
       .order('created_at', { ascending: false })
       .limit(50); // Limit initial load to recent 50 bookings
 
