@@ -58,7 +58,7 @@ export async function ensureProfile() {
       .insert({
         firebase_uid: firebaseUid,
         full_name: phone || "User",
-        phone: phone || null,
+        phone: phone || "", // Empty string to satisfy NOT NULL constraint
         community: "other", // Default community to satisfy NOT NULL constraint
         flat_no: "",
       })
