@@ -1510,8 +1510,6 @@ export type Database = {
       }
       profiles: {
         Row: {
-          blocked_at: string | null
-          blocked_reason: string | null
           building_id: string | null
           community: string
           community_id: string | null
@@ -1522,7 +1520,6 @@ export type Database = {
           full_name: string
           id: string
           is_admin: boolean
-          is_blocked: boolean | null
           legal_version: string | null
           phone: string
           privacy_accepted_at: string | null
@@ -1530,8 +1527,6 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          blocked_at?: string | null
-          blocked_reason?: string | null
           building_id?: string | null
           community: string
           community_id?: string | null
@@ -1542,7 +1537,6 @@ export type Database = {
           full_name: string
           id?: string
           is_admin?: boolean
-          is_blocked?: boolean | null
           legal_version?: string | null
           phone: string
           privacy_accepted_at?: string | null
@@ -1550,8 +1544,6 @@ export type Database = {
           updated_at?: string
         }
         Update: {
-          blocked_at?: string | null
-          blocked_reason?: string | null
           building_id?: string | null
           community?: string
           community_id?: string | null
@@ -1562,7 +1554,6 @@ export type Database = {
           full_name?: string
           id?: string
           is_admin?: boolean
-          is_blocked?: boolean | null
           legal_version?: string | null
           phone?: string
           privacy_accepted_at?: string | null
@@ -2082,33 +2073,6 @@ export type Database = {
           quote?: string
           rating?: number | null
           sort_order?: number
-        }
-        Relationships: []
-      }
-      user_fcm_tokens: {
-        Row: {
-          created_at: string | null
-          device_info: string | null
-          id: string
-          token: string
-          updated_at: string | null
-          user_id: string
-        }
-        Insert: {
-          created_at?: string | null
-          device_info?: string | null
-          id?: string
-          token: string
-          updated_at?: string | null
-          user_id: string
-        }
-        Update: {
-          created_at?: string | null
-          device_info?: string | null
-          id?: string
-          token?: string
-          updated_at?: string | null
-          user_id?: string
         }
         Relationships: []
       }
