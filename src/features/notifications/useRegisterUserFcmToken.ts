@@ -246,6 +246,10 @@ export function useRegisterUserFcmToken() {
       const hasToken = !!fnData?.has_token;
       setIsRegistered(hasToken);
       return hasToken;
+    } catch (err) {
+      console.error('❌ Error in checkExistingToken:', err);
+      return false;
+    }
   }, [user?.id]);
 
   // Determine if notifications are supported on this platform
