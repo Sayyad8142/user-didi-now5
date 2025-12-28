@@ -27,7 +27,10 @@ const config: CapacitorConfig = {
       androidScaleType: 'CENTER_CROP',
       splashFullScreen: true,
       splashImmersive: true
-    }
+    },
+    PushNotifications: {
+      presentationOptions: ["badge", "sound", "alert"],
+    },
   }
 };
 

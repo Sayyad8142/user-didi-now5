@@ -1,5 +1,6 @@
 // ============================================================================
 // User FCM Notifications - Send push to users by user_id
+// Uses user_fcm_tokens table (not fcm_tokens)
 // ============================================================================
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -17,17 +18,27 @@ serve(async (req) => {
   }
 
   try {
-    const { user_id, title, body, data } = await req.json();
+    const body = await req.json();
     
-    if (!user_id) {
-      console.log('❌ Missing user_id');
+    // Support both user_id (single) and user_ids (array)
+    let userIds: string[] = [];
+    if (body.user_ids) {
+      userIds = Array.isArray(body.user_ids) ? body.user_ids : [body.user_ids];
+    } else if (body.user_id) {
+      userIds = [body.user_id];
+    }
+    
+    const { title, body: messageBody, data } = body;
+    
+    if (userIds.length === 0) {
+      console.log('❌ Missing user_id or user_ids');
       return new Response(
-        JSON.stringify({ ok: false, error: 'Missing user_id' }),
+        JSON.stringify({ ok: false, error: 'Missing user_id or user_ids' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    if (!title || !body) {
+    if (!title || !messageBody) {
       console.log('❌ Missing title or body');
       return new Response(
         JSON.stringify({ ok: false, error: 'Missing title or body' }),
@@ -35,23 +46,23 @@ serve(async (req) => {
       );
     }
 
-    console.log(`📤 Sending push to user: ${user_id}`);
+    console.log(`📤 Sending push to ${userIds.length} user(s): ${userIds.join(', ')}`);
     console.log(`   Title: ${title}`);
-    console.log(`   Body: ${body}`);
+    console.log(`   Body: ${messageBody}`);
 
     // Create Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Get user's FCM tokens
+    // Get user's FCM tokens from user_fcm_tokens table
     const { data: tokens, error: tokenError } = await supabase
-      .from('fcm_tokens')
-      .select('token')
-      .eq('user_id', user_id);
+      .from('user_fcm_tokens')
+      .select('token, user_id')
+      .in('user_id', userIds);
 
     if (tokenError) {
-      console.error('❌ Error fetching tokens:', tokenError);
+      console.error('❌ Error fetching tokens from user_fcm_tokens:', tokenError);
       return new Response(
         JSON.stringify({ ok: false, error: 'Failed to fetch tokens' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -59,14 +70,14 @@ serve(async (req) => {
     }
 
     if (!tokens || tokens.length === 0) {
-      console.log(`⚠️ No FCM tokens found for user: ${user_id}`);
+      console.log(`⚠️ No FCM tokens found for users: ${userIds.join(', ')}`);
       return new Response(
-        JSON.stringify({ ok: true, sent: 0, message: 'No tokens found for user' }),
+        JSON.stringify({ ok: true, sent: 0, failed: 0, message: 'No tokens found for users' }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log(`📱 Found ${tokens.length} token(s) for user`);
+    console.log(`📱 Found ${tokens.length} token(s) for ${userIds.length} user(s)`);
 
     // Convert data values to strings (FCM v1 requires string values)
     const stringData: Record<string, string> = {};
@@ -78,28 +89,30 @@ serve(async (req) => {
 
     // Send to all tokens
     let sent = 0;
+    let failed = 0;
     const errors: string[] = [];
 
-    for (const { token } of tokens) {
+    for (const { token, user_id } of tokens) {
       try {
         await sendFcmV1Message(
           token,
           title,
-          body,
+          messageBody,
           Object.keys(stringData).length > 0 ? stringData : undefined
         );
         sent++;
-        console.log(`✅ Sent to token: ${token.substring(0, 20)}...`);
+        console.log(`✅ Sent to user ${user_id}, token: ${token.substring(0, 20)}...`);
       } catch (err) {
+        failed++;
         const errorMsg = err instanceof Error ? err.message : 'Unknown error';
-        console.error(`❌ Failed to send to token: ${errorMsg}`);
-        errors.push(errorMsg);
+        console.error(`❌ Failed to send to user ${user_id}: ${errorMsg}`);
+        errors.push(`${user_id}: ${errorMsg}`);
         
         // If token is invalid, remove it from database
         if (errorMsg.includes('NOT_FOUND') || errorMsg.includes('UNREGISTERED')) {
-          console.log(`🗑️ Removing invalid token from database`);
+          console.log(`🗑️ Removing invalid token for user ${user_id}`);
           await supabase
-            .from('fcm_tokens')
+            .from('user_fcm_tokens')
             .delete()
             .eq('token', token);
         }
@@ -120,12 +133,13 @@ serve(async (req) => {
       console.log('Note: Could not log to notification_logs (table may not exist)');
     }
 
-    console.log(`📊 Result: ${sent}/${tokens.length} sent successfully`);
+    console.log(`📊 Result: ${sent} sent, ${failed} failed out of ${tokens.length} total`);
 
     return new Response(
       JSON.stringify({ 
         ok: true, 
         sent, 
+        failed,
         total: tokens.length,
         errors: errors.length > 0 ? errors : undefined 
       }),
