@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider } from "@/components/auth/AuthProvider";
 import { ProfileProvider } from "@/contexts/ProfileContext";
+import { PushNotificationProvider } from "@/components/PushNotificationProvider";
 import App from "./App.tsx";
 import "./index.css";
 
@@ -56,8 +57,10 @@ createRoot(rootElement).render(
         <QueryClientProvider client={queryClient}>
           <AuthProvider>
             <ProfileProvider>
-              <App />
-              <Toaster />
+              <PushNotificationProvider>
+                <App />
+                <Toaster />
+              </PushNotificationProvider>
             </ProfileProvider>
           </AuthProvider>
         </QueryClientProvider>
