@@ -1,7 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/auth/AuthProvider';
-import { useProfile } from '@/contexts/ProfileContext';
 import { useToast } from '@/hooks/use-toast';
 import { getFcmToken, isFirebaseConfigured, onForegroundMessage, showForegroundNotification } from '@/lib/firebase';
 import { isNativeApp, registerNativePush, checkNativePushPermission, setupNativePushListeners } from '@/lib/capacitor-push';
@@ -10,7 +9,6 @@ export function useRegisterUserFcmToken() {
   const [isRegistering, setIsRegistering] = useState(false);
   const [isRegistered, setIsRegistered] = useState(false);
   const { user } = useAuth();
-  const { profile } = useProfile();
   const { toast } = useToast();
 
   // Set up notification listeners based on platform
@@ -58,9 +56,9 @@ export function useRegisterUserFcmToken() {
   }, [toast]);
 
   const registerToken = useCallback(async (showToast = true): Promise<boolean> => {
-    // Use profile.id (database UUID) for storing FCM token, not user.id (Firebase UID)
-    if (!profile?.id) {
-      console.warn('⚠️ No profile loaded');
+    // Use user.id (auth.uid()) for storing FCM token - this must match auth.uid() for RLS policies
+    if (!user?.id) {
+      console.warn('⚠️ No authenticated user');
       return false;
     }
 
@@ -157,12 +155,12 @@ export function useRegisterUserFcmToken() {
         return false;
       }
 
-      // Upsert token to database using profile.id (database UUID)
+      // Upsert token to database using user.id (auth.uid()) - must match for RLS
       const { error } = await supabase
         .from('fcm_tokens')
         .upsert(
           {
-            user_id: profile.id,
+            user_id: user.id,
             token: fcmToken,
             updated_at: new Date().toISOString(),
           },
@@ -179,7 +177,7 @@ export function useRegisterUserFcmToken() {
         const { error: insertError } = await supabase
           .from('fcm_tokens')
           .insert({
-            user_id: profile.id,
+            user_id: user.id,
             token: fcmToken,
             updated_at: new Date().toISOString(),
           });
@@ -205,7 +203,7 @@ export function useRegisterUserFcmToken() {
         });
       }
 
-      console.log('✅ FCM token registered for profile:', profile.id);
+      console.log('✅ FCM token registered for user:', user.id);
       return true;
 
     } catch (error) {
@@ -221,17 +219,17 @@ export function useRegisterUserFcmToken() {
     } finally {
       setIsRegistering(false);
     }
-  }, [profile?.id, toast]);
+  }, [user?.id, toast]);
 
   // Check if user already has a token registered
   const checkExistingToken = useCallback(async (): Promise<boolean> => {
-    if (!profile?.id) return false;
+    if (!user?.id) return false;
 
     try {
       const { data, error } = await supabase
         .from('fcm_tokens')
         .select('token')
-        .eq('user_id', profile.id)
+        .eq('user_id', user.id)
         .maybeSingle();
 
       if (error) {
@@ -246,7 +244,7 @@ export function useRegisterUserFcmToken() {
       console.error('❌ Error in checkExistingToken:', err);
       return false;
     }
-  }, [profile?.id]);
+  }, [user?.id]);
 
   // Determine if notifications are supported on this platform
   const isSupported = isNativeApp() || (typeof window !== 'undefined' && 'Notification' in window && isFirebaseConfigured());
