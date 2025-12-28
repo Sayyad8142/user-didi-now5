@@ -30,3 +30,6 @@ verify_jwt = false
 
 [functions.send-user-fcm]
 verify_jwt = false
+
+[functions.register-user-fcm-token]
+verify_jwt = false
