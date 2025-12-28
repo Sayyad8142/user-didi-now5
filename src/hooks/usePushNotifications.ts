@@ -3,6 +3,7 @@ import { useEffect, useCallback, useState } from "react";
 import { PushNotifications } from "@capacitor/push-notifications";
 import { Capacitor } from "@capacitor/core";
 import { supabase } from "@/integrations/supabase/client";
+import { getFirebaseIdToken } from "@/lib/firebase";
 
 interface UsePushNotificationsOptions {
   userId?: string | null;
@@ -22,30 +23,37 @@ export function usePushNotifications({ userId }: UsePushNotificationsOptions) {
     async (token: string, deviceInfo: DeviceInfo) => {
       if (!userId) return;
 
-      console.log("📱 Saving FCM token for user:", userId);
-      console.log("📱 Token:", token.substring(0, 20) + "...");
-
-      const { error } = await supabase.from("user_fcm_tokens").upsert(
-        [
-          {
-            user_id: userId,
-            token,
-            device_info: deviceInfo as any,
-            updated_at: new Date().toISOString(),
-          },
-        ],
-        {
-          onConflict: "token",
+      try {
+        const idToken = await getFirebaseIdToken();
+        if (!idToken) {
+          setLastError("Missing Firebase session token");
+          return;
         }
-      );
 
-      if (error) {
-        console.error("❌ Error saving FCM token to user_fcm_tokens:", error);
-        setLastError(error.message);
-      } else {
-        console.log("✅ FCM token saved successfully to user_fcm_tokens");
+        const { error } = await supabase.functions.invoke(
+          "register-user-fcm-token",
+          {
+            body: {
+              token,
+              device_info: deviceInfo,
+            },
+            headers: {
+              Authorization: `Bearer ${idToken}`,
+            },
+          }
+        );
+
+        if (error) {
+          console.error("❌ register-user-fcm-token failed:", error);
+          setLastError(error.message);
+          return;
+        }
+
         setIsRegistered(true);
         setLastError(null);
+      } catch (e: any) {
+        console.error("❌ Error registering token:", e);
+        setLastError(e?.message ?? "Failed to register push token");
       }
     },
     [userId]
