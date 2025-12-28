@@ -1510,6 +1510,8 @@ export type Database = {
       }
       profiles: {
         Row: {
+          blocked_at: string | null
+          blocked_reason: string | null
           building_id: string | null
           community: string
           community_id: string | null
@@ -1520,6 +1522,7 @@ export type Database = {
           full_name: string
           id: string
           is_admin: boolean
+          is_blocked: boolean | null
           legal_version: string | null
           phone: string
           privacy_accepted_at: string | null
@@ -1527,6 +1530,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          blocked_at?: string | null
+          blocked_reason?: string | null
           building_id?: string | null
           community: string
           community_id?: string | null
@@ -1537,6 +1542,7 @@ export type Database = {
           full_name: string
           id?: string
           is_admin?: boolean
+          is_blocked?: boolean | null
           legal_version?: string | null
           phone: string
           privacy_accepted_at?: string | null
@@ -1544,6 +1550,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          blocked_at?: string | null
+          blocked_reason?: string | null
           building_id?: string | null
           community?: string
           community_id?: string | null
@@ -1554,6 +1562,7 @@ export type Database = {
           full_name?: string
           id?: string
           is_admin?: boolean
+          is_blocked?: boolean | null
           legal_version?: string | null
           phone?: string
           privacy_accepted_at?: string | null
