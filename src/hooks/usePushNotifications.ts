@@ -22,11 +22,15 @@ export function usePushNotifications({ userId }: UsePushNotificationsOptions) {
     async (token: string, deviceInfo: DeviceInfo) => {
       if (!userId) return;
 
+      console.log("📱 Saving FCM token for user:", userId);
+      console.log("📱 Token:", token.substring(0, 20) + "...");
+
       const { error } = await supabase.from("user_fcm_tokens").upsert(
         {
           user_id: userId,
           token,
           device_info: JSON.stringify(deviceInfo),
+          updated_at: new Date().toISOString(),
         },
         {
           onConflict: "token",
@@ -34,10 +38,10 @@ export function usePushNotifications({ userId }: UsePushNotificationsOptions) {
       );
 
       if (error) {
-        console.error("Error saving FCM token to user_fcm_tokens:", error);
+        console.error("❌ Error saving FCM token to user_fcm_tokens:", error);
         setLastError(error.message);
       } else {
-        console.log("✅ FCM token saved to user_fcm_tokens");
+        console.log("✅ FCM token saved successfully to user_fcm_tokens");
         setIsRegistered(true);
         setLastError(null);
       }
