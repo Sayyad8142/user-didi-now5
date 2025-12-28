@@ -12,6 +12,7 @@ import { useBackButton } from "@/hooks/useBackButton";
 import { useAppWarmup } from "@/hooks/useAppWarmup";
 import AuthGate from "@/auth/AuthGate";
 import { IncomingCallHandler } from "@/components/IncomingCallHandler";
+import { PushNotificationProvider } from "@/providers/PushNotificationProvider";
 
 // Immediate load for critical pages
 import Index from "./pages/Index";
@@ -325,8 +326,10 @@ const App = () => {
       <Toaster />
       <Sonner />
       <AuthGate>
-        <AppContent />
-        <IncomingCallHandler />
+        <PushNotificationProvider>
+          <AppContent />
+          <IncomingCallHandler />
+        </PushNotificationProvider>
       </AuthGate>
     </TooltipProvider>
   );
