@@ -26,12 +26,14 @@ export function usePushNotifications({ userId }: UsePushNotificationsOptions) {
       console.log("📱 Token:", token.substring(0, 20) + "...");
 
       const { error } = await supabase.from("user_fcm_tokens").upsert(
-        {
-          user_id: userId,
-          token,
-          device_info: JSON.stringify(deviceInfo),
-          updated_at: new Date().toISOString(),
-        },
+        [
+          {
+            user_id: userId,
+            token,
+            device_info: deviceInfo as any,
+            updated_at: new Date().toISOString(),
+          },
+        ],
         {
           onConflict: "token",
         }
