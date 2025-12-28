@@ -44,24 +44,6 @@ function decodeJwtPart<T>(part: string): T {
   return JSON.parse(json) as T;
 }
 
-function getFirebaseProjectId(): string {
-  const sa = Deno.env.get("FIREBASE_SERVICE_ACCOUNT");
-  if (sa) {
-    try {
-      return JSON.parse(sa).project_id as string;
-    } catch (e) {
-      console.error("❌ FIREBASE_SERVICE_ACCOUNT parse error", e);
-    }
-  }
-
-  const pid = Deno.env.get("FCM_PROJECT_ID");
-  if (pid) return pid;
-
-  throw new Error(
-    "Missing Firebase project id (set FIREBASE_SERVICE_ACCOUNT or FCM_PROJECT_ID)"
-  );
-}
-
 async function getJwks(): Promise<JsonWebKey[]> {
   const now = Date.now();
   if (jwksCache && now - jwksCache.cachedAtMs < 1000 * 60 * 30) {
@@ -79,7 +61,7 @@ async function getJwks(): Promise<JsonWebKey[]> {
   return json.keys;
 }
 
-async function verifyFirebaseIdToken(idToken: string, projectId: string) {
+async function verifyFirebaseIdToken(idToken: string) {
   const parts = idToken.split(".");
   if (parts.length !== 3) throw new Error("Invalid JWT format");
 
@@ -116,14 +98,24 @@ async function verifyFirebaseIdToken(idToken: string, projectId: string) {
   if (!ok) throw new Error("JWT signature verification failed");
 
   const nowSec = Math.floor(Date.now() / 1000);
-  const expectedIss = `https://securetoken.google.com/${projectId}`;
 
-  if (payload.aud !== projectId) throw new Error("JWT aud mismatch");
-  if (payload.iss !== expectedIss) throw new Error("JWT iss mismatch");
+  // Validate issuer format (must be securetoken.google.com/<project>)
+  if (!payload.iss || !payload.iss.startsWith("https://securetoken.google.com/")) {
+    throw new Error("JWT iss invalid");
+  }
+
+  // Extract project ID from issuer
+  const projectId = payload.iss.replace("https://securetoken.google.com/", "");
+
+  // Validate aud matches the project from iss
+  if (payload.aud !== projectId) throw new Error("JWT aud/iss mismatch");
+
   if (!payload.exp || payload.exp <= nowSec) throw new Error("JWT expired");
 
   const firebaseUid = payload.user_id ?? payload.sub;
   if (!firebaseUid) throw new Error("JWT missing user id");
+
+  console.log("✅ Firebase token verified for uid:", firebaseUid, "project:", projectId);
 
   return { firebaseUid };
 }
@@ -157,8 +149,7 @@ serve(async (req) => {
       );
     }
 
-    const projectId = getFirebaseProjectId();
-    const { firebaseUid } = await verifyFirebaseIdToken(idToken, projectId);
+    const { firebaseUid } = await verifyFirebaseIdToken(idToken);
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
