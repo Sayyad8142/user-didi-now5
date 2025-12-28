@@ -214,18 +214,36 @@ export function AuthCard() {
   };
 
   return (
-    <Card className="max-w-sm mx-auto shadow-card border-pink-100 gradient-card backdrop-blur-sm">
-      <CardContent className="p-6">
-        {/* Brand Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-primary mb-2">Didi Now</h1>
-          <p className="text-muted-foreground text-lg">in 10Mins</p>
+    <Card className="w-full shadow-2xl border-0 bg-white/80 backdrop-blur-xl rounded-3xl overflow-hidden">
+      {/* Decorative top gradient bar */}
+      <div className="h-1.5 w-full bg-gradient-to-r from-pink-400 via-rose-500 to-fuchsia-500" />
+      
+      <CardContent className="p-8">
+        {/* Brand Header with enhanced styling */}
+        <div className="text-center mb-10">
+          <div className="relative inline-block">
+            <h1 className="text-4xl font-extrabold bg-gradient-to-r from-pink-500 via-rose-500 to-fuchsia-500 bg-clip-text text-transparent tracking-tight">
+              Didi Now
+            </h1>
+            <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-16 h-1 bg-gradient-to-r from-pink-400 to-rose-500 rounded-full" />
+          </div>
+          <p className="text-muted-foreground text-lg mt-4 font-medium">in 10Mins</p>
         </div>
 
         <Tabs value={activeTab} onValueChange={value => setActiveTab(value as 'signin' | 'signup')}>
-          <TabsList className="grid w-full grid-cols-2 mb-6">
-            <TabsTrigger value="signin" className="rounded-lg">Sign In</TabsTrigger>
-            <TabsTrigger value="signup" className="rounded-lg">Sign Up</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-2 mb-8 p-1.5 bg-pink-50/80 rounded-2xl h-14">
+            <TabsTrigger 
+              value="signin" 
+              className="rounded-xl text-base font-semibold data-[state=active]:bg-white data-[state=active]:shadow-lg data-[state=active]:text-pink-600 transition-all duration-300"
+            >
+              Sign In
+            </TabsTrigger>
+            <TabsTrigger 
+              value="signup" 
+              className="rounded-xl text-base font-semibold data-[state=active]:bg-white data-[state=active]:shadow-lg data-[state=active]:text-pink-600 transition-all duration-300"
+            >
+              Sign Up
+            </TabsTrigger>
           </TabsList>
 
           {/* Sign In Tab */}
@@ -235,7 +253,7 @@ export function AuthCard() {
             <Button 
               onClick={handleSendOTP} 
               disabled={loading || !signInPhone} 
-              className="w-full h-12 rounded-full gradient-primary shadow-button transition-spring hover:scale-[1.02] disabled:scale-100"
+              className="w-full h-14 rounded-2xl bg-gradient-to-r from-pink-500 via-rose-500 to-fuchsia-500 text-white font-semibold text-lg shadow-xl shadow-pink-500/30 transition-all duration-300 hover:shadow-2xl hover:shadow-pink-500/40 hover:scale-[1.02] disabled:opacity-50 disabled:scale-100 disabled:shadow-none"
             >
               {loading && <CleaningLoader size="sm" className="mr-2" />}
               Send OTP
@@ -358,7 +376,7 @@ export function AuthCard() {
             <Button 
               onClick={handleSendOTP} 
               disabled={loading} 
-              className="w-full h-12 rounded-full gradient-primary shadow-button transition-spring hover:scale-[1.02] disabled:scale-100"
+              className="w-full h-14 rounded-2xl bg-gradient-to-r from-pink-500 via-rose-500 to-fuchsia-500 text-white font-semibold text-lg shadow-xl shadow-pink-500/30 transition-all duration-300 hover:shadow-2xl hover:shadow-pink-500/40 hover:scale-[1.02] disabled:opacity-50 disabled:scale-100 disabled:shadow-none"
             >
               {loading && <CleaningLoader size="sm" className="mr-2" />}
               Send OTP
