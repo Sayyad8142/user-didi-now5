@@ -12,8 +12,7 @@ import { FeatureCarousel } from './FeatureCarousel';
 import { ActiveBookingCard } from './ActiveBookingCard';
 import { openExternalUrl } from '@/lib/nativeOpen';
 import FaqSection from './FaqSection';
-import { NotificationBanner } from '@/features/notifications/NotificationBanner';
-import { NotificationButtonCompact } from '@/features/notifications/NotificationButtonCompact';
+
 export function HomeScreen() {
   const navigate = useNavigate();
   const { hasUnseenMessages, markMessagesAsSeen } = useUnseenMessages();
@@ -27,15 +26,9 @@ export function HomeScreen() {
         </div>
       </header>
       <div className="max-w-md mx-auto px-4 space-y-4 bg-slate-50">
-        {/* First-time notification banner */}
-        <NotificationBanner />
-        
         <HeroCarousel />
         <ServicesRow onServiceSelect={handleServiceSelect} />
         <ActiveBookingCard />
-        
-        {/* Notification enable button for users who haven't enabled yet */}
-        <NotificationButtonCompact />
         
         <ServiceHours />
         <WorkerAvailabilityCard />
