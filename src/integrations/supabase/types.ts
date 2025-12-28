@@ -2088,7 +2088,7 @@ export type Database = {
       user_fcm_tokens: {
         Row: {
           created_at: string | null
-          device_info: string | null
+          device_info: Json | null
           id: string
           token: string
           updated_at: string | null
@@ -2096,7 +2096,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
-          device_info?: string | null
+          device_info?: Json | null
           id?: string
           token: string
           updated_at?: string | null
@@ -2104,13 +2104,21 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
-          device_info?: string | null
+          device_info?: Json | null
           id?: string
           token?: string
           updated_at?: string | null
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "user_fcm_tokens_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
