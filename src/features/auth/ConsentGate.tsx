@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Link, useNavigate } from "react-router-dom";
 import { CheckCircle, FileText, Shield } from "lucide-react";
+import { getCurrentUser } from "@/lib/firebase";
 
 type GateState = "loading" | "needs-consent" | "ok";
 
@@ -26,12 +27,12 @@ export default function ConsentGate({ children }: { children: React.ReactNode })
 
   useEffect(() => {
     (async () => {
-      const [{ data: auth }, v] = await Promise.all([
-        supabase.auth.getUser(),
-        getCurrentLegalVersion(),
-      ]);
+      // Use Firebase auth instead of Supabase auth
+      const firebaseUser = await getCurrentUser();
+      const v = await getCurrentLegalVersion();
       setVer(v);
-      const uid = auth.user?.id;
+      
+      const uid = firebaseUser?.uid;
       if (!uid) { 
         setState("ok"); 
         return; 
@@ -59,16 +60,6 @@ export default function ConsentGate({ children }: { children: React.ReactNode })
     setBusy(true);
     
     try {
-      // Ensure we have a valid session first
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      
-      if (sessionError || !session) {
-        console.error('Session error:', sessionError);
-        // Redirect to auth if session is invalid
-        window.location.href = '/auth';
-        return;
-      }
-
       const now = new Date().toISOString();
       const updateData: Record<string, any> = {
         tos_accepted_at: now,
@@ -79,15 +70,10 @@ export default function ConsentGate({ children }: { children: React.ReactNode })
       const { error } = await supabase
         .from("profiles")
         .update(updateData)
-        .eq("firebase_uid", profile.firebase_uid);
+        .eq("id", profile.id);
       
       if (error) {
         console.error('Profile update error:', error);
-        // If it's an auth error, redirect to login
-        if (error.code === 'PGRST301' || error.message?.includes('JWT')) {
-          window.location.href = '/auth';
-          return;
-        }
       } else {
         setState("ok");
       }
