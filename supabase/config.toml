@@ -33,3 +33,6 @@ verify_jwt = false
 
 [functions.send-user-notification]
 verify_jwt = false
+
+[functions.register-fcm-token]
+verify_jwt = false

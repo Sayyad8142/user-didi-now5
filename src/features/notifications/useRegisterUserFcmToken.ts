@@ -2,7 +2,13 @@ import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useToast } from '@/hooks/use-toast';
-import { getFcmToken, isFirebaseConfigured, onForegroundMessage, showForegroundNotification } from '@/lib/firebase';
+import {
+  getFcmToken,
+  getFirebaseIdToken,
+  isFirebaseConfigured,
+  onForegroundMessage,
+  showForegroundNotification,
+} from '@/lib/firebase';
 import { isNativeApp, registerNativePush, checkNativePushPermission, setupNativePushListeners } from '@/lib/capacitor-push';
 
 export function useRegisterUserFcmToken() {
@@ -155,43 +161,39 @@ export function useRegisterUserFcmToken() {
         return false;
       }
 
-      // Upsert token to database using user.id (auth.uid()) - must match for RLS
-      const { error } = await supabase
-        .from('fcm_tokens')
-        .upsert(
-          {
-            user_id: user.id,
-            token: fcmToken,
-            updated_at: new Date().toISOString(),
-          },
-          {
-            onConflict: 'user_id',
-            ignoreDuplicates: false,
-          }
-        );
-
-      if (error) {
-        console.error('❌ Error saving FCM token:', error);
-        
-        // Try insert if upsert fails
-        const { error: insertError } = await supabase
-          .from('fcm_tokens')
-          .insert({
-            user_id: user.id,
-            token: fcmToken,
-            updated_at: new Date().toISOString(),
+      // Save token securely via Edge Function (Firebase auth → verified server-side)
+      const firebaseIdToken = await getFirebaseIdToken();
+      if (!firebaseIdToken) {
+        console.warn('⚠️ Missing Firebase ID token');
+        if (showToast) {
+          toast({
+            title: 'Error',
+            description: 'Please sign in again and retry',
+            variant: 'destructive',
           });
-        
-        if (insertError && !insertError.message.includes('duplicate')) {
-          if (showToast) {
-            toast({
-              title: 'Error',
-              description: 'Failed to save notification settings',
-              variant: 'destructive',
-            });
-          }
-          return false;
         }
+        return false;
+      }
+
+      const { error: fnError, data: fnData } = await supabase.functions.invoke('register-fcm-token', {
+        body: {
+          action: 'upsert',
+          firebase_id_token: firebaseIdToken,
+          fcm_token: fcmToken,
+          device_info: isNativeApp() ? navigator.userAgent : 'web',
+        },
+      });
+
+      if (fnError || !fnData?.ok) {
+        console.error('❌ Error saving FCM token (edge):', fnError, fnData);
+        if (showToast) {
+          toast({
+            title: 'Error',
+            description: 'Failed to save notification settings',
+            variant: 'destructive',
+          });
+        }
+        return false;
       }
 
       setIsRegistered(true);
@@ -226,24 +228,24 @@ export function useRegisterUserFcmToken() {
     if (!user?.id) return false;
 
     try {
-      const { data, error } = await supabase
-        .from('fcm_tokens')
-        .select('token')
-        .eq('user_id', user.id)
-        .maybeSingle();
+      const firebaseIdToken = await getFirebaseIdToken();
+      if (!firebaseIdToken) return false;
 
-      if (error) {
-        console.error('❌ Error checking existing token:', error);
+      const { data: fnData, error: fnError } = await supabase.functions.invoke('register-fcm-token', {
+        body: {
+          action: 'exists',
+          firebase_id_token: firebaseIdToken,
+        },
+      });
+
+      if (fnError || !fnData?.ok) {
+        console.error('❌ Error checking existing token (edge):', fnError, fnData);
         return false;
       }
 
-      const hasToken = !!data?.token;
+      const hasToken = !!fnData?.has_token;
       setIsRegistered(hasToken);
       return hasToken;
-    } catch (err) {
-      console.error('❌ Error in checkExistingToken:', err);
-      return false;
-    }
   }, [user?.id]);
 
   // Determine if notifications are supported on this platform
