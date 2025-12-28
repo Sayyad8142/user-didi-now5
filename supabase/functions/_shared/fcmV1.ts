@@ -168,6 +168,8 @@ export async function sendFcmV1Message(
 ): Promise<void> {
   const { projectId, clientEmail, privateKey } = getFcmCredentials();
 
+  console.log('📛 FCM project:', projectId, 'client:', clientEmail?.split('@')?.[0] + '@…');
+
   console.log('🔐 Getting OAuth2 access token...');
   const accessToken = await getAccessToken(clientEmail, privateKey);
 
