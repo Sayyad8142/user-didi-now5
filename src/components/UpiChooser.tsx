@@ -7,13 +7,13 @@ import { toast } from 'sonner';
 type Props = {
   open: boolean;
   onOpenChange: (v: boolean) => void;
-  paymentParams: { pa: string; pn: string; am: string; tn: string; tr?: string };
+  upiId: string; // Just the worker's UPI ID
 };
 
-export default function UpiChooser({ open, onOpenChange, paymentParams }: Props) {
+export default function UpiChooser({ open, onOpenChange, upiId }: Props) {
   const [loading, setLoading] = React.useState(true);
   const [apps, setApps] = React.useState<UpiApp[]>([]);
-  const [forceMode, setForceMode] = React.useState(false); // show buttons even if detection fails
+  const [forceMode, setForceMode] = React.useState(false);
 
   React.useEffect(() => {
     let active = true;
@@ -25,7 +25,6 @@ export default function UpiChooser({ open, onOpenChange, paymentParams }: Props)
         setApps(list);
         setLoading(false);
         if (list.length === 0) {
-          // Fallback: still show the common apps so the user can attempt to open
           setForceMode(true);
         }
       });
@@ -34,11 +33,11 @@ export default function UpiChooser({ open, onOpenChange, paymentParams }: Props)
   }, [open]);
 
   const handlePick = async (app: UpiApp) => {
-    const url = app.buildUrl(paymentParams);
+    const url = app.buildUrl(upiId);
+    console.log('[UPI] Opening:', url);
     const ok = await tryOpen(url);
     if (!ok) {
       toast.error(`${app.label} not available on this device`);
-      // Offer App Store
       if (app.appStore) {
         toast.message(`Install ${app.label}?`, {
           action: {
@@ -58,10 +57,14 @@ export default function UpiChooser({ open, onOpenChange, paymentParams }: Props)
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="space-y-4">
         <SheetHeader>
-          <SheetTitle>{list.length > 0 ? 'Select a UPI app' : 'Looking for UPI apps…'}</SheetTitle>
+          <SheetTitle>Select UPI App</SheetTitle>
         </SheetHeader>
+        
+        <p className="text-sm text-muted-foreground">
+          Pay to: <span className="font-mono font-medium">{upiId}</span>
+        </p>
 
-        {loading && <div className="text-sm opacity-70">Scanning installed UPI apps…</div>}
+        {loading && <div className="text-sm opacity-70">Scanning UPI apps…</div>}
 
         {!loading && list.length > 0 && (
           <div className="grid grid-cols-2 gap-3">

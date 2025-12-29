@@ -4,9 +4,6 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { prettyServiceName } from '@/features/booking/utils';
 import { formatDateTime } from '@/features/bookings/dt';
 import { format } from 'date-fns';
@@ -17,8 +14,8 @@ import AutoCompleteCountdown from '@/components/AutoCompleteCountdown';
 import { useBookingRealtime } from '@/features/bookings/useBookingRealtime';
 import { launchUpiPayment } from '@/utils/launchUpiPayment';
 import UpiChooser from '@/components/UpiChooser';
-import { useNow } from '@/hooks/useNow';
 import { toast } from 'sonner';
+import { useNow } from '@/hooks/useNow';
 import CancelAction from './CancelAction';
 import { RateWorker } from './RateWorker';
 import { openExternalUrl } from '@/lib/nativeOpen';
@@ -78,8 +75,6 @@ export function BookingCard({
   const [row, setRow] = useState(booking);
   const [workerStats, setWorkerStats] = useState<{ avg_rating: number; ratings_count: number } | null>(null);
   const [openChat, setOpenChat] = useState(false);
-  const [showPaymentDialog, setShowPaymentDialog] = useState(false);
-  const [paymentAmount, setPaymentAmount] = useState('');
   const [showUpiChooser, setShowUpiChooser] = useState(false);
   const [showWorkerRatings, setShowWorkerRatings] = useState(false);
   const now = useNow(); // ticks every 30s
@@ -168,28 +163,13 @@ export function BookingCard({
   // Check if payment should be enabled (show for assigned/accepted/on_the_way/started)
   const paymentReady = ['assigned', 'accepted', 'on_the_way', 'started'].includes(row.status);
 
-  const handlePayWorker = () => {
-    // Ensure payment amount starts empty
-    setPaymentAmount('');
-    setShowPaymentDialog(true);
-  };
-
-  const handleConfirmPayment = async () => {
+  const handlePayWorker = async () => {
     const workerUpi = row.worker_upi || assignedWorker?.worker?.upi_id;
-    const workerName = row.worker_name || assignedWorker?.worker?.full_name || 'Worker';
-    const amount = parseFloat(paymentAmount);
 
     if (!workerUpi) {
       toast.error("Worker account not updated, pay cash to worker");
       return;
     }
-
-    if (!paymentAmount || amount <= 0) {
-      toast.error("Please enter a valid amount");
-      return;
-    }
-
-    const note = `Didi Now ${row.service_type} • ${row.community} • ${row.flat_no}`;
 
     try {
       // Mark that user tapped pay
@@ -198,16 +178,10 @@ export function BookingCard({
         .update({ user_marked_paid_at: new Date().toISOString() })
         .eq('id', row.id);
       
-      setShowPaymentDialog(false);
-      
-      console.log('[UPI] params', { pa: workerUpi, pn: workerName, am: amount.toString(), tn: note, tr: row.id });
+      console.log('[UPI] Opening with UPI ID:', workerUpi);
       
       await launchUpiPayment({
         pa: workerUpi,
-        pn: workerName,
-        am: amount.toString(),
-        tn: note,
-        tr: row.id,
         onNeedChooser: setShowUpiChooser
       });
       
@@ -503,60 +477,11 @@ export function BookingCard({
         mode="user" 
       />
 
-      {/* Payment Amount Dialog */}
-      <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Enter Payment Amount</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="amount">Amount (₹)</Label>
-              <Input
-                id="amount"
-                type="number"
-                inputMode="numeric"
-                placeholder="Enter amount"
-                value={paymentAmount}
-                onChange={(e) => setPaymentAmount(e.target.value)}
-                className="text-lg font-semibold"
-                autoFocus={false}
-              />
-            </div>
-            <p className="text-sm text-muted-foreground">
-              Booking amount: ₹{row.price_inr}
-            </p>
-            <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-              <p className="text-xs text-amber-800">
-                <strong>Note:</strong> Pay to worker after work completed & ask her amount and enter based on that, this price is not fixed currently.
-              </p>
-            </div>
-          </div>
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setShowPaymentDialog(false)}>
-              Cancel
-            </Button>
-            <Button 
-              onClick={handleConfirmPayment}
-              className="bg-green-600 hover:bg-green-700"
-            >
-              Pay Now
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* UPI App Chooser for iOS */}
+      {/* UPI App Chooser */}
        <UpiChooser
          open={showUpiChooser}
          onOpenChange={setShowUpiChooser}
-         paymentParams={{
-           pa: row.worker_upi || '',
-           pn: row.worker_name || 'Worker',
-           am: paymentAmount,
-           tn: `Didi Now ${row.service_type} • ${row.community} • ${row.flat_no}`,
-           tr: row.id
-         }}
+         upiId={row.worker_upi || assignedWorker?.worker?.upi_id || ''}
        />
 
       {/* Worker Ratings Modal */}
