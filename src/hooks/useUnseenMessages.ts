@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { getSupportUnseenCount, markSupportSeen } from '@/lib/supportChatClient';
@@ -105,7 +105,7 @@ export const useUnseenMessages = () => {
     };
   }, [user, mode]);
 
-  const markMessagesAsSeen = async () => {
+  const markMessagesAsSeen = useCallback(async () => {
     try {
       if (mode === 'firebase') {
         // mark seen on general thread (create if missing)
@@ -126,7 +126,7 @@ export const useUnseenMessages = () => {
     } catch (error) {
       console.error('Error marking messages as seen:', error);
     }
-  };
+  }, [mode]);
 
   return { hasUnseenMessages, markMessagesAsSeen };
 };
