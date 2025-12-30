@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, Send } from 'lucide-react';
+import { ArrowLeft, Send, Smile } from 'lucide-react';
 import { useKeyboardPadding } from '@/hooks/useKeyboardPadding';
 import { useSupportChat } from '@/hooks/useSupportChat';
 import { useUnseenMessages } from '@/hooks/useUnseenMessages';
@@ -9,15 +9,11 @@ import { getSupportThread } from '@/lib/supportChatClient';
 import { format, isToday, isYesterday, isSameDay } from 'date-fns';
 import { MessageBubble } from './MessageBubble';
 
-const formatMessageTime = (dateString: string) => {
-  return format(new Date(dateString), 'h:mm a');
-};
-
 const formatDateSeparator = (dateString: string) => {
   const date = new Date(dateString);
   if (isToday(date)) return 'Today';
   if (isYesterday(date)) return 'Yesterday';
-  return format(date, 'MMM d, yyyy');
+  return format(date, 'MMMM d, yyyy');
 };
 
 const shouldShowDateSeparator = (currentMsg: any, prevMsg: any) => {
@@ -63,13 +59,10 @@ export const ChatScreen: React.FC = () => {
     getThread();
   }, [bookingId, markMessagesAsSeen]);
 
-  // Back handler with fallback
   const handleBack = () => {
-    // Always navigate to home since chat is typically accessed from home screen
     navigate('/', { replace: true });
   };
 
-  // Handle sending messages
   const handleSendMessage = async () => {
     const text = input.trim();
     if (!text || sending) return;
@@ -88,18 +81,16 @@ export const ChatScreen: React.FC = () => {
     }
   };
 
-  // Auto-scroll to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ block: 'end' });
   }, [messages]);
 
   if (loadingThread || loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-lg font-medium text-foreground mb-2">
-            Loading chat...
-          </div>
+      <div className="min-h-screen bg-[#ece5dd] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 border-4 border-[#25D366] border-t-transparent rounded-full animate-spin" />
+          <span className="text-sm text-neutral-600">Loading chat...</span>
         </div>
       </div>
     );
@@ -107,15 +98,12 @@ export const ChatScreen: React.FC = () => {
 
   if (threadError) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-6">
-        <div className="w-full max-w-sm rounded-xl border bg-card p-4 text-center space-y-3">
-          <div className="text-base font-semibold text-foreground">Chat unavailable</div>
-          <div className="text-sm text-muted-foreground">{threadError}</div>
-          <Button onClick={() => navigate('/support', { replace: true })} className="w-full">
+      <div className="min-h-screen bg-[#ece5dd] flex items-center justify-center p-6">
+        <div className="w-full max-w-sm rounded-xl bg-white p-5 text-center space-y-3 shadow-lg">
+          <div className="text-base font-semibold text-neutral-800">Chat unavailable</div>
+          <div className="text-sm text-neutral-500">{threadError}</div>
+          <Button onClick={() => navigate('/support', { replace: true })} className="w-full bg-[#25D366] hover:bg-[#20bd5a]">
             Go to Support
-          </Button>
-          <Button variant="outline" onClick={() => navigate('/home', { replace: true })} className="w-full">
-            Back to Home
           </Button>
         </div>
       </div>
@@ -124,51 +112,57 @@ export const ChatScreen: React.FC = () => {
 
   if (!thread) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center text-muted-foreground">Chat not initialized.</div>
+      <div className="min-h-screen bg-[#ece5dd] flex items-center justify-center">
+        <div className="text-center text-neutral-500">Chat not initialized.</div>
       </div>
     );
   }
 
   return (
-    <div className="h-screen-dvh grid grid-rows-[auto,1fr,auto] bg-[#f5efe7] overscroll-none">
-      {/* Header (row 1) */}
-      <div className="safe-top sticky top-0 z-40 bg-primary text-primary-foreground">
-        <div className="flex items-center gap-3 px-3 py-3">
+    <div className="h-screen flex flex-col bg-[#ece5dd]">
+      {/* Header - WhatsApp style */}
+      <header className="safe-top sticky top-0 z-50 bg-[#075E54] text-white shadow-md">
+        <div className="flex items-center gap-3 px-2 py-3">
           <button 
             aria-label="Back" 
             onClick={handleBack} 
-            className="p-2 rounded-full hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/40"
+            className="p-2 rounded-full hover:bg-white/10 active:bg-white/20 transition-colors"
           >
-            <ChevronLeft className="h-6 w-6" />
+            <ArrowLeft className="h-5 w-5" />
           </button>
-          <div className="flex flex-col">
-            <div className="text-base font-semibold leading-none">Support Team</div>
-            <div className="text-[11px] opacity-90">Online • Typically replies in minutes</div>
+
+          {/* Avatar */}
+          <div className="w-10 h-10 rounded-full bg-[#128C7E] flex items-center justify-center text-white font-semibold text-sm">
+            S
+          </div>
+
+          <div className="flex-1 min-w-0">
+            <div className="text-base font-semibold leading-tight truncate">Support Team</div>
+            <div className="text-xs text-white/80 truncate">Online</div>
           </div>
         </div>
-      </div>
+      </header>
 
-      {/* Messages list (row 2) */}
+      {/* Messages area with WhatsApp wallpaper */}
       <div 
-        className="relative overflow-y-auto px-3 py-3 pb-20" 
+        className="flex-1 overflow-y-auto px-3 py-3"
         style={{ 
-          paddingBottom: `calc(env(safe-area-inset-bottom) + ${Math.max(kb + 120, 140)}px)`,
-          marginBottom: kb > 0 ? `${kb}px` : '0px'
+          backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'60\' height=\'60\' viewBox=\'0 0 60 60\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'none\' fill-rule=\'evenodd\'%3E%3Cg fill=\'%23d4cfc4\' fill-opacity=\'0.4\'%3E%3Cpath d=\'M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z\'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")',
+          backgroundColor: '#e5ddd5'
         }}
       >
-        <div className="mx-auto max-w-[720px]">
+        <div className="mx-auto max-w-[600px]">
           {messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 space-y-4">
-              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center">
-                <ChevronLeft className="w-8 h-8 text-primary" />
+            <div className="flex flex-col items-center justify-center py-16 space-y-4">
+              <div className="w-20 h-20 rounded-full bg-[#25D366]/20 flex items-center justify-center">
+                <Send className="w-8 h-8 text-[#25D366]" />
               </div>
-              <div className="text-center space-y-2 max-w-sm">
-                <div className="text-lg font-medium text-foreground">
-                  Welcome to Support Chat
+              <div className="text-center space-y-2 max-w-xs px-4">
+                <div className="text-lg font-medium text-neutral-700">
+                  Start a conversation
                 </div>
-                <div className="text-sm text-muted-foreground">
-                  Our team is ready to help you with any questions or issues
+                <div className="text-sm text-neutral-500">
+                  Send a message to get help from our support team
                 </div>
               </div>
             </div>
@@ -179,8 +173,8 @@ export const ChatScreen: React.FC = () => {
               return (
                 <React.Fragment key={message.id}>
                   {showDateSeparator && (
-                    <div className="flex justify-center my-4">
-                      <div className="bg-white/80 px-3 py-1 rounded-full text-xs text-muted-foreground">
+                    <div className="flex justify-center my-3">
+                      <div className="bg-white/90 px-3 py-1 rounded-lg text-xs text-neutral-600 shadow-sm">
                         {formatDateSeparator(message.created_at)}
                       </div>
                     </div>
@@ -190,6 +184,7 @@ export const ChatScreen: React.FC = () => {
                     mine={message.sender === 'user'}
                     text={message.message}
                     time={new Date(message.created_at)}
+                    seen={message.seen}
                   />
                 </React.Fragment>
               );
@@ -199,38 +194,45 @@ export const ChatScreen: React.FC = () => {
         </div>
       </div>
 
-      {/* Composer (row 3) */}
+      {/* Composer - WhatsApp style */}
       <div 
-        className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur border-t" 
+        className="sticky bottom-0 bg-[#f0f0f0] border-t border-neutral-200 safe-bottom"
         style={{ 
-          paddingBottom: `calc(env(safe-area-inset-bottom) + ${kb}px)`,
-          transform: kb > 0 ? `translateY(-${kb}px)` : 'translateY(0px)'
+          paddingBottom: kb > 0 ? `${kb}px` : 'env(safe-area-inset-bottom)'
         }}
       >
-        <div className="mx-auto max-w-[720px] px-2 py-2">
-          <div className="flex items-end gap-2">
+        <div className="flex items-end gap-2 px-2 py-2">
+          {/* Emoji button (decorative) */}
+          <button className="p-2 text-neutral-500 hover:text-neutral-700 transition-colors">
+            <Smile className="w-6 h-6" />
+          </button>
+
+          {/* Input field */}
+          <div className="flex-1 relative">
             <textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={onKeyDown}
               placeholder="Type a message"
               rows={1}
-              className="flex-1 resize-none rounded-2xl border border-neutral-200 px-3 py-2 leading-5 focus:outline-none focus:ring-2 focus:ring-primary/30 max-h-36"
+              className="w-full resize-none rounded-3xl bg-white border-0 px-4 py-2.5 text-[15px] leading-5 focus:outline-none focus:ring-2 focus:ring-[#25D366]/30 max-h-32 shadow-sm"
               style={{ height: 'auto' }}
               onInput={(e) => {
                 const ta = e.currentTarget;
                 ta.style.height = 'auto';
-                ta.style.height = ta.scrollHeight + 'px';
+                ta.style.height = Math.min(ta.scrollHeight, 128) + 'px';
               }}
             />
-            <Button 
-              disabled={!input.trim() || sending} 
-              onClick={handleSendMessage} 
-              className="rounded-2xl h-10 px-3"
-            >
-              <Send className="h-4 w-4" />
-            </Button>
           </div>
+
+          {/* Send button */}
+          <button 
+            disabled={!input.trim() || sending}
+            onClick={handleSendMessage}
+            className="w-11 h-11 rounded-full bg-[#25D366] hover:bg-[#20bd5a] disabled:bg-neutral-300 disabled:cursor-not-allowed flex items-center justify-center transition-colors shadow-md"
+          >
+            <Send className="w-5 h-5 text-white" />
+          </button>
         </div>
       </div>
     </div>
