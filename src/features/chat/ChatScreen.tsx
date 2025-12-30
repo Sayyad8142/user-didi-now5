@@ -6,7 +6,7 @@ import { useKeyboardPadding } from '@/hooks/useKeyboardPadding';
 import { useSupportChat } from '@/hooks/useSupportChat';
 import { useUnseenMessages } from '@/hooks/useUnseenMessages';
 import { useProfile } from '@/contexts/ProfileContext';
-import { supabase } from '@/integrations/supabase/client';
+import { getSupportThread } from '@/lib/supportChatClient';
 import { format, isToday, isYesterday, isSameDay } from 'date-fns';
 import { MessageBubble } from './MessageBubble';
 
@@ -33,6 +33,7 @@ export const ChatScreen: React.FC = () => {
   const { profile, loading: profileLoading } = useProfile();
   const [thread, setThread] = useState<any>(null);
   const [loadingThread, setLoadingThread] = useState(true);
+  const [threadError, setThreadError] = useState<string | null>(null);
   const [input, setInput] = useState('');
   
   const kb = useKeyboardPadding();
@@ -42,10 +43,8 @@ export const ChatScreen: React.FC = () => {
 
   // Get or create thread - only if profile exists
   useEffect(() => {
-    // If profile is still loading, wait
     if (profileLoading) return;
-    
-    // If no profile (guest user), redirect to auth
+
     if (!profile) {
       navigate('/auth', { replace: true });
       return;
@@ -53,27 +52,26 @@ export const ChatScreen: React.FC = () => {
 
     const getThread = async () => {
       setLoadingThread(true);
+      setThreadError(null);
       try {
-        const { data, error } = await supabase.rpc('support_get_or_create_thread', {
-          p_booking_id: bookingId
-        });
-        
-        if (error) throw error;
-        setThread(data);
-        
+        const t = await getSupportThread(bookingId);
+        setThread(t);
+
         // Mark messages as seen when chat opens
-        if (data) {
+        if (t) {
           markMessagesAsSeen();
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error getting thread:', error);
+        setThread(null);
+        setThreadError(error?.message ?? 'Failed to load chat');
       } finally {
         setLoadingThread(false);
       }
     };
 
     getThread();
-  }, [bookingId, profile, profileLoading, navigate]);
+  }, [bookingId, profile, profileLoading, navigate, markMessagesAsSeen]);
 
   // Back handler with fallback
   const handleBack = () => {
@@ -117,9 +115,31 @@ export const ChatScreen: React.FC = () => {
     );
   }
 
-  // Extra safety check - if no profile, show nothing (redirect should handle it)
-  if (!profile) {
-    return null;
+  if (!profile) return null;
+
+  if (threadError) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-6">
+        <div className="w-full max-w-sm rounded-xl border bg-card p-4 text-center space-y-3">
+          <div className="text-base font-semibold text-foreground">Chat unavailable</div>
+          <div className="text-sm text-muted-foreground">{threadError}</div>
+          <Button onClick={() => navigate('/support', { replace: true })} className="w-full">
+            Go to Support
+          </Button>
+          <Button variant="outline" onClick={() => navigate('/home', { replace: true })} className="w-full">
+            Back to Home
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!thread) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center text-muted-foreground">Chat not initialized.</div>
+      </div>
+    );
   }
 
   return (

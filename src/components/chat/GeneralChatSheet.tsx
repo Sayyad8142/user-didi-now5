@@ -6,11 +6,11 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from '@/components/ui/textarea';
 import { Send, Phone, User, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useToast } from '@/hooks/use-toast';
 import { useSupportChat } from '@/hooks/useSupportChat';
 import { useUnseenMessages } from '@/hooks/useUnseenMessages';
+import { getSupportThread } from '@/lib/supportChatClient';
 
 
 interface GeneralChatSheetProps {
@@ -43,26 +43,22 @@ export default function GeneralChatSheet({
   useEffect(() => {
     const getThread = async () => {
       if (!user || !open) return;
-      
+
       setLoadingThread(true);
       try {
-        const { data, error } = await supabase.rpc('support_get_or_create_thread', {
-          p_booking_id: null // General support (no specific booking)
-        });
-        
-        if (error) throw error;
-        setThread(data);
-        
+        const t = await getSupportThread(null);
+        setThread(t);
+
         // Mark messages as seen when chat opens
-        if (data && open) {
+        if (t && open) {
           markMessagesAsSeen();
         }
       } catch (error) {
         console.error('Error getting support thread:', error);
         toast({
-          title: "Error",
-          description: "Failed to initialize chat",
-          variant: "destructive"
+          title: 'Error',
+          description: 'Failed to initialize chat',
+          variant: 'destructive',
         });
       } finally {
         setLoadingThread(false);
@@ -70,7 +66,7 @@ export default function GeneralChatSheet({
     };
 
     getThread();
-  }, [user, open]);
+  }, [user, open, toast, markMessagesAsSeen]);
 
   // Send message
   const sendMessage = async () => {
