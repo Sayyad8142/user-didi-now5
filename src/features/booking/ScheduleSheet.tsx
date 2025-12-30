@@ -30,6 +30,7 @@ interface ScheduleSheetProps {
   onOpenChange: (open: boolean) => void;
   onSchedule: (date: Date, time: string) => void;
   loading?: boolean;
+  serviceType?: string;
 }
 
 const TIME_OPTIONS = [
@@ -39,17 +40,27 @@ const TIME_OPTIONS = [
   '18:00', '18:30', '19:00'
 ];
 
+const TIME_OPTIONS_COOK = [
+  '06:00', '06:30', '07:00', '07:30', '08:00', '08:30', '09:00', '09:30',
+  '10:00', '10:30', '11:00', '11:30', '12:00', '12:30', '13:00', '13:30',
+  '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00', '17:30',
+  '18:00', '18:30', '19:00', '19:30', '20:00', '20:30', '21:00'
+];
+
 // Check if time slot is between 3PM (15:00) and 7PM (19:00)
 const isLimitedAvailabilitySlot = (time: string): boolean => {
   const [hours] = time.split(':').map(Number);
   return hours >= 15 && hours <= 19;
 };
 
-export function ScheduleSheet({ open, onOpenChange, onSchedule, loading }: ScheduleSheetProps) {
+export function ScheduleSheet({ open, onOpenChange, onSchedule, loading, serviceType }: ScheduleSheetProps) {
   const [selectedDate, setSelectedDate] = useState<Date>();
   const [selectedTime, setSelectedTime] = useState<string>('');
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [showAvailabilityWarning, setShowAvailabilityWarning] = useState(false);
+
+  const timeOptions = serviceType === 'cook' ? TIME_OPTIONS_COOK : TIME_OPTIONS;
+  const timeLabel = serviceType === 'cook' ? '6 AM - 9 PM' : '6 AM - 7 PM';
 
   const handleSchedule = () => {
     if (selectedDate && selectedTime) {
@@ -106,10 +117,10 @@ export function ScheduleSheet({ open, onOpenChange, onSchedule, loading }: Sched
           {/* Time Picker */}
           <div className="space-y-3">
             <label className="text-sm font-medium text-gray-700">
-              Select Time * (6 AM - 7 PM)
+              Select Time * ({timeLabel})
             </label>
-            <div className="grid grid-cols-4 gap-2">
-              {TIME_OPTIONS.map((time) => (
+            <div className="grid grid-cols-4 gap-2 max-h-48 overflow-y-auto">
+              {timeOptions.map((time) => (
                   <Button
                     key={time}
                     variant={selectedTime === time ? "default" : "outline"}

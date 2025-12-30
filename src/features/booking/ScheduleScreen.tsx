@@ -16,7 +16,8 @@ import {
   isPastToday, 
   getDateChips, 
   getExtraCharge,
-  TIME_SEGMENTS, 
+  TIME_SEGMENTS,
+  TIME_SEGMENTS_COOK,
   type TimeSegment 
 } from './slot-utils';
 import { format } from 'date-fns';
@@ -247,9 +248,10 @@ export function ScheduleScreen() {
   }
 
   const dateChips = getDateChips();
+  const timeSegments = service_type === 'cook' ? TIME_SEGMENTS_COOK : TIME_SEGMENTS;
   const currentSegmentSlots = makeSlots(
-    TIME_SEGMENTS[activeSegment].start,
-    TIME_SEGMENTS[activeSegment].end
+    timeSegments[activeSegment].start,
+    timeSegments[activeSegment].end
   );
 
   const canConfirm = selectedDate && selectedTime && !submitting;
