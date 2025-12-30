@@ -5,7 +5,6 @@ import { ChevronLeft, Send } from 'lucide-react';
 import { useKeyboardPadding } from '@/hooks/useKeyboardPadding';
 import { useSupportChat } from '@/hooks/useSupportChat';
 import { useUnseenMessages } from '@/hooks/useUnseenMessages';
-import { useProfile } from '@/contexts/ProfileContext';
 import { getSupportThread } from '@/lib/supportChatClient';
 import { format, isToday, isYesterday, isSameDay } from 'date-fns';
 import { MessageBubble } from './MessageBubble';
@@ -30,7 +29,6 @@ export const ChatScreen: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const bookingId = searchParams.get('booking_id') || null;
-  const { profile, loading: profileLoading } = useProfile();
   const [thread, setThread] = useState<any>(null);
   const [loadingThread, setLoadingThread] = useState(true);
   const [threadError, setThreadError] = useState<string | null>(null);
@@ -41,15 +39,8 @@ export const ChatScreen: React.FC = () => {
   const { messages, loading, sending, send } = useSupportChat(thread?.id);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Get or create thread - only if profile exists
+  // Get or create thread
   useEffect(() => {
-    if (profileLoading) return;
-
-    if (!profile) {
-      navigate('/auth', { replace: true });
-      return;
-    }
-
     const getThread = async () => {
       setLoadingThread(true);
       setThreadError(null);
@@ -57,7 +48,6 @@ export const ChatScreen: React.FC = () => {
         const t = await getSupportThread(bookingId);
         setThread(t);
 
-        // Mark messages as seen when chat opens
         if (t) {
           markMessagesAsSeen();
         }
@@ -71,7 +61,7 @@ export const ChatScreen: React.FC = () => {
     };
 
     getThread();
-  }, [bookingId, profile, profileLoading, navigate, markMessagesAsSeen]);
+  }, [bookingId, markMessagesAsSeen]);
 
   // Back handler with fallback
   const handleBack = () => {
@@ -103,7 +93,7 @@ export const ChatScreen: React.FC = () => {
     messagesEndRef.current?.scrollIntoView({ block: 'end' });
   }, [messages]);
 
-  if (profileLoading || loadingThread || loading) {
+  if (loadingThread || loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
@@ -114,8 +104,6 @@ export const ChatScreen: React.FC = () => {
       </div>
     );
   }
-
-  if (!profile) return null;
 
   if (threadError) {
     return (
