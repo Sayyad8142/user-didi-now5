@@ -33,3 +33,6 @@ verify_jwt = false
 
 [functions.register-user-fcm-token]
 verify_jwt = false
+
+[functions.support-chat]
+verify_jwt = false
