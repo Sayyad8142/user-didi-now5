@@ -81,4 +81,10 @@ export const TIME_SEGMENTS = {
   Evening: { start: '17:00', end: '19:00' }
 } as const;
 
+export const TIME_SEGMENTS_COOK = {
+  Morning: { start: '06:00', end: '11:45' },
+  Afternoon: { start: '12:00', end: '16:45' },
+  Evening: { start: '17:00', end: '21:00' }
+} as const;
+
 export type TimeSegment = keyof typeof TIME_SEGMENTS;
