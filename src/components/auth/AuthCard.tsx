@@ -384,6 +384,29 @@ export function AuthCard() {
           </TabsContent>
         </Tabs>
 
+        {/* Guest Login Divider */}
+        <div className="relative my-6">
+          <div className="absolute inset-0 flex items-center">
+            <span className="w-full border-t border-gray-200" />
+          </div>
+          <div className="relative flex justify-center text-xs uppercase">
+            <span className="bg-white px-3 text-muted-foreground font-medium">Or</span>
+          </div>
+        </div>
+
+        {/* Continue as Guest Button */}
+        <Button
+          type="button"
+          variant="outline"
+          onClick={handleContinueAsGuest}
+          className="w-full h-12 rounded-2xl border-2 border-pink-200 text-pink-600 font-semibold hover:bg-pink-50 hover:border-pink-300 transition-all duration-300"
+        >
+          Continue as Guest
+        </Button>
+        <p className="text-center text-xs text-muted-foreground mt-2">
+          Explore services before signing up
+        </p>
+
         {/* Invisible reCAPTCHA container */}
         <div id="recaptcha-container"></div>
       </CardContent>
