@@ -1,5 +1,5 @@
 import React from 'react';
-import { UPI_APPS, detectInstalledUpiApps, tryOpen, UpiApp } from '@/utils/upi';
+import { UPI_APPS, detectInstalledUpiApps, tryOpen, UpiApp, UpiParams } from '@/utils/upi';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { toast } from 'sonner';
@@ -7,10 +7,12 @@ import { toast } from 'sonner';
 type Props = {
   open: boolean;
   onOpenChange: (v: boolean) => void;
-  upiId: string; // Just the worker's UPI ID
+  upiId: string;
+  workerName?: string;
+  bookingId?: string;
 };
 
-export default function UpiChooser({ open, onOpenChange, upiId }: Props) {
+export default function UpiChooser({ open, onOpenChange, upiId, workerName, bookingId }: Props) {
   const [loading, setLoading] = React.useState(true);
   const [apps, setApps] = React.useState<UpiApp[]>([]);
   const [forceMode, setForceMode] = React.useState(false);
@@ -33,8 +35,15 @@ export default function UpiChooser({ open, onOpenChange, upiId }: Props) {
   }, [open]);
 
   const handlePick = async (app: UpiApp) => {
-    const url = app.buildUrl(upiId);
-    console.log('[UPI] Opening:', url);
+    const params: UpiParams = {
+      pa: upiId.trim(),
+      pn: workerName || 'Worker',
+      tn: `Service payment - Booking ${bookingId || 'N/A'}`,
+    };
+    
+    const url = app.buildUrl(params);
+    console.log('[UPI] Opening via', app.label, ':', url);
+    
     const ok = await tryOpen(url);
     if (!ok) {
       toast.error(`${app.label} not available on this device`);

@@ -214,6 +214,7 @@ const ActiveBookingCard = memo(() => {
 
   const handlePayWorker = async () => {
     const workerUpi = activeBooking.worker_upi;
+    const workerName = activeBooking.worker_name || 'Worker';
 
     if (!workerUpi) {
       toast.error("Worker account not updated, pay cash to worker");
@@ -227,15 +228,19 @@ const ActiveBookingCard = memo(() => {
         .update({ user_marked_paid_at: new Date().toISOString() })
         .eq('id', activeBooking.id);
       
-      console.log('[UPI] Opening with UPI ID:', workerUpi);
-      
-      await launchUpiPayment({
+      const success = await launchUpiPayment({
         pa: workerUpi,
+        pn: workerName,
+        tn: `Service payment - Booking ${activeBooking.id}`,
+        bookingId: activeBooking.id,
         onNeedChooser: setShowUpiChooser
       });
       
-      toast.success("Opening UPI app...");
+      if (success) {
+        toast.success("Opening UPI app...");
+      }
     } catch (error) {
+      console.error('[UPI] Error:', error);
       toast.error("Please ensure a UPI app (GPay/PhonePe/Paytm) is installed");
     }
   };
@@ -447,6 +452,8 @@ const ActiveBookingCard = memo(() => {
            open={showUpiChooser}
            onOpenChange={setShowUpiChooser}
            upiId={activeBooking.worker_upi || ''}
+           workerName={activeBooking.worker_name || undefined}
+           bookingId={activeBooking.id}
           />
        )}
 
