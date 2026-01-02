@@ -20,16 +20,12 @@ function isValidUpiId(upiId: string): boolean {
 }
 
 /**
- * Builds a proper UPI URL with mandatory params
- * Does NOT include amount (am) - user enters manually
+ * Builds minimal UPI URL - only pa (UPI ID) required
+ * Banks reject complex URLs with long transaction notes
  */
-export function buildUpiUrl(args: { pa: string; pn?: string; tn?: string; bookingId?: string }): string {
+export function buildUpiUrl(args: { pa: string }): string {
   const pa = args.pa.trim();
-  const pn = encodeURIComponent(args.pn || 'Worker');
-  const tn = encodeURIComponent(args.tn || `Service payment - Booking ${args.bookingId || 'N/A'}`);
-  const cu = 'INR';
-  
-  return `upi://pay?pa=${encodeURIComponent(pa)}&pn=${pn}&tn=${tn}&cu=${cu}`;
+  return `upi://pay?pa=${encodeURIComponent(pa)}`;
 }
 
 export async function launchUpiPayment(args: LaunchArgs): Promise<boolean> {
@@ -42,12 +38,7 @@ export async function launchUpiPayment(args: LaunchArgs): Promise<boolean> {
     return false;
   }
   
-  const upiUrl = buildUpiUrl({
-    pa,
-    pn: args.pn,
-    tn: args.tn,
-    bookingId: args.bookingId,
-  });
+  const upiUrl = buildUpiUrl({ pa });
   
   console.log('[UPI] Generated URL:', upiUrl);
   
