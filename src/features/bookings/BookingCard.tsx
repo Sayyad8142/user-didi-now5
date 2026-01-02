@@ -165,6 +165,7 @@ export function BookingCard({
 
   const handlePayWorker = async () => {
     const workerUpi = row.worker_upi || assignedWorker?.worker?.upi_id;
+    const workerName = row.worker_name || assignedWorker?.worker?.full_name || 'Worker';
 
     if (!workerUpi) {
       toast.error("Worker account not updated, pay cash to worker");
@@ -178,15 +179,19 @@ export function BookingCard({
         .update({ user_marked_paid_at: new Date().toISOString() })
         .eq('id', row.id);
       
-      console.log('[UPI] Opening with UPI ID:', workerUpi);
-      
-      await launchUpiPayment({
+      const success = await launchUpiPayment({
         pa: workerUpi,
+        pn: workerName,
+        tn: `Service payment - Booking ${row.id}`,
+        bookingId: row.id,
         onNeedChooser: setShowUpiChooser
       });
       
-      toast.success("Opening UPI app...");
+      if (success) {
+        toast.success("Opening UPI app...");
+      }
     } catch (error) {
+      console.error('[UPI] Error:', error);
       toast.error("Please ensure a UPI app (GPay/PhonePe/Paytm) is installed");
     }
   };
@@ -482,6 +487,8 @@ export function BookingCard({
          open={showUpiChooser}
          onOpenChange={setShowUpiChooser}
          upiId={row.worker_upi || assignedWorker?.worker?.upi_id || ''}
+         workerName={row.worker_name || assignedWorker?.worker?.full_name}
+         bookingId={row.id}
        />
 
       {/* Worker Ratings Modal */}
