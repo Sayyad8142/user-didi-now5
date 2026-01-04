@@ -10,6 +10,7 @@ import { prettyServiceName } from '@/features/booking/utils';
 import AssigningProgress from '@/features/bookings/AssigningProgress';
 import { launchUpiPayment } from '@/utils/launchUpiPayment';
 import UpiChooser from '@/components/UpiChooser';
+import { PaymentConfirmationDialog } from '@/components/PaymentConfirmationDialog';
 import { toast } from 'sonner';
 import { RateWorker } from '@/features/bookings/RateWorker';
 import { openExternalUrl } from '@/lib/nativeOpen';
@@ -79,6 +80,7 @@ const ActiveBookingCard = memo(() => {
   const [workerStats, setWorkerStats] = useState<{ avg_rating: number; ratings_count: number } | null>(null);
   const [showUpiChooser, setShowUpiChooser] = useState(false);
   const [showWorkerRatings, setShowWorkerRatings] = useState(false);
+  const [showPaymentConfirmation, setShowPaymentConfirmation] = useState(false);
 
   const fetchActiveBooking = useCallback(async () => {
     if (!profile?.id) return;
@@ -222,18 +224,13 @@ const ActiveBookingCard = memo(() => {
     }
 
     try {
-      // Mark that user tapped pay
-      await supabase
-        .from('bookings')
-        .update({ user_marked_paid_at: new Date().toISOString() })
-        .eq('id', activeBooking.id);
-      
       const success = await launchUpiPayment({
         pa: workerUpi,
         pn: workerName,
-        tn: `Service payment - Booking ${activeBooking.id}`,
+        am: activeBooking.price_inr ?? undefined,
         bookingId: activeBooking.id,
-        onNeedChooser: setShowUpiChooser
+        onNeedChooser: setShowUpiChooser,
+        onPaymentReturn: () => setShowPaymentConfirmation(true),
       });
       
       if (success) {
@@ -243,6 +240,27 @@ const ActiveBookingCard = memo(() => {
       console.error('[UPI] Error:', error);
       toast.error("Please ensure a UPI app (GPay/PhonePe/Paytm) is installed");
     }
+  };
+
+  const handlePaymentConfirmed = async (utr?: string) => {
+    try {
+      await supabase
+        .from('bookings')
+        .update({ 
+          user_marked_paid_at: new Date().toISOString(),
+          user_payment_utr: utr || null,
+        })
+        .eq('id', activeBooking.id);
+      
+      toast.success("Payment confirmed! Thank you.");
+    } catch (error) {
+      console.error('[Payment] Error confirming:', error);
+      toast.error("Could not update payment status");
+    }
+  };
+
+  const handlePaymentCancelled = () => {
+    toast.info("Payment not completed. You can try again.");
   };
 
   const handleSubmitRating = async (rating: number, comment?: string) => {
@@ -454,8 +472,20 @@ const ActiveBookingCard = memo(() => {
            upiId={activeBooking.worker_upi || ''}
            workerName={activeBooking.worker_name || undefined}
            bookingId={activeBooking.id}
+           amount={activeBooking.price_inr ?? undefined}
+           onPaymentReturn={() => setShowPaymentConfirmation(true)}
           />
        )}
+
+      {/* Payment Confirmation Dialog */}
+      <PaymentConfirmationDialog
+        open={showPaymentConfirmation}
+        onOpenChange={setShowPaymentConfirmation}
+        workerName={activeBooking.worker_name || 'Worker'}
+        amount={activeBooking.price_inr ?? undefined}
+        onConfirmPaid={handlePaymentConfirmed}
+        onCancel={handlePaymentCancelled}
+      />
 
       {/* Worker Ratings Modal */}
       {activeBooking.worker_id && activeBooking.worker_name && (

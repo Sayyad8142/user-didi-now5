@@ -10,9 +10,28 @@ type Props = {
   upiId: string;
   workerName?: string;
   bookingId?: string;
+  amount?: number;
+  onPaymentReturn?: () => void;
 };
 
-export default function UpiChooser({ open, onOpenChange, upiId, workerName, bookingId }: Props) {
+/**
+ * Generates a unique transaction reference
+ */
+function generateTransactionRef(): string {
+  const timestamp = Date.now();
+  const random = Math.random().toString(36).substring(2, 8).toUpperCase();
+  return `DIDI${timestamp}${random}`;
+}
+
+export default function UpiChooser({ 
+  open, 
+  onOpenChange, 
+  upiId, 
+  workerName, 
+  bookingId,
+  amount,
+  onPaymentReturn 
+}: Props) {
   const [loading, setLoading] = React.useState(true);
   const [apps, setApps] = React.useState<UpiApp[]>([]);
   const [forceMode, setForceMode] = React.useState(false);
@@ -35,10 +54,17 @@ export default function UpiChooser({ open, onOpenChange, upiId, workerName, book
   }, [open]);
 
   const handlePick = async (app: UpiApp) => {
+    // Generate new transaction reference for each payment attempt
+    const tr = generateTransactionRef();
+    
     const params: UpiParams = {
       pa: upiId.trim(),
-      pn: workerName || 'Worker',
-      tn: `Service payment - Booking ${bookingId || 'N/A'}`,
+      pn: workerName || 'Didi Now Worker',
+      tn: bookingId 
+        ? `Didi Now booking #${bookingId.substring(0, 8)}`
+        : 'Didi Now service payment',
+      am: amount,
+      tr,
     };
     
     const url = app.buildUrl(params);
@@ -57,7 +83,10 @@ export default function UpiChooser({ open, onOpenChange, upiId, workerName, book
       }
       return;
     }
+    
     onOpenChange(false);
+    // Trigger payment return callback for confirmation dialog
+    onPaymentReturn?.();
   };
 
   const list = apps.length > 0 ? apps : (forceMode ? UPI_APPS : []);
@@ -69,9 +98,22 @@ export default function UpiChooser({ open, onOpenChange, upiId, workerName, book
           <SheetTitle>Select UPI App</SheetTitle>
         </SheetHeader>
         
-        <p className="text-sm text-muted-foreground">
-          Pay to: <span className="font-mono font-medium">{upiId}</span>
-        </p>
+        <div className="space-y-2">
+          <p className="text-sm text-muted-foreground">
+            Pay to: <span className="font-mono font-medium">{upiId}</span>
+          </p>
+          {amount && amount > 0 && (
+            <p className="text-sm font-semibold text-green-600">
+              Amount: ₹{amount.toFixed(2)}
+            </p>
+          )}
+        </div>
+
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+          <p className="text-xs text-amber-800">
+            💡 Payment goes directly to worker's UPI. We don't process payments.
+          </p>
+        </div>
 
         {loading && <div className="text-sm opacity-70">Scanning UPI apps…</div>}
 
