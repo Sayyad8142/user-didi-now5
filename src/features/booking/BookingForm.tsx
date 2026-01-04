@@ -10,7 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useProfile } from '@/contexts/ProfileContext';
 import { prettyServiceName, serviceIcon, isValidServiceType, getPricingMap, FLAT_SIZES, type FlatSize, type PricingMap, calculateCookPrice } from './pricing';
-import { isOpenNow, getOpenStatusText } from '@/features/home/time';
+import { isOpenNow, getOpenStatusText, getServiceHoursText } from '@/features/home/time';
 import { ScheduleSheet } from './ScheduleSheet';
 import { cn } from '@/lib/utils';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
@@ -380,7 +380,7 @@ export function BookingForm() {
     : service_type === 'maid' ? selectedFlatSize && selectedTasks.length > 0 ? totalPrice : null 
     : service_type === 'bathroom_cleaning' ? bathroomTotalPrice
     : selectedFlatSize ? pricingMap[selectedFlatSize] : null;
-  const isServiceOpen = isOpenNow();
+  const isServiceOpen = isOpenNow(service_type);
   const canBook = isServiceOpen && (
     service_type === 'cook' ? foodPreference && !submitting 
     : service_type === 'maid' ? selectedFlatSize && selectedTasks.length > 0 && !submitting 
@@ -782,7 +782,7 @@ export function BookingForm() {
               </Button>
               {!isServiceOpen && (
                 <div className="mt-2 text-center text-sm text-muted-foreground">
-                  Service hours: 6:00 AM - 7:00 PM. {getOpenStatusText()}
+                  Service hours: {getServiceHoursText(service_type).replace(' Daily', '')}. {getOpenStatusText(service_type)}
                 </div>
               )}
               {!canBook && (
