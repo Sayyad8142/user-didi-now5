@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="colorPrimary">#ff007a</color>
-    <color name="colorPrimaryDark">#d60065</color>
-    <color name="colorAccent">#ff007a</color>
+    <color name="colorPrimary">#ec4899</color>
+    <color name="colorPrimaryDark">#db2777</color>
+    <color name="colorAccent">#ec4899</color>
+    <!-- WebView background to match splash - prevents black flash -->
+    <color name="splash_background">#ec4899</color>
 </resources>

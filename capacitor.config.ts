@@ -5,6 +5,13 @@ const config: CapacitorConfig = {
   appName: 'Didi Now',
   webDir: 'dist',
   bundledWebRuntime: false,
+  // Set Android WebView background color to match splash (prevents black flash)
+  android: {
+    backgroundColor: '#ec4899'
+  },
+  ios: {
+    backgroundColor: '#ec4899'
+  },
   server: {
     url: 'https://app.didisnow.com',
     cleartext: false,
