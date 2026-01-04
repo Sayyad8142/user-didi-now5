@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -27,6 +27,7 @@ import { useUnseenMessages } from '@/hooks/useUnseenMessages';
 import { CallHistory } from '@/components/calling/CallHistory';
 import { IncomingCallScreen } from '@/components/calling/IncomingCallScreen';
 import { useIncomingRtcPush } from '@/hooks/useIncomingRtcPush';
+import { useAppResume } from '@/hooks/useAppResume';
 
 interface Booking {
   id: string;
@@ -80,6 +81,12 @@ export function BookingCard({
   const [showWorkerRatings, setShowWorkerRatings] = useState(false);
   const [showPaymentConfirmation, setShowPaymentConfirmation] = useState(false);
   const now = useNow(); // ticks every 30s
+  
+  // Resume detection for UPI payment return
+  const handlePaymentReturn = useCallback(() => {
+    setShowPaymentConfirmation(true);
+  }, []);
+  const { setPending: setPaymentPending } = useAppResume(handlePaymentReturn);
   
   // Subscribe to real-time updates for this specific booking
   useBookingRealtime(booking.id, (updatedBooking) => setRow(updatedBooking));
@@ -181,7 +188,7 @@ export function BookingCard({
         am: row.price_inr ?? undefined,
         bookingId: row.id,
         onNeedChooser: setShowUpiChooser,
-        onPaymentReturn: () => setShowPaymentConfirmation(true),
+        onPaymentLaunched: setPaymentPending,
       });
       
       if (success) {
@@ -508,7 +515,7 @@ export function BookingCard({
          workerName={row.worker_name || assignedWorker?.worker?.full_name}
          bookingId={row.id}
          amount={row.price_inr ?? undefined}
-         onPaymentReturn={() => setShowPaymentConfirmation(true)}
+         onPaymentLaunched={setPaymentPending}
        />
 
       {/* Payment Confirmation Dialog */}

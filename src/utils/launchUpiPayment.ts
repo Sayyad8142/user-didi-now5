@@ -8,7 +8,7 @@ export type UpiPaymentParams = {
   am?: number;          // Amount (2 decimal places)
   bookingId?: string;   // For transaction note
   onNeedChooser?: (v: boolean) => void;
-  onPaymentReturn?: () => void; // Callback when user returns from UPI app
+  onPaymentLaunched?: () => void; // Called when UPI app opens (set pending flag)
 };
 
 /**
@@ -23,7 +23,7 @@ function isValidUpiId(upiId: string): boolean {
 /**
  * Generates a unique transaction reference using timestamp
  */
-function generateTransactionRef(): string {
+export function generateTransactionRef(): string {
   const timestamp = Date.now();
   const random = Math.random().toString(36).substring(2, 8).toUpperCase();
   return `DIDI${timestamp}${random}`;
@@ -64,11 +64,13 @@ export function buildUpiUrl(args: {
 
 /**
  * Checks if UPI apps are available on the device
+ * Uses complete probe URL for reliable detection
  */
 async function canOpenUpi(): Promise<boolean> {
   try {
-    const testUrl = 'upi://pay?pa=test@upi';
-    const result = await AppLauncher.canOpenUrl({ url: testUrl });
+    // Use complete probe URL with all required params
+    const probeUrl = 'upi://pay?pa=test@upi&pn=Test&cu=INR&tn=Probe&tr=PROBE123';
+    const result = await AppLauncher.canOpenUrl({ url: probeUrl });
     return result.value;
   } catch {
     return false;
@@ -115,8 +117,8 @@ export async function launchUpiPayment(args: UpiPaymentParams): Promise<boolean>
       // Use AppLauncher for reliable deep link handling on Android
       await AppLauncher.openUrl({ url: upiUrl });
       
-      // Trigger callback for confirmation dialog
-      args.onPaymentReturn?.();
+      // Signal that payment was launched - caller should set pending flag
+      args.onPaymentLaunched?.();
       return true;
     } catch (error) {
       console.error('[UPI] AppLauncher failed:', error);
@@ -124,7 +126,7 @@ export async function launchUpiPayment(args: UpiPaymentParams): Promise<boolean>
       // Fallback to window.location.href
       try {
         window.location.href = upiUrl;
-        args.onPaymentReturn?.();
+        args.onPaymentLaunched?.();
         return true;
       } catch (fallbackError) {
         console.error('[UPI] Fallback failed:', fallbackError);
@@ -140,14 +142,7 @@ export async function launchUpiPayment(args: UpiPaymentParams): Promise<boolean>
     return true;
   }
 
-  // Web fallback
-  try {
-    await AppLauncher.openUrl({ url: upiUrl });
-    args.onPaymentReturn?.();
-    return true;
-  } catch {
-    // On web, show chooser as fallback
-    args.onNeedChooser?.(true);
-    return true;
-  }
+  // Web fallback - show chooser
+  args.onNeedChooser?.(true);
+  return true;
 }

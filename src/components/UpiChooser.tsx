@@ -1,8 +1,9 @@
 import React from 'react';
-import { UPI_APPS, detectInstalledUpiApps, tryOpen, UpiApp, UpiParams } from '@/utils/upi';
+import { UPI_APPS, tryOpen, UpiApp, UpiParams, generateTransactionRef } from '@/utils/upi';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { toast } from 'sonner';
+import { Copy, Check } from 'lucide-react';
 
 type Props = {
   open: boolean;
@@ -11,17 +12,8 @@ type Props = {
   workerName?: string;
   bookingId?: string;
   amount?: number;
-  onPaymentReturn?: () => void;
+  onPaymentLaunched?: () => void; // Called when UPI app opens successfully
 };
-
-/**
- * Generates a unique transaction reference
- */
-function generateTransactionRef(): string {
-  const timestamp = Date.now();
-  const random = Math.random().toString(36).substring(2, 8).toUpperCase();
-  return `DIDI${timestamp}${random}`;
-}
 
 export default function UpiChooser({ 
   open, 
@@ -30,28 +22,10 @@ export default function UpiChooser({
   workerName, 
   bookingId,
   amount,
-  onPaymentReturn 
+  onPaymentLaunched 
 }: Props) {
-  const [loading, setLoading] = React.useState(true);
-  const [apps, setApps] = React.useState<UpiApp[]>([]);
-  const [forceMode, setForceMode] = React.useState(false);
-
-  React.useEffect(() => {
-    let active = true;
-    if (open) {
-      setLoading(true);
-      setForceMode(false);
-      detectInstalledUpiApps().then(list => {
-        if (!active) return;
-        setApps(list);
-        setLoading(false);
-        if (list.length === 0) {
-          setForceMode(true);
-        }
-      });
-    }
-    return () => { active = false; };
-  }, [open]);
+  const [copiedUpi, setCopiedUpi] = React.useState(false);
+  const [copiedAmount, setCopiedAmount] = React.useState(false);
 
   const handlePick = async (app: UpiApp) => {
     // Generate new transaction reference for each payment attempt
@@ -72,24 +46,37 @@ export default function UpiChooser({
     
     const ok = await tryOpen(url);
     if (!ok) {
-      toast.error(`${app.label} not available on this device`);
-      if (app.appStore) {
-        toast.message(`Install ${app.label}?`, {
-          action: {
-            label: 'Open App Store',
-            onClick: () => tryOpen(app.appStore!)
-          }
-        });
-      }
+      toast.error(`Could not open ${app.label}`);
       return;
     }
     
     onOpenChange(false);
-    // Trigger payment return callback for confirmation dialog
-    onPaymentReturn?.();
+    // Signal that UPI app was opened - caller should set pending flag
+    onPaymentLaunched?.();
   };
 
-  const list = apps.length > 0 ? apps : (forceMode ? UPI_APPS : []);
+  const handleCopyUpi = async () => {
+    try {
+      await navigator.clipboard.writeText(upiId.trim());
+      setCopiedUpi(true);
+      toast.success('UPI ID copied!');
+      setTimeout(() => setCopiedUpi(false), 2000);
+    } catch {
+      toast.error('Failed to copy');
+    }
+  };
+
+  const handleCopyAmount = async () => {
+    if (!amount) return;
+    try {
+      await navigator.clipboard.writeText(amount.toFixed(2));
+      setCopiedAmount(true);
+      toast.success('Amount copied!');
+      setTimeout(() => setCopiedAmount(false), 2000);
+    } catch {
+      toast.error('Failed to copy');
+    }
+  };
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -99,13 +86,33 @@ export default function UpiChooser({
         </SheetHeader>
         
         <div className="space-y-2">
-          <p className="text-sm text-muted-foreground">
-            Pay to: <span className="font-mono font-medium">{upiId}</span>
-          </p>
-          {amount && amount > 0 && (
-            <p className="text-sm font-semibold text-green-600">
-              Amount: ₹{amount.toFixed(2)}
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">
+              Pay to: <span className="font-mono font-medium">{upiId}</span>
             </p>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={handleCopyUpi}
+              className="h-8 px-2"
+            >
+              {copiedUpi ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
+            </Button>
+          </div>
+          {amount && amount > 0 && (
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold text-green-600">
+                Amount: ₹{amount.toFixed(2)}
+              </p>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={handleCopyAmount}
+                className="h-8 px-2"
+              >
+                {copiedAmount ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
+              </Button>
+            </div>
           )}
         </div>
 
@@ -115,21 +122,22 @@ export default function UpiChooser({
           </p>
         </div>
 
-        {loading && <div className="text-sm opacity-70">Scanning UPI apps…</div>}
+        <div className="grid grid-cols-2 gap-3">
+          {UPI_APPS.map(app => (
+            <Button 
+              key={app.key} 
+              variant="secondary" 
+              className="h-12" 
+              onClick={() => handlePick(app)}
+            >
+              {app.label}
+            </Button>
+          ))}
+        </div>
 
-        {!loading && list.length > 0 && (
-          <div className="grid grid-cols-2 gap-3">
-            {list.map(app => (
-              <Button key={app.key} variant="secondary" className="h-12" onClick={() => handlePick(app)}>
-                {app.label}
-              </Button>
-            ))}
-          </div>
-        )}
-
-        {!loading && list.length === 0 && (
-          <div className="text-sm opacity-70">No UPI apps detected.</div>
-        )}
+        <p className="text-xs text-muted-foreground text-center">
+          If app doesn't open, use Copy buttons above to pay manually
+        </p>
       </SheetContent>
     </Sheet>
   );
