@@ -184,13 +184,26 @@ export async function sendFcmV1Message(
 
   const message: Record<string, unknown> = {
     token: token,
-    // Data-only message for native apps (allows custom handling)
-    // Title/body in data payload so native app can display custom UI
+
+    // Ensure Android shows a system notification even when the app is background/killed.
+    // (Data-only messages will not display by default.)
+    notification: {
+      title,
+      body,
+    },
+
+    // Keep data payload for deep-linking / in-app handling.
     data: dataPayload,
+
     android: {
       priority: 'high',
-      // No notification block - native app handles display
+      notification: {
+        // If you don't create channels in native code, using the fallback channel is safest.
+        channel_id: 'fcm_fallback_notification_channel',
+        sound: 'default',
+      },
     },
+
     // Web push needs notification block for browser display
     webpush: {
       notification: {
@@ -203,6 +216,7 @@ export async function sendFcmV1Message(
         link: '/',
       },
     },
+
     // APNS for iOS
     apns: {
       headers: {
