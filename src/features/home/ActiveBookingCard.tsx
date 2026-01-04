@@ -18,6 +18,7 @@ import ChatSheet from '@/features/chat/ChatSheet';
 import { LoadingWorkerBadge } from '@/components/LoadingWorkerBadge';
 import { WorkerRatingsModal } from '@/features/bookings/WorkerRatingsModal';
 import { useUnseenMessages } from '@/hooks/useUnseenMessages';
+import { useAppResume } from '@/hooks/useAppResume';
 
 interface Booking {
   id: string;
@@ -81,6 +82,12 @@ const ActiveBookingCard = memo(() => {
   const [showUpiChooser, setShowUpiChooser] = useState(false);
   const [showWorkerRatings, setShowWorkerRatings] = useState(false);
   const [showPaymentConfirmation, setShowPaymentConfirmation] = useState(false);
+
+  // Resume detection for UPI payment return
+  const handlePaymentReturn = useCallback(() => {
+    setShowPaymentConfirmation(true);
+  }, []);
+  const { setPending: setPaymentPending } = useAppResume(handlePaymentReturn);
 
   const fetchActiveBooking = useCallback(async () => {
     if (!profile?.id) return;
@@ -230,7 +237,7 @@ const ActiveBookingCard = memo(() => {
         am: activeBooking.price_inr ?? undefined,
         bookingId: activeBooking.id,
         onNeedChooser: setShowUpiChooser,
-        onPaymentReturn: () => setShowPaymentConfirmation(true),
+        onPaymentLaunched: setPaymentPending,
       });
       
       if (success) {
@@ -473,7 +480,7 @@ const ActiveBookingCard = memo(() => {
            workerName={activeBooking.worker_name || undefined}
            bookingId={activeBooking.id}
            amount={activeBooking.price_inr ?? undefined}
-           onPaymentReturn={() => setShowPaymentConfirmation(true)}
+           onPaymentLaunched={setPaymentPending}
           />
        )}
 
