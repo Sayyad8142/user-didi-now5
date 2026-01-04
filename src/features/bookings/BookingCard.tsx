@@ -14,6 +14,7 @@ import AutoCompleteCountdown from '@/components/AutoCompleteCountdown';
 import { useBookingRealtime } from '@/features/bookings/useBookingRealtime';
 import { launchUpiPayment } from '@/utils/launchUpiPayment';
 import UpiChooser from '@/components/UpiChooser';
+import { PaymentConfirmationDialog } from '@/components/PaymentConfirmationDialog';
 import { toast } from 'sonner';
 import { useNow } from '@/hooks/useNow';
 import CancelAction from './CancelAction';
@@ -77,6 +78,7 @@ export function BookingCard({
   const [openChat, setOpenChat] = useState(false);
   const [showUpiChooser, setShowUpiChooser] = useState(false);
   const [showWorkerRatings, setShowWorkerRatings] = useState(false);
+  const [showPaymentConfirmation, setShowPaymentConfirmation] = useState(false);
   const now = useNow(); // ticks every 30s
   
   // Subscribe to real-time updates for this specific booking
@@ -173,18 +175,13 @@ export function BookingCard({
     }
 
     try {
-      // Mark that user tapped pay
-      await supabase
-        .from('bookings')
-        .update({ user_marked_paid_at: new Date().toISOString() })
-        .eq('id', row.id);
-      
       const success = await launchUpiPayment({
         pa: workerUpi,
         pn: workerName,
-        tn: `Service payment - Booking ${row.id}`,
+        am: row.price_inr ?? undefined,
         bookingId: row.id,
-        onNeedChooser: setShowUpiChooser
+        onNeedChooser: setShowUpiChooser,
+        onPaymentReturn: () => setShowPaymentConfirmation(true),
       });
       
       if (success) {
@@ -194,6 +191,27 @@ export function BookingCard({
       console.error('[UPI] Error:', error);
       toast.error("Please ensure a UPI app (GPay/PhonePe/Paytm) is installed");
     }
+  };
+
+  const handlePaymentConfirmed = async (utr?: string) => {
+    try {
+      await supabase
+        .from('bookings')
+        .update({ 
+          user_marked_paid_at: new Date().toISOString(),
+          user_payment_utr: utr || null,
+        })
+        .eq('id', row.id);
+      
+      toast.success("Payment confirmed! Thank you.");
+    } catch (error) {
+      console.error('[Payment] Error confirming:', error);
+      toast.error("Could not update payment status");
+    }
+  };
+
+  const handlePaymentCancelled = () => {
+    toast.info("Payment not completed. You can try again.");
   };
 
   const handleSubmitRating = async (rating: number, comment?: string) => {
@@ -489,7 +507,19 @@ export function BookingCard({
          upiId={row.worker_upi || assignedWorker?.worker?.upi_id || ''}
          workerName={row.worker_name || assignedWorker?.worker?.full_name}
          bookingId={row.id}
+         amount={row.price_inr ?? undefined}
+         onPaymentReturn={() => setShowPaymentConfirmation(true)}
        />
+
+      {/* Payment Confirmation Dialog */}
+      <PaymentConfirmationDialog
+        open={showPaymentConfirmation}
+        onOpenChange={setShowPaymentConfirmation}
+        workerName={row.worker_name || assignedWorker?.worker?.full_name || 'Worker'}
+        amount={row.price_inr ?? undefined}
+        onConfirmPaid={handlePaymentConfirmed}
+        onCancel={handlePaymentCancelled}
+      />
 
       {/* Worker Ratings Modal */}
       {row.worker_id && row.worker_name && (
