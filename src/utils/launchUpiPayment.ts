@@ -106,23 +106,27 @@ export async function launchUpiPayment(args: UpiPaymentParams): Promise<boolean>
   const platform = Capacitor.getPlatform();
 
   if (platform === 'android') {
+    // Note: AppLauncher.canOpenUrl() can produce false negatives on Android 11+
+    // due to package visibility restrictions in the native manifest.
+    // So we do an optimistic open first and only show "no app" if opening fails.
+    let hasUpiApp = true;
     try {
-      // First check if any UPI app is available
-      const hasUpiApp = await canOpenUpi();
-      if (!hasUpiApp) {
-        toast.error('No UPI app found. Please install GPay, PhonePe, or Paytm.');
-        return false;
-      }
-      
+      hasUpiApp = await canOpenUpi();
+      if (!hasUpiApp) console.warn('[UPI] canOpenUpi=false (may be false-negative on Android 11+)');
+    } catch {
+      hasUpiApp = true;
+    }
+
+    try {
       // Use AppLauncher for reliable deep link handling on Android
       await AppLauncher.openUrl({ url: upiUrl });
-      
+
       // Signal that payment was launched - caller should set pending flag
       args.onPaymentLaunched?.();
       return true;
     } catch (error) {
       console.error('[UPI] AppLauncher failed:', error);
-      
+
       // Fallback to window.location.href
       try {
         window.location.href = upiUrl;
@@ -130,7 +134,11 @@ export async function launchUpiPayment(args: UpiPaymentParams): Promise<boolean>
         return true;
       } catch (fallbackError) {
         console.error('[UPI] Fallback failed:', fallbackError);
-        toast.error('Could not open UPI app. Please try again.');
+        toast.error(
+          hasUpiApp
+            ? 'Could not open UPI app. Please try again.'
+            : 'No UPI app found. Please install GPay, PhonePe, or Paytm.'
+        );
         return false;
       }
     }
