@@ -10,17 +10,19 @@ import { PushNotificationProvider } from "@/components/PushNotificationProvider"
 import App from "./App.tsx";
 import "./index.css";
 
-// Hide splash screen once app is loaded (for native apps)
-// Use dynamic import to avoid module resolution conflicts
+// Hide native splash screen once WebView content is painted
+// Keep native splash visible until HTML splash is rendered
 (async () => {
   try {
     const { Capacitor } = await import("@capacitor/core");
     if (Capacitor.isNativePlatform()) {
       const { SplashScreen } = await import("@capacitor/splash-screen");
-      // Hide splash after a short delay to ensure WebView is ready
-      setTimeout(() => {
-        SplashScreen.hide();
-      }, 500);
+      // Wait for first paint to ensure HTML splash is visible
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          SplashScreen.hide();
+        });
+      });
     }
   } catch (e) {
     // Capacitor not available (web build)
