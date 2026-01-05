@@ -3,7 +3,8 @@ import { UPI_APPS, tryOpen, UpiApp, UpiParams, generateTransactionRef } from '@/
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { toast } from 'sonner';
-import { Copy, Check } from 'lucide-react';
+import { Copy, Check, QrCode } from 'lucide-react';
+import { isValidUpiPayload } from '@/utils/launchUpiPayment';
 
 type Props = {
   open: boolean;
@@ -12,8 +13,40 @@ type Props = {
   workerName?: string;
   bookingId?: string;
   amount?: number;
+  qrPayload?: string;     // Optional: decoded QR payload
+  qrImageUrl?: string;    // Optional: QR image URL
   onPaymentLaunched?: () => void; // Called when UPI app opens successfully
+  onShowQr?: () => void;  // Called when user wants to show QR
 };
+
+/**
+ * Parse QR payload and extract/merge params
+ */
+function parseQrPayload(payload: string): Map<string, string> {
+  const params = new Map<string, string>();
+  let queryString = payload;
+  
+  if (payload.toLowerCase().startsWith('upi://pay?')) {
+    queryString = payload.substring(10);
+  } else if (payload.toLowerCase().startsWith('upi://pay')) {
+    queryString = payload.substring(9);
+    if (queryString.startsWith('?')) queryString = queryString.substring(1);
+  }
+  
+  const pairs = queryString.split('&');
+  for (const pair of pairs) {
+    const [key, value] = pair.split('=');
+    if (key && value) {
+      try {
+        params.set(key.toLowerCase().trim(), decodeURIComponent(value.trim()));
+      } catch {
+        params.set(key.toLowerCase().trim(), value.trim());
+      }
+    }
+  }
+  
+  return params;
+}
 
 export default function UpiChooser({ 
   open, 
@@ -22,17 +55,32 @@ export default function UpiChooser({
   workerName, 
   bookingId,
   amount,
-  onPaymentLaunched 
+  qrPayload,
+  qrImageUrl,
+  onPaymentLaunched,
+  onShowQr
 }: Props) {
   const [copiedUpi, setCopiedUpi] = React.useState(false);
   const [copiedAmount, setCopiedAmount] = React.useState(false);
+
+  // Determine effective UPI ID (from qrPayload if available)
+  const effectiveUpiId = React.useMemo(() => {
+    if (qrPayload && isValidUpiPayload(qrPayload)) {
+      const qrParams = parseQrPayload(qrPayload);
+      const qrPa = qrParams.get('pa');
+      if (qrPa && qrPa.includes('@')) {
+        return qrPa;
+      }
+    }
+    return upiId;
+  }, [upiId, qrPayload]);
 
   const handlePick = async (app: UpiApp) => {
     // Generate new transaction reference for each payment attempt
     const tr = generateTransactionRef();
     
     const params: UpiParams = {
-      pa: upiId.trim(),
+      pa: effectiveUpiId.trim(),
       pn: workerName || 'Didi Now Worker',
       tn: bookingId 
         ? `Didi Now booking #${bookingId.substring(0, 8)}`
@@ -57,7 +105,7 @@ export default function UpiChooser({
 
   const handleCopyUpi = async () => {
     try {
-      await navigator.clipboard.writeText(upiId.trim());
+      await navigator.clipboard.writeText(effectiveUpiId.trim());
       setCopiedUpi(true);
       toast.success('UPI ID copied!');
       setTimeout(() => setCopiedUpi(false), 2000);
@@ -78,6 +126,13 @@ export default function UpiChooser({
     }
   };
 
+  const handleShowQr = () => {
+    onOpenChange(false);
+    onShowQr?.();
+  };
+
+  const hasQr = !!(qrImageUrl || (qrPayload && isValidUpiPayload(qrPayload)));
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="space-y-4">
@@ -88,7 +143,7 @@ export default function UpiChooser({
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <p className="text-sm text-muted-foreground">
-              Pay to: <span className="font-mono font-medium">{upiId}</span>
+              Pay to: <span className="font-mono font-medium">{effectiveUpiId}</span>
             </p>
             <Button 
               variant="ghost" 
@@ -134,6 +189,18 @@ export default function UpiChooser({
             </Button>
           ))}
         </div>
+
+        {/* Show QR option */}
+        {hasQr && onShowQr && (
+          <Button
+            variant="outline"
+            className="w-full h-10"
+            onClick={handleShowQr}
+          >
+            <QrCode className="w-4 h-4 mr-2" />
+            Show Worker QR Code
+          </Button>
+        )}
 
         <p className="text-xs text-muted-foreground text-center">
           If app doesn't open, use Copy buttons above to pay manually

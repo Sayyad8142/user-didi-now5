@@ -7,8 +7,10 @@ export type UpiPaymentParams = {
   pn?: string;          // Payee name
   am?: number;          // Amount (2 decimal places)
   bookingId?: string;   // For transaction note
+  qrPayload?: string;   // Optional: decoded QR payload (upi://pay?... or pa=...)
   onNeedChooser?: (v: boolean) => void;
   onPaymentLaunched?: () => void; // Called when UPI app opens (set pending flag)
+  onShowQrFallback?: () => void;  // Called when deep link fails and QR is available
 };
 
 /**
@@ -35,7 +37,48 @@ export function generateTransactionRef(): string {
 const enc = (v: string) => encodeURIComponent(v?.trim() ?? '');
 
 /**
+ * Parses a UPI URL or payload and extracts parameters
+ */
+function parseUpiPayload(payload: string): Map<string, string> {
+  const params = new Map<string, string>();
+  
+  // Handle upi://pay?... format
+  let queryString = payload;
+  if (payload.toLowerCase().startsWith('upi://pay?')) {
+    queryString = payload.substring(10); // Remove 'upi://pay?'
+  } else if (payload.toLowerCase().startsWith('upi://pay')) {
+    queryString = payload.substring(9); // Remove 'upi://pay'
+    if (queryString.startsWith('?')) queryString = queryString.substring(1);
+  }
+  
+  // Parse query string
+  const pairs = queryString.split('&');
+  for (const pair of pairs) {
+    const [key, value] = pair.split('=');
+    if (key && value) {
+      try {
+        params.set(key.toLowerCase().trim(), decodeURIComponent(value.trim()));
+      } catch {
+        params.set(key.toLowerCase().trim(), value.trim());
+      }
+    }
+  }
+  
+  return params;
+}
+
+/**
+ * Check if a payload is a valid UPI payload
+ */
+export function isValidUpiPayload(payload?: string): boolean {
+  if (!payload) return false;
+  const trimmed = payload.trim().toLowerCase();
+  return trimmed.startsWith('upi://pay') || trimmed.includes('pa=');
+}
+
+/**
  * Builds complete UPI URL with all required parameters
+ * If qrPayload is provided, merges/overrides with provided params
  * Format: upi://pay?pa=...&pn=...&am=...&cu=INR&tn=...&tr=...
  */
 export function buildUpiUrl(args: {
@@ -43,15 +86,24 @@ export function buildUpiUrl(args: {
   pn?: string;
   am?: number;
   bookingId?: string;
+  qrPayload?: string;
 }): string {
-  const pa = args.pa.trim();
-  const pn = args.pn?.trim() || 'Didi Now Worker';
+  // Start with QR payload params if available
+  let baseParams = new Map<string, string>();
+  
+  if (args.qrPayload && isValidUpiPayload(args.qrPayload)) {
+    baseParams = parseUpiPayload(args.qrPayload);
+  }
+  
+  // Get UPI ID: prefer explicit pa, fallback to QR's pa
+  const pa = args.pa?.trim() || baseParams.get('pa') || '';
+  const pn = args.pn?.trim() || baseParams.get('pn') || 'Didi Now Worker';
   const tn = args.bookingId 
     ? `Didi Now booking #${args.bookingId.substring(0, 8)}`
     : 'Didi Now service payment';
   const tr = generateTransactionRef();
   
-  // Build URL with all parameters
+  // Build URL - always override with our params for consistency
   let url = `upi://pay?pa=${enc(pa)}&pn=${enc(pn)}&cu=INR&tn=${enc(tn)}&tr=${enc(tr)}`;
   
   // Add amount only if provided and valid
@@ -78,12 +130,22 @@ async function canOpenUpi(): Promise<boolean> {
 }
 
 export async function launchUpiPayment(args: UpiPaymentParams): Promise<boolean> {
-  const pa = args.pa?.trim();
+  // Determine effective UPI ID
+  let effectivePa = args.pa?.trim() || '';
+  
+  // If QR payload available, try to extract pa from it
+  if (args.qrPayload && isValidUpiPayload(args.qrPayload)) {
+    const qrParams = parseUpiPayload(args.qrPayload);
+    const qrPa = qrParams.get('pa');
+    if (qrPa && isValidUpiId(qrPa)) {
+      effectivePa = effectivePa || qrPa;
+    }
+  }
   
   // Validation: UPI ID must contain @
-  if (!pa || !isValidUpiId(pa)) {
+  if (!effectivePa || !isValidUpiId(effectivePa)) {
     toast.error('Invalid worker UPI ID. Please contact support.');
-    console.error('[UPI] Invalid UPI ID:', pa);
+    console.error('[UPI] Invalid UPI ID:', effectivePa);
     return false;
   }
   
@@ -95,10 +157,11 @@ export async function launchUpiPayment(args: UpiPaymentParams): Promise<boolean>
   }
   
   const upiUrl = buildUpiUrl({
-    pa,
+    pa: effectivePa,
     pn: args.pn,
     am: args.am,
     bookingId: args.bookingId,
+    qrPayload: args.qrPayload,
   });
   
   console.log('[UPI] Generated URL:', upiUrl);
@@ -134,6 +197,13 @@ export async function launchUpiPayment(args: UpiPaymentParams): Promise<boolean>
         return true;
       } catch (fallbackError) {
         console.error('[UPI] Fallback failed:', fallbackError);
+        
+        // If QR is available, offer that as fallback
+        if (args.onShowQrFallback) {
+          args.onShowQrFallback();
+          return false;
+        }
+        
         toast.error(
           hasUpiApp
             ? 'Could not open UPI app. Please try again.'

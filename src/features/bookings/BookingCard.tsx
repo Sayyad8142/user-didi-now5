@@ -7,14 +7,15 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { prettyServiceName } from '@/features/booking/utils';
 import { formatDateTime } from '@/features/bookings/dt';
 import { format } from 'date-fns';
-import { PhoneCall, Sparkles, ChefHat, ShowerHead, Clock, User, MapPin, Timer, CreditCard, Star, MessageCircle } from 'lucide-react';
+import { PhoneCall, Sparkles, ChefHat, ShowerHead, Clock, User, MapPin, Timer, CreditCard, Star, MessageCircle, QrCode } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import AssigningProgress from '@/features/bookings/AssigningProgress';
 import AutoCompleteCountdown from '@/components/AutoCompleteCountdown';
 import { useBookingRealtime } from '@/features/bookings/useBookingRealtime';
-import { launchUpiPayment } from '@/utils/launchUpiPayment';
+import { launchUpiPayment, isValidUpiPayload } from '@/utils/launchUpiPayment';
 import UpiChooser from '@/components/UpiChooser';
 import { PaymentConfirmationDialog } from '@/components/PaymentConfirmationDialog';
+import { WorkerQrModal } from '@/components/WorkerQrModal';
 import { toast } from 'sonner';
 import { useNow } from '@/hooks/useNow';
 import CancelAction from './CancelAction';
@@ -80,6 +81,13 @@ export function BookingCard({
   const [showUpiChooser, setShowUpiChooser] = useState(false);
   const [showWorkerRatings, setShowWorkerRatings] = useState(false);
   const [showPaymentConfirmation, setShowPaymentConfirmation] = useState(false);
+  const [showWorkerQr, setShowWorkerQr] = useState(false);
+  const [workerPaymentInfo, setWorkerPaymentInfo] = useState<{
+    upi_id: string | null;
+    upi_qr_payload: string | null;
+    upi_qr_url: string | null;
+    full_name: string | null;
+  } | null>(null);
   const now = useNow(); // ticks every 30s
   
   // Resume detection for UPI payment return
@@ -104,6 +112,21 @@ export function BookingCard({
       .eq('worker_id', row.worker_id)
       .maybeSingle()
       .then(({ data }) => setWorkerStats(data ?? null));
+  }, [row.worker_id]);
+
+  // Load worker payment info (QR data)
+  useEffect(() => {
+    if (!row.worker_id) {
+      setWorkerPaymentInfo(null);
+      return;
+    }
+    
+    supabase
+      .from('workers')
+      .select('upi_id, upi_qr_payload, upi_qr_url, full_name')
+      .eq('id', row.worker_id)
+      .maybeSingle()
+      .then(({ data }) => setWorkerPaymentInfo(data ?? null));
   }, [row.worker_id]);
 
   // Load assigned worker (for fallback compatibility)
@@ -172,11 +195,17 @@ export function BookingCard({
   // Check if payment should be enabled (show for assigned/accepted/on_the_way/started)
   const paymentReady = ['assigned', 'accepted', 'on_the_way', 'started'].includes(row.status);
 
-  const handlePayWorker = async () => {
-    const workerUpi = row.worker_upi || assignedWorker?.worker?.upi_id;
-    const workerName = row.worker_name || assignedWorker?.worker?.full_name || 'Worker';
+  // Determine effective payment details
+  const effectiveUpiId = row.worker_upi || assignedWorker?.worker?.upi_id || workerPaymentInfo?.upi_id || '';
+  const qrPayload = workerPaymentInfo?.upi_qr_payload || undefined;
+  const qrImageUrl = workerPaymentInfo?.upi_qr_url || undefined;
+  const hasQrAvailable = !!(qrImageUrl || (qrPayload && isValidUpiPayload(qrPayload)));
 
-    if (!workerUpi) {
+  const handlePayWorker = async () => {
+    const workerUpi = effectiveUpiId;
+    const workerName = row.worker_name || assignedWorker?.worker?.full_name || workerPaymentInfo?.full_name || 'Worker';
+
+    if (!workerUpi && !qrPayload) {
       toast.error("Worker account not updated, pay cash to worker");
       return;
     }
@@ -187,8 +216,10 @@ export function BookingCard({
         pn: workerName,
         am: row.price_inr ?? undefined,
         bookingId: row.id,
+        qrPayload: qrPayload,
         onNeedChooser: setShowUpiChooser,
         onPaymentLaunched: setPaymentPending,
+        onShowQrFallback: hasQrAvailable ? () => setShowWorkerQr(true) : undefined,
       });
       
       if (success) {
@@ -421,13 +452,29 @@ export function BookingCard({
         <div className="space-y-2">
           {/* Pay Now Button - shows after 30 minutes from assignment */}
           {paymentReady && (
-            <Button 
-              onClick={handlePayWorker}
-              className="w-full h-10 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-semibold rounded-lg shadow-sm"
-            >
-              <CreditCard className="h-4 w-4 mr-2" />
-              Pay to worker {row.worker_name || assignedWorker?.worker?.full_name || 'Worker'}
-            </Button>
+            <div className="space-y-2">
+              <Button 
+                onClick={handlePayWorker}
+                className="w-full h-10 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-semibold rounded-lg shadow-sm"
+              >
+                <CreditCard className="h-4 w-4 mr-2" />
+                Pay to worker {row.worker_name || assignedWorker?.worker?.full_name || 'Worker'}
+                {hasQrAvailable && (
+                  <span className="ml-2 text-xs bg-white/20 px-1.5 py-0.5 rounded">QR</span>
+                )}
+              </Button>
+              {/* Show QR button if available */}
+              {hasQrAvailable && (
+                <Button
+                  variant="outline"
+                  onClick={() => setShowWorkerQr(true)}
+                  className="w-full h-9 text-sm"
+                >
+                  <QrCode className="h-4 w-4 mr-2" />
+                  Show Worker QR Code
+                </Button>
+              )}
+            </div>
           )}
 
           {/* Rate Worker - show for assigned/accepted/on_the_way/started/completed bookings */}
@@ -511,12 +558,25 @@ export function BookingCard({
        <UpiChooser
          open={showUpiChooser}
          onOpenChange={setShowUpiChooser}
-         upiId={row.worker_upi || assignedWorker?.worker?.upi_id || ''}
-         workerName={row.worker_name || assignedWorker?.worker?.full_name}
+         upiId={effectiveUpiId}
+         workerName={row.worker_name || assignedWorker?.worker?.full_name || workerPaymentInfo?.full_name}
          bookingId={row.id}
          amount={row.price_inr ?? undefined}
+         qrPayload={qrPayload}
+         qrImageUrl={qrImageUrl}
          onPaymentLaunched={setPaymentPending}
+         onShowQr={() => setShowWorkerQr(true)}
        />
+
+      {/* Worker QR Modal */}
+      <WorkerQrModal
+        open={showWorkerQr}
+        onOpenChange={setShowWorkerQr}
+        qrImageUrl={qrImageUrl}
+        upiId={effectiveUpiId}
+        workerName={row.worker_name || assignedWorker?.worker?.full_name || workerPaymentInfo?.full_name}
+        amount={row.price_inr ?? undefined}
+      />
 
       {/* Payment Confirmation Dialog */}
       <PaymentConfirmationDialog
