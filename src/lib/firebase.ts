@@ -216,17 +216,44 @@ export const signOut = async (): Promise<void> => {
   }
 };
 
-// Get Firebase ID token for Supabase
+// Get Firebase ID token for Supabase (waits for auth state)
 export const getFirebaseIdToken = async (): Promise<string | null> => {
-  const user = getCurrentUser();
-  if (!user) return null;
+  const authInstance = getFirebaseAuth();
+  if (!authInstance) return null;
   
-  try {
-    return await user.getIdToken();
-  } catch (error) {
-    console.error('❌ Error getting ID token:', error);
-    return null;
+  // If user is already available, return token immediately
+  if (authInstance.currentUser) {
+    try {
+      return await authInstance.currentUser.getIdToken();
+    } catch (error) {
+      console.error('❌ Error getting ID token:', error);
+      return null;
+    }
   }
+  
+  // Wait for auth state to be determined (handles async initialization)
+  return new Promise((resolve) => {
+    const unsubscribe = onAuthStateChanged(authInstance, async (user) => {
+      unsubscribe();
+      if (user) {
+        try {
+          const token = await user.getIdToken();
+          resolve(token);
+        } catch (error) {
+          console.error('❌ Error getting ID token:', error);
+          resolve(null);
+        }
+      } else {
+        resolve(null);
+      }
+    });
+    
+    // Timeout after 5 seconds to prevent hanging
+    setTimeout(() => {
+      unsubscribe();
+      resolve(null);
+    }, 5000);
+  });
 };
 
 // Get Firebase Messaging instance
