@@ -212,13 +212,18 @@ serve(async (req) => {
       const message = (payload?.message as string | undefined)?.trim();
       const sender = payload?.sender as string | undefined;
 
+      console.log("📝 send_message received:", { threadId, message: message?.substring(0, 50), sender });
+
       if (!threadId) return jsonResponse({ error: "Missing threadId" }, 400);
       if (!message) return jsonResponse({ error: "Missing message" }, 400);
       if (sender !== "user") return jsonResponse({ error: "Only user messages allowed" }, 403);
 
+      console.log("📝 Checking thread ownership...");
       const ok = await assertThreadOwned(threadId);
       if (!ok) return jsonResponse({ error: "Forbidden" }, 403);
+      console.log("✅ Thread ownership confirmed");
 
+      console.log("📝 Inserting message...");
       const { data: inserted, error: insertErr } = await supabaseAdmin
         .from("support_messages")
         .insert({
@@ -230,8 +235,13 @@ serve(async (req) => {
         .select("*")
         .single();
 
-      if (insertErr) throw insertErr;
+      if (insertErr) {
+        console.log("❌ Insert message error:", insertErr);
+        throw insertErr;
+      }
+      console.log("✅ Message inserted:", inserted?.id);
 
+      console.log("📝 Updating thread metadata...");
       const { error: threadErr } = await supabaseAdmin
         .from("support_threads")
         .update({
@@ -242,6 +252,7 @@ serve(async (req) => {
         .eq("id", threadId);
 
       if (threadErr) console.log("⚠️ support_threads update error:", threadErr);
+      else console.log("✅ Thread updated");
 
       return jsonResponse({ message: inserted });
     }
