@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Sparkles, ChefHat, ShowerHead, ArrowRight, X, CreditCard, PhoneCall, MessageCircle, Star } from 'lucide-react';
+import { Sparkles, ChefHat, ShowerHead, ArrowRight, X, CreditCard, PhoneCall, MessageCircle, Star, CheckCircle, XCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useProfile } from '@/contexts/ProfileContext';
 import { prettyServiceName } from '@/features/booking/utils';
@@ -42,6 +42,9 @@ interface Booking {
   cancel_source?: string | null;
   cancel_reason?: string | null;
   cancelled_at?: string | null;
+  reach_status?: string | null;
+  reach_confirmed_at?: string | null;
+  reach_confirmed_by?: string | null;
 }
 
 const getServiceIcon = (serviceType: string) => {
@@ -70,6 +73,40 @@ const getStatusColor = (status: string) => {
   }
 };
 
+// Check if reach confirmation buttons should be shown
+const shouldShowReachButtons = (booking: Booking): boolean => {
+  // Only show for active statuses
+  const activeStatuses = ['assigned', 'dispatched', 'on_the_way', 'accepted', 'started'];
+  if (!activeStatuses.includes(booking.status)) return false;
+  
+  // Only show if reach_status is pending
+  if (booking.reach_status && booking.reach_status !== 'pending') return false;
+  
+  const now = Date.now();
+  const FIFTEEN_MINUTES = 15 * 60 * 1000;
+  
+  // Compute reference time based on booking type
+  let referenceTime: number;
+  
+  if (booking.booking_type === 'scheduled' && booking.scheduled_date) {
+    // For scheduled: use scheduled_date + scheduled_time
+    const timeStr = booking.scheduled_time ? booking.scheduled_time.slice(0, 5) : '00:00';
+    const scheduledDateTime = new Date(`${booking.scheduled_date}T${timeStr}:00`);
+    referenceTime = scheduledDateTime.getTime();
+    
+    // Fallback to created_at if scheduled time is invalid
+    if (isNaN(referenceTime)) {
+      referenceTime = new Date(booking.created_at).getTime();
+    }
+  } else {
+    // For instant: use created_at
+    referenceTime = new Date(booking.created_at).getTime();
+  }
+  
+  // Show buttons only after 15 minutes from reference time
+  return now >= referenceTime + FIFTEEN_MINUTES;
+};
+
 const ActiveBookingCard = memo(() => {
   const { profile } = useProfile();
   const navigate = useNavigate();
@@ -82,6 +119,8 @@ const ActiveBookingCard = memo(() => {
   const [showUpiChooser, setShowUpiChooser] = useState(false);
   const [showWorkerRatings, setShowWorkerRatings] = useState(false);
   const [showPaymentConfirmation, setShowPaymentConfirmation] = useState(false);
+  const [reachButtonsVisible, setReachButtonsVisible] = useState(false);
+  const [updatingReachStatus, setUpdatingReachStatus] = useState(false);
 
   // Resume detection for UPI payment return
   const handlePaymentReturn = useCallback(() => {
@@ -200,6 +239,24 @@ const ActiveBookingCard = memo(() => {
     };
   }, [profile?.id, fetchActiveBooking]);
 
+  // Check reach buttons visibility with interval
+  useEffect(() => {
+    if (!activeBooking) {
+      setReachButtonsVisible(false);
+      return;
+    }
+
+    const checkVisibility = () => {
+      setReachButtonsVisible(shouldShowReachButtons(activeBooking));
+    };
+
+    checkVisibility();
+    // Re-check every 30 seconds to update when 15 minutes pass
+    const interval = setInterval(checkVisibility, 30000);
+
+    return () => clearInterval(interval);
+  }, [activeBooking]);
+
   if (loading || !activeBooking) {
     return null;
   }
@@ -281,6 +338,42 @@ const ActiveBookingCard = memo(() => {
       rating,
       comment: comment ?? null,
     });
+  };
+
+  const handleReachConfirmation = async (reached: boolean) => {
+    if (updatingReachStatus) return;
+    
+    setUpdatingReachStatus(true);
+    try {
+      const { error } = await supabase
+        .from('bookings')
+        .update({
+          reach_status: reached ? 'reached' : 'not_reached',
+          reach_confirmed_at: new Date().toISOString(),
+          reach_confirmed_by: 'user',
+        })
+        .eq('id', activeBooking.id);
+
+      if (error) throw error;
+
+      if (reached) {
+        toast.success("Thanks for confirming. Worker has reached.");
+      } else {
+        toast.info("Thanks. Our team will take action immediately.");
+      }
+      
+      // Update local state to hide buttons
+      setActiveBooking(prev => prev ? { 
+        ...prev, 
+        reach_status: reached ? 'reached' : 'not_reached' 
+      } : null);
+      setReachButtonsVisible(false);
+    } catch (error) {
+      console.error('[ReachStatus] Error:', error);
+      toast.error("Could not update status. Please try again.");
+    } finally {
+      setUpdatingReachStatus(false);
+    }
   };
 
   return (
@@ -384,6 +477,34 @@ const ActiveBookingCard = memo(() => {
             <PhoneCall className="h-4 w-4 mr-2" />
             Call Manager
           </Button>
+        </div>
+      )}
+
+      {/* Worker Reach Confirmation Buttons */}
+      {reachButtonsVisible && (
+        <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+          <p className="text-sm font-medium text-amber-900 mb-3">
+            Did the worker reach your location?
+          </p>
+          <div className="flex gap-3">
+            <Button
+              onClick={() => handleReachConfirmation(true)}
+              disabled={updatingReachStatus}
+              className="flex-1 h-10 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg"
+            >
+              <CheckCircle className="h-4 w-4 mr-2" />
+              Reached
+            </Button>
+            <Button
+              onClick={() => handleReachConfirmation(false)}
+              disabled={updatingReachStatus}
+              variant="destructive"
+              className="flex-1 h-10 font-semibold rounded-lg"
+            >
+              <XCircle className="h-4 w-4 mr-2" />
+              Not Reached
+            </Button>
+          </div>
         </div>
       )}
 
