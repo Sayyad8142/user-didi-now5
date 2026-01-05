@@ -119,9 +119,9 @@ export const ChatScreen: React.FC = () => {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-[#ece5dd]">
+    <div className="flex flex-col bg-[#ece5dd]" style={{ height: '100dvh' }}>
       {/* Header - WhatsApp style */}
-      <header className="safe-top sticky top-0 z-50 bg-[#075E54] text-white shadow-md">
+      <header className="shrink-0 bg-[#075E54] text-white shadow-md pt-[env(safe-area-inset-top)]">
         <div className="flex items-center gap-3 px-2 py-3">
           <button 
             aria-label="Back" 
@@ -196,7 +196,7 @@ export const ChatScreen: React.FC = () => {
 
       {/* Composer - WhatsApp style */}
       <div 
-        className="sticky bottom-0 bg-[#f0f0f0] border-t border-neutral-200 safe-bottom"
+        className="shrink-0 bg-[#f0f0f0] border-t border-neutral-200"
         style={{ 
           paddingBottom: kb > 0 ? `${kb}px` : 'env(safe-area-inset-bottom)'
         }}
