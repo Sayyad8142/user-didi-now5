@@ -34,20 +34,20 @@ export function HomeScreen() {
         
         {/* Contact Manager & Support Buttons */}
         <div className="space-y-3">
-          <Button onClick={() => openExternalUrl('tel:8008180018')} className="w-full h-12 rounded-full gradient-primary shadow-button transition-spring hover:scale-[1.02] flex items-center justify-center gap-3">
-            <Phone className="w-5 h-5" />
-            <span className="font-semibold">Call Manager</span>
-          </Button>
-          
           <Button onClick={() => {
             markMessagesAsSeen();
             navigate('/chat');
-          }} variant="outline" className="w-full h-12 rounded-full border-2 border-primary/20 bg-white/90 hover:bg-primary/5 text-primary font-semibold transition-spring hover:scale-[1.02] flex items-center justify-center gap-3 relative">
+          }} className="w-full h-12 rounded-full gradient-primary shadow-button transition-spring hover:scale-[1.02] flex items-center justify-center gap-3 relative">
             <MessageCircle className="w-5 h-5" />
-            <span>Chat Support</span>
+            <span className="font-semibold">Chat Support</span>
             {hasUnseenMessages && (
               <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse" />
             )}
+          </Button>
+          
+          <Button onClick={() => openExternalUrl('tel:8008180018')} variant="outline" className="w-full h-12 rounded-full border-2 border-primary/20 bg-white/90 hover:bg-primary/5 text-primary font-semibold transition-spring hover:scale-[1.02] flex items-center justify-center gap-3">
+            <Phone className="w-5 h-5" />
+            <span>Call Manager</span>
           </Button>
         </div>
         
