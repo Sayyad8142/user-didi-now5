@@ -11,8 +11,10 @@ type Props = {
   workerName?: string;
   bookingId?: string;
   amount?: number;
-  qrPayload?: string;     // Required: decoded QR payload
-  qrImageUrl?: string;    // Optional: QR image URL for fallback display
+  // Prefer qrPayload (decoded UPI payload). If it's missing, we fall back to payeeUpiId.
+  qrPayload?: string;
+  payeeUpiId?: string;
+  qrImageUrl?: string;
   onPaymentLaunched?: () => void;
   onShowQr?: () => void;
 };
@@ -46,63 +48,57 @@ function parseQrPayload(payload: string): Map<string, string> {
   return params;
 }
 
-export default function UpiChooser({ 
-  open, 
-  onOpenChange, 
-  workerName, 
+export default function UpiChooser({
+  open,
+  onOpenChange,
+  workerName,
   bookingId,
   amount,
   qrPayload,
+  payeeUpiId,
   qrImageUrl,
   onPaymentLaunched,
-  onShowQr
+  onShowQr,
 }: Props) {
   const [copiedAmount, setCopiedAmount] = React.useState(false);
 
-  // Extract UPI ID from QR payload
-  const upiIdFromQr = React.useMemo(() => {
-    if (!qrPayload) return null;
-    const qrParams = parseQrPayload(qrPayload);
-    return qrParams.get('pa') || null;
-  }, [qrPayload]);
-
   const handlePick = async (app: UpiApp) => {
-    if (!qrPayload) {
-      toast.error('QR code not available');
-      return;
+    let pa: string | undefined;
+    let pnFromQr: string | undefined;
+
+    if (qrPayload) {
+      const qrParams = parseQrPayload(qrPayload);
+      pa = qrParams.get('pa') || undefined;
+      pnFromQr = qrParams.get('pn') || undefined;
     }
 
-    // Parse QR payload and extract UPI ID
-    const qrParams = parseQrPayload(qrPayload);
-    const pa = qrParams.get('pa');
-    
+    // Fallback: use stored UPI ID (still QR-based, just not decoded payload)
+    if (!pa) pa = payeeUpiId || undefined;
+
     if (!pa) {
-      toast.error('Invalid QR code');
+      toast.error('Worker payment details not available');
       return;
     }
 
-    // Generate new transaction reference
     const tr = generateTransactionRef();
-    
+
     const params: UpiParams = {
       pa: pa.trim(),
-      pn: workerName || qrParams.get('pn') || 'Didi Now Worker',
-      tn: bookingId 
-        ? `Didi Now booking #${bookingId.substring(0, 8)}`
-        : 'Didi Now service payment',
+      pn: workerName || pnFromQr || 'Didi Now Worker',
+      tn: bookingId ? `Didi Now booking #${bookingId.substring(0, 8)}` : 'Didi Now service payment',
       am: amount,
       tr,
     };
-    
+
     const url = app.buildUrl(params);
     console.log('[UPI] Opening via', app.label, ':', url);
-    
+
     const ok = await tryOpen(url);
     if (!ok) {
       toast.error(`Could not open ${app.label}`);
       return;
     }
-    
+
     onOpenChange(false);
     onPaymentLaunched?.();
   };
