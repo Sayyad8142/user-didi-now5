@@ -14,10 +14,11 @@ import { AppVersionDisplay } from '@/components/AppVersionDisplay';
 import { useCommunities } from '@/hooks/useCommunities';
 import { useBuildings } from '@/hooks/useBuildings';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useFlats } from '@/hooks/useFlats';
+
 export default function Profile() {
   const { profile, loading, refresh } = useProfile();
   const { communities, loading: communitiesLoading } = useCommunities();
-  const { buildings } = useBuildings(profile?.community_id || undefined);
   const navigate = useNavigate();
   const { toast } = useToast();
   
@@ -26,8 +27,19 @@ export default function Profile() {
     full_name: '',
     phone: '',
     community: '',
+    community_id: '',
+    building_id: '',
+    flat_id: '',
     flat_no: ''
   });
+
+  // Get the selected community to check format
+  const selectedCommunity = communities.find(c => c.id === editForm.community_id);
+  const isPHF = selectedCommunity?.flat_format === 'PHF';
+
+  // Use hooks with edit form values for dynamic dropdowns
+  const { buildings } = useBuildings(editForm.community_id || null);
+  const { flats } = useFlats(editForm.building_id || null, editForm.community_id || null, isPHF);
 
   // Refresh profile on mount if profile data is incomplete (handles new signup race condition)
   React.useEffect(() => {
@@ -43,6 +55,9 @@ export default function Profile() {
         full_name: profile.full_name || '',
         phone: profile.phone || '',
         community: profile.community || '',
+        community_id: profile.community_id || '',
+        building_id: profile.building_id || '',
+        flat_id: profile.flat_id || '',
         flat_no: profile.flat_no || ''
       });
     }
@@ -56,6 +71,9 @@ export default function Profile() {
           full_name: editForm.full_name,
           phone: editForm.phone,
           community: editForm.community,
+          community_id: editForm.community_id || null,
+          building_id: editForm.building_id || null,
+          flat_id: editForm.flat_id || null,
           flat_no: editForm.flat_no,
           updated_at: new Date().toISOString()
         })
@@ -87,6 +105,9 @@ export default function Profile() {
         full_name: profile.full_name || '',
         phone: profile.phone || '',
         community: profile.community || '',
+        community_id: profile.community_id || '',
+        building_id: profile.building_id || '',
+        flat_id: profile.flat_id || '',
         flat_no: profile.flat_no || ''
       });
     }
@@ -240,13 +261,26 @@ export default function Profile() {
                       {communities.find(c => c.value === profile?.community)?.name || profile?.community || 'Not provided'}
                     </p>
                   ) : (
-                    <Select value={editForm.community} onValueChange={(value) => setEditForm(prev => ({ ...prev, community: value }))}>
+                    <Select 
+                      value={editForm.community_id} 
+                      onValueChange={(value) => {
+                        const comm = communities.find(c => c.id === value);
+                        setEditForm(prev => ({ 
+                          ...prev, 
+                          community_id: value,
+                          community: comm?.value || '',
+                          building_id: '', // reset building when community changes
+                          flat_id: '',
+                          flat_no: ''
+                        }));
+                      }}
+                    >
                       <SelectTrigger className="text-lg font-semibold border-0 bg-gray-50 rounded-xl p-3 focus-visible:ring-2 focus-visible:ring-primary/20 h-auto">
                         <SelectValue placeholder="Select community" />
                       </SelectTrigger>
                       <SelectContent className="bg-white border border-gray-200 rounded-xl shadow-lg z-50">
                         {communities.map((community) => (
-                          <SelectItem key={community.value} value={community.value}>
+                          <SelectItem key={community.id} value={community.id}>
                             {community.name}
                           </SelectItem>
                         ))}
@@ -257,7 +291,8 @@ export default function Profile() {
               </div>
             </div>
 
-            {profile?.building_id && (
+            {/* Building - show if buildings exist for community (not PHF format) */}
+            {!isPHF && buildings.length > 0 && (
               <div className="group">
                 <div className="flex items-start gap-4">
                   <div className="h-12 w-12 bg-indigo-50 rounded-2xl flex items-center justify-center group-hover:bg-indigo-100 transition-colors">
@@ -265,14 +300,40 @@ export default function Profile() {
                   </div>
                   <div className="flex-1 space-y-1">
                     <p className="text-sm font-medium text-gray-500 uppercase tracking-wide">Building</p>
-                    <p className="text-lg font-semibold text-gray-900">
-                      {buildings.find(b => b.id === profile?.building_id)?.name || 'Not provided'}
-                    </p>
+                    {!isEditing ? (
+                      <p className="text-lg font-semibold text-gray-900">
+                        {buildings.find(b => b.id === profile?.building_id)?.name || 'Not provided'}
+                      </p>
+                    ) : (
+                      <Select 
+                        value={editForm.building_id} 
+                        onValueChange={(value) => {
+                          setEditForm(prev => ({ 
+                            ...prev, 
+                            building_id: value,
+                            flat_id: '', // reset flat when building changes
+                            flat_no: ''
+                          }));
+                        }}
+                      >
+                        <SelectTrigger className="text-lg font-semibold border-0 bg-gray-50 rounded-xl p-3 focus-visible:ring-2 focus-visible:ring-primary/20 h-auto">
+                          <SelectValue placeholder="Select building" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-white border border-gray-200 rounded-xl shadow-lg z-50">
+                          {buildings.map((building) => (
+                            <SelectItem key={building.id} value={building.id}>
+                              {building.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
                   </div>
                 </div>
               </div>
             )}
 
+            {/* Flat Number */}
             <div className="group">
               <div className="flex items-start gap-4">
                 <div className="h-12 w-12 bg-orange-50 rounded-2xl flex items-center justify-center group-hover:bg-orange-100 transition-colors">
@@ -282,6 +343,29 @@ export default function Profile() {
                   <p className="text-sm font-medium text-gray-500 uppercase tracking-wide">Flat Number</p>
                   {!isEditing ? (
                     <p className="text-lg font-semibold text-gray-900">{profile?.flat_no || 'Not provided'}</p>
+                  ) : flats.length > 0 ? (
+                    <Select 
+                      value={editForm.flat_id} 
+                      onValueChange={(value) => {
+                        const flat = flats.find(f => f.id === value);
+                        setEditForm(prev => ({ 
+                          ...prev, 
+                          flat_id: value,
+                          flat_no: flat?.flat_no || ''
+                        }));
+                      }}
+                    >
+                      <SelectTrigger className="text-lg font-semibold border-0 bg-gray-50 rounded-xl p-3 focus-visible:ring-2 focus-visible:ring-primary/20 h-auto">
+                        <SelectValue placeholder="Select flat number" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-white border border-gray-200 rounded-xl shadow-lg z-50 max-h-60">
+                        {flats.map((flat) => (
+                          <SelectItem key={flat.id} value={flat.id}>
+                            {flat.flat_no}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   ) : (
                     <Input
                       value={editForm.flat_no}
