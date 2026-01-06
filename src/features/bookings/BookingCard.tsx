@@ -12,10 +12,8 @@ import { supabase } from '@/integrations/supabase/client';
 import AssigningProgress from '@/features/bookings/AssigningProgress';
 import AutoCompleteCountdown from '@/components/AutoCompleteCountdown';
 import { useBookingRealtime } from '@/features/bookings/useBookingRealtime';
-import { launchUpiPayment, isValidUpiPayload } from '@/utils/launchUpiPayment';
-import UpiChooser from '@/components/UpiChooser';
-import { PaymentConfirmationDialog } from '@/components/PaymentConfirmationDialog';
 import { WorkerQrModal } from '@/components/WorkerQrModal';
+import { PaymentConfirmationDialog } from '@/components/PaymentConfirmationDialog';
 import { toast } from 'sonner';
 import { useNow } from '@/hooks/useNow';
 import CancelAction from './CancelAction';
@@ -28,7 +26,6 @@ import { useUnseenMessages } from '@/hooks/useUnseenMessages';
 import { CallHistory } from '@/components/calling/CallHistory';
 import { IncomingCallScreen } from '@/components/calling/IncomingCallScreen';
 import { useIncomingRtcPush } from '@/hooks/useIncomingRtcPush';
-import { useAppResume } from '@/hooks/useAppResume';
 
 interface Booking {
   id: string;
@@ -78,7 +75,6 @@ export function BookingCard({
   const [row, setRow] = useState(booking);
   const [workerStats, setWorkerStats] = useState<{ avg_rating: number; ratings_count: number } | null>(null);
   const [openChat, setOpenChat] = useState(false);
-  const [showUpiChooser, setShowUpiChooser] = useState(false);
   const [showWorkerRatings, setShowWorkerRatings] = useState(false);
   const [showPaymentConfirmation, setShowPaymentConfirmation] = useState(false);
   const [showWorkerQr, setShowWorkerQr] = useState(false);
@@ -89,12 +85,6 @@ export function BookingCard({
     full_name: string | null;
   } | null>(null);
   const now = useNow(); // ticks every 30s
-  
-  // Resume detection for UPI payment return
-  const handlePaymentReturn = useCallback(() => {
-    setShowPaymentConfirmation(true);
-  }, []);
-  const { setPending: setPaymentPending } = useAppResume(handlePaymentReturn);
   
   // Subscribe to real-time updates for this specific booking
   useBookingRealtime(booking.id, (updatedBooking) => setRow(updatedBooking));
@@ -197,38 +187,17 @@ export function BookingCard({
 
   // Determine effective payment details
   const effectiveUpiId = row.worker_upi || assignedWorker?.worker?.upi_id || workerPaymentInfo?.upi_id || '';
-  const qrPayload = workerPaymentInfo?.upi_qr_payload || undefined;
   const qrImageUrl = workerPaymentInfo?.upi_qr_url || undefined;
-  const hasQrAvailable = !!(qrImageUrl || (qrPayload && isValidUpiPayload(qrPayload)));
+  const hasQrAvailable = !!qrImageUrl;
 
-  const handlePayWorker = async () => {
-    const workerUpi = effectiveUpiId;
-    const workerName = row.worker_name || assignedWorker?.worker?.full_name || workerPaymentInfo?.full_name || 'Worker';
-
-    if (!workerUpi && !qrPayload) {
-      toast.error("Worker account not updated, pay cash to worker");
+  const handlePayWorker = () => {
+    // If no QR uploaded, show error
+    if (!qrImageUrl) {
+      toast.error("Worker QR not uploaded, pay cash to worker");
       return;
     }
-
-    try {
-      const success = await launchUpiPayment({
-        pa: workerUpi,
-        pn: workerName,
-        am: row.price_inr ?? undefined,
-        bookingId: row.id,
-        qrPayload: qrPayload,
-        onNeedChooser: setShowUpiChooser,
-        onPaymentLaunched: setPaymentPending,
-        onShowQrFallback: hasQrAvailable ? () => setShowWorkerQr(true) : undefined,
-      });
-      
-      if (success) {
-        toast.success("Opening UPI app...");
-      }
-    } catch (error) {
-      console.error('[UPI] Error:', error);
-      toast.error("Please ensure a UPI app (GPay/PhonePe/Paytm) is installed");
-    }
+    // Show QR modal directly
+    setShowWorkerQr(true);
   };
 
   const handlePaymentConfirmed = async (utr?: string) => {
@@ -553,20 +522,6 @@ export function BookingCard({
         booking={row} 
         mode="user" 
       />
-
-      {/* UPI App Chooser */}
-       <UpiChooser
-         open={showUpiChooser}
-         onOpenChange={setShowUpiChooser}
-         upiId={effectiveUpiId}
-         workerName={row.worker_name || assignedWorker?.worker?.full_name || workerPaymentInfo?.full_name}
-         bookingId={row.id}
-         amount={row.price_inr ?? undefined}
-         qrPayload={qrPayload}
-         qrImageUrl={qrImageUrl}
-         onPaymentLaunched={setPaymentPending}
-         onShowQr={() => setShowWorkerQr(true)}
-       />
 
       {/* Worker QR Modal */}
       <WorkerQrModal
