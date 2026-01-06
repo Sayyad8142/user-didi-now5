@@ -4,23 +4,21 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { toast } from 'sonner';
 import { Copy, Check, QrCode } from 'lucide-react';
-import { isValidUpiPayload } from '@/utils/launchUpiPayment';
 
 type Props = {
   open: boolean;
   onOpenChange: (v: boolean) => void;
-  upiId: string;
   workerName?: string;
   bookingId?: string;
   amount?: number;
-  qrPayload?: string;     // Optional: decoded QR payload
-  qrImageUrl?: string;    // Optional: QR image URL
-  onPaymentLaunched?: () => void; // Called when UPI app opens successfully
-  onShowQr?: () => void;  // Called when user wants to show QR
+  qrPayload?: string;     // Required: decoded QR payload
+  qrImageUrl?: string;    // Optional: QR image URL for fallback display
+  onPaymentLaunched?: () => void;
+  onShowQr?: () => void;
 };
 
 /**
- * Parse QR payload and extract/merge params
+ * Parse QR payload and extract params
  */
 function parseQrPayload(payload: string): Map<string, string> {
   const params = new Map<string, string>();
@@ -51,7 +49,6 @@ function parseQrPayload(payload: string): Map<string, string> {
 export default function UpiChooser({ 
   open, 
   onOpenChange, 
-  upiId, 
   workerName, 
   bookingId,
   amount,
@@ -60,28 +57,36 @@ export default function UpiChooser({
   onPaymentLaunched,
   onShowQr
 }: Props) {
-  const [copiedUpi, setCopiedUpi] = React.useState(false);
   const [copiedAmount, setCopiedAmount] = React.useState(false);
 
-  // Determine effective UPI ID (from qrPayload if available)
-  const effectiveUpiId = React.useMemo(() => {
-    if (qrPayload && isValidUpiPayload(qrPayload)) {
-      const qrParams = parseQrPayload(qrPayload);
-      const qrPa = qrParams.get('pa');
-      if (qrPa && qrPa.includes('@')) {
-        return qrPa;
-      }
-    }
-    return upiId;
-  }, [upiId, qrPayload]);
+  // Extract UPI ID from QR payload
+  const upiIdFromQr = React.useMemo(() => {
+    if (!qrPayload) return null;
+    const qrParams = parseQrPayload(qrPayload);
+    return qrParams.get('pa') || null;
+  }, [qrPayload]);
 
   const handlePick = async (app: UpiApp) => {
-    // Generate new transaction reference for each payment attempt
+    if (!qrPayload) {
+      toast.error('QR code not available');
+      return;
+    }
+
+    // Parse QR payload and extract UPI ID
+    const qrParams = parseQrPayload(qrPayload);
+    const pa = qrParams.get('pa');
+    
+    if (!pa) {
+      toast.error('Invalid QR code');
+      return;
+    }
+
+    // Generate new transaction reference
     const tr = generateTransactionRef();
     
     const params: UpiParams = {
-      pa: effectiveUpiId.trim(),
-      pn: workerName || 'Didi Now Worker',
+      pa: pa.trim(),
+      pn: workerName || qrParams.get('pn') || 'Didi Now Worker',
       tn: bookingId 
         ? `Didi Now booking #${bookingId.substring(0, 8)}`
         : 'Didi Now service payment',
@@ -99,19 +104,7 @@ export default function UpiChooser({
     }
     
     onOpenChange(false);
-    // Signal that UPI app was opened - caller should set pending flag
     onPaymentLaunched?.();
-  };
-
-  const handleCopyUpi = async () => {
-    try {
-      await navigator.clipboard.writeText(effectiveUpiId.trim());
-      setCopiedUpi(true);
-      toast.success('UPI ID copied!');
-      setTimeout(() => setCopiedUpi(false), 2000);
-    } catch {
-      toast.error('Failed to copy');
-    }
   };
 
   const handleCopyAmount = async () => {
@@ -131,8 +124,6 @@ export default function UpiChooser({
     onShowQr?.();
   };
 
-  const hasQr = !!(qrImageUrl || (qrPayload && isValidUpiPayload(qrPayload)));
-
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="space-y-4">
@@ -141,23 +132,10 @@ export default function UpiChooser({
         </SheetHeader>
         
         <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">
-              Pay to: <span className="font-mono font-medium">{effectiveUpiId}</span>
-            </p>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={handleCopyUpi}
-              className="h-8 px-2"
-            >
-              {copiedUpi ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
-            </Button>
-          </div>
           {amount && amount > 0 && (
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold text-green-600">
-                Amount: ₹{amount.toFixed(2)}
+            <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-200">
+              <p className="text-sm font-semibold text-green-700">
+                Amount to Pay: ₹{amount.toFixed(2)}
               </p>
               <Button 
                 variant="ghost" 
@@ -173,7 +151,7 @@ export default function UpiChooser({
 
         <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
           <p className="text-xs text-amber-800">
-            💡 Payment goes directly to worker's UPI. We don't process payments.
+            💡 Select your UPI app below. Payment will open directly with worker's details.
           </p>
         </div>
 
@@ -190,20 +168,20 @@ export default function UpiChooser({
           ))}
         </div>
 
-        {/* Show QR option */}
-        {hasQr && onShowQr && (
+        {/* Show QR option as fallback */}
+        {qrImageUrl && onShowQr && (
           <Button
             variant="outline"
             className="w-full h-10"
             onClick={handleShowQr}
           >
             <QrCode className="w-4 h-4 mr-2" />
-            Show Worker QR Code
+            Scan QR Code Instead
           </Button>
         )}
 
         <p className="text-xs text-muted-foreground text-center">
-          If app doesn't open, use Copy buttons above to pay manually
+          If app doesn't open, use "Scan QR Code" option above
         </p>
       </SheetContent>
     </Sheet>

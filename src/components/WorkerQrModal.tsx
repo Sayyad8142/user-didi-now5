@@ -13,7 +13,6 @@ interface WorkerQrModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   qrImageUrl?: string;
-  upiId: string;
   workerName?: string;
   amount?: number;
 }
@@ -22,23 +21,10 @@ export function WorkerQrModal({
   open,
   onOpenChange,
   qrImageUrl,
-  upiId,
   workerName,
   amount,
 }: WorkerQrModalProps) {
-  const [copiedUpi, setCopiedUpi] = React.useState(false);
   const [copiedAmount, setCopiedAmount] = React.useState(false);
-
-  const handleCopyUpi = async () => {
-    try {
-      await navigator.clipboard.writeText(upiId.trim());
-      setCopiedUpi(true);
-      toast.success('UPI ID copied!');
-      setTimeout(() => setCopiedUpi(false), 2000);
-    } catch {
-      toast.error('Failed to copy');
-    }
-  };
 
   const handleCopyAmount = async () => {
     if (!amount) return;
@@ -79,30 +65,10 @@ export function WorkerQrModal({
             <div className="flex flex-col items-center justify-center p-8 bg-gray-50 rounded-lg border border-dashed border-gray-300">
               <QrCode className="h-16 w-16 text-gray-400 mb-2" />
               <p className="text-sm text-muted-foreground text-center">
-                QR code not available. Use UPI ID below.
+                QR code not available.
               </p>
             </div>
           )}
-
-          {/* UPI ID */}
-          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-            <div>
-              <p className="text-xs text-muted-foreground">UPI ID</p>
-              <p className="font-mono font-medium text-sm">{upiId}</p>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleCopyUpi}
-              className="h-8 px-2"
-            >
-              {copiedUpi ? (
-                <Check className="w-4 h-4 text-green-600" />
-              ) : (
-                <Copy className="w-4 h-4" />
-              )}
-            </Button>
-          </div>
 
           {/* Amount */}
           {amount && amount > 0 && (

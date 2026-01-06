@@ -293,18 +293,18 @@ const ActiveBookingCard = memo(() => {
   const isAssigned = activeBooking.status === 'assigned';
   const paymentReady = isAssigned;
 
-  // Determine effective payment details
-  const effectiveUpiId = activeBooking.worker_upi || workerPaymentInfo?.upi_id || '';
+  // QR payment details
+  const qrPayload = workerPaymentInfo?.upi_qr_payload || undefined;
   const qrImageUrl = workerPaymentInfo?.upi_qr_url || undefined;
-  const hasQrAvailable = !!qrImageUrl;
+  const hasQrAvailable = !!qrPayload;
 
   const handlePayWorker = () => {
-    // If no QR payload or UPI ID, show error
-    if (!workerPaymentInfo?.upi_qr_payload && !effectiveUpiId) {
-      toast.error("Worker payment details not available, pay cash to worker");
+    // Only allow payment if QR is available
+    if (!qrPayload) {
+      toast.error("Worker QR not uploaded, pay cash to worker");
       return;
     }
-    // Show UPI app chooser - the app will open with QR payload data directly
+    // Show UPI app chooser
     setShowUpiChooser(true);
   };
 
@@ -614,11 +614,10 @@ const ActiveBookingCard = memo(() => {
       <UpiChooser
         open={showUpiChooser}
         onOpenChange={setShowUpiChooser}
-        upiId={effectiveUpiId}
         workerName={activeBooking.worker_name || workerPaymentInfo?.full_name}
         bookingId={activeBooking.id}
         amount={activeBooking.price_inr ?? undefined}
-        qrPayload={workerPaymentInfo?.upi_qr_payload || undefined}
+        qrPayload={qrPayload}
         qrImageUrl={qrImageUrl}
         onPaymentLaunched={() => setShowPaymentConfirmation(true)}
         onShowQr={() => setShowWorkerQr(true)}
@@ -629,7 +628,6 @@ const ActiveBookingCard = memo(() => {
         open={showWorkerQr}
         onOpenChange={setShowWorkerQr}
         qrImageUrl={qrImageUrl}
-        upiId={effectiveUpiId}
         workerName={activeBooking.worker_name || workerPaymentInfo?.full_name || undefined}
         amount={activeBooking.price_inr ?? undefined}
       />

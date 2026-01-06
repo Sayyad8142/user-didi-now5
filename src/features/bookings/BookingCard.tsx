@@ -187,18 +187,18 @@ export function BookingCard({
   // Check if payment should be enabled (show for assigned/accepted/on_the_way/started)
   const paymentReady = ['assigned', 'accepted', 'on_the_way', 'started'].includes(row.status);
 
-  // Determine effective payment details
-  const effectiveUpiId = row.worker_upi || assignedWorker?.worker?.upi_id || workerPaymentInfo?.upi_id || '';
+  // QR payment details
+  const qrPayload = workerPaymentInfo?.upi_qr_payload || undefined;
   const qrImageUrl = workerPaymentInfo?.upi_qr_url || undefined;
-  const hasQrAvailable = !!qrImageUrl;
+  const hasQrAvailable = !!qrPayload;
 
   const handlePayWorker = () => {
-    // If no QR payload or UPI ID, show error
-    if (!workerPaymentInfo?.upi_qr_payload && !effectiveUpiId) {
-      toast.error("Worker payment details not available, pay cash to worker");
+    // Only allow payment if QR is available
+    if (!qrPayload) {
+      toast.error("Worker QR not uploaded, pay cash to worker");
       return;
     }
-    // Show UPI app chooser - the app will open with QR payload data directly
+    // Show UPI app chooser
     setShowUpiChooser(true);
   };
 
@@ -529,11 +529,10 @@ export function BookingCard({
       <UpiChooser
         open={showUpiChooser}
         onOpenChange={setShowUpiChooser}
-        upiId={effectiveUpiId}
         workerName={row.worker_name || assignedWorker?.worker?.full_name || workerPaymentInfo?.full_name}
         bookingId={row.id}
         amount={row.price_inr ?? undefined}
-        qrPayload={workerPaymentInfo?.upi_qr_payload || undefined}
+        qrPayload={qrPayload}
         qrImageUrl={qrImageUrl}
         onPaymentLaunched={() => setShowPaymentConfirmation(true)}
         onShowQr={() => setShowWorkerQr(true)}
@@ -544,7 +543,6 @@ export function BookingCard({
         open={showWorkerQr}
         onOpenChange={setShowWorkerQr}
         qrImageUrl={qrImageUrl}
-        upiId={effectiveUpiId}
         workerName={row.worker_name || assignedWorker?.worker?.full_name || workerPaymentInfo?.full_name}
         amount={row.price_inr ?? undefined}
       />
