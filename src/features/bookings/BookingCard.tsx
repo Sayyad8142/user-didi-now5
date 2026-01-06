@@ -91,35 +91,43 @@ export function BookingCard({
   // Subscribe to real-time updates for this specific booking
   useBookingRealtime(booking.id, (updatedBooking) => setRow(updatedBooking));
   
+  const effectiveWorkerId = row.worker_id || assignedWorker?.worker?.id || null;
+
   // Load worker rating stats
   useEffect(() => {
-    if (!row.worker_id) {
+    if (!effectiveWorkerId) {
       setWorkerStats(null);
       return;
     }
-    
+
     supabase
       .from('worker_rating_stats')
       .select('avg_rating, ratings_count')
-      .eq('worker_id', row.worker_id)
+      .eq('worker_id', effectiveWorkerId)
       .maybeSingle()
-      .then(({ data }) => setWorkerStats(data ?? null));
-  }, [row.worker_id]);
+      .then(({ data, error }) => {
+        if (error) console.error('[worker_rating_stats] load error', error);
+        setWorkerStats(data ?? null);
+      });
+  }, [effectiveWorkerId]);
 
   // Load worker payment info (QR data)
   useEffect(() => {
-    if (!row.worker_id) {
+    if (!effectiveWorkerId) {
       setWorkerPaymentInfo(null);
       return;
     }
-    
+
     supabase
       .from('workers')
       .select('upi_id, upi_qr_payload, upi_qr_url, full_name')
-      .eq('id', row.worker_id)
+      .eq('id', effectiveWorkerId)
       .maybeSingle()
-      .then(({ data }) => setWorkerPaymentInfo(data ?? null));
-  }, [row.worker_id]);
+      .then(({ data, error }) => {
+        if (error) console.error('[workers] payment info load error', error);
+        setWorkerPaymentInfo(data ?? null);
+      });
+  }, [effectiveWorkerId]);
 
   // Load assigned worker (for fallback compatibility)
   useEffect(() => {
@@ -189,16 +197,23 @@ export function BookingCard({
 
   // QR payment details
   const qrPayload = workerPaymentInfo?.upi_qr_payload || undefined;
+  const payeeUpiId = workerPaymentInfo?.upi_id || undefined;
   const qrImageUrl = workerPaymentInfo?.upi_qr_url || undefined;
-  const hasQrAvailable = !!qrPayload;
+  const hasQrAvailable = !!qrImageUrl;
 
   const handlePayWorker = () => {
-    // Only allow payment if QR is available
-    if (!qrPayload) {
-      toast.error("Worker QR not uploaded, pay cash to worker");
+    // Only allow payment if worker uploaded QR
+    if (!qrImageUrl) {
+      toast.error('Worker QR not uploaded, pay cash to worker');
       return;
     }
-    // Show UPI app chooser
+
+    // If QR payload isn't stored, we'll still open via stored UPI ID
+    if (!qrPayload && !payeeUpiId) {
+      toast.error('Worker payment details not available');
+      return;
+    }
+
     setShowUpiChooser(true);
   };
 
@@ -533,6 +548,7 @@ export function BookingCard({
         bookingId={row.id}
         amount={row.price_inr ?? undefined}
         qrPayload={qrPayload}
+        payeeUpiId={payeeUpiId}
         qrImageUrl={qrImageUrl}
         onPaymentLaunched={() => setShowPaymentConfirmation(true)}
         onShowQr={() => setShowWorkerQr(true)}

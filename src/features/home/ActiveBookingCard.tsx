@@ -295,16 +295,23 @@ const ActiveBookingCard = memo(() => {
 
   // QR payment details
   const qrPayload = workerPaymentInfo?.upi_qr_payload || undefined;
+  const payeeUpiId = workerPaymentInfo?.upi_id || undefined;
   const qrImageUrl = workerPaymentInfo?.upi_qr_url || undefined;
-  const hasQrAvailable = !!qrPayload;
+  const hasQrAvailable = !!qrImageUrl;
 
   const handlePayWorker = () => {
-    // Only allow payment if QR is available
-    if (!qrPayload) {
-      toast.error("Worker QR not uploaded, pay cash to worker");
+    // Only allow payment if worker uploaded QR
+    if (!qrImageUrl) {
+      toast.error('Worker QR not uploaded, pay cash to worker');
       return;
     }
-    // Show UPI app chooser
+
+    // If QR payload isn't stored, we'll still open via stored UPI ID
+    if (!qrPayload && !payeeUpiId) {
+      toast.error('Worker payment details not available');
+      return;
+    }
+
     setShowUpiChooser(true);
   };
 
@@ -618,6 +625,7 @@ const ActiveBookingCard = memo(() => {
         bookingId={activeBooking.id}
         amount={activeBooking.price_inr ?? undefined}
         qrPayload={qrPayload}
+        payeeUpiId={payeeUpiId}
         qrImageUrl={qrImageUrl}
         onPaymentLaunched={() => setShowPaymentConfirmation(true)}
         onShowQr={() => setShowWorkerQr(true)}
