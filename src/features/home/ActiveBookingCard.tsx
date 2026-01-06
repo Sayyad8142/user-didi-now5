@@ -3,14 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Sparkles, ChefHat, ShowerHead, ArrowRight, X, CreditCard, PhoneCall, MessageCircle, Star, CheckCircle, XCircle, QrCode } from 'lucide-react';
+import { Sparkles, ChefHat, ShowerHead, ArrowRight, X, CreditCard, PhoneCall, MessageCircle, Star, CheckCircle, XCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useProfile } from '@/contexts/ProfileContext';
 import { prettyServiceName } from '@/features/booking/utils';
 import AssigningProgress from '@/features/bookings/AssigningProgress';
-import { WorkerQrModal } from '@/components/WorkerQrModal';
-import { PaymentConfirmationDialog } from '@/components/PaymentConfirmationDialog';
-import UpiChooser from '@/components/UpiChooser';
+import { PayWorkerManualSheet } from '@/components/PayWorkerManualSheet';
 import { toast } from 'sonner';
 import { RateWorker } from '@/features/bookings/RateWorker';
 import { openExternalUrl } from '@/lib/nativeOpen';
@@ -116,11 +114,10 @@ const ActiveBookingCard = memo(() => {
   const [openChat, setOpenChat] = useState(false);
   const [workerStats, setWorkerStats] = useState<{ avg_rating: number; ratings_count: number } | null>(null);
   const [showWorkerRatings, setShowWorkerRatings] = useState(false);
-  const [showPaymentConfirmation, setShowPaymentConfirmation] = useState(false);
-  const [showWorkerQr, setShowWorkerQr] = useState(false);
-  const [showUpiChooser, setShowUpiChooser] = useState(false);
+  const [showPaySheet, setShowPaySheet] = useState(false);
   const [reachButtonsVisible, setReachButtonsVisible] = useState(false);
   const [updatingReachStatus, setUpdatingReachStatus] = useState(false);
+  const [paymentStatus, setPaymentStatus] = useState<string>('pending');
   const [workerPaymentInfo, setWorkerPaymentInfo] = useState<{
     upi_id: string | null;
     upi_qr_payload: string | null;
@@ -229,6 +226,20 @@ const ActiveBookingCard = memo(() => {
       .then(({ data }) => setWorkerPaymentInfo(data ?? null));
   }, [activeBooking?.worker_id]);
 
+  // Load payment status
+  useEffect(() => {
+    if (!activeBooking?.id) return;
+    
+    supabase
+      .from('bookings')
+      .select('payment_status')
+      .eq('id', activeBooking.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        setPaymentStatus(data?.payment_status || 'pending');
+      });
+  }, [activeBooking?.id]);
+
   // Set up real-time updates
   useEffect(() => {
     if (!profile?.id) return;
@@ -294,46 +305,12 @@ const ActiveBookingCard = memo(() => {
   const paymentReady = isAssigned;
 
   // QR payment details
-  const qrPayload = workerPaymentInfo?.upi_qr_payload || undefined;
-  const payeeUpiId = workerPaymentInfo?.upi_id || undefined;
+  const upiId = workerPaymentInfo?.upi_id || undefined;
   const qrImageUrl = workerPaymentInfo?.upi_qr_url || undefined;
-  const hasQrAvailable = !!qrImageUrl;
+  const hasPaymentInfo = !!upiId || !!qrImageUrl;
 
   const handlePayWorker = () => {
-    // Only allow payment if worker uploaded QR
-    if (!qrImageUrl) {
-      toast.error('Worker QR not uploaded, pay cash to worker');
-      return;
-    }
-
-    // If QR payload isn't stored, we'll still open via stored UPI ID
-    if (!qrPayload && !payeeUpiId) {
-      toast.error('Worker payment details not available');
-      return;
-    }
-
-    setShowUpiChooser(true);
-  };
-
-  const handlePaymentConfirmed = async (utr?: string) => {
-    try {
-      await supabase
-        .from('bookings')
-        .update({ 
-          user_marked_paid_at: new Date().toISOString(),
-          user_payment_utr: utr || null,
-        })
-        .eq('id', activeBooking.id);
-      
-      toast.success("Payment confirmed! Thank you.");
-    } catch (error) {
-      console.error('[Payment] Error confirming:', error);
-      toast.error("Could not update payment status");
-    }
-  };
-
-  const handlePaymentCancelled = () => {
-    toast.info("Payment not completed. You can try again.");
+    setShowPaySheet(true);
   };
 
   const handleSubmitRating = async (rating: number, comment?: string) => {
@@ -521,29 +498,13 @@ const ActiveBookingCard = memo(() => {
       <div className="space-y-2 mb-4">
         {/* Pay Now Button - shows when assigned and has UPI */}
         {paymentReady && (
-          <div className="space-y-2">
-            <Button 
-              onClick={handlePayWorker}
-              className="w-full h-10 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-semibold rounded-lg shadow-sm"
-            >
-              <CreditCard className="h-4 w-4 mr-2" />
-              Pay to worker {activeBooking.worker_name || 'Worker'}
-              {hasQrAvailable && (
-                <span className="ml-2 text-xs bg-white/20 px-1.5 py-0.5 rounded">QR</span>
-              )}
-            </Button>
-            {/* Show QR button if available */}
-            {hasQrAvailable && (
-              <Button
-                variant="outline"
-                onClick={() => setShowWorkerQr(true)}
-                className="w-full h-9 text-sm"
-              >
-                <QrCode className="h-4 w-4 mr-2" />
-                Show Worker QR Code
-              </Button>
-            )}
-          </div>
+          <Button 
+            onClick={handlePayWorker}
+            className="w-full h-10 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-semibold rounded-lg shadow-sm"
+          >
+            <CreditCard className="h-4 w-4 mr-2" />
+            Pay to worker {activeBooking.worker_name || 'Worker'}
+          </Button>
         )}
 
         {/* Rate Worker - show for assigned/completed bookings */}
@@ -617,37 +578,16 @@ const ActiveBookingCard = memo(() => {
         mode="user" 
       />
 
-      {/* UPI App Chooser */}
-      <UpiChooser
-        open={showUpiChooser}
-        onOpenChange={setShowUpiChooser}
-        workerName={activeBooking.worker_name || workerPaymentInfo?.full_name}
+      {/* Pay Worker Manual Sheet */}
+      <PayWorkerManualSheet
+        open={showPaySheet}
+        onOpenChange={setShowPaySheet}
         bookingId={activeBooking.id}
-        amount={activeBooking.price_inr ?? undefined}
-        qrPayload={qrPayload}
-        payeeUpiId={payeeUpiId}
-        qrImageUrl={qrImageUrl}
-        onPaymentLaunched={() => setShowPaymentConfirmation(true)}
-        onShowQr={() => setShowWorkerQr(true)}
-      />
-
-      {/* Worker QR Modal */}
-      <WorkerQrModal
-        open={showWorkerQr}
-        onOpenChange={setShowWorkerQr}
-        qrImageUrl={qrImageUrl}
         workerName={activeBooking.worker_name || workerPaymentInfo?.full_name || undefined}
         amount={activeBooking.price_inr ?? undefined}
-      />
-
-      {/* Payment Confirmation Dialog */}
-      <PaymentConfirmationDialog
-        open={showPaymentConfirmation}
-        onOpenChange={setShowPaymentConfirmation}
-        workerName={activeBooking.worker_name || 'Worker'}
-        amount={activeBooking.price_inr ?? undefined}
-        onConfirmPaid={handlePaymentConfirmed}
-        onCancel={handlePaymentCancelled}
+        upiId={upiId}
+        qrImageUrl={qrImageUrl}
+        paymentStatus={paymentStatus}
       />
 
       {/* Worker Ratings Modal */}
