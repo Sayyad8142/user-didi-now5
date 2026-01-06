@@ -12,6 +12,7 @@ interface Profile {
   flat_no: string;
   building_id?: string | null;
   community_id?: string | null;
+  flat_id?: string | null;
 }
 
 interface ProfileContextType {
@@ -69,7 +70,7 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
 
       const { data, error: fetchError } = await supabase
         .from("profiles")
-        .select("id, full_name, phone, community, flat_no, building_id, community_id")
+        .select("id, full_name, phone, community, flat_no, building_id, community_id, flat_id")
         .eq("firebase_uid", user.id)
         .maybeSingle();
 
@@ -104,7 +105,7 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
           community: "default",
           flat_no: "N/A",
         })
-        .select("id, full_name, phone, community, flat_no, building_id, community_id")
+        .select("id, full_name, phone, community, flat_no, building_id, community_id, flat_id")
         .single();
 
       if (createErr) {
