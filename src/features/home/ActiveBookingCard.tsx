@@ -10,6 +10,7 @@ import { prettyServiceName } from '@/features/booking/utils';
 import AssigningProgress from '@/features/bookings/AssigningProgress';
 import { WorkerQrModal } from '@/components/WorkerQrModal';
 import { PaymentConfirmationDialog } from '@/components/PaymentConfirmationDialog';
+import UpiChooser from '@/components/UpiChooser';
 import { toast } from 'sonner';
 import { RateWorker } from '@/features/bookings/RateWorker';
 import { openExternalUrl } from '@/lib/nativeOpen';
@@ -117,6 +118,7 @@ const ActiveBookingCard = memo(() => {
   const [showWorkerRatings, setShowWorkerRatings] = useState(false);
   const [showPaymentConfirmation, setShowPaymentConfirmation] = useState(false);
   const [showWorkerQr, setShowWorkerQr] = useState(false);
+  const [showUpiChooser, setShowUpiChooser] = useState(false);
   const [reachButtonsVisible, setReachButtonsVisible] = useState(false);
   const [updatingReachStatus, setUpdatingReachStatus] = useState(false);
   const [workerPaymentInfo, setWorkerPaymentInfo] = useState<{
@@ -297,13 +299,13 @@ const ActiveBookingCard = memo(() => {
   const hasQrAvailable = !!qrImageUrl;
 
   const handlePayWorker = () => {
-    // If no QR uploaded, show error
-    if (!qrImageUrl) {
-      toast.error("Worker QR not uploaded, pay cash to worker");
+    // If no QR payload or UPI ID, show error
+    if (!workerPaymentInfo?.upi_qr_payload && !effectiveUpiId) {
+      toast.error("Worker payment details not available, pay cash to worker");
       return;
     }
-    // Show QR modal directly
-    setShowWorkerQr(true);
+    // Show UPI app chooser - the app will open with QR payload data directly
+    setShowUpiChooser(true);
   };
 
   const handlePaymentConfirmed = async (utr?: string) => {
@@ -606,6 +608,20 @@ const ActiveBookingCard = memo(() => {
         onOpenChange={setOpenChat} 
         booking={activeBooking} 
         mode="user" 
+      />
+
+      {/* UPI App Chooser */}
+      <UpiChooser
+        open={showUpiChooser}
+        onOpenChange={setShowUpiChooser}
+        upiId={effectiveUpiId}
+        workerName={activeBooking.worker_name || workerPaymentInfo?.full_name}
+        bookingId={activeBooking.id}
+        amount={activeBooking.price_inr ?? undefined}
+        qrPayload={workerPaymentInfo?.upi_qr_payload || undefined}
+        qrImageUrl={qrImageUrl}
+        onPaymentLaunched={() => setShowPaymentConfirmation(true)}
+        onShowQr={() => setShowWorkerQr(true)}
       />
 
       {/* Worker QR Modal */}
