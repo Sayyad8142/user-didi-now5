@@ -1,4 +1,7 @@
 import { AuthCard } from '@/components/auth/AuthCard';
+import { Button } from '@/components/ui/button';
+import { Phone } from 'lucide-react';
+import { openExternalUrl } from '@/lib/nativeOpen';
 
 export default function Auth() {
   return (
@@ -18,8 +21,18 @@ export default function Auth() {
       </div>
       
       {/* Auth card */}
-      <div className="relative z-10 w-full max-w-sm">
+      <div className="relative z-10 w-full max-w-sm space-y-4">
         <AuthCard />
+        
+        {/* Call Manager Button */}
+        <Button 
+          onClick={() => openExternalUrl('tel:8008180018')} 
+          variant="outline" 
+          className="w-full h-12 rounded-full border-2 border-primary/20 bg-white/90 hover:bg-primary/5 text-primary font-semibold transition-spring hover:scale-[1.02] flex items-center justify-center gap-3"
+        >
+          <Phone className="w-5 h-5" />
+          <span>Call Manager</span>
+        </Button>
       </div>
     </div>
   );
