@@ -549,6 +549,56 @@ export function AdminBookingCard({
             </div>
           </div>
 
+          {/* Reach Status Alert - Shows when user confirms worker reached/not reached */}
+          {booking.reach_status && (
+            <div className={cn(
+              "mt-2 p-2.5 rounded-xl border flex items-center gap-3",
+              booking.reach_status === 'reached' 
+                ? "bg-green-50 border-green-200" 
+                : "bg-red-50 border-red-200"
+            )}>
+              <div className={cn(
+                "w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0",
+                booking.reach_status === 'reached' 
+                  ? "bg-green-500" 
+                  : "bg-red-500"
+              )}>
+                {booking.reach_status === 'reached' ? (
+                  <CheckCircle2 className="w-4 h-4 text-white" />
+                ) : (
+                  <XCircle className="w-4 h-4 text-white" />
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className={cn(
+                  "text-xs font-bold uppercase tracking-wide",
+                  booking.reach_status === 'reached' ? "text-green-700" : "text-red-700"
+                )}>
+                  {booking.reach_status === 'reached' ? 'Worker Reached' : 'Worker Not Reached'}
+                </div>
+                <div className={cn(
+                  "text-xs mt-0.5",
+                  booking.reach_status === 'reached' ? "text-green-600" : "text-red-600"
+                )}>
+                  Confirmed by user
+                  {booking.reach_confirmed_at && (
+                    <span className="ml-1">
+                      • {new Date(booking.reach_confirmed_at).toLocaleTimeString('en-IN', { 
+                        hour: '2-digit', 
+                        minute: '2-digit' 
+                      })}
+                    </span>
+                  )}
+                </div>
+              </div>
+              {booking.reach_status === 'not_reached' && (
+                <div className="px-2 py-1 bg-red-500 text-white text-xs font-bold rounded-full animate-pulse">
+                  ACTION NEEDED
+                </div>
+              )}
+            </div>
+          )}
+
           {/* SLA Progress */}
           <SlaProgress booking={booking} pending={isPending} />
 
