@@ -8,7 +8,8 @@ import {
   SheetTitle,
   SheetClose,
 } from '@/components/ui/sheet';
-import { Clock, Calendar } from 'lucide-react';
+import { Clock, Calendar, AlertCircle } from 'lucide-react';
+import { useInstantBookingAvailability } from '@/hooks/useInstantBookingAvailability';
 
 interface ChooseTypeSheetProps {
   open: boolean;
@@ -25,6 +26,7 @@ const serviceLabels = {
 export function ChooseTypeSheet({ open, onOpenChange, serviceType }: ChooseTypeSheetProps) {
   const navigate = useNavigate();
   const location = useLocation();
+  const { isAvailable: instantAvailable, isLoading, isError } = useInstantBookingAvailability(serviceType);
 
   const normalize = (s: string) => s.replace(/\s+/g, '_').toLowerCase();
 
@@ -41,6 +43,8 @@ export function ChooseTypeSheet({ open, onOpenChange, serviceType }: ChooseTypeS
     }
   }, [location, onOpenChange]);
 
+  const instantDisabled = !instantAvailable || isError;
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="h-auto">
@@ -52,23 +56,40 @@ export function ChooseTypeSheet({ open, onOpenChange, serviceType }: ChooseTypeS
         </SheetHeader>
         
         <div className="space-y-3 pb-6">
-          <SheetClose asChild>
-            <button
-              onClick={() => go('instant')}
-              className="w-full p-4 rounded-2xl border-2 border-border bg-background hover:bg-accent transition-colors"
-            >
+          {/* Instant Booking Option */}
+          {instantDisabled ? (
+            <div className="w-full p-4 rounded-2xl border-2 border-border bg-muted/50 opacity-60">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-                  <Clock className="w-6 h-6 text-primary" />
+                <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+                  <Clock className="w-6 h-6 text-muted-foreground" />
                 </div>
-                <div className="text-left">
-                  <h3 className="font-semibold">Instant</h3>
-                  <p className="text-sm text-muted-foreground">Get help in ~10 mins</p>
+                <div className="text-left flex-1">
+                  <h3 className="font-semibold text-muted-foreground">All workers are currently busy</h3>
+                  <p className="text-sm text-muted-foreground">Schedule for later instead</p>
                 </div>
+                <AlertCircle className="w-5 h-5 text-amber-500" />
               </div>
-            </button>
-          </SheetClose>
+            </div>
+          ) : (
+            <SheetClose asChild>
+              <button
+                onClick={() => go('instant')}
+                className="w-full p-4 rounded-2xl border-2 border-border bg-background hover:bg-accent transition-colors"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                    <Clock className="w-6 h-6 text-primary" />
+                  </div>
+                  <div className="text-left">
+                    <h3 className="font-semibold">Instant</h3>
+                    <p className="text-sm text-muted-foreground">Get help in ~10 mins</p>
+                  </div>
+                </div>
+              </button>
+            </SheetClose>
+          )}
 
+          {/* Schedule Booking Option - Always Available */}
           <SheetClose asChild>
             <button
               onClick={() => go('scheduled')}
@@ -85,6 +106,20 @@ export function ChooseTypeSheet({ open, onOpenChange, serviceType }: ChooseTypeS
               </div>
             </button>
           </SheetClose>
+
+          {/* Helper message when instant is disabled */}
+          {instantDisabled && (
+            <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-xl">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
+                <p className="text-sm text-amber-800">
+                  {isError 
+                    ? "Service temporarily unavailable. Please try again shortly."
+                    : "All workers are busy in ongoing bookings. We'll be back shortly. You can also schedule the service for later."}
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       </SheetContent>
     </Sheet>

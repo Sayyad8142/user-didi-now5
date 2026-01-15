@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, MapPin, Home, Clock, Calendar } from 'lucide-react';
+import { ArrowLeft, MapPin, Home, Clock, Calendar, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { PriceNote } from '@/components/PriceNote';
 import { isGuestMode } from '@/lib/demo';
+import { useInstantBookingAvailability } from '@/hooks/useInstantBookingAvailability';
 
 // Maid task types and constants
 type MaidTask = "floor_cleaning" | "dish_washing";
@@ -381,7 +382,12 @@ export function BookingForm() {
     : service_type === 'bathroom_cleaning' ? bathroomTotalPrice
     : selectedFlatSize ? pricingMap[selectedFlatSize] : null;
   const isServiceOpen = isOpenNow(service_type);
-  const canBook = isServiceOpen && (
+  
+  // Check instant booking availability
+  const { isAvailable: instantAvailable, isError: instantError } = useInstantBookingAvailability(service_type);
+  const instantDisabled = !instantAvailable || instantError;
+  
+  const canBook = isServiceOpen && !instantDisabled && (
     service_type === 'cook' ? foodPreference && !submitting 
     : service_type === 'maid' ? selectedFlatSize && selectedTasks.length > 0 && !submitting 
     : service_type === 'bathroom_cleaning' ? !submitting
@@ -766,12 +772,22 @@ export function BookingForm() {
               <Button 
                 onClick={handleBookNow} 
                 disabled={!canBook} 
-                className="w-full h-16 rounded-2xl font-bold text-lg bg-gradient-to-r from-pink-600 to-pink-500 hover:from-pink-700 hover:to-pink-600 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02] disabled:transform-none disabled:shadow-md"
+                className={cn(
+                  "w-full h-16 rounded-2xl font-bold text-lg border-0 shadow-lg transition-all duration-300 disabled:transform-none disabled:shadow-md",
+                  instantDisabled 
+                    ? "bg-muted text-muted-foreground cursor-not-allowed" 
+                    : "bg-gradient-to-r from-pink-600 to-pink-500 hover:from-pink-700 hover:to-pink-600 text-white hover:shadow-xl transform hover:scale-[1.02]"
+                )}
               >
                 {submitting ? (
                   <div className="flex items-center gap-3">
                     <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                     <span className="text-lg">Processing...</span>
+                  </div>
+                ) : instantDisabled ? (
+                  <div className="flex items-center gap-3">
+                    <AlertCircle className="w-5 h-5" />
+                    <span>All workers are currently busy</span>
                   </div>
                 ) : (
                   <div className="flex items-center gap-3">
@@ -780,12 +796,27 @@ export function BookingForm() {
                   </div>
                 )}
               </Button>
-              {!isServiceOpen && (
+              
+              {/* Instant booking disabled message */}
+              {instantDisabled && (
+                <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-xl">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
+                    <p className="text-sm text-amber-800">
+                      {instantError 
+                        ? "Service temporarily unavailable. Please try again shortly."
+                        : "All workers are busy in ongoing bookings. We'll be back shortly. You can also schedule the service for later."}
+                    </p>
+                  </div>
+                </div>
+              )}
+              
+              {!isServiceOpen && !instantDisabled && (
                 <div className="mt-2 text-center text-sm text-muted-foreground">
                   Service hours: {getServiceHoursText(service_type).replace(' Daily', '')}. {getOpenStatusText(service_type)}
                 </div>
               )}
-              {!canBook && (
+              {!canBook && !instantDisabled && (
                 <div className="absolute inset-0 bg-black/5 rounded-2xl pointer-events-none" />
               )}
             </div>
