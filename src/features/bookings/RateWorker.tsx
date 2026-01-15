@@ -112,7 +112,7 @@ export function RateWorker({ bookingId, workerId, onSubmit }: RateWorkerProps) {
   return (
     <div className="mt-4 p-4 bg-gray-50 rounded-lg space-y-4">
       <div className="text-center">
-        <p className="text-sm font-medium text-gray-700 mb-2">Rate your experience</p>
+        <p className="text-xs text-gray-500 mb-3">Rate honestly — top-rated workers get more bookings and you get better workers next time.</p>
         <StarRating value={rating} onChange={setRating} />
       </div>
       
