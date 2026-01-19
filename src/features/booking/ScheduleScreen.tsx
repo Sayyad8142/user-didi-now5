@@ -41,7 +41,7 @@ export function ScheduleScreen() {
   const { service_type } = useParams<{ service_type: string }>();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { profile, loading: profileLoading } = useProfile();
   const { toast } = useToast();
 
@@ -61,7 +61,8 @@ export function ScheduleScreen() {
   const bathroomCount = searchParams.get('bathrooms');
 
   useEffect(() => {
-    if (!user) {
+    // ProtectedRoute handles auth gating; only redirect once auth has resolved
+    if (!authLoading && !user) {
       navigate('/auth');
       return;
     }
@@ -69,7 +70,7 @@ export function ScheduleScreen() {
       navigate('/home');
       return;
     }
-  }, [user, service_type, navigate]);
+  }, [authLoading, user, service_type, navigate]);
 
   useEffect(() => {
     if (priceParam) {
