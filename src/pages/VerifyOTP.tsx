@@ -10,7 +10,7 @@ import { ArrowLeft, CheckCircle2 } from 'lucide-react';
 import { maskPhone } from '@/lib/auth-helpers';
 import { CleaningLoader } from '@/components/ui/cleaning-loader';
 import { normalizePhone } from '@/features/profile/ensureProfile';
-import { isDemoCredentials, setDemoSession } from '@/lib/demo';
+import { isDemoCredentials, setDemoSession, clearDemoSession } from '@/lib/demo';
 import { useProfile } from '@/contexts/ProfileContext';
 import { verifyOtp, sendOtp, getCurrentUser, setupRecaptcha } from '@/lib/firebase';
 
@@ -218,10 +218,11 @@ export default function VerifyOTP() {
 
       console.log('✅ Firebase auth successful:', result.user?.uid);
 
+      // IMPORTANT: if user previously used Guest/Demo mode, clear it now so UI doesn't stay "Guest"
+      clearDemoSession();
+
       // Ensure profile exists in Supabase
       const profile = await ensureFirebaseProfile(result.user!.uid, phone);
-
-      // If signup mode with additional data, update the profile
       if (state?.mode === 'signup' && state.signupData && profile) {
         console.log('📝 Updating profile with signup data');
 

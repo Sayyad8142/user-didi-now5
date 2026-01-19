@@ -46,16 +46,40 @@ export function AuthProvider({ children }: AuthProviderProps) {
   useEffect(() => {
     let mounted = true;
 
-    // Listen for demo mode changes
-    const handleDemoModeChange = (_event: Event) => {
-      if (!mounted) return;
+    const applyDemoSession = () => {
       const demo = getDemoSession();
       if (demo) {
         setUser(demo.user as AuthUser);
         setFirebaseUser(null);
         setSession(null);
         setLoading(false);
-      } else {
+        return true;
+      }
+      return false;
+    };
+
+    // Listen for demo/guest mode changes
+    const handleDemoModeChange = (_event: Event) => {
+      if (!mounted) return;
+
+      // If there's a real Firebase user, never show demo/guest
+      const currentFb = getCurrentUser();
+      if (currentFb) {
+        clearDemoSession();
+        const authUser: AuthUser = {
+          id: currentFb.uid,
+          phone: currentFb.phoneNumber,
+          email: currentFb.email,
+        };
+        setUser(authUser);
+        setFirebaseUser(currentFb);
+        setSession(null);
+        setLoading(false);
+        return;
+      }
+
+      // Otherwise, fall back to demo/guest if enabled
+      if (!applyDemoSession()) {
         setUser(null);
         setFirebaseUser(null);
         setSession(null);
@@ -64,53 +88,44 @@ export function AuthProvider({ children }: AuthProviderProps) {
     };
     window.addEventListener('demo-mode-changed', handleDemoModeChange as EventListener);
 
-    // Check for demo mode first
-    if (isDemoMode()) {
-      const demoSession = getDemoSession();
-      if (demoSession && mounted) {
-        setUser(demoSession.user as AuthUser);
-        setFirebaseUser(null);
-        setSession(null);
-        setLoading(false);
-        return () => {
-          mounted = false;
-          window.removeEventListener('demo-mode-changed', handleDemoModeChange as EventListener);
-        };
-      }
-    }
-
-    // Listen for Firebase auth state changes
+    // Listen for Firebase auth state changes (ALWAYS, even if guest-mode is set)
     const unsubscribe = onFirebaseAuthStateChanged((fbUser) => {
       if (!mounted) return;
-      
+
       console.log('Firebase auth state changed:', fbUser?.uid);
-      
+
       if (fbUser) {
-        // Clear any demo sessions
+        // A real login should always override any guest/demo state
         clearDemoSession();
-        
-        // Create compatible user object
+
         const authUser: AuthUser = {
           id: fbUser.uid,
           phone: fbUser.phoneNumber,
           email: fbUser.email,
         };
-        
+
         setUser(authUser);
         setFirebaseUser(fbUser);
-        setSession(null); // No Supabase session, using Firebase
-      } else {
-        setUser(null);
-        setFirebaseUser(null);
         setSession(null);
+        setLoading(false);
+        return;
       }
-      
+
+      // No Firebase user: use demo/guest if enabled, else null
+      if (isDemoMode()) {
+        if (applyDemoSession()) return;
+      }
+
+      setUser(null);
+      setFirebaseUser(null);
+      setSession(null);
       setLoading(false);
     });
 
-    // Check for existing Firebase user
+    // Initial hydration order: prefer real Firebase user over demo/guest
     const currentUser = getCurrentUser();
     if (currentUser && mounted) {
+      clearDemoSession();
       const authUser: AuthUser = {
         id: currentUser.uid,
         phone: currentUser.phoneNumber,
@@ -118,7 +133,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
       };
       setUser(authUser);
       setFirebaseUser(currentUser);
+      setSession(null);
       setLoading(false);
+    } else if (isDemoMode() && mounted) {
+      // Only apply demo/guest if no Firebase session exists
+      applyDemoSession();
     }
 
     return () => {
