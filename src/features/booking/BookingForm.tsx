@@ -268,7 +268,7 @@ export function BookingForm() {
       params.set('price', price.toString());
     }
     
-    navigate(`/book/${service_type}/schedule?${params.toString()}`);
+    navigate(`/schedule/${service_type}?${params.toString()}`);
   };
   const createBooking = async (bookingType: 'instant' | 'scheduled', scheduledDate: string | null, scheduledTime: string | null, price: number) => {
     if (!profile || !user || !service_type) return;

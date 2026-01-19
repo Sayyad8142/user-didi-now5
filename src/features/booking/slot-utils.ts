@@ -71,8 +71,8 @@ export const getDateChips = (): Array<{ date: Date; label: string; dayLabel: str
 
 export const getExtraCharge = (timeSlot: string): number => {
   const [hours] = timeSlot.split(':').map(Number);
-  // Extra ₹20 for slots after 4:00 PM (16:00)
-  return hours >= 16 ? 20 : 0;
+  // Extra ₹5 for slots after 4:00 PM (16:00)
+  return hours >= 16 ? 5 : 0;
 };
 
 export const TIME_SEGMENTS = {
