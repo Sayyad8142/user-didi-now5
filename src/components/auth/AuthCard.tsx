@@ -15,7 +15,7 @@ import { normalizePhone } from '@/features/profile/ensureProfile';
 import { useCommunities } from '@/hooks/useCommunities';
 import { useBuildings } from '@/hooks/useBuildings';
 import { useFlats } from '@/hooks/useFlats';
-import { isDemoCredentials, setDemoSession, setGuestSession } from '@/lib/demo';
+import { isDemoCredentials, setDemoSession, setGuestSession, clearDemoSession } from '@/lib/demo';
 import { FlatSearchInput } from './FlatSearchInput';
 import { sendOtp, setupRecaptcha } from '@/lib/firebase';
 
@@ -155,6 +155,9 @@ export function AuthCard() {
 
     setLoading(true);
     setErrors({});
+
+    // If user previously used Guest/Demo mode, clear it as soon as they start real login
+    clearDemoSession();
 
     try {
       const formattedPhone = formatPhoneIN(phone);
