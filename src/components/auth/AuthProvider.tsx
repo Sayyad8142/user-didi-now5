@@ -1,8 +1,8 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { User as SupabaseUser, Session } from '@supabase/supabase-js';
 import { User as FirebaseUser } from 'firebase/auth';
 import { onFirebaseAuthStateChanged, getCurrentUser } from '@/lib/firebase';
-import { getDemoSession, isDemoMode, clearDemoSession } from '@/lib/demo';
+import { getDemoSession, isDemoMode, clearDemoSession, isGuestMode } from '@/lib/demo';
 
 // Create a compatible user type that works with both systems
 interface AuthUser {
@@ -16,6 +16,7 @@ interface AuthContextType {
   firebaseUser: FirebaseUser | null;
   session: Session | null;
   loading: boolean;
+  isGuest: boolean;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -23,6 +24,7 @@ const AuthContext = createContext<AuthContextType>({
   firebaseUser: null,
   session: null,
   loading: true,
+  isGuest: false,
 });
 
 export const useAuth = () => {
@@ -42,25 +44,31 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isGuest, setIsGuest] = useState(false);
+
+  const applyDemoSession = useCallback(() => {
+    const demo = getDemoSession();
+    if (demo) {
+      console.log('✅ Applying guest/demo session:', demo.user.id);
+      setUser(demo.user as AuthUser);
+      setFirebaseUser(null);
+      setSession(null);
+      setIsGuest(isGuestMode());
+      setLoading(false);
+      return true;
+    }
+    return false;
+  }, []);
 
   useEffect(() => {
     let mounted = true;
 
-    const applyDemoSession = () => {
-      const demo = getDemoSession();
-      if (demo) {
-        setUser(demo.user as AuthUser);
-        setFirebaseUser(null);
-        setSession(null);
-        setLoading(false);
-        return true;
-      }
-      return false;
-    };
-
     // Listen for demo/guest mode changes
-    const handleDemoModeChange = (_event: Event) => {
+    const handleDemoModeChange = (event: Event) => {
       if (!mounted) return;
+      
+      const customEvent = event as CustomEvent;
+      console.log('🔄 Demo mode changed:', customEvent.detail);
 
       // If there's a real Firebase user, never show demo/guest
       const currentFb = getCurrentUser();
@@ -74,15 +82,25 @@ export function AuthProvider({ children }: AuthProviderProps) {
         setUser(authUser);
         setFirebaseUser(currentFb);
         setSession(null);
+        setIsGuest(false);
         setLoading(false);
         return;
       }
 
-      // Otherwise, fall back to demo/guest if enabled
-      if (!applyDemoSession()) {
+      // Otherwise, apply demo/guest if enabled
+      if (customEvent.detail?.enabled) {
+        // Immediately try to apply the session
+        if (!applyDemoSession()) {
+          // Session not yet in localStorage, retry after a tick
+          setTimeout(() => {
+            if (mounted) applyDemoSession();
+          }, 10);
+        }
+      } else {
         setUser(null);
         setFirebaseUser(null);
         setSession(null);
+        setIsGuest(false);
         setLoading(false);
       }
     };
@@ -107,6 +125,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         setUser(authUser);
         setFirebaseUser(fbUser);
         setSession(null);
+        setIsGuest(false);
         setLoading(false);
         return;
       }
@@ -119,10 +138,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setUser(null);
       setFirebaseUser(null);
       setSession(null);
+      setIsGuest(false);
       setLoading(false);
     });
 
-    // Initial hydration order: prefer real Firebase user over demo/guest
+    // Initial hydration - check synchronously first
     const currentUser = getCurrentUser();
     if (currentUser && mounted) {
       clearDemoSession();
@@ -134,6 +154,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setUser(authUser);
       setFirebaseUser(currentUser);
       setSession(null);
+      setIsGuest(false);
       setLoading(false);
     } else if (isDemoMode() && mounted) {
       // Only apply demo/guest if no Firebase session exists
@@ -143,7 +164,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }
     } else if (mounted) {
       // No Firebase user and no demo mode - just stop loading
-      // This ensures the app doesn't freeze waiting for auth
       setLoading(false);
     }
 
@@ -152,10 +172,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
       unsubscribe();
       window.removeEventListener('demo-mode-changed', handleDemoModeChange as EventListener);
     };
-  }, []);
+  }, [applyDemoSession]);
 
   return (
-    <AuthContext.Provider value={{ user, firebaseUser, session, loading }}>
+    <AuthContext.Provider value={{ user, firebaseUser, session, loading, isGuest }}>
       {children}
     </AuthContext.Provider>
   );

@@ -142,10 +142,7 @@ export function BookingForm() {
   // Bathroom pricing calculation
   const bathroomTotalPrice = service_type === 'bathroom_cleaning' ? (bathroomUnitPrice ?? 250) * Math.max(1, bathroomCount) : 0;
   useEffect(() => {
-    if (!user) {
-      navigate('/auth');
-      return;
-    }
+    // Don't redirect - ProtectedRoute handles auth check
     if (service_type && !isValidServiceType(service_type)) {
       navigate('/home');
       return;

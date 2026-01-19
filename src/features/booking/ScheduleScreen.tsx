@@ -61,15 +61,12 @@ export function ScheduleScreen() {
   const bathroomCount = searchParams.get('bathrooms');
 
   useEffect(() => {
-    if (!user) {
-      navigate('/auth');
-      return;
-    }
+    // Don't redirect - ProtectedRoute handles auth check
     if (service_type && !isValidServiceType(service_type)) {
       navigate('/home');
       return;
     }
-  }, [user, service_type, navigate]);
+  }, [service_type, navigate]);
 
   useEffect(() => {
     if (priceParam) {

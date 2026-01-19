@@ -211,32 +211,22 @@ export function AuthCard() {
     try {
       // Sign out from Firebase first to ensure guest mode takes precedence
       await firebaseSignOut();
-      
-      // Small delay to allow Firebase auth state to update
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      setGuestSession();
-      toast({
-        title: 'Welcome Guest!',
-        description: 'You can browse and explore our services.'
-      });
-      
-      // Navigate after state updates
-      setTimeout(() => {
-        navigate("/home", { replace: true });
-      }, 50);
     } catch (error) {
-      console.error('Error entering guest mode:', error);
-      // Even if sign out fails, try to continue as guest
-      setGuestSession();
-      toast({
-        title: 'Welcome Guest!',
-        description: 'You can browse and explore our services.'
-      });
-      setTimeout(() => {
-        navigate("/home", { replace: true });
-      }, 50);
+      console.error('Error signing out:', error);
     }
+    
+    // Set guest session - this will trigger demo-mode-changed event
+    setGuestSession();
+    
+    toast({
+      title: 'Welcome Guest!',
+      description: 'You can browse and explore our services.'
+    });
+    
+    // Small delay to ensure AuthProvider processes the event
+    setTimeout(() => {
+      navigate("/home", { replace: true });
+    }, 100);
   };
 
   return (
