@@ -17,7 +17,7 @@ import { useBuildings } from '@/hooks/useBuildings';
 import { useFlats } from '@/hooks/useFlats';
 import { isDemoCredentials, setDemoSession, setGuestSession, clearDemoSession } from '@/lib/demo';
 import { FlatSearchInput } from './FlatSearchInput';
-import { sendOtp, setupRecaptcha } from '@/lib/firebase';
+import { sendOtp, setupRecaptcha, signOut as firebaseSignOut } from '@/lib/firebase';
 
 export function AuthCard() {
   const navigate = useNavigate();
@@ -207,16 +207,36 @@ export function AuthCard() {
     }
   };
 
-  const handleContinueAsGuest = () => {
-    setGuestSession();
-    toast({
-      title: 'Welcome Guest!',
-      description: 'You can browse and explore our services.'
-    });
-    // Use setTimeout to allow state updates to process before navigation
-    setTimeout(() => {
-      navigate("/home", { replace: true });
-    }, 50);
+  const handleContinueAsGuest = async () => {
+    try {
+      // Sign out from Firebase first to ensure guest mode takes precedence
+      await firebaseSignOut();
+      
+      // Small delay to allow Firebase auth state to update
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      setGuestSession();
+      toast({
+        title: 'Welcome Guest!',
+        description: 'You can browse and explore our services.'
+      });
+      
+      // Navigate after state updates
+      setTimeout(() => {
+        navigate("/home", { replace: true });
+      }, 50);
+    } catch (error) {
+      console.error('Error entering guest mode:', error);
+      // Even if sign out fails, try to continue as guest
+      setGuestSession();
+      toast({
+        title: 'Welcome Guest!',
+        description: 'You can browse and explore our services.'
+      });
+      setTimeout(() => {
+        navigate("/home", { replace: true });
+      }, 50);
+    }
   };
 
   return (
