@@ -213,7 +213,10 @@ export function AuthCard() {
       title: 'Welcome Guest!',
       description: 'You can browse and explore our services.'
     });
-    navigate("/home", { replace: true });
+    // Use setTimeout to allow state updates to process before navigation
+    setTimeout(() => {
+      navigate("/home", { replace: true });
+    }, 50);
   };
 
   return (

@@ -137,7 +137,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setLoading(false);
     } else if (isDemoMode() && mounted) {
       // Only apply demo/guest if no Firebase session exists
-      applyDemoSession();
+      if (!applyDemoSession()) {
+        // Demo mode flag is set but no session data - still stop loading
+        setLoading(false);
+      }
+    } else if (mounted) {
+      // No Firebase user and no demo mode - just stop loading
+      // This ensures the app doesn't freeze waiting for auth
+      setLoading(false);
     }
 
     return () => {
