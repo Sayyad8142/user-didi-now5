@@ -3,6 +3,7 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './AuthProvider';
 import { CleaningPulse } from '@/components/ui/cleaning-loader';
 import ConsentGate from '@/features/auth/ConsentGate';
+import { isDemoMode } from '@/lib/demo';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -25,13 +26,11 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     );
   }
 
-  if (!user) {
+  // Guest/Demo users are allowed through protected areas.
+  // This prevents a redirect loop while AuthProvider hydrates from localStorage.
+  if (!user && !isDemoMode()) {
     return <Navigate to="/auth" state={{ from: location }} replace />;
   }
 
-  return (
-    <ConsentGate>
-      {children}
-    </ConsentGate>
-  );
+  return <ConsentGate>{children}</ConsentGate>;
 }
