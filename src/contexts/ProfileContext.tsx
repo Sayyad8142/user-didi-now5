@@ -1,7 +1,7 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/components/auth/AuthProvider";
-import { getDemoSession, isDemoMode } from "@/lib/demo";
+import { getDemoSession, isDemoMode, clearDemoSession } from "@/lib/demo";
 import { normalizePhone } from "@/features/profile/ensureProfile";
 
 interface Profile {
@@ -40,16 +40,22 @@ interface ProfileProviderProps {
 }
 
 export function ProfileProvider({ children }: ProfileProviderProps) {
-  const { user } = useAuth();
+  const { user, firebaseUser } = useAuth();
 
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchProfile = async (): Promise<Profile | null> => {
+  const fetchProfile = useCallback(async (): Promise<Profile | null> => {
     try {
-      // Demo/guest mode
-      if (isDemoMode()) {
+      // IMPORTANT: If we have a real Firebase user, always clear demo/guest mode first
+      // This ensures we don't show stale guest data after login
+      if (firebaseUser) {
+        clearDemoSession();
+      }
+
+      // Only check demo/guest mode if we DON'T have a real Firebase user
+      if (!firebaseUser && isDemoMode()) {
         const demoSession = getDemoSession();
         if (demoSession?.profile) {
           setProfile(demoSession.profile);
@@ -58,7 +64,7 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
         }
       }
 
-      // Firebase-only auth
+      // Firebase-only auth - need a real user to fetch profile
       if (!user?.id) {
         setProfile(null);
         setLoading(false);
@@ -68,6 +74,8 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
       setLoading(true);
       setError(null);
 
+      console.log('🔍 Fetching profile for firebase_uid:', user.id);
+
       const { data, error: fetchError } = await supabase
         .from("profiles")
         .select("id, full_name, phone, community, flat_no, building_id, community_id, flat_id")
@@ -75,6 +83,7 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
         .maybeSingle();
 
       if (fetchError) {
+        console.error('❌ Profile fetch error:', fetchError);
         setError(fetchError.message || "Failed to load profile");
         setProfile(null);
         setLoading(false);
@@ -82,54 +91,63 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
       }
 
       if (data) {
+        console.log('✅ Profile loaded:', data.id, data.full_name);
         setProfile(data);
         setLoading(false);
         return data;
       }
 
-      // Create missing profile row (should be rare; VerifyOTP normally creates it)
+      // No profile found - create one
+      console.log('📝 No profile found, creating new profile for:', user.id);
       const phone = normalizePhone(user.phone ?? "");
-      if (!phone) {
-        setError("Missing phone number for profile");
-        setProfile(null);
-        setLoading(false);
-        return null;
-      }
-
+      
       const { data: created, error: createErr } = await supabase
         .from("profiles")
         .insert({
           firebase_uid: user.id,
-          phone,
-          full_name: "User",
-          community: "default",
-          flat_no: "N/A",
+          phone: phone || "",
+          full_name: phone || "User",
+          community: "other",
+          flat_no: "",
         })
         .select("id, full_name, phone, community, flat_no, building_id, community_id, flat_id")
         .single();
 
       if (createErr) {
+        console.error('❌ Profile create error:', createErr);
         setError(createErr.message || "Failed to create profile");
         setProfile(null);
         setLoading(false);
         return null;
       }
 
+      console.log('✅ Profile created:', created.id);
       setProfile(created);
       setLoading(false);
       return created;
     } catch (e: any) {
+      console.error('❌ Unexpected error in fetchProfile:', e);
       setError(e?.message || "An unexpected error occurred");
       setProfile(null);
       setLoading(false);
       return null;
     }
-  };
+  }, [user?.id, user?.phone, firebaseUser]);
 
   useEffect(() => {
     fetchProfile();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]);
+  }, [fetchProfile]);
+
+  // Also listen for demo mode changes
+  useEffect(() => {
+    const handleDemoModeChange = () => {
+      // Re-fetch profile when demo mode changes
+      fetchProfile();
+    };
+    
+    window.addEventListener('demo-mode-changed', handleDemoModeChange);
+    return () => window.removeEventListener('demo-mode-changed', handleDemoModeChange);
+  }, [fetchProfile]);
 
   const refresh = async () => fetchProfile();
 
