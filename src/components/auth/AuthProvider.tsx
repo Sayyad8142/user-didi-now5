@@ -89,7 +89,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
     window.addEventListener('demo-mode-changed', handleDemoModeChange as EventListener);
 
     // Listen for Firebase auth state changes (ALWAYS, even if guest-mode is set)
+    let authStateResolved = false;
     const unsubscribe = onFirebaseAuthStateChanged((fbUser) => {
+      authStateResolved = true;
       if (!mounted) return;
 
       console.log('Firebase auth state changed:', fbUser?.uid);
@@ -122,7 +124,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setLoading(false);
     });
 
-    // Initial hydration order: prefer real Firebase user over demo/guest
+    // Initial hydration: if a Firebase user is already available, use it immediately.
+    // IMPORTANT: If no currentUser is available yet, keep loading=true until
+    // onFirebaseAuthStateChanged fires (prevents redirecting to /auth too early).
     const currentUser = getCurrentUser();
     if (currentUser && mounted) {
       clearDemoSession();
@@ -137,18 +141,20 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setLoading(false);
     } else if (isDemoMode() && mounted) {
       // Only apply demo/guest if no Firebase session exists
-      if (!applyDemoSession()) {
-        // Demo mode flag is set but no session data - still stop loading
+      applyDemoSession();
+    }
+
+    // Safety: if Firebase never resolves (should be rare), don't freeze forever
+    const safetyTimer = window.setTimeout(() => {
+      if (!mounted) return;
+      if (!authStateResolved && loading) {
         setLoading(false);
       }
-    } else if (mounted) {
-      // No Firebase user and no demo mode - just stop loading
-      // This ensures the app doesn't freeze waiting for auth
-      setLoading(false);
-    }
+    }, 1500);
 
     return () => {
       mounted = false;
+      window.clearTimeout(safetyTimer);
       unsubscribe();
       window.removeEventListener('demo-mode-changed', handleDemoModeChange as EventListener);
     };
