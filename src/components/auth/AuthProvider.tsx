@@ -162,9 +162,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
         // Demo mode flag is set but no session data - still stop loading
         setLoading(false);
       }
-    } else if (mounted) {
-      // No Firebase user and no demo mode - just stop loading
-      setLoading(false);
     }
 
     return () => {
