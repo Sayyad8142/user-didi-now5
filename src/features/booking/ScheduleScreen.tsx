@@ -361,30 +361,30 @@ export function ScheduleScreen() {
           </Card>
         </div>
 
-        {/* Price Breakdown */}
-        {price && selectedTime && (
-          <Card className="bg-white rounded-2xl shadow-sm border border-gray-100 p-3 mt-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Wallet className="w-4 h-4 text-muted-foreground" />
-              <h2 className="text-sm font-semibold text-foreground">Price Summary</h2>
-            </div>
-            <div className="space-y-1 text-sm">
-              <div className="flex justify-between text-muted-foreground">
-                <span>Base Price</span>
-                <span>₹{price}</span>
+        {/* Price Summary - Always shown when price available */}
+        {price !== null && (
+          <div className="mt-4 p-4 bg-gradient-to-r from-primary/5 to-primary/10 rounded-2xl border border-primary/20">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Wallet className="w-5 h-5 text-primary" />
+                <span className="text-sm font-medium text-muted-foreground">Total</span>
               </div>
-              {isAfter4pmSlot(selectedTime) && (
-                <div className="flex justify-between text-orange-600">
-                  <span>After 4 PM Surcharge</span>
-                  <span>+₹{AFTER_4PM_SURCHARGE}</span>
-                </div>
-              )}
-              <div className="flex justify-between font-semibold text-foreground pt-1 border-t border-gray-100">
-                <span>Total</span>
-                <span>₹{price + (isAfter4pmSlot(selectedTime) ? AFTER_4PM_SURCHARGE : 0)}</span>
+              <div className="text-right">
+                {selectedTime && isAfter4pmSlot(selectedTime) ? (
+                  <div className="flex flex-col items-end">
+                    <span className="text-xl font-bold text-foreground">
+                      ₹{price + AFTER_4PM_SURCHARGE}
+                    </span>
+                    <span className="text-xs text-orange-600">
+                      (₹{price} + ₹{AFTER_4PM_SURCHARGE} surcharge)
+                    </span>
+                  </div>
+                ) : (
+                  <span className="text-xl font-bold text-foreground">₹{price}</span>
+                )}
               </div>
             </div>
-          </Card>
+          </div>
         )}
 
         {/* Confirm Schedule Button */}
