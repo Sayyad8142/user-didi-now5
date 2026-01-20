@@ -75,12 +75,19 @@ export function getDemoSession(): DemoSession | null {
 }
 
 export function clearDemoSession(): void {
+  const hadDemoMode = localStorage.getItem('demo-mode') === 'true';
+  const hadGuestMode = localStorage.getItem('guest-mode') === 'true';
+
   localStorage.removeItem('demo-session');
   localStorage.removeItem('demo-mode');
   localStorage.removeItem('guest-session');
   localStorage.removeItem('guest-mode');
-  // Notify app that demo mode was cleared
-  window.dispatchEvent(new CustomEvent('demo-mode-changed', { detail: { enabled: false } }));
+
+  // Notify ONLY when we actually transitioned from enabled -> disabled.
+  // This avoids noisy/infinite event loops when this function is called repeatedly.
+  if (hadDemoMode || hadGuestMode) {
+    window.dispatchEvent(new CustomEvent('demo-mode-changed', { detail: { enabled: false } }));
+  }
 }
 
 export function isDemoMode(): boolean {

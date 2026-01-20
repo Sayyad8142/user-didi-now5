@@ -10,7 +10,7 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const { user, loading } = useAuth();
+  const { user, firebaseUser, loading } = useAuth();
   const location = useLocation();
 
   // Don't apply user auth protection to /admin routes - let AdminGate handle it
@@ -28,7 +28,9 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
 
   // Guest/Demo users are allowed through protected areas.
   // This prevents a redirect loop while AuthProvider hydrates from localStorage.
-  if (!user && !isDemoMode()) {
+  // Treat a present Firebase user as authenticated even if our derived `user`
+  // hasn't hydrated yet (prevents sporadic /auth redirects during transitions).
+  if (!user && !firebaseUser && !isDemoMode()) {
     return <Navigate to="/auth" state={{ from: location }} replace />;
   }
 
