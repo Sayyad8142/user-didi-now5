@@ -16,6 +16,8 @@ import {
   isPastToday, 
   getDateChips, 
   getExtraCharge,
+  isAfter4pmSlot,
+  AFTER_4PM_SURCHARGE,
   TIME_SEGMENTS,
   TIME_SEGMENTS_COOK,
   type TimeSegment 
@@ -132,6 +134,10 @@ export function ScheduleScreen() {
         price
       });
 
+      // Calculate surcharge
+      const surcharge = getExtraCharge(selectedTime);
+      const finalPrice = price + surcharge;
+
       const bookingData = {
         user_id: profile.id,
         service_type,
@@ -146,7 +152,9 @@ export function ScheduleScreen() {
         cook_cuisine_pref: service_type === 'cook' ? (cuisinePref || 'any') : null,
         cook_gender_pref: service_type === 'cook' ? (genderPref || 'any') : null,
         bathroom_count: service_type === 'bathroom_cleaning' ? parseInt(bathroomCount!) : null,
-        price_inr: price,
+        price_inr: finalPrice,
+        surcharge_amount: surcharge,
+        surcharge_reason: surcharge > 0 ? 'after_4pm' : null,
         cust_name: profile.full_name,
         cust_phone: profile.phone,
         community: profile.community,
@@ -315,6 +323,7 @@ export function ScheduleScreen() {
                   {currentSegmentSlots.map((slot) => {
                     const isPast = isPastToday(slot, selectedDate);
                     const isSelected = selectedTime === slot;
+                    const hasSurcharge = isAfter4pmSlot(slot);
                     
                     return (
                       <Button
@@ -336,6 +345,13 @@ export function ScheduleScreen() {
                         }`}
                       >
                         <span className="font-medium">{toDisplay12h(slot)}</span>
+                        {hasSurcharge && (
+                          <span className={`text-[10px] font-semibold mt-0.5 ${
+                            isSelected ? 'text-primary' : 'text-orange-500'
+                          }`}>
+                            +₹{AFTER_4PM_SURCHARGE}
+                          </span>
+                        )}
                       </Button>
                     );
                   })}
@@ -345,8 +361,34 @@ export function ScheduleScreen() {
           </Card>
         </div>
 
+        {/* Price Breakdown */}
+        {price && selectedTime && (
+          <Card className="bg-white rounded-2xl shadow-sm border border-gray-100 p-3 mt-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Wallet className="w-4 h-4 text-muted-foreground" />
+              <h2 className="text-sm font-semibold text-foreground">Price Summary</h2>
+            </div>
+            <div className="space-y-1 text-sm">
+              <div className="flex justify-between text-muted-foreground">
+                <span>Base Price</span>
+                <span>₹{price}</span>
+              </div>
+              {isAfter4pmSlot(selectedTime) && (
+                <div className="flex justify-between text-orange-600">
+                  <span>After 4 PM Surcharge</span>
+                  <span>+₹{AFTER_4PM_SURCHARGE}</span>
+                </div>
+              )}
+              <div className="flex justify-between font-semibold text-foreground pt-1 border-t border-gray-100">
+                <span>Total</span>
+                <span>₹{price + (isAfter4pmSlot(selectedTime) ? AFTER_4PM_SURCHARGE : 0)}</span>
+              </div>
+            </div>
+          </Card>
+        )}
+
         {/* Confirm Schedule Button */}
-        <div className="mt-6">
+        <div className="mt-4">
           <Button
             onClick={handleConfirmSchedule}
             disabled={!canConfirm}

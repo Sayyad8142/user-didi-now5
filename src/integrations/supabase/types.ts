@@ -416,6 +416,8 @@ export type Database = {
           service_type: string
           started_at: string | null
           status: string
+          surcharge_amount: number | null
+          surcharge_reason: string | null
           updated_at: string
           user_id: string
           user_marked_paid_at: string | null
@@ -470,6 +472,8 @@ export type Database = {
           service_type: string
           started_at?: string | null
           status?: string
+          surcharge_amount?: number | null
+          surcharge_reason?: string | null
           updated_at?: string
           user_id: string
           user_marked_paid_at?: string | null
@@ -524,6 +528,8 @@ export type Database = {
           service_type?: string
           started_at?: string | null
           status?: string
+          surcharge_amount?: number | null
+          surcharge_reason?: string | null
           updated_at?: string
           user_id?: string
           user_marked_paid_at?: string | null
@@ -2783,6 +2789,8 @@ export type Database = {
               service_type: string
               started_at: string | null
               status: string
+              surcharge_amount: number | null
+              surcharge_reason: string | null
               updated_at: string
               user_id: string
               user_marked_paid_at: string | null
@@ -3355,6 +3363,8 @@ export type Database = {
           service_type: string
           started_at: string | null
           status: string
+          surcharge_amount: number | null
+          surcharge_reason: string | null
           updated_at: string
           user_id: string
           user_marked_paid_at: string | null
