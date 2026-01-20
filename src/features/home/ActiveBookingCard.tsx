@@ -342,6 +342,38 @@ const ActiveBookingCard = memo(() => {
 
       if (error) throw error;
 
+      // Send push notification to admins when worker not reached
+      if (!reached) {
+        const workerName = activeBooking.worker_name || 'Worker';
+        const flatNo = activeBooking.flat_no || 'Unknown';
+        const community = activeBooking.community || '';
+        const serviceType = activeBooking.service_type || 'Service';
+        
+        // Fire and forget - don't block UI for notification
+        supabase.functions.invoke('send-admin-fcm', {
+          body: {
+            title: '⚠️ Worker Not Reached',
+            body: `${workerName} has not reached Flat ${flatNo} (${community}) for ${serviceType}. Action needed!`,
+            notification_type: 'worker_not_reached',
+            data: {
+              booking_id: activeBooking.id,
+              worker_name: workerName,
+              flat_no: flatNo,
+              community: community,
+              service_type: serviceType,
+            },
+          },
+        }).then(res => {
+          if (res.error) {
+            console.error('[ReachStatus] Admin notification error:', res.error);
+          } else {
+            console.log('[ReachStatus] Admin notification sent:', res.data);
+          }
+        }).catch(err => {
+          console.error('[ReachStatus] Admin notification failed:', err);
+        });
+      }
+
       if (reached) {
         toast.success("Thanks for confirming. Worker has reached.");
       } else {
