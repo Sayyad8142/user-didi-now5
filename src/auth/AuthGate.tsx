@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { PortalStore } from '@/lib/portal';
 import { isAdminPhone } from '@/features/auth/isAdmin';
-import { onFirebaseAuthStateChanged, getCurrentUser } from '@/lib/firebase';
+import { onFirebaseAuthStateChanged } from '@/lib/firebase';
 import { isDemoMode, getDemoSession } from '@/lib/demo';
 
 export default function AuthGate({ children }: { children: React.ReactNode }) {
@@ -41,18 +41,9 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
       }
     }
 
-    // Check for existing Firebase user first (faster than listener)
-    const currentUser = getCurrentUser();
-    if (currentUser) {
-      const isAdmin = isAdminPhone(currentUser.phoneNumber);
-      const lastPortal = PortalStore.get();
-      const dest = isAdmin && lastPortal === 'admin' ? '/admin' : '/home';
-      nav(dest, { replace: true });
-      setReady(true);
-      return;
-    }
-
-    // Root path: listen for Firebase auth state
+    // Root path: ALWAYS wait for Firebase auth state to be determined
+    // This fixes the race condition where getCurrentUser() returns null on cold start
+    // because Firebase hasn't loaded persisted session yet
     let cancelled = false;
 
     const unsubscribe = onFirebaseAuthStateChanged((user) => {
