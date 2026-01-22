@@ -18,8 +18,42 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
   }, [ready]);
 
   useEffect(() => {
-    // Allow public routes immediately - no auth check needed
-    const publicRoutes = ['/auth', '/admin-login', '/auth/verify', '/admin-verify', '/legal', '/legal/privacy', '/legal/terms'];
+    // If we're on an auth entry route but the user is already logged in,
+    // redirect away once Firebase finishes hydrating the persisted session.
+    // This prevents getting "stuck" on /auth due to a transient null auth state
+    // during cold start.
+    const authEntryRoutes = ['/auth', '/auth/verify', '/admin-login', '/admin-verify'];
+    if (authEntryRoutes.some(r => location.pathname.startsWith(r))) {
+      setReady(true);
+
+      // Demo mode shortcut
+      if (isDemoMode()) {
+        const demoSession = getDemoSession();
+        if (demoSession) {
+          nav('/home', { replace: true });
+          return;
+        }
+      }
+
+      let cancelled = false;
+      const unsubscribe = onFirebaseAuthStateChanged((user) => {
+        if (cancelled) return;
+        if (!user) return;
+
+        const isAdmin = isAdminPhone(user.phoneNumber);
+        const lastPortal = PortalStore.get();
+        const dest = isAdmin && lastPortal === 'admin' ? '/admin' : '/home';
+        nav(dest, { replace: true });
+      });
+
+      return () => {
+        cancelled = true;
+        unsubscribe();
+      };
+    }
+
+    // Allow legal/public routes immediately - no auth check needed
+    const publicRoutes = ['/legal', '/legal/privacy', '/legal/terms'];
     if (publicRoutes.some(r => location.pathname.startsWith(r))) {
       setReady(true);
       return;
