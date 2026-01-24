@@ -427,6 +427,7 @@ export type Database = {
           user_id: string
           user_marked_paid_at: string | null
           user_payment_utr: string | null
+          user_reminder_sent: boolean | null
           worker_id: string | null
           worker_name: string | null
           worker_phone: string | null
@@ -485,6 +486,7 @@ export type Database = {
           user_id: string
           user_marked_paid_at?: string | null
           user_payment_utr?: string | null
+          user_reminder_sent?: boolean | null
           worker_id?: string | null
           worker_name?: string | null
           worker_phone?: string | null
@@ -543,6 +545,7 @@ export type Database = {
           user_id?: string
           user_marked_paid_at?: string | null
           user_payment_utr?: string | null
+          user_reminder_sent?: boolean | null
           worker_id?: string | null
           worker_name?: string | null
           worker_phone?: string | null
@@ -2813,6 +2816,7 @@ export type Database = {
               user_id: string
               user_marked_paid_at: string | null
               user_payment_utr: string | null
+              user_reminder_sent: boolean | null
               worker_id: string | null
               worker_name: string | null
               worker_phone: string | null
@@ -3389,6 +3393,7 @@ export type Database = {
           user_id: string
           user_marked_paid_at: string | null
           user_payment_utr: string | null
+          user_reminder_sent: boolean | null
           worker_id: string | null
           worker_name: string | null
           worker_phone: string | null
