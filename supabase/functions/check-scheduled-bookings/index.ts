@@ -1,6 +1,7 @@
 // ============================================================================
 // Check Scheduled Bookings - Sends FCM alerts 10-20 mins before scheduled time
 // Uses the SAME fcm_tokens table as instant bookings for consistency
+// Also sends USER REMINDERS 30 mins before their scheduled booking
 // ============================================================================
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -13,7 +14,8 @@ const corsHeaders = {
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-const WINDOW_MINUTES = 20; // Alert workers within 20 mins of scheduled time
+const WORKER_WINDOW_MINUTES = 20; // Alert workers within 20 mins of scheduled time
+const USER_REMINDER_WINDOW_MINUTES = 35; // Remind users 30-35 mins before scheduled time
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -32,7 +34,6 @@ serve(async (req) => {
       .select('*')
       .eq('booking_type', 'scheduled')
       .eq('status', 'pending')
-      .eq('prealert_sent', false)
       .not('scheduled_date', 'is', null)
       .not('scheduled_time', 'is', null);
 
@@ -43,7 +44,7 @@ serve(async (req) => {
     }
 
     if (!bookings?.length) {
-      console.log('📭 No scheduled bookings pending pre-alert');
+      console.log('📭 No scheduled bookings to process');
       return new Response(JSON.stringify({ ok: true, processed: 0 }), 
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
@@ -51,7 +52,8 @@ serve(async (req) => {
     console.log(`📋 Found ${bookings.length} scheduled bookings to check`);
 
     const nowUTC = new Date();
-    const results: any[] = [];
+    const workerResults: any[] = [];
+    const userReminderResults: any[] = [];
 
     for (const booking of bookings) {
       const scheduledDateStr = booking.scheduled_date;
@@ -64,9 +66,59 @@ serve(async (req) => {
 
       console.log(`📅 Booking ${booking.id}: scheduled=${scheduledAtIST.toISOString()}, diff=${diffMin.toFixed(1)}min, community=${booking.community}, service=${booking.service_type}`);
 
-      // Fire alerts when within WINDOW_MINUTES (20 mins) of scheduled time
-      if (diffMin <= WINDOW_MINUTES && diffMin > -5) {
-        console.log(`🔔 Booking ${booking.id} is due in ${diffMin.toFixed(1)} mins - SENDING ALERTS!`);
+      // ==========================================
+      // USER REMINDER: 30-35 mins before scheduled time
+      // ==========================================
+      const userReminderSent = booking.user_reminder_sent || false;
+      
+      if (!userReminderSent && diffMin <= USER_REMINDER_WINDOW_MINUTES && diffMin > 25) {
+        console.log(`🔔 Sending USER REMINDER for booking ${booking.id} (${diffMin.toFixed(1)} mins before)`);
+        
+        try {
+          const reminderResponse = await fetch(`${SUPABASE_URL}/functions/v1/send-user-fcm`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+            },
+            body: JSON.stringify({
+              user_id: booking.user_id,
+              title: '⏰ Booking Reminder',
+              body: `Your ${booking.service_type.replace('_', ' ')} is scheduled in 30 minutes!`,
+              data: {
+                type: 'BOOKING_REMINDER',
+                booking_id: booking.id,
+                service_type: booking.service_type,
+                scheduled_time: scheduledTimeStr,
+              },
+            }),
+          });
+
+          const reminderResult = await reminderResponse.json();
+          
+          if (reminderResponse.ok && reminderResult.sent > 0) {
+            // Mark user_reminder_sent = true
+            await supabase.from('bookings')
+              .update({ user_reminder_sent: true, updated_at: new Date().toISOString() })
+              .eq('id', booking.id);
+            
+            console.log(`✅ User reminder sent for booking ${booking.id}`);
+            userReminderResults.push({ booking_id: booking.id, success: true });
+          } else {
+            console.log(`⚠️ User reminder not sent (no tokens or failed):`, reminderResult);
+            userReminderResults.push({ booking_id: booking.id, success: false, reason: 'no_tokens' });
+          }
+        } catch (reminderErr) {
+          console.error(`❌ Error sending user reminder:`, reminderErr);
+          userReminderResults.push({ booking_id: booking.id, success: false, error: reminderErr.message });
+        }
+      }
+
+      // ==========================================
+      // WORKER ALERTS: 10-20 mins before scheduled time
+      // ==========================================
+      if (!booking.prealert_sent && diffMin <= WORKER_WINDOW_MINUTES && diffMin > -5) {
+        console.log(`🔔 Booking ${booking.id} is due in ${diffMin.toFixed(1)} mins - SENDING WORKER ALERTS!`);
 
         // Step 1: Get eligible workers (active, available, matching service type)
         const { data: workers, error: workersError } = await supabase
@@ -187,8 +239,8 @@ serve(async (req) => {
           console.log(`⚠️ Booking ${booking.id}: FCM failed for all workers, will retry next run`);
         }
 
-        results.push({ booking_id: booking.id, workers_notified: workersNotified, fcm_success: fcmSuccessCount });
-      } else if (diffMin <= -5) {
+        workerResults.push({ booking_id: booking.id, workers_notified: workersNotified, fcm_success: fcmSuccessCount });
+      } else if (!booking.prealert_sent && diffMin <= -5) {
         // Booking is more than 5 mins past due - mark as processed to avoid spam
         console.log(`⏰ Booking ${booking.id} is ${Math.abs(diffMin).toFixed(1)} mins past due, marking prealert_sent`);
         await supabase.from('bookings')
@@ -198,9 +250,14 @@ serve(async (req) => {
     }
 
     const duration = Date.now() - startTime;
-    console.log(`✅ Completed in ${duration}ms, processed ${results.length} bookings`);
+    console.log(`✅ Completed in ${duration}ms, worker_alerts=${workerResults.length}, user_reminders=${userReminderResults.length}`);
 
-    return new Response(JSON.stringify({ ok: true, results, duration_ms: duration }), 
+    return new Response(JSON.stringify({ 
+      ok: true, 
+      worker_results: workerResults, 
+      user_reminder_results: userReminderResults,
+      duration_ms: duration 
+    }), 
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
   } catch (error) {
