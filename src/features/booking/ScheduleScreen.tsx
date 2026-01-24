@@ -61,6 +61,8 @@ export function ScheduleScreen() {
   const cuisinePref = searchParams.get('cuisine') as 'north' | 'south' | 'any' | null;
   const genderPref = searchParams.get('gender') as 'male' | 'female' | 'any' | null;
   const bathroomCount = searchParams.get('bathrooms');
+  const hasGlassPartition = searchParams.get('glass') === '1';
+  const GLASS_PARTITION_FEE = 30;
 
   useEffect(() => {
     // Don't redirect - ProtectedRoute handles auth check
@@ -152,6 +154,10 @@ export function ScheduleScreen() {
         cook_cuisine_pref: service_type === 'cook' ? (cuisinePref || 'any') : null,
         cook_gender_pref: service_type === 'cook' ? (genderPref || 'any') : null,
         bathroom_count: service_type === 'bathroom_cleaning' ? parseInt(bathroomCount!) : null,
+        has_glass_partition: service_type === 'bathroom_cleaning' ? hasGlassPartition : null,
+        glass_partition_fee: service_type === 'bathroom_cleaning' && hasGlassPartition 
+          ? GLASS_PARTITION_FEE * parseInt(bathroomCount!) 
+          : null,
         price_inr: finalPrice,
         surcharge_amount: surcharge,
         surcharge_reason: surcharge > 0 ? 'after_4pm' : null,
