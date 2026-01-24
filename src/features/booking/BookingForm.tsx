@@ -67,6 +67,8 @@ export function BookingForm() {
 
   // Bathroom cleaning specific state
   const [bathroomCount, setBathroomCount] = useState(1);
+  const [hasGlassPartition, setHasGlassPartition] = useState(false);
+  const GLASS_PARTITION_FEE = 30; // ₹30 per bathroom
 
   // Fetch maid task prices
   const {
@@ -140,7 +142,9 @@ export function BookingForm() {
   const totalPrice = service_type === 'maid' && selectedTasks.length > 0 ? selectedTasks.reduce((sum, task) => sum + taskPrice(task), 0) : 0;
   
   // Bathroom pricing calculation
-  const bathroomTotalPrice = service_type === 'bathroom_cleaning' ? (bathroomUnitPrice ?? 250) * Math.max(1, bathroomCount) : 0;
+  const bathroomBasePrice = service_type === 'bathroom_cleaning' ? (bathroomUnitPrice ?? 250) * Math.max(1, bathroomCount) : 0;
+  const glassPartitionFee = service_type === 'bathroom_cleaning' && hasGlassPartition ? GLASS_PARTITION_FEE * Math.max(1, bathroomCount) : 0;
+  const bathroomTotalPrice = bathroomBasePrice + glassPartitionFee;
   useEffect(() => {
     // Don't redirect - ProtectedRoute handles auth check
     if (service_type && !isValidServiceType(service_type)) {
@@ -249,6 +253,7 @@ export function BookingForm() {
       params.set('price', totalPrice.toString());
     } else if (service_type === 'bathroom_cleaning') {
       params.set('bathrooms', bathroomCount.toString());
+      params.set('glass', hasGlassPartition ? '1' : '0');
       params.set('price', bathroomTotalPrice.toString());
     } else {
       if (!selectedFlatSize) return;
@@ -313,6 +318,8 @@ export function BookingForm() {
         cook_gender_pref: service_type === 'cook' ? genderPref : null,
         maid_tasks: service_type === 'maid' ? selectedTasks : null,
         bathroom_count: service_type === 'bathroom_cleaning' ? bathroomCount : null,
+        has_glass_partition: service_type === 'bathroom_cleaning' ? hasGlassPartition : null,
+        glass_partition_fee: service_type === 'bathroom_cleaning' ? glassPartitionFee : null,
         cust_name: profile.full_name,
         cust_phone: profile.phone,
         community: profile.community,
@@ -677,29 +684,87 @@ export function BookingForm() {
             </div>}
 
           {/* Bathroom Count Selector */}
-          {service_type === 'bathroom_cleaning' && <div className="mt-8">
-              <h2 className="text-lg font-semibold text-foreground mb-4">
-                How many bathrooms? <span className="text-destructive">*</span>
-              </h2>
-              
-              {/* stepper */}
-              <div className="flex items-center justify-center gap-4 mt-4">
-                <Button 
-                  variant="outline"
-                  onClick={() => setBathroomCount(c => Math.max(1, c - 1))}
-                  className="w-12 h-12 rounded-xl border-2 border-primary text-primary hover:bg-primary hover:text-primary-foreground"
-                  disabled={bathroomCount <= 1}
-                >
-                  −
-                </Button>
-                <div className="min-w-12 text-center text-2xl font-bold text-foreground">{bathroomCount}</div>
-                <Button 
-                  variant="outline"
-                  onClick={() => setBathroomCount(c => Math.min(10, c + 1))}
-                  className="w-12 h-12 rounded-xl border-2 border-primary text-primary hover:bg-primary hover:text-primary-foreground"
-                >
-                  +
-                </Button>
+          {service_type === 'bathroom_cleaning' && <div className="mt-8 space-y-6">
+              <div>
+                <h2 className="text-lg font-semibold text-foreground mb-4">
+                  How many bathrooms? <span className="text-destructive">*</span>
+                </h2>
+                
+                {/* stepper */}
+                <div className="flex items-center justify-center gap-4 mt-4">
+                  <Button 
+                    variant="outline"
+                    onClick={() => setBathroomCount(c => Math.max(1, c - 1))}
+                    className="w-12 h-12 rounded-xl border-2 border-primary text-primary hover:bg-primary hover:text-primary-foreground"
+                    disabled={bathroomCount <= 1}
+                  >
+                    −
+                  </Button>
+                  <div className="min-w-12 text-center text-2xl font-bold text-foreground">{bathroomCount}</div>
+                  <Button 
+                    variant="outline"
+                    onClick={() => setBathroomCount(c => Math.min(10, c + 1))}
+                    className="w-12 h-12 rounded-xl border-2 border-primary text-primary hover:bg-primary hover:text-primary-foreground"
+                  >
+                    +
+                  </Button>
+                </div>
+              </div>
+
+              {/* Glass Partition Selection */}
+              <div>
+                <h2 className="text-lg font-semibold text-foreground mb-4">
+                  Glass Partition <span className="text-destructive">*</span>
+                </h2>
+                <div className="space-y-2">
+                  {/* Without Glass Partition */}
+                  <div 
+                    onClick={() => setHasGlassPartition(false)}
+                    className={cn(
+                      "relative cursor-pointer rounded-xl border-2 p-4 transition-all duration-200",
+                      !hasGlassPartition 
+                        ? "border-primary bg-gradient-to-r from-primary/10 to-primary/5" 
+                        : "border-border bg-card hover:border-primary/50"
+                    )}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className={cn(
+                          "w-5 h-5 rounded-full border-2 flex items-center justify-center",
+                          !hasGlassPartition ? "border-primary" : "border-muted-foreground"
+                        )}>
+                          {!hasGlassPartition && <div className="w-2.5 h-2.5 rounded-full bg-primary" />}
+                        </div>
+                        <span className="font-medium text-foreground">Without Glass Partition</span>
+                      </div>
+                      <span className="text-sm font-medium text-muted-foreground">₹0</span>
+                    </div>
+                  </div>
+
+                  {/* With Glass Partition */}
+                  <div 
+                    onClick={() => setHasGlassPartition(true)}
+                    className={cn(
+                      "relative cursor-pointer rounded-xl border-2 p-4 transition-all duration-200",
+                      hasGlassPartition 
+                        ? "border-primary bg-gradient-to-r from-primary/10 to-primary/5" 
+                        : "border-border bg-card hover:border-primary/50"
+                    )}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className={cn(
+                          "w-5 h-5 rounded-full border-2 flex items-center justify-center",
+                          hasGlassPartition ? "border-primary" : "border-muted-foreground"
+                        )}>
+                          {hasGlassPartition && <div className="w-2.5 h-2.5 rounded-full bg-primary" />}
+                        </div>
+                        <span className="font-medium text-foreground">With Glass Partition</span>
+                      </div>
+                      <span className="text-sm font-semibold text-primary">+₹{GLASS_PARTITION_FEE}/bathroom</span>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>}
 
@@ -753,7 +818,18 @@ export function BookingForm() {
                         Price: ₹{currentPrice}
                       </span>
                       {service_type === 'bathroom_cleaning' && (
-                        <div className="text-xs text-gray-500 mt-1">Unit: ₹{bathroomUnitPrice ?? 250} × {bathroomCount}</div>
+                        <div className="text-xs text-muted-foreground mt-2 space-y-0.5">
+                          <div className="flex justify-between">
+                            <span>Bathroom Cleaning:</span>
+                            <span>₹{bathroomUnitPrice ?? 250} × {bathroomCount} = ₹{bathroomBasePrice}</span>
+                          </div>
+                          {hasGlassPartition && (
+                            <div className="flex justify-between text-primary">
+                              <span>Glass Partition:</span>
+                              <span>₹{GLASS_PARTITION_FEE} × {bathroomCount} = ₹{glassPartitionFee}</span>
+                            </div>
+                          )}
+                        </div>
                       )}
                     </>}
                 </div>
@@ -861,7 +937,7 @@ export function BookingForm() {
                       navigate(`/book/${service_type}/schedule?flat=${selectedFlatSize}&tasks=${selectedTasks.join(',')}&price=${price}`);
                     } else if (service_type === 'bathroom_cleaning') {
                       const price = bathroomTotalPrice;
-                      navigate(`/book/${service_type}/schedule?bathrooms=${bathroomCount}&price=${price}`);
+                      navigate(`/book/${service_type}/schedule?bathrooms=${bathroomCount}&glass=${hasGlassPartition ? '1' : '0'}&price=${price}`);
                     } else {
                       if (!selectedFlatSize) {
                         toast({

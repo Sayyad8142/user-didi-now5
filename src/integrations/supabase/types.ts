@@ -395,6 +395,8 @@ export type Database = {
           flat_no: string
           flat_size: string | null
           food_pref: string | null
+          glass_partition_fee: number | null
+          has_glass_partition: boolean | null
           id: string
           is_demo: boolean
           maid_tasks: Database["public"]["Enums"]["maid_task"][] | null
@@ -451,6 +453,8 @@ export type Database = {
           flat_no: string
           flat_size?: string | null
           food_pref?: string | null
+          glass_partition_fee?: number | null
+          has_glass_partition?: boolean | null
           id?: string
           is_demo?: boolean
           maid_tasks?: Database["public"]["Enums"]["maid_task"][] | null
@@ -507,6 +511,8 @@ export type Database = {
           flat_no?: string
           flat_size?: string | null
           food_pref?: string | null
+          glass_partition_fee?: number | null
+          has_glass_partition?: boolean | null
           id?: string
           is_demo?: boolean
           maid_tasks?: Database["public"]["Enums"]["maid_task"][] | null
@@ -2775,6 +2781,8 @@ export type Database = {
               flat_no: string
               flat_size: string | null
               food_pref: string | null
+              glass_partition_fee: number | null
+              has_glass_partition: boolean | null
               id: string
               is_demo: boolean
               maid_tasks: Database["public"]["Enums"]["maid_task"][] | null
@@ -3349,6 +3357,8 @@ export type Database = {
           flat_no: string
           flat_size: string | null
           food_pref: string | null
+          glass_partition_fee: number | null
+          has_glass_partition: boolean | null
           id: string
           is_demo: boolean
           maid_tasks: Database["public"]["Enums"]["maid_task"][] | null
