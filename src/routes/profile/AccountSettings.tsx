@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { getFirebaseIdToken, signOut as firebaseSignOut } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Download, Trash2 } from "lucide-react";
 
@@ -41,28 +40,29 @@ export default function AccountSettings() {
     setBusy(true); 
     setMsg("");
     try {
-      // Delete account via Edge Function using Firebase token.
-      // The function uses service role to purge DB rows safely (including FK dependencies)
-      // and then removes any linked Supabase auth record.
-      const token = await getFirebaseIdToken();
+      // 1) purge database rows first
+      const { error: deleteError } = await supabase.rpc("delete_my_data");
+      if (deleteError) throw deleteError;
+
+      // 2) delete auth user via Edge Function
+      const { data: sess } = await supabase.auth.getSession();
+      const token = sess?.session?.access_token;
       
-      if (!token) {
-        throw new Error("not_authenticated");
-      }
-      
-      const res = await supabase.functions.invoke('delete-auth-user', {
-        headers: { Authorization: `Bearer ${token}` },
-        body: {}
-      });
-      
-      if (res.error) {
-        console.error('Auth deletion error:', res.error);
-        throw new Error(res.error.message || "Failed to delete account");
+      if (token) {
+        const res = await supabase.functions.invoke('delete-auth-user', {
+          headers: { Authorization: `Bearer ${token}` },
+          body: {}
+        });
+        
+        if (res.error) {
+          console.error('Auth deletion error:', res.error);
+          throw new Error("Failed to delete authentication record");
+        }
       }
 
-      // Sign out from Firebase and redirect
+      // 3) sign out and redirect
       const { PortalStore } = await import('@/lib/portal');
-      await firebaseSignOut();
+      await supabase.auth.signOut();
       PortalStore.clear();
       navigate("/auth?deleted=1");
     } catch (e: any) {
