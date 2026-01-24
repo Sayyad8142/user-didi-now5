@@ -41,11 +41,9 @@ export default function AccountSettings() {
     setBusy(true); 
     setMsg("");
     try {
-      // 1) purge database rows first
-      const { error: deleteError } = await supabase.rpc("delete_my_data");
-      if (deleteError) throw deleteError;
-
-      // 2) delete auth user via Edge Function using Firebase token
+      // Delete account via Edge Function using Firebase token.
+      // The function uses service role to purge DB rows safely (including FK dependencies)
+      // and then removes any linked Supabase auth record.
       const token = await getFirebaseIdToken();
       
       if (!token) {
@@ -59,10 +57,10 @@ export default function AccountSettings() {
       
       if (res.error) {
         console.error('Auth deletion error:', res.error);
-        throw new Error("Failed to delete authentication record");
+        throw new Error(res.error.message || "Failed to delete account");
       }
 
-      // 3) sign out from Firebase and redirect
+      // Sign out from Firebase and redirect
       const { PortalStore } = await import('@/lib/portal');
       await firebaseSignOut();
       PortalStore.clear();
