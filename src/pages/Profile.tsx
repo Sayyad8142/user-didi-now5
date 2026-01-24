@@ -194,27 +194,28 @@ export default function Profile() {
                   variant="ghost"
                   size="sm"
                   onClick={() => setIsEditing(true)}
-                  className="h-10 w-10 p-0 text-white/80 hover:text-white hover:bg-white/10"
+                  className="h-9 px-3 text-white/90 hover:text-white hover:bg-white/20 rounded-full font-medium text-sm gap-1.5"
                 >
-                  <Edit3 className="w-5 h-5" />
+                  <Edit3 className="w-4 h-4" />
+                  Edit
                 </Button>
               ) : (
                 <div className="flex gap-2">
                   <Button
-                    variant="ghost"
                     size="sm"
                     onClick={handleSave}
-                    className="h-10 w-10 p-0 text-white/80 hover:text-white hover:bg-white/10"
+                    className="h-9 px-4 bg-white text-primary hover:bg-white/90 rounded-full font-semibold text-sm gap-1.5 shadow-sm"
                   >
-                    <Save className="w-5 h-5" />
+                    <Save className="w-4 h-4" />
+                    Save
                   </Button>
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={handleCancel}
-                    className="h-10 w-10 p-0 text-white/80 hover:text-white hover:bg-white/10"
+                    className="h-9 px-3 text-white/90 hover:text-white hover:bg-white/20 rounded-full font-medium text-sm"
                   >
-                    <X className="w-5 h-5" />
+                    Cancel
                   </Button>
                 </div>
               )}

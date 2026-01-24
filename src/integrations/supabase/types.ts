@@ -143,16 +143,19 @@ export type Database = {
       bathroom_pricing_settings: {
         Row: {
           community: string
+          glass_partition_price_inr: number
           unit_price_inr: number
           updated_at: string
         }
         Insert: {
           community?: string
+          glass_partition_price_inr?: number
           unit_price_inr?: number
           updated_at?: string
         }
         Update: {
           community?: string
+          glass_partition_price_inr?: number
           unit_price_inr?: number
           updated_at?: string
         }
