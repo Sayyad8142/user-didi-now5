@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { getFirebaseIdToken, signOut as firebaseSignOut } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Download, Trash2 } from "lucide-react";
 
@@ -44,25 +45,26 @@ export default function AccountSettings() {
       const { error: deleteError } = await supabase.rpc("delete_my_data");
       if (deleteError) throw deleteError;
 
-      // 2) delete auth user via Edge Function
-      const { data: sess } = await supabase.auth.getSession();
-      const token = sess?.session?.access_token;
+      // 2) delete auth user via Edge Function using Firebase token
+      const token = await getFirebaseIdToken();
       
-      if (token) {
-        const res = await supabase.functions.invoke('delete-auth-user', {
-          headers: { Authorization: `Bearer ${token}` },
-          body: {}
-        });
-        
-        if (res.error) {
-          console.error('Auth deletion error:', res.error);
-          throw new Error("Failed to delete authentication record");
-        }
+      if (!token) {
+        throw new Error("not_authenticated");
+      }
+      
+      const res = await supabase.functions.invoke('delete-auth-user', {
+        headers: { Authorization: `Bearer ${token}` },
+        body: {}
+      });
+      
+      if (res.error) {
+        console.error('Auth deletion error:', res.error);
+        throw new Error("Failed to delete authentication record");
       }
 
-      // 3) sign out and redirect
+      // 3) sign out from Firebase and redirect
       const { PortalStore } = await import('@/lib/portal');
-      await supabase.auth.signOut();
+      await firebaseSignOut();
       PortalStore.clear();
       navigate("/auth?deleted=1");
     } catch (e: any) {
