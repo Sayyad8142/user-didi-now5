@@ -314,16 +314,24 @@ const ActiveBookingCard = memo(() => {
   };
 
   const handleSubmitRating = async (rating: number, comment?: string) => {
-    const user = (await supabase.auth.getUser()).data.user;
-    if (!user) return;
+    if (!profile?.id) {
+      throw new Error('Not authenticated');
+    }
 
-    await supabase.from('worker_ratings').insert({
-      booking_id: activeBooking.id,
-      worker_id: activeBooking.worker_id,
-      user_id: user.id,
-      rating,
-      comment: comment ?? null,
-    });
+    const { error } = await supabase
+      .from('worker_ratings')
+      .upsert(
+        {
+          booking_id: activeBooking.id,
+          worker_id: activeBooking.worker_id,
+          user_id: profile.id,
+          rating,
+          comment: comment ?? null,
+        },
+        { onConflict: 'booking_id' }
+      );
+
+    if (error) throw error;
   };
 
   const handleReachConfirmation = async (reached: boolean) => {
