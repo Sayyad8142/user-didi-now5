@@ -116,13 +116,26 @@ export default function Profile() {
   const handleSignOut = async () => {
     try {
       const { PortalStore } = await import('@/lib/portal');
-      await supabase.auth.signOut();
+      const { signOut: firebaseSignOut } = await import('@/lib/firebase');
+      const { clearDemoSession } = await import('@/lib/demo');
+      
+      // Clear all auth states
       PortalStore.clear();
-      navigate('/auth');
+      clearDemoSession();
+      
+      // Sign out from Firebase (primary auth)
+      await firebaseSignOut();
+      
+      // Sign out from Supabase (secondary, just in case)
+      await supabase.auth.signOut();
+      
       toast({
         title: 'Signed out successfully',
         description: 'You have been logged out of your account'
       });
+      
+      // Force full page reload to clear all state
+      window.location.href = '/auth';
     } catch (error) {
       console.error('Error signing out:', error);
       toast({
@@ -130,6 +143,8 @@ export default function Profile() {
         description: 'Failed to sign out',
         variant: 'destructive'
       });
+      // Still redirect even on error
+      window.location.href = '/auth';
     }
   };
   if (loading || communitiesLoading) {
