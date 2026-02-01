@@ -22,8 +22,9 @@ export function WorkerAvailabilityCard() {
     try {
       const { data: workers, error } = await supabase
         .from('workers')
-        .select('service_types, is_active')
-        .eq('is_active', true);
+        .select('service_types, is_active, is_available')
+        .eq('is_active', true)
+        .eq('is_available', true);
 
       if (error) throw error;
 
