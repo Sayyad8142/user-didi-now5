@@ -271,6 +271,7 @@ export default function VerifyOTP() {
 
         console.log('✅ Profile updated successfully');
         
+        // Wait for profile context to refresh with updated data
         await refreshProfile();
         
         toast({
@@ -278,6 +279,9 @@ export default function VerifyOTP() {
           description: 'Your account has been created successfully.',
         });
       } else {
+        // For sign-in, also refresh profile to ensure latest data
+        await refreshProfile();
+        
         toast({
           title: 'Login Successful',
           description: 'Welcome back!',
