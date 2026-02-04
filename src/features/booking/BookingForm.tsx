@@ -17,7 +17,7 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { PriceNote } from '@/components/PriceNote';
 import { isGuestMode } from '@/lib/demo';
 import { useInstantBookingAvailability } from '@/hooks/useInstantBookingAvailability';
-import { DishIntensitySheet, DishIntensityCard, getIntensityExtra, type DishIntensity } from './DishIntensitySheet';
+import { getIntensityExtra, type DishIntensity } from './DishIntensitySheet';
 
 // Maid task types and constants
 type MaidTask = "floor_cleaning" | "dish_washing";
@@ -65,9 +65,7 @@ export function BookingForm() {
 
   // Maid service specific state
   const [selectedTasks, setSelectedTasks] = useState<MaidTask[]>(["floor_cleaning", "dish_washing"]); // Multiple task selection with checkboxes
-  const [dishIntensity, setDishIntensity] = useState<DishIntensity>('light');
-  const [dishIntensitySheetOpen, setDishIntensitySheetOpen] = useState(false);
-  const [hasShownIntensitySheet, setHasShownIntensitySheet] = useState(false);
+  const [dishIntensity, setDishIntensity] = useState<DishIntensity | null>(null);
 
   // Bathroom cleaning specific state
   const [bathroomCount, setBathroomCount] = useState(1);
@@ -143,7 +141,7 @@ export function BookingForm() {
 
   // Helper functions for maid pricing
   const taskPrice = (t: MaidTask) => taskPrices?.get(t) ?? FALLBACK_PRICES[selectedFlatSize || "2BHK"];
-  const dishIntensityExtra = selectedTasks.includes('dish_washing') ? getIntensityExtra(dishIntensity) : 0;
+  const dishIntensityExtra = selectedTasks.includes('dish_washing') && dishIntensity ? getIntensityExtra(dishIntensity) : 0;
   const totalPrice = service_type === 'maid' && selectedTasks.length > 0 
     ? selectedTasks.reduce((sum, task) => sum + taskPrice(task), 0) + dishIntensityExtra 
     : 0;
@@ -209,6 +207,15 @@ export function BookingForm() {
         });
         return;
       }
+      // Validate dish intensity selection if dish washing is selected
+      if (selectedTasks.includes('dish_washing') && !dishIntensity) {
+        toast({
+          title: "Select dish washing workload",
+          description: "Please choose Light, Medium, or Heavy for dish washing.",
+          variant: "destructive"
+        });
+        return;
+      }
       await createBooking('instant', null, null, totalPrice);
     } else if (service_type === 'bathroom_cleaning') {
       await createBooking('instant', null, null, bathroomTotalPrice);
@@ -252,6 +259,15 @@ export function BookingForm() {
         toast({
           title: "Please complete maid booking details",
           description: "Select flat size and at least one task before scheduling.",
+          variant: "destructive"
+        });
+        return;
+      }
+      // Validate dish intensity selection if dish washing is selected
+      if (selectedTasks.includes('dish_washing') && !dishIntensity) {
+        toast({
+          title: "Select dish washing workload",
+          description: "Please choose Light, Medium, or Heavy for dish washing.",
           variant: "destructive"
         });
         return;
@@ -402,7 +418,7 @@ export function BookingForm() {
   
   const canBook = isServiceOpen && !instantDisabled && (
     service_type === 'cook' ? foodPreference && !submitting 
-    : service_type === 'maid' ? selectedFlatSize && selectedTasks.length > 0 && !submitting 
+    : service_type === 'maid' ? selectedFlatSize && selectedTasks.length > 0 && (!selectedTasks.includes('dish_washing') || dishIntensity) && !submitting 
     : service_type === 'bathroom_cleaning' ? !submitting
     : selectedFlatSize && currentPrice && !submitting
   );
@@ -792,17 +808,11 @@ export function BookingForm() {
                     setSelectedTasks(prev => prev.filter(task => task !== t));
                     // Clear dish intensity state when dish_washing is unselected
                     if (t === 'dish_washing') {
-                      setDishIntensity('light');
-                      setHasShownIntensitySheet(false);
+                      setDishIntensity(null);
                     }
                   }
                 } else {
                   setSelectedTasks(prev => [...prev, t]);
-                  // Show intensity sheet when dish_washing is selected for the first time
-                  if (t === 'dish_washing' && !hasShownIntensitySheet) {
-                    setDishIntensitySheetOpen(true);
-                    setHasShownIntensitySheet(true);
-                  }
                 }
               };
               return (
@@ -841,12 +851,37 @@ export function BookingForm() {
                     </div>
                   </div>
                   
-                  {/* Show intensity card below dish washing when selected */}
+                  {/* Inline intensity radio buttons below dish washing when selected */}
                   {t === 'dish_washing' && isSelected && (
-                    <DishIntensityCard 
-                      intensity={dishIntensity} 
-                      onEdit={() => setDishIntensitySheetOpen(true)} 
-                    />
+                    <div className="mt-2 ml-7 flex gap-2">
+                      {([
+                        { value: 'light' as DishIntensity, label: 'Light', extra: 0 },
+                        { value: 'medium' as DishIntensity, label: 'Medium', extra: 30 },
+                        { value: 'heavy' as DishIntensity, label: 'Heavy', extra: 50 },
+                      ]).map((opt) => (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          onClick={() => setDishIntensity(opt.value)}
+                          className={cn(
+                            "flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-sm font-medium transition-all",
+                            dishIntensity === opt.value
+                              ? "border-primary bg-primary text-primary-foreground"
+                              : "border-border bg-card text-foreground hover:border-primary/50"
+                          )}
+                        >
+                          <span>{opt.label}</span>
+                          <span className={cn(
+                            "text-xs",
+                            dishIntensity === opt.value 
+                              ? "text-primary-foreground/80" 
+                              : opt.extra > 0 ? "text-orange-500" : "text-muted-foreground"
+                          )}>
+                            {opt.extra > 0 ? `+₹${opt.extra}` : '₹0'}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
                   )}
                 </div>
               );
@@ -1015,13 +1050,6 @@ export function BookingForm() {
         {/* Schedule Sheet */}
         <ScheduleSheet open={scheduleSheetOpen} onOpenChange={setScheduleSheetOpen} onSchedule={handleSchedule} loading={submitting} />
         
-        {/* Dish Intensity Sheet */}
-        <DishIntensitySheet
-          open={dishIntensitySheetOpen}
-          onOpenChange={setDishIntensitySheetOpen}
-          value={dishIntensity}
-          onChange={setDishIntensity}
-        />
       </div>
     </div>;
 }
