@@ -853,34 +853,48 @@ export function BookingForm() {
                   
                   {/* Inline intensity radio buttons below dish washing when selected */}
                   {t === 'dish_washing' && isSelected && (
-                    <div className="mt-2 ml-7 flex gap-2">
-                      {([
-                        { value: 'light' as DishIntensity, label: 'Light', extra: 0 },
-                        { value: 'medium' as DishIntensity, label: 'Medium', extra: 30 },
-                        { value: 'heavy' as DishIntensity, label: 'Heavy', extra: 50 },
-                      ]).map((opt) => (
-                        <button
-                          key={opt.value}
-                          type="button"
-                          onClick={() => setDishIntensity(opt.value)}
-                          className={cn(
-                            "flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-sm font-medium transition-all",
-                            dishIntensity === opt.value
-                              ? "border-primary bg-primary text-primary-foreground"
-                              : "border-border bg-card text-foreground hover:border-primary/50"
-                          )}
-                        >
-                          <span>{opt.label}</span>
-                          <span className={cn(
-                            "text-xs",
-                            dishIntensity === opt.value 
-                              ? "text-primary-foreground/80" 
-                              : opt.extra > 0 ? "text-orange-500" : "text-muted-foreground"
-                          )}>
-                            {opt.extra > 0 ? `+₹${opt.extra}` : '₹0'}
-                          </span>
-                        </button>
-                      ))}
+                    <div className="mt-3 ml-1 space-y-2">
+                      <p className="text-xs text-muted-foreground mb-2">
+                        How many dishes today?
+                      </p>
+                      <div className="space-y-1.5">
+                        {([
+                          { value: 'light' as DishIntensity, label: 'Light', extra: 0, desc: '5-10 items · daily routine' },
+                          { value: 'medium' as DishIntensity, label: 'Medium', extra: 30, desc: '10-20 items · extra cooking' },
+                          { value: 'heavy' as DishIntensity, label: 'Heavy', extra: 50, desc: '20+ items · guests / party' },
+                        ]).map((opt) => (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => setDishIntensity(opt.value)}
+                            className={cn(
+                              "w-full flex items-center justify-between px-3 py-2 rounded-lg border text-left transition-all",
+                              dishIntensity === opt.value
+                                ? "border-primary bg-primary/10"
+                                : "border-border bg-card hover:border-primary/50"
+                            )}
+                          >
+                            <div className="flex items-center gap-2">
+                              <div className={cn(
+                                "w-4 h-4 rounded-full border-2 flex items-center justify-center",
+                                dishIntensity === opt.value ? "border-primary" : "border-muted-foreground"
+                              )}>
+                                {dishIntensity === opt.value && <div className="w-2 h-2 rounded-full bg-primary" />}
+                              </div>
+                              <div>
+                                <span className="text-sm font-medium text-foreground">{opt.label}</span>
+                                <span className="text-xs text-muted-foreground ml-2">{opt.desc}</span>
+                              </div>
+                            </div>
+                            <span className={cn(
+                              "text-xs font-semibold px-2 py-0.5 rounded-full",
+                              opt.extra > 0 ? "bg-orange-100 text-orange-600" : "bg-muted text-muted-foreground"
+                            )}>
+                              {opt.extra > 0 ? `+₹${opt.extra}` : '₹0'}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>
