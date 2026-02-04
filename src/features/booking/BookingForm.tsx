@@ -855,7 +855,7 @@ export function BookingForm() {
                   {t === 'dish_washing' && isSelected && (
                     <div className="mt-3 ml-1 space-y-2">
                       <p className="text-xs text-muted-foreground mb-2">
-                        How many dishes today?
+                        How many dishes today? <span className="text-foreground/70">Pick right to avoid disputes.</span>
                       </p>
                       <div className="space-y-1.5">
                         {([
