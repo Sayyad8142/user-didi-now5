@@ -1029,6 +1029,15 @@ export function BookingForm() {
                         });
                         return;
                       }
+                      // Validate dish intensity selection if dish washing is selected
+                      if (selectedTasks.includes('dish_washing') && !dishIntensity) {
+                        toast({
+                          title: "Select dish washing workload",
+                          description: "Please choose Light, Medium, or Heavy for dish washing.",
+                          variant: "destructive"
+                        });
+                        return;
+                      }
                       const price = totalPrice;
                       const dishParams = selectedTasks.includes('dish_washing') 
                         ? `&dish_intensity=${dishIntensity}&dish_extra=${dishIntensityExtra}` 
@@ -1050,7 +1059,7 @@ export function BookingForm() {
                       navigate(`/book/${service_type}/schedule?flat=${selectedFlatSize}&price=${price}`);
                     }
                   }} 
-                  disabled={service_type === 'cook' ? !foodPreference : service_type === 'maid' ? !selectedFlatSize || selectedTasks.length === 0 : service_type === 'bathroom_cleaning' ? false : !selectedFlatSize} 
+                  disabled={service_type === 'cook' ? !foodPreference : service_type === 'maid' ? !selectedFlatSize || selectedTasks.length === 0 || (selectedTasks.includes('dish_washing') && !dishIntensity) : service_type === 'bathroom_cleaning' ? false : !selectedFlatSize} 
                   className="w-full h-14 rounded-2xl font-semibold text-lg bg-white hover:bg-slate-50 text-slate-800 border-2 border-slate-300 hover:border-pink-400 shadow-sm hover:shadow-md transition-all duration-300 disabled:bg-slate-100 disabled:text-slate-500 disabled:border-slate-200"
                 >
                   <span>Schedule Booking</span>
