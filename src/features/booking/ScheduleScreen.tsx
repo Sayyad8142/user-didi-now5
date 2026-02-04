@@ -62,6 +62,9 @@ export function ScheduleScreen() {
   const genderPref = searchParams.get('gender') as 'male' | 'female' | 'any' | null;
   const bathroomCount = searchParams.get('bathrooms');
   const hasGlassPartition = searchParams.get('glass') === '1';
+  const tasksParam = searchParams.get('tasks');
+  const dishIntensity = searchParams.get('dish_intensity') as 'light' | 'medium' | 'heavy' | null;
+  const dishIntensityExtra = parseInt(searchParams.get('dish_extra') || '0');
   const GLASS_PARTITION_FEE = 30;
 
   useEffect(() => {
@@ -153,6 +156,9 @@ export function ScheduleScreen() {
         food_pref: service_type === 'cook' ? foodPreference : null,
         cook_cuisine_pref: service_type === 'cook' ? (cuisinePref || 'any') : null,
         cook_gender_pref: service_type === 'cook' ? (genderPref || 'any') : null,
+        maid_tasks: service_type === 'maid' && tasksParam ? tasksParam.split(',') as ('floor_cleaning' | 'dish_washing')[] : null,
+        dish_intensity: service_type === 'maid' && dishIntensity ? dishIntensity : null,
+        dish_intensity_extra_inr: service_type === 'maid' && dishIntensityExtra > 0 ? dishIntensityExtra : null,
         bathroom_count: service_type === 'bathroom_cleaning' ? parseInt(bathroomCount!) : null,
         has_glass_partition: service_type === 'bathroom_cleaning' ? hasGlassPartition : null,
         glass_partition_fee: service_type === 'bathroom_cleaning' && hasGlassPartition 
