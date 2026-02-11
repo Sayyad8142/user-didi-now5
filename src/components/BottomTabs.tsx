@@ -13,31 +13,31 @@ export function BottomTabs() {
   const location = useLocation();
 
   return (
-    <nav className="fixed bottom-0 inset-x-0 z-40 backdrop-blur supports-[backdrop-filter]:bg-white/70 pb-safe">
-      <div className="max-w-md mx-auto px-4 py-3">
-        <nav className="bg-white/90 shadow-lg border border-pink-100 rounded-2xl px-4 py-2">
+    <nav className="fixed bottom-0 inset-x-0 z-40 pb-safe">
+      <div className="max-w-md mx-auto px-4 py-2">
+        <div className="bg-card/95 backdrop-blur-lg shadow-[0_-4px_20px_rgba(0,0,0,0.08)] border border-border/40 rounded-2xl px-2 py-1.5">
           <div className="flex items-center justify-around">
             {tabs.map(({ to, label, icon: Icon }) => {
               const isActive = location.pathname === to;
-              
+
               return (
                 <Link
                   key={to}
                   to={to}
                   className={cn(
-                    "flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-colors text-xs",
-                    isActive 
-                      ? "bg-pink-50 text-[#ff007a] font-medium" 
-                      : "text-gray-500 hover:text-gray-700"
+                    "flex flex-col items-center gap-0.5 px-4 py-2 rounded-xl transition-all duration-200 text-xs font-medium",
+                    isActive
+                      ? "text-primary bg-primary/10"
+                      : "text-muted-foreground hover:text-foreground"
                   )}
                 >
-                  <Icon className="w-5 h-5" />
+                  <Icon className={cn("w-5 h-5", isActive && "stroke-[2.5]")} />
                   <span>{label}</span>
                 </Link>
               );
             })}
           </div>
-        </nav>
+        </div>
       </div>
     </nav>
   );
