@@ -1,7 +1,7 @@
 import React from 'react';
 import { ChevronRight } from 'lucide-react';
 import femaleMaidImage from '@/assets/female-maid.webp';
-import femaleBathroomCleanerImage from '@/assets/female-bathroom-cleaner.webp';
+import bathroomCleaningImage from '@/assets/bathroom-cleaning.webp';
 
 interface ServicesRowProps {
   onServiceSelect: (service: 'maid' | 'bathroom_cleaning') => void;
@@ -20,7 +20,7 @@ const services = [
   title: 'Bathroom Cleaning',
   subtitle: 'Deep wash & sanitization',
   badge: '🧼 Deep Clean',
-  image: femaleBathroomCleanerImage
+  image: bathroomCleaningImage
 }];
 
 

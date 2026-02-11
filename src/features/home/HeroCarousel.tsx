@@ -82,18 +82,15 @@ export function HeroCarousel() {
       </Carousel>
       {/* Dot indicators */}
       <div className="flex justify-center gap-1.5 mt-3">
-        {carouselImages.map((_, index) => {}
-
-
-
-
-
-
-
-
-
-
-        )}
+        {carouselImages.map((_, index) => (
+          <button
+            key={index}
+            onClick={() => api?.scrollTo(index)}
+            className={`w-2 h-2 rounded-full transition-all duration-300 ${
+              current === index ? 'bg-primary w-5' : 'bg-muted-foreground/30'
+            }`}
+          />
+        ))}
       </div>
     </div>);
 
