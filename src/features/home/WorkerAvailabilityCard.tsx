@@ -47,6 +47,7 @@ export function WorkerAvailabilityCard() {
 
       const serviceLabels: Record<string, string> = {
         maid: 'Maids',
+        cook: 'Cooks',
         bathroom_cleaning: 'Cleaners'
       };
 

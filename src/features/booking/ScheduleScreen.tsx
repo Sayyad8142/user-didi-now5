@@ -9,7 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useProfile } from '@/contexts/ProfileContext';
-import { prettyServiceName, isValidServiceType, getPricingMap } from './pricing';
+import { prettyServiceName, isValidServiceType, getPricingMap, calculateCookPrice } from './pricing';
 import { 
   makeSlots, 
   toDisplay12h, 
@@ -19,6 +19,7 @@ import {
   isAfter4pmSlot,
   AFTER_4PM_SURCHARGE,
   TIME_SEGMENTS,
+  TIME_SEGMENTS_COOK,
   type TimeSegment 
 } from './slot-utils';
 import { format } from 'date-fns';
@@ -77,10 +78,12 @@ export function ScheduleScreen() {
   useEffect(() => {
     if (priceParam) {
       setPrice(parseInt(priceParam));
+    } else if (service_type === 'cook' && familyCount && foodPreference) {
+      setPrice(calculateCookPrice(parseInt(familyCount), foodPreference));
     } else if (profile && service_type && flatSize) {
       loadPrice();
     }
-  }, [profile, service_type, flatSize, priceParam]);
+  }, [profile, service_type, flatSize, priceParam, familyCount, foodPreference]);
 
   const loadPrice = async () => {
     if (!service_type || !profile || !flatSize) return;
@@ -100,8 +103,9 @@ export function ScheduleScreen() {
     if (!selectedDate || !selectedTime || !profile || !user || !service_type || !price) {
       return;
     }
-    if (service_type !== 'bathroom_cleaning' && !flatSize) return;
+    if (service_type !== 'cook' && service_type !== 'bathroom_cleaning' && !flatSize) return;
     if (service_type === 'bathroom_cleaning' && !bathroomCount) return;
+    if (service_type === 'cook' && (!familyCount || !foodPreference)) return;
 
     setSubmitting(true);
     try {
@@ -147,11 +151,11 @@ export function ScheduleScreen() {
         scheduled_time: scheduledTime,
         notes: null,
         status: 'pending',
-        flat_size: service_type === 'bathroom_cleaning' ? null : flatSize,
-        family_count: null,
-        food_pref: null,
-        cook_cuisine_pref: null,
-        cook_gender_pref: null,
+        flat_size: service_type === 'cook' || service_type === 'bathroom_cleaning' ? null : flatSize,
+        family_count: service_type === 'cook' ? parseInt(familyCount!) : null,
+        food_pref: service_type === 'cook' ? foodPreference : null,
+        cook_cuisine_pref: service_type === 'cook' ? (cuisinePref || 'any') : null,
+        cook_gender_pref: service_type === 'cook' ? (genderPref || 'any') : null,
         maid_tasks: service_type === 'maid' && tasksParam ? tasksParam.split(',') as ('floor_cleaning' | 'dish_washing')[] : null,
         dish_intensity: service_type === 'maid' && dishIntensity ? dishIntensity : null,
         dish_intensity_extra_inr: service_type === 'maid' && dishIntensityExtra > 0 ? dishIntensityExtra : null,
@@ -224,7 +228,7 @@ export function ScheduleScreen() {
     );
   }
 
-  if (service_type !== 'bathroom_cleaning' && !flatSize) {
+  if (service_type !== 'cook' && service_type !== 'bathroom_cleaning' && !flatSize) {
     return (
       <div className="min-h-screen bg-background pb-28">
         <div className="max-w-md mx-auto px-4 py-6">
@@ -240,9 +244,11 @@ export function ScheduleScreen() {
           <Card className="bg-yellow-50 border-yellow-200 rounded-2xl">
             <CardContent className="p-4">
               <p className="text-yellow-800 font-medium">
-                {service_type === 'bathroom_cleaning'
-                ? 'Select bathroom count first'
-                : 'Select flat size first'}
+                {service_type === 'cook' 
+                  ? 'Select family count and food preference first'
+                  : service_type === 'bathroom_cleaning'
+                  ? 'Select bathroom count first'
+                  : 'Select flat size first'}
               </p>
               <Button 
                 variant="link" 
@@ -259,7 +265,7 @@ export function ScheduleScreen() {
   }
 
   const dateChips = getDateChips();
-  const timeSegments = TIME_SEGMENTS;
+  const timeSegments = service_type === 'cook' ? TIME_SEGMENTS_COOK : TIME_SEGMENTS;
   const currentSegmentSlots = makeSlots(
     timeSegments[activeSegment].start,
     timeSegments[activeSegment].end

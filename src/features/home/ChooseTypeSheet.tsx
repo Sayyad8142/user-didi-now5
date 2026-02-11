@@ -14,11 +14,12 @@ import { useInstantBookingAvailability } from '@/hooks/useInstantBookingAvailabi
 interface ChooseTypeSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  serviceType: 'maid' | 'bathroom_cleaning';
+  serviceType: 'maid' | 'cook' | 'bathroom_cleaning';
 }
 
 const serviceLabels = {
   maid: 'Maid Service',
+  cook: 'Cook Service', 
   bathroom_cleaning: 'Bathroom Cleaning'
 };
 
@@ -55,6 +56,7 @@ export function ChooseTypeSheet({ open, onOpenChange, serviceType }: ChooseTypeS
         </SheetHeader>
         
         <div className="space-y-3 pb-6">
+          {/* Instant Booking Option */}
           {instantDisabled ? (
             <div className="w-full p-4 rounded-2xl border-2 border-border bg-muted/50 opacity-60">
               <div className="flex items-center gap-4">
@@ -87,6 +89,7 @@ export function ChooseTypeSheet({ open, onOpenChange, serviceType }: ChooseTypeS
             </SheetClose>
           )}
 
+          {/* Schedule Booking Option - Always Available */}
           <SheetClose asChild>
             <button
               onClick={() => go('scheduled')}
@@ -104,6 +107,7 @@ export function ChooseTypeSheet({ open, onOpenChange, serviceType }: ChooseTypeS
             </button>
           </SheetClose>
 
+          {/* Helper message when instant is disabled */}
           {instantDisabled && (
             <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-xl">
               <div className="flex items-start gap-2">

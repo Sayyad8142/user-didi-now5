@@ -1,37 +1,30 @@
 import React, { memo } from 'react';
 import { useProfile } from '@/contexts/ProfileContext';
 import { OptimizedLoadingCard } from '@/components/ui/optimized-loading';
-import { MapPin } from 'lucide-react';
-
 const HomeHeader = memo(() => {
-  const { profile, loading } = useProfile();
-
+  const {
+    profile,
+    loading
+  } = useProfile();
   if (loading) {
     return <OptimizedLoadingCard />;
   }
-
-  return (
-    <div className="py-3 flex justify-between items-center">
-      <div>
-        <h1 className="text-2xl font-extrabold text-primary tracking-tight leading-none">
-          Didi Now
-        </h1>
-        <p className="text-xs font-medium text-muted-foreground mt-0.5">in 10 mins</p>
-      </div>
-      <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-card border border-border/60 shadow-sm">
-        <MapPin className="w-3.5 h-3.5 text-primary" />
-        <div className="text-right">
-          <div className="text-xs font-semibold text-foreground leading-tight truncate max-w-[140px]">
+  return <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-0 mx-0">
+      <div className="p-4 flex justify-between items-center gap-4">
+        <div className="flex-shrink-0">
+          <h1 className="text-xl sm:text-2xl font-bold text-[#ff007a] tracking-tight">Didi Now</h1>
+          <p className="text-gray-600 text-xs sm:text-sm font-medium">in 10Mins</p>
+        </div>
+        <div className="text-right flex-shrink-0 min-w-0">
+          <div className="text-xs sm:text-sm font-semibold text-gray-900 truncate">
             {profile?.community || "Prestige High Fields"}
           </div>
-          <div className="text-[10px] text-muted-foreground font-medium">
-            Flat {profile?.flat_no || "9899"}
+          <div className="text-xs text-gray-500 font-medium">
+            {profile?.flat_no || "9899"}
           </div>
         </div>
       </div>
-    </div>
-  );
+    </div>;
 });
-
 HomeHeader.displayName = 'HomeHeader';
 export { HomeHeader };

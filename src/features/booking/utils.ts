@@ -1,9 +1,11 @@
-import { Sparkles, ShowerHead, LucideIcon } from 'lucide-react';
+import { Sparkles, ChefHat, ShowerHead, LucideIcon } from 'lucide-react';
 
 export const prettyServiceName = (serviceType: string): string => {
   switch (serviceType) {
     case 'maid':
       return 'Maid Service';
+    case 'cook':
+      return 'Cook Service';
     case 'bathroom_cleaning':
       return 'Bathroom Cleaning';
     default:
@@ -15,6 +17,8 @@ export const serviceIcon = (serviceType: string): LucideIcon => {
   switch (serviceType) {
     case 'maid':
       return Sparkles;
+    case 'cook':
+      return ChefHat;
     case 'bathroom_cleaning':
       return ShowerHead;
     default:
@@ -23,5 +27,5 @@ export const serviceIcon = (serviceType: string): LucideIcon => {
 };
 
 export const isValidServiceType = (serviceType: string): boolean => {
-  return ['maid', 'bathroom_cleaning'].includes(serviceType);
+  return ['maid', 'cook', 'bathroom_cleaning'].includes(serviceType);
 };

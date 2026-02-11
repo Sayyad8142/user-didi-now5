@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Sparkles, ShowerHead, ArrowRight, X, CreditCard, PhoneCall, MessageCircle, Star, CheckCircle, XCircle } from 'lucide-react';
+import { Sparkles, ChefHat, ShowerHead, ArrowRight, X, CreditCard, PhoneCall, MessageCircle, Star, CheckCircle, XCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useProfile } from '@/contexts/ProfileContext';
 import { prettyServiceName } from '@/features/booking/utils';
@@ -48,6 +48,8 @@ const getServiceIcon = (serviceType: string) => {
   switch (serviceType) {
     case 'maid':
       return <Sparkles className="w-5 h-5" />;
+    case 'cook':
+      return <ChefHat className="w-5 h-5" />;
     case 'bathroom_cleaning':
       return <ShowerHead className="w-5 h-5" />;
     default:

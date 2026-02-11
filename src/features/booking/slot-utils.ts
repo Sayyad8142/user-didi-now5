@@ -36,6 +36,7 @@ export const isPastToday = (hhmm: string, selectedDate: Date, minBuffer = 30): b
   const todayStart = new Date(today);
   todayStart.setHours(0, 0, 0, 0);
   
+  // If selected date is not today, it's not past
   if (selectedDateStart.getTime() !== todayStart.getTime()) {
     return false;
   }
@@ -72,6 +73,7 @@ export const AFTER_4PM_SURCHARGE = 20;
 
 export const getExtraCharge = (timeSlot: string): number => {
   const [hours] = timeSlot.split(':').map(Number);
+  // Extra ₹20 for slots at or after 4:00 PM (16:00)
   return hours >= 16 ? AFTER_4PM_SURCHARGE : 0;
 };
 
@@ -84,6 +86,12 @@ export const TIME_SEGMENTS = {
   Morning: { start: '06:00', end: '11:45' },
   Afternoon: { start: '12:00', end: '16:45' },
   Evening: { start: '17:00', end: '19:00' }
+} as const;
+
+export const TIME_SEGMENTS_COOK = {
+  Morning: { start: '06:00', end: '11:45' },
+  Afternoon: { start: '12:00', end: '16:45' },
+  Evening: { start: '17:00', end: '21:00' }
 } as const;
 
 export type TimeSegment = keyof typeof TIME_SEGMENTS;

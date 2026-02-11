@@ -2,12 +2,16 @@ import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { isOpenNow } from './time';
 interface CommunityWorkersCardProps {
-  onServiceSelect: (service: 'maid' | 'bathroom_cleaning') => void;
+  onServiceSelect: (service: 'maid' | 'cook' | 'bathroom_cleaning') => void;
 }
 const workers = [{
   id: 'maid' as const,
   title: 'Maid',
   avatar: 'https://images.unsplash.com/photo-1607990281513-2c110a25bd8c?w=100&h=100&fit=crop&crop=face'
+}, {
+  id: 'cook' as const,
+  title: 'Cook',
+  avatar: 'https://images.unsplash.com/photo-1577219491135-ce391730fb2c?w=100&h=100&fit=crop&crop=face'
 }, {
   id: 'bathroom_cleaning' as const,
   title: 'Bathroom Cleaning',
@@ -27,7 +31,7 @@ export function CommunityWorkersCard({
             {isLive ? '● LIVE' : '● OFFLINE'}
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-3 gap-2">
           {workers.map((worker) => (
             <button
               key={worker.id}

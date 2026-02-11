@@ -1,10 +1,12 @@
 import { supabase } from '@/integrations/supabase/client';
-import { Sparkles, ShowerHead, LucideIcon } from 'lucide-react';
+import { Sparkles, ChefHat, ShowerHead, LucideIcon } from 'lucide-react';
 
 export const prettyServiceName = (serviceType: string): string => {
   switch (serviceType) {
     case 'maid':
       return 'Maid';
+    case 'cook':
+      return 'Cook';
     case 'bathroom_cleaning':
       return 'Bathroom Cleaning';
     default:
@@ -16,6 +18,8 @@ export const serviceIcon = (serviceType: string): LucideIcon => {
   switch (serviceType) {
     case 'maid':
       return Sparkles;
+    case 'cook':
+      return ChefHat;
     case 'bathroom_cleaning':
       return ShowerHead;
     default:
@@ -24,7 +28,7 @@ export const serviceIcon = (serviceType: string): LucideIcon => {
 };
 
 export const isValidServiceType = (serviceType: string): boolean => {
-  return ['maid', 'bathroom_cleaning'].includes(serviceType);
+  return ['maid', 'cook', 'bathroom_cleaning'].includes(serviceType);
 };
 
 export interface PricingMap {
@@ -77,3 +81,11 @@ export const getPricingMap = async (
 
 export const FLAT_SIZES = ['2BHK', '2.5BHK', '3BHK', '3.5BHK', '4BHK'] as const;
 export type FlatSize = typeof FLAT_SIZES[number];
+
+// Cook service pricing calculation
+export const calculateCookPrice = (familyCount: number, foodPreference: 'veg' | 'non_veg'): number => {
+  const base = 200;
+  const addonNonVeg = foodPreference === 'non_veg' ? 50 : 0;
+  const addonPeople = Math.max(0, familyCount - 1) * 20;
+  return base + addonNonVeg + addonPeople;
+};

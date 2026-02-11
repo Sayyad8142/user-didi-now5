@@ -1,7 +1,7 @@
 export function isOpenNow(serviceType?: string): boolean {
   const now = new Date();
   const hours = now.getHours();
-  const endHour = 19; // All services: 7 PM
+  const endHour = serviceType === 'cook' ? 21 : 19; // Cook: 9 PM, Others: 7 PM
   return hours >= 6 && hours < endHour;
 }
 
@@ -21,7 +21,7 @@ export function getOpenStatusText(serviceType?: string): string {
 }
 
 export function getServiceHoursText(serviceType?: string): string {
-  return '6AM - 7PM Daily';
+  return serviceType === 'cook' ? '6AM - 9PM Daily' : '6AM - 7PM Daily';
 }
 
 export function firstName(fullName?: string): string {
