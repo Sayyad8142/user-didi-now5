@@ -19,7 +19,7 @@ export function HomeScreen() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-pink-50/80 via-background to-background pb-28 animate-in fade-in duration-500">
+    <div className="min-h-screen bg-background pb-28 animate-in fade-in duration-500">
       {/* Header */}
       <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-border/30">
         <div className="max-w-md mx-auto px-4">
