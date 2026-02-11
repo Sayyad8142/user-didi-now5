@@ -2,7 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Phone } from 'lucide-react';
 import { HomeHeader } from './HomeHeader';
-import { HeroBanner } from './HeroBanner';
+import { HeroCarousel } from './HeroCarousel';
 import { ServicesRow } from './ServicesRow';
 import { ServiceHours } from './ServiceHours';
 import { WorkerAvailabilityCard } from './WorkerAvailabilityCard';
@@ -29,7 +29,7 @@ export function HomeScreen() {
 
       {/* Content */}
       <div className="max-w-md mx-auto px-4 space-y-5 pt-4">
-        <HeroBanner />
+        <HeroCarousel />
 
         <ServicesRow onServiceSelect={handleServiceSelect} />
 

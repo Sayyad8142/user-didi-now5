@@ -1,26 +1,44 @@
 import React from 'react';
-import { Carousel, CarouselContent, CarouselItem } from '@/components/ui/carousel';
+import { Carousel, CarouselContent, CarouselItem, type CarouselApi } from '@/components/ui/carousel';
 import Autoplay from 'embla-carousel-autoplay';
 import bannerMaid1 from '@/assets/banner-maid-1.webp';
 import bannerInstantMaid from '@/assets/banner-instant-maid-service.webp';
+import bannerInstantBathroom from '@/assets/banner-instant-maid-service.webp';
+import bannerMaid2 from '@/assets/banner-maid-1.webp';
 
 const carouselImages = [
   {
     url: bannerInstantMaid,
-    alt: "Instant maid service - Your maid on leave today? No worry, we will send maid in 10 mins"
+    alt: "Instant maid service - Your maid on leave? We will send one in 10 mins"
   },
   {
     url: bannerMaid1,
     alt: "Professional cleaning service - Modern kitchen cleaning"
+  },
+  {
+    url: bannerInstantBathroom,
+    alt: "Bathroom deep cleaning and sanitization service"
+  },
+  {
+    url: bannerMaid2,
+    alt: "Trusted and verified maids at your doorstep"
   }
 ];
 
 export function HeroCarousel() {
   const plugin = React.useRef(
-    Autoplay({ delay: 3000, stopOnInteraction: true })
+    Autoplay({ delay: 3000, stopOnInteraction: false })
   );
 
+  const [api, setApi] = React.useState<CarouselApi>();
+  const [current, setCurrent] = React.useState(0);
   const [loadedImages, setLoadedImages] = React.useState<Set<number>>(new Set());
+
+  React.useEffect(() => {
+    if (!api) return;
+    setCurrent(api.selectedScrollSnap());
+    api.on('select', () => setCurrent(api.selectedScrollSnap()));
+  }, [api]);
 
   const handleImageLoad = (index: number) => {
     setLoadedImages(prev => new Set(prev).add(index));
@@ -31,13 +49,13 @@ export function HeroCarousel() {
       <Carousel
         plugins={[plugin.current]}
         className="w-full"
-        onMouseEnter={plugin.current.stop}
-        onMouseLeave={plugin.current.reset}
+        setApi={setApi}
+        opts={{ loop: true }}
       >
         <CarouselContent>
           {carouselImages.map((image, index) => (
             <CarouselItem key={index}>
-              <div className="relative rounded-[20px] overflow-hidden shadow-card aspect-video bg-gradient-to-br from-pink-100 to-pink-50">
+              <div className="relative rounded-[20px] overflow-hidden shadow-lg aspect-[16/7] bg-gradient-to-br from-pink-100 to-pink-50">
                 <div
                   className={`absolute inset-0 bg-gradient-to-br from-pink-200 to-pink-100 transition-opacity duration-500 ${
                     loadedImages.has(index) ? 'opacity-0' : 'opacity-100'
@@ -62,6 +80,21 @@ export function HeroCarousel() {
           ))}
         </CarouselContent>
       </Carousel>
+      {/* Dot indicators */}
+      <div className="flex justify-center gap-1.5 mt-3">
+        {carouselImages.map((_, index) => (
+          <button
+            key={index}
+            onClick={() => api?.scrollTo(index)}
+            className={`rounded-full transition-all duration-300 ${
+              current === index
+                ? 'w-6 h-2 bg-primary'
+                : 'w-2 h-2 bg-primary/25'
+            }`}
+            aria-label={`Go to slide ${index + 1}`}
+          />
+        ))}
+      </div>
     </div>
   );
 }
