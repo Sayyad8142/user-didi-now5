@@ -3,6 +3,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Users, Activity, CheckCircle2, AlertCircle, Clock } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
+import { useProfile } from '@/contexts/ProfileContext';
 
 interface WorkerCount {
   service: string;
@@ -11,20 +12,28 @@ interface WorkerCount {
 }
 
 export function WorkerAvailabilityCard() {
+  const { profile } = useProfile();
   const [workerCounts, setWorkerCounts] = useState<WorkerCount[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadWorkerCounts();
-  }, []);
+  }, [profile?.community]);
 
   const loadWorkerCounts = async () => {
     try {
-      const { data: workers, error } = await supabase
+      let query = supabase
         .from('workers')
         .select('service_types, is_active, is_available')
         .eq('is_active', true)
         .eq('is_available', true);
+
+      // Filter by user's community if available
+      if (profile?.community && profile.community !== 'other') {
+        query = query.contains('communities', [profile.community]);
+      }
+
+      const { data: workers, error } = await query;
 
       if (error) throw error;
 
