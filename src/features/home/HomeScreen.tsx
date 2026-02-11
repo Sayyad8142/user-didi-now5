@@ -16,7 +16,7 @@ import FaqSection from './FaqSection';
 export function HomeScreen() {
   const navigate = useNavigate();
   const { hasUnseenMessages, markMessagesAsSeen } = useUnseenMessages();
-  const handleServiceSelect = (service: 'maid' | 'cook' | 'bathroom_cleaning') => {
+  const handleServiceSelect = (service: 'maid' | 'bathroom_cleaning') => {
     navigate(`/book/${service}`);
   };
   return <div className="min-h-screen gradient-bg pb-24">

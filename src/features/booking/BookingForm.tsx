@@ -9,11 +9,10 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useProfile } from '@/contexts/ProfileContext';
-import { prettyServiceName, serviceIcon, isValidServiceType, getPricingMap, FLAT_SIZES, type FlatSize, type PricingMap, calculateCookPrice } from './pricing';
+import { prettyServiceName, serviceIcon, isValidServiceType, getPricingMap, FLAT_SIZES, type FlatSize, type PricingMap } from './pricing';
 import { isOpenNow, getOpenStatusText, getServiceHoursText } from '@/features/home/time';
 import { ScheduleSheet } from './ScheduleSheet';
 import { cn } from '@/lib/utils';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { PriceNote } from '@/components/PriceNote';
 import { isGuestMode } from '@/lib/demo';
 import { useInstantBookingAvailability } from '@/hooks/useInstantBookingAvailability';
@@ -57,11 +56,8 @@ export function BookingForm() {
   const [scheduleSheetOpen, setScheduleSheetOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  // Cook service specific state
-  const [familyCount, setFamilyCount] = useState(1);
-  const [foodPreference, setFoodPreference] = useState<'veg' | 'non_veg' | null>(null);
-  const [cuisinePref, setCuisinePref] = useState<'north' | 'south' | 'any'>('any');
-  const [genderPref, setGenderPref] = useState<'male' | 'female' | 'any'>('any');
+  // Legacy cook state (kept for type safety but unused)
+
 
   // Maid service specific state
   const [selectedTasks, setSelectedTasks] = useState<MaidTask[]>(["floor_cleaning", "dish_washing"]); // Multiple task selection with checkboxes
@@ -162,9 +158,9 @@ export function BookingForm() {
     }
   }, [user, service_type, navigate, profile, profileLoading, refreshProfile]);
   useEffect(() => {
-    if (profile && service_type && service_type !== 'cook' && service_type !== 'maid' && service_type !== 'bathroom_cleaning') {
+    if (profile && service_type && service_type !== 'maid' && service_type !== 'bathroom_cleaning') {
       loadPricing();
-    } else if (service_type === 'cook' || service_type === 'maid' || service_type === 'bathroom_cleaning') {
+    } else if (service_type === 'maid' || service_type === 'bathroom_cleaning') {
       setLoadingPricing(false);
     }
   }, [profile, service_type]);
@@ -187,18 +183,7 @@ export function BookingForm() {
   };
   const handleBookNow = async () => {
     if (!profile || !service_type) return;
-    if (service_type === 'cook') {
-      if (!foodPreference) {
-        toast({
-          title: "Please select food preference",
-          description: "Choose vegetarian or non-vegetarian option.",
-          variant: "destructive"
-        });
-        return;
-      }
-      const price = calculateCookPrice(familyCount, foodPreference);
-      await createBooking('instant', null, null, price);
-    } else if (service_type === 'maid') {
+    if (service_type === 'maid') {
       if (!selectedFlatSize || selectedTasks.length === 0) {
         toast({
           title: "Please complete maid booking details",
@@ -207,7 +192,6 @@ export function BookingForm() {
         });
         return;
       }
-      // Validate dish intensity selection if dish washing is selected
       if (selectedTasks.includes('dish_washing') && !dishIntensity) {
         toast({
           title: "Select dish washing workload",
@@ -236,25 +220,9 @@ export function BookingForm() {
   const handleSchedule = () => {
     if (!profile || !service_type) return;
     
-    // Build query parameters for ScheduleScreen
     const params = new URLSearchParams();
     
-    if (service_type === 'cook') {
-      if (!foodPreference) {
-        toast({
-          title: "Please select food preference",
-          description: "Choose vegetarian or non-vegetarian option.",
-          variant: "destructive"
-        });
-        return;
-      }
-      params.set('family', familyCount.toString());
-      params.set('food', foodPreference);
-      params.set('cuisine', cuisinePref);
-      params.set('gender', genderPref);
-      const price = calculateCookPrice(familyCount, foodPreference);
-      params.set('price', price.toString());
-    } else if (service_type === 'maid') {
+    if (service_type === 'maid') {
       if (!selectedFlatSize || selectedTasks.length === 0) {
         toast({
           title: "Please complete maid booking details",
@@ -263,7 +231,6 @@ export function BookingForm() {
         });
         return;
       }
-      // Validate dish intensity selection if dish washing is selected
       if (selectedTasks.includes('dish_washing') && !dishIntensity) {
         toast({
           title: "Select dish washing workload",
@@ -297,7 +264,7 @@ export function BookingForm() {
   };
   const createBooking = async (bookingType: 'instant' | 'scheduled', scheduledDate: string | null, scheduledTime: string | null, price: number) => {
     if (!profile || !user || !service_type) return;
-    if (service_type !== 'cook' && service_type !== 'bathroom_cleaning' && !selectedFlatSize) return;
+    if (service_type !== 'bathroom_cleaning' && !selectedFlatSize) return;
     
     // Validate community before booking
     if (!profile.community || profile.community === 'other') {
@@ -333,12 +300,12 @@ export function BookingForm() {
         scheduled_time: scheduledTime,
         notes: null,
         status: 'pending',
-        flat_size: service_type === 'cook' || service_type === 'bathroom_cleaning' ? null : selectedFlatSize,
+        flat_size: service_type === 'bathroom_cleaning' ? null : selectedFlatSize,
         price_inr: price,
-        family_count: service_type === 'cook' ? familyCount : null,
-        food_pref: service_type === 'cook' ? foodPreference : null,
-        cook_cuisine_pref: service_type === 'cook' ? cuisinePref : null,
-        cook_gender_pref: service_type === 'cook' ? genderPref : null,
+        family_count: null,
+        food_pref: null,
+        cook_cuisine_pref: null,
+        cook_gender_pref: null,
         maid_tasks: service_type === 'maid' ? selectedTasks : null,
         dish_intensity: service_type === 'maid' && selectedTasks.includes('dish_washing') ? dishIntensity : null,
         dish_intensity_extra_inr: service_type === 'maid' && selectedTasks.includes('dish_washing') ? dishIntensityExtra : null,
@@ -406,8 +373,7 @@ export function BookingForm() {
       </div>;
   }
   const ServiceIcon = serviceIcon(service_type);
-  const currentPrice = service_type === 'cook' ? foodPreference ? calculateCookPrice(familyCount, foodPreference) : null 
-    : service_type === 'maid' ? selectedFlatSize && selectedTasks.length > 0 ? totalPrice : null 
+  const currentPrice = service_type === 'maid' ? selectedFlatSize && selectedTasks.length > 0 ? totalPrice : null 
     : service_type === 'bathroom_cleaning' ? bathroomTotalPrice
     : selectedFlatSize ? pricingMap[selectedFlatSize] : null;
   const isServiceOpen = isOpenNow(service_type);
@@ -417,8 +383,7 @@ export function BookingForm() {
   const instantDisabled = !instantAvailable || instantError;
   
   const canBook = isServiceOpen && !instantDisabled && (
-    service_type === 'cook' ? foodPreference && !submitting 
-    : service_type === 'maid' ? selectedFlatSize && selectedTasks.length > 0 && (!selectedTasks.includes('dish_washing') || dishIntensity) && !submitting 
+    service_type === 'maid' ? selectedFlatSize && selectedTasks.length > 0 && (!selectedTasks.includes('dish_washing') || dishIntensity) && !submitting 
     : service_type === 'bathroom_cleaning' ? !submitting
     : selectedFlatSize && currentPrice && !submitting
   );
@@ -495,41 +460,8 @@ export function BookingForm() {
         </div>
 
         <div className="space-y-4">
-          {/* Booking Details Card */}
-          {profile && service_type === 'cook' && <div className="space-y-6">
-              <h2 className="text-2xl font-bold text-[#ff007a] text-center">
-                Booking Details
-              </h2>
-              
-              <div className="space-y-4">
-                <Card className="border border-gray-200 rounded-2xl bg-white shadow-sm">
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-3">
-                      <MapPin className="w-5 h-5 text-[#ff007a]" />
-                      <div className="flex-1 flex items-center justify-between">
-                        <span className="text-gray-700 font-medium">Community</span>
-                        <span className="text-gray-900 font-bold">{profile.community}</span>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-                
-                <Card className="border border-gray-200 rounded-2xl bg-white shadow-sm">
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-3">
-                      <Home className="w-5 h-5 text-[#ff007a]" />
-                      <div className="flex-1 flex items-center justify-between">
-                        <span className="text-gray-700 font-medium">Flat Number</span>
-                        <span className="text-gray-900 font-bold">{profile.flat_no}</span>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            </div>}
-
-          {/* Community & Flat Cards for other services */}
-          {profile && service_type !== 'cook' && <>
+          {/* Community & Flat Cards */}
+          {profile && <>
               <Card className="border border-border rounded-2xl">
                 <CardContent className="p-4">
                   <div className="flex items-center gap-3">
@@ -555,142 +487,10 @@ export function BookingForm() {
               </Card>
             </>}
 
-          {/* Cook Service Controls */}
-          {service_type === 'cook' && <>
-              {/* Family Count */}
-              <div className="space-y-6">
-                <h2 className="text-lg font-semibold text-gray-900">
-                  Number of Family Members <span className="text-[#ff007a]">*</span>
-                </h2>
-                <div className="flex items-center justify-center gap-6">
-                  <Button variant="outline" className="h-12 w-12 rounded-xl border-2 border-[#ff007a] text-[#ff007a] hover:bg-[#ff007a] hover:text-white" onClick={() => setFamilyCount(Math.max(1, familyCount - 1))} disabled={familyCount <= 1}>
-                    –
-                  </Button>
-                  <div className="w-12 text-center text-3xl font-bold text-gray-900">{familyCount}</div>
-                  <Button variant="outline" className="h-12 w-12 rounded-xl border-2 border-[#ff007a] text-[#ff007a] hover:bg-[#ff007a] hover:text-white" onClick={() => setFamilyCount(Math.min(20, familyCount + 1))}>
-                    +
-                  </Button>
-                </div>
-              </div>
 
-              {/* Food Preference */}
-              <div className="space-y-6">
-                <h2 className="text-lg font-semibold text-gray-900">
-                  Food Preference <span className="text-[#ff007a]">*</span>
-                </h2>
-                <div className="grid grid-cols-2 gap-4">
-                  <button onClick={() => setFoodPreference('veg')} className={`h-16 rounded-2xl border-2 px-4 flex items-center justify-center gap-3 transition-all ${foodPreference === 'veg' ? 'border-[#ff007a] bg-[#ff007a]/10 text-[#ff007a]' : 'border-gray-200 bg-gray-50 text-gray-700 hover:border-gray-300'}`}>
-                    <span className="text-xl">🥬</span>
-                    <span className="font-medium">Vegetarian</span>
-                  </button>
-                  <button onClick={() => setFoodPreference('non_veg')} className={`h-16 rounded-2xl border-2 px-4 flex items-center justify-center gap-3 transition-all ${foodPreference === 'non_veg' ? 'border-[#ff007a] bg-[#ff007a]/10 text-[#ff007a]' : 'border-gray-200 bg-gray-50 text-gray-700 hover:border-gray-300'}`}>
-                    <span className="text-xl">🍗</span>
-                    <span className="font-medium">Non-Vegetarian</span>
-                  </button>
-                </div>
-              </div>
 
-              {/* Cuisine Preference - Only show after food preference is selected */}
-              {foodPreference && (
-              <div className="space-y-6">
-                <h2 className="text-lg font-semibold text-foreground">
-                  Cuisine Preference <span className="text-destructive">*</span>
-                </h2>
-                <ToggleGroup
-                  type="single"
-                  value={cuisinePref}
-                  onValueChange={(v) => v && setCuisinePref(v as 'north' | 'south' | 'any')}
-                  className="grid grid-cols-3 gap-3"
-                >
-                  <ToggleGroupItem
-                    value="north"
-                    className={cn(
-                      "h-12 rounded-xl border-2",
-                      cuisinePref === 'north'
-                        ? "border-primary bg-primary/5 text-primary"
-                        : "border-border bg-background text-foreground hover:border-primary/50"
-                    )}
-                  >
-                    North Indian
-                  </ToggleGroupItem>
-                  <ToggleGroupItem
-                    value="south"
-                    className={cn(
-                      "h-12 rounded-xl border-2",
-                      cuisinePref === 'south'
-                        ? "border-primary bg-primary/5 text-primary"
-                        : "border-border bg-background text-foreground hover:border-primary/50"
-                    )}
-                  >
-                    South Indian
-                  </ToggleGroupItem>
-                  <ToggleGroupItem
-                    value="any"
-                    className={cn(
-                      "h-12 rounded-xl border-2",
-                      cuisinePref === 'any'
-                        ? "border-primary bg-primary/5 text-primary"
-                        : "border-border bg-background text-foreground hover:border-primary/50"
-                    )}
-                  >
-                    Anyone is fine
-                  </ToggleGroupItem>
-                </ToggleGroup>
-              </div>
-              )}
-
-              {/* Gender Preference - Only show after food preference is selected */}
-              {foodPreference && (
-              <div className="space-y-6">
-                <h2 className="text-lg font-semibold text-foreground">
-                  Cook Gender Preference <span className="text-destructive">*</span>
-                </h2>
-                <ToggleGroup
-                  type="single"
-                  value={genderPref}
-                  onValueChange={(v) => v && setGenderPref(v as 'male' | 'female' | 'any')}
-                  className="grid grid-cols-3 gap-3"
-                >
-                  <ToggleGroupItem
-                    value="male"
-                    className={cn(
-                      "h-12 rounded-xl border-2",
-                      genderPref === 'male'
-                        ? "border-primary bg-primary/5 text-primary"
-                        : "border-border bg-background text-foreground hover:border-primary/50"
-                    )}
-                  >
-                    Male
-                  </ToggleGroupItem>
-                  <ToggleGroupItem
-                    value="female"
-                    className={cn(
-                      "h-12 rounded-xl border-2",
-                      genderPref === 'female'
-                        ? "border-primary bg-primary/5 text-primary"
-                        : "border-border bg-background text-foreground hover:border-primary/50"
-                    )}
-                  >
-                    Female
-                  </ToggleGroupItem>
-                  <ToggleGroupItem
-                    value="any"
-                    className={cn(
-                      "h-12 rounded-xl border-2",
-                      genderPref === 'any'
-                        ? "border-primary bg-primary/5 text-primary"
-                        : "border-border bg-background text-foreground hover:border-primary/50"
-                    )}
-                  >
-                    Anyone is fine
-                  </ToggleGroupItem>
-                </ToggleGroup>
-              </div>
-              )}
-            </>}
-
-          {/* Select Flat Size for other services */}
-          {service_type !== 'cook' && service_type !== 'bathroom_cleaning' && <div className="mt-8">
+          {/* Select Flat Size */}
+          {service_type !== 'bathroom_cleaning' && <div className="mt-8">
               <h2 className="text-lg font-semibold text-foreground mb-4">
                 Select Flat Size <span className="text-destructive">*</span>
               </h2>
@@ -905,11 +705,11 @@ export function BookingForm() {
             </div>}
 
           {/* Price Display */}
-          {(service_type === 'cook' && foodPreference || service_type === 'maid' && selectedFlatSize && selectedTasks.length > 0 || service_type === 'bathroom_cleaning' || (service_type !== 'cook' && service_type !== 'maid' && service_type !== 'bathroom_cleaning' && selectedFlatSize)) && <div>
+          {(service_type === 'maid' && selectedFlatSize && selectedTasks.length > 0 || service_type === 'bathroom_cleaning' || (service_type !== 'maid' && service_type !== 'bathroom_cleaning' && selectedFlatSize)) && <div>
             <Card className="bg-primary/5 border-primary/20 rounded-2xl">
               <CardContent className="p-6 py-[5px] px-[24px] bg-stone-50">
                 <div className="text-center px-0">
-                  {loadingPricing && service_type !== 'cook' && service_type !== 'maid' && service_type !== 'bathroom_cleaning' ? <Skeleton className="h-8 w-32 mx-auto rounded-lg" /> : <>
+                  {loadingPricing && service_type !== 'maid' && service_type !== 'bathroom_cleaning' ? <Skeleton className="h-8 w-32 mx-auto rounded-lg" /> : <>
                       <span className="text-3xl font-bold text-primary">
                         Price: ₹{currentPrice}
                       </span>
@@ -1009,18 +809,7 @@ export function BookingForm() {
                 
                 <Button 
                   onClick={() => {
-                    if (service_type === 'cook') {
-                      if (!foodPreference) {
-                        toast({
-                          title: "Please select food preference first",
-                          description: "Choose vegetarian or non-vegetarian option.",
-                          variant: "destructive"
-                        });
-                        return;
-                      }
-                      const price = calculateCookPrice(familyCount, foodPreference);
-                      navigate(`/book/${service_type}/schedule?family=${familyCount}&food=${foodPreference}&cuisine=${cuisinePref}&gender=${genderPref}&price=${price}`);
-                    } else if (service_type === 'maid') {
+                    if (service_type === 'maid') {
                       if (!selectedFlatSize || selectedTasks.length === 0) {
                         toast({
                           title: "Please complete maid booking details",
@@ -1029,7 +818,6 @@ export function BookingForm() {
                         });
                         return;
                       }
-                      // Validate dish intensity selection if dish washing is selected
                       if (selectedTasks.includes('dish_washing') && !dishIntensity) {
                         toast({
                           title: "Select dish washing workload",
@@ -1059,7 +847,7 @@ export function BookingForm() {
                       navigate(`/book/${service_type}/schedule?flat=${selectedFlatSize}&price=${price}`);
                     }
                   }} 
-                  disabled={service_type === 'cook' ? !foodPreference : service_type === 'maid' ? !selectedFlatSize || selectedTasks.length === 0 || (selectedTasks.includes('dish_washing') && !dishIntensity) : service_type === 'bathroom_cleaning' ? false : !selectedFlatSize} 
+                  disabled={service_type === 'maid' ? !selectedFlatSize || selectedTasks.length === 0 || (selectedTasks.includes('dish_washing') && !dishIntensity) : service_type === 'bathroom_cleaning' ? false : !selectedFlatSize} 
                   className="w-full h-14 rounded-2xl font-semibold text-lg bg-white hover:bg-slate-50 text-slate-800 border-2 border-slate-300 hover:border-pink-400 shadow-sm hover:shadow-md transition-all duration-300 disabled:bg-slate-100 disabled:text-slate-500 disabled:border-slate-200"
                 >
                   <span>Schedule Booking</span>
