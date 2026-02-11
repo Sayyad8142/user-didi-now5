@@ -64,7 +64,7 @@ export function ServicesRow({ onServiceSelect }: ServicesRowProps) {
       </div>
 
       <p className="text-center text-xs text-muted-foreground">
-        More services coming soon…
+
       </p>
     </div>);
 
