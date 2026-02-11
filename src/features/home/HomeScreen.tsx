@@ -1,10 +1,8 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Phone, MessageCircle } from 'lucide-react';
-import { useUnseenMessages } from '@/hooks/useUnseenMessages';
+import { Phone } from 'lucide-react';
 import { HomeHeader } from './HomeHeader';
-import { HeroCarousel } from './HeroCarousel';
+import { HeroBanner } from './HeroBanner';
 import { ServicesRow } from './ServicesRow';
 import { ServiceHours } from './ServiceHours';
 import { WorkerAvailabilityCard } from './WorkerAvailabilityCard';
@@ -15,46 +13,43 @@ import FaqSection from './FaqSection';
 
 export function HomeScreen() {
   const navigate = useNavigate();
-  const { hasUnseenMessages, markMessagesAsSeen } = useUnseenMessages();
+
   const handleServiceSelect = (service: 'maid' | 'bathroom_cleaning') => {
     navigate(`/book/${service}`);
   };
-  return <div className="min-h-screen gradient-bg pb-24">
-      <header className="sticky top-0 z-50 bg-slate-50">
-        <div className="max-w-md mx-auto px-4 bg-slate-50">
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-pink-50/80 via-background to-background pb-28 animate-in fade-in duration-500">
+      {/* Header */}
+      <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-border/30">
+        <div className="max-w-md mx-auto px-4">
           <HomeHeader />
         </div>
       </header>
-      <div className="max-w-md mx-auto px-4 space-y-4 bg-slate-50">
-        <HeroCarousel />
+
+      {/* Content */}
+      <div className="max-w-md mx-auto px-4 space-y-5 pt-4">
+        <HeroBanner />
+
         <ServicesRow onServiceSelect={handleServiceSelect} />
+
         <ActiveBookingCard />
-        
+
         <ServiceHours />
-        
-        {/* Contact Manager & Support Buttons */}
-        <div className="space-y-3">
-          <Button onClick={() => openExternalUrl('tel:8008180018')} variant="outline" className="w-full h-12 rounded-full border-2 border-primary/20 bg-white/90 hover:bg-primary/5 text-primary font-semibold transition-spring hover:scale-[1.02] flex items-center justify-center gap-3">
-            <Phone className="w-5 h-5" />
-            <span>Call Manager</span>
-          </Button>
-          
-          <Button onClick={() => {
-            markMessagesAsSeen();
-            navigate('/chat');
-          }} className="w-full h-12 rounded-full gradient-primary shadow-button transition-spring hover:scale-[1.02] flex items-center justify-center gap-3 relative">
-            <MessageCircle className="w-5 h-5" />
-            <span className="font-semibold">Chat Support</span>
-            {hasUnseenMessages && (
-              <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse" />
-            )}
-          </Button>
-        </div>
-        
+
+        {/* Call Support */}
+        <button
+          onClick={() => openExternalUrl('tel:8008180018')}
+          className="w-full flex items-center justify-center gap-2.5 h-12 rounded-full border-2 border-primary/20 bg-card text-primary font-semibold text-sm hover:bg-primary/5 active:scale-[0.98] transition-all duration-200"
+        >
+          <Phone className="w-4 h-4" />
+          Call Support
+        </button>
+
         <WorkerAvailabilityCard />
         <FeatureCarousel />
-
         <FaqSection />
       </div>
-    </div>;
+    </div>
+  );
 }
