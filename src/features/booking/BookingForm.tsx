@@ -640,7 +640,7 @@ export function BookingForm() {
                         )}
                       >
                         {/* Image */}
-                        <div className="relative h-36 overflow-hidden">
+                        <div className="relative h-24 overflow-hidden">
                           <img src={img} alt={label} className="w-full h-full object-cover" />
                           <div className="absolute inset-0 bg-gradient-to-t from-foreground/60 to-transparent" />
                           {/* Selected indicator */}
