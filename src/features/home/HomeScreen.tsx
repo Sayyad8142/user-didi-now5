@@ -2,7 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Phone } from 'lucide-react';
 import { HomeHeader } from './HomeHeader';
-import { HeroBanner } from './HeroBanner';
+import { HeroCarousel } from './HeroCarousel';
 import { ServicesRow } from './ServicesRow';
 import { ServiceHours } from './ServiceHours';
 import { WorkerAvailabilityCard } from './WorkerAvailabilityCard';
@@ -28,8 +28,8 @@ export function HomeScreen() {
       </header>
 
       {/* Content */}
-      <div className="max-w-md mx-auto px-4 space-y-5 pt-4 bg-primary-foreground">
-        <HeroBanner />
+      <div className="max-w-md mx-auto px-4 space-y-5 pt-4">
+        <HeroCarousel />
 
         <ServicesRow onServiceSelect={handleServiceSelect} />
 
@@ -40,8 +40,8 @@ export function HomeScreen() {
         {/* Call Support */}
         <button
           onClick={() => openExternalUrl('tel:8008180018')}
-          className="w-full flex items-center justify-center gap-2.5 h-12 rounded-full border-2 border-primary/20 bg-card text-primary font-semibold text-sm hover:bg-primary/5 active:scale-[0.98] transition-all duration-200">
-
+          className="w-full flex items-center justify-center gap-2.5 h-12 rounded-full border-2 border-primary/20 bg-card text-primary font-semibold text-sm hover:bg-primary/5 active:scale-[0.98] transition-all duration-200"
+        >
           <Phone className="w-4 h-4" />
           Call Support
         </button>
@@ -50,6 +50,6 @@ export function HomeScreen() {
         <FeatureCarousel />
         <FaqSection />
       </div>
-    </div>);
-
+    </div>
+  );
 }
