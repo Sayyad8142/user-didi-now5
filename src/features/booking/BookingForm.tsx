@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, MapPin, Home, Clock, Calendar, AlertCircle, SprayCan, CookingPot, CheckCircle2, UtensilsCrossed, Sparkles, ChefHat } from 'lucide-react';
+import { ArrowLeft, MapPin, Home, Clock, Calendar, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -17,6 +17,11 @@ import { PriceNote } from '@/components/PriceNote';
 import { isGuestMode } from '@/lib/demo';
 import { useInstantBookingAvailability } from '@/hooks/useInstantBookingAvailability';
 import { getIntensityExtra, type DishIntensity } from './DishIntensitySheet';
+import serviceFloorImg from '@/assets/service-floor-cleaning.webp';
+import serviceDishImg from '@/assets/service-dish-washing.webp';
+import dishesLightImg from '@/assets/dishes-light.webp';
+import dishesMediumImg from '@/assets/dishes-medium.webp';
+import dishesHeavyImg from '@/assets/dishes-heavy.webp';
 
 // Maid task types and constants
 type MaidTask = "floor_cleaning" | "dish_washing";
@@ -495,16 +500,22 @@ export function BookingForm() {
                 Select Flat Size <span className="text-destructive">*</span>
               </h2>
               
-              <div className="grid grid-cols-3 gap-3 mb-3">
-                {FLAT_SIZES.slice(0, 3).map(size => <Button key={size} variant="outline" onClick={() => setSelectedFlatSize(size)} className={`h-12 font-medium rounded-2xl border-2 ${selectedFlatSize === size ? "border-primary bg-primary/5 text-primary" : "border-border bg-background text-foreground hover:border-primary/50"}`}>
-                    {size}
-                  </Button>)}
-              </div>
-              
-              <div className="grid grid-cols-2 gap-3">
-                {FLAT_SIZES.slice(3).map(size => <Button key={size} variant="outline" onClick={() => setSelectedFlatSize(size)} className={`h-12 font-medium rounded-2xl border-2 ${selectedFlatSize === size ? "border-primary bg-primary/5 text-primary" : "border-border bg-background text-foreground hover:border-primary/50"}`}>
-                    {size}
-                  </Button>)}
+              <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2 -mx-1 px-1">
+                {FLAT_SIZES.map(size => (
+                  <button
+                    key={size}
+                    onClick={() => setSelectedFlatSize(size)}
+                    className={cn(
+                      "flex flex-col items-center justify-center min-w-[5.5rem] px-4 py-3 rounded-2xl border-2 transition-all duration-200 shrink-0",
+                      selectedFlatSize === size
+                        ? "border-primary bg-primary/5 shadow-md"
+                        : "border-border bg-card hover:border-primary/40"
+                    )}
+                  >
+                    <Home className={cn("w-5 h-5 mb-1", selectedFlatSize === size ? "text-primary" : "text-muted-foreground")} />
+                    <span className={cn("text-sm font-bold", selectedFlatSize === size ? "text-primary" : "text-foreground")}>{size}</span>
+                  </button>
+                ))}
               </div>
             </div>}
 
@@ -593,14 +604,18 @@ export function BookingForm() {
               </div>
             </div>}
 
-          {/* Maid Task Selection - Premium Visual Cards */}
+          {/* Maid Task Selection - Premium Image Cards */}
           {service_type === 'maid' && selectedFlatSize && <div className="mt-6 space-y-6">
+              {/* Service Cards with Images */}
               <div>
                 <h2 className="text-lg font-semibold text-foreground mb-3">
                   Select Services <span className="text-destructive">*</span>
                 </h2>
-                <div className="space-y-3">
-                  {(["floor_cleaning", "dish_washing"] as MaidTask[]).map(t => {
+                <div className="space-y-4">
+                  {([
+                    { task: 'floor_cleaning' as MaidTask, label: 'Floor Cleaning', subtitle: 'Jhaadu & Pocha · Sparkling floors', img: serviceFloorImg },
+                    { task: 'dish_washing' as MaidTask, label: 'Dish Washing', subtitle: 'Utensils & Vessels · Spotless clean', img: serviceDishImg },
+                  ]).map(({ task: t, label, subtitle, img }) => {
                     const isSelected = selectedTasks.includes(t);
                     const toggleTask = () => {
                       if (isSelected) {
@@ -612,67 +627,72 @@ export function BookingForm() {
                         setSelectedTasks(prev => [...prev, t]);
                       }
                     };
-                    const icon = t === 'floor_cleaning' 
-                      ? <SprayCan className="w-7 h-7" /> 
-                      : <CookingPot className="w-7 h-7" />;
-                    const subtitle = t === 'floor_cleaning' 
-                      ? 'Jhaadu & Pocha' 
-                      : 'Utensils & Vessels';
-                    const label = t === 'floor_cleaning' ? 'Floor Cleaning' : 'Dish Washing';
-                    
                     return (
                       <button
                         key={t}
                         type="button"
                         onClick={toggleTask}
                         className={cn(
-                          "w-full flex items-center gap-4 p-4 rounded-2xl border-2 transition-all duration-200 text-left relative overflow-hidden",
+                          "w-full rounded-2xl border-2 overflow-hidden transition-all duration-200 text-left relative",
                           isSelected
-                            ? "border-primary bg-primary/5 shadow-sm"
-                            : "border-border bg-card hover:border-primary/40"
+                            ? "border-primary shadow-lg shadow-primary/10"
+                            : "border-border bg-card hover:border-primary/40 shadow-sm"
                         )}
                       >
-                        {/* Icon */}
-                        <div className={cn(
-                          "w-14 h-14 rounded-xl flex items-center justify-center shrink-0 transition-colors",
-                          isSelected ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground"
-                        )}>
-                          {icon}
+                        {/* Image */}
+                        <div className="relative h-36 overflow-hidden">
+                          <img src={img} alt={label} className="w-full h-full object-cover" />
+                          <div className="absolute inset-0 bg-gradient-to-t from-foreground/60 to-transparent" />
+                          {/* Selected indicator */}
+                          <div className={cn(
+                            "absolute top-3 right-3 w-7 h-7 rounded-full flex items-center justify-center transition-all",
+                            isSelected
+                              ? "bg-primary shadow-lg"
+                              : "bg-card/80 border border-border backdrop-blur-sm"
+                          )}>
+                            {isSelected 
+                              ? <CheckCircle2 className="w-5 h-5 text-primary-foreground" />
+                              : <div className="w-3 h-3 rounded-full border-2 border-muted-foreground" />
+                            }
+                          </div>
+                          {/* Price badge on image */}
+                          <div className="absolute bottom-3 right-3">
+                            <span className={cn(
+                              "text-sm font-bold px-3.5 py-1.5 rounded-full backdrop-blur-md",
+                              isSelected
+                                ? "bg-primary text-primary-foreground shadow-lg"
+                                : "bg-card/90 text-foreground border border-border"
+                            )}>
+                              ₹{taskPrice(t)}
+                            </span>
+                          </div>
                         </div>
-                        {/* Name + subtitle */}
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold text-foreground text-[15px]">{label}</h3>
+                        {/* Text */}
+                        <div className={cn(
+                          "px-4 py-3 transition-colors",
+                          isSelected ? "bg-primary/5" : "bg-card"
+                        )}>
+                          <h3 className="font-bold text-foreground text-[15px]">{label}</h3>
                           <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>
                         </div>
-                        {/* Price pill */}
-                        <span className={cn(
-                          "text-sm font-bold px-3 py-1.5 rounded-full shrink-0",
-                          isSelected ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground"
-                        )}>
-                          ₹{taskPrice(t)}
-                        </span>
-                        {/* Selected check */}
-                        {isSelected && (
-                          <CheckCircle2 className="w-5 h-5 text-primary absolute top-2 right-2" />
-                        )}
                       </button>
                     );
                   })}
                 </div>
               </div>
 
-              {/* Dish Intensity Visual Tiles */}
+              {/* Dish Intensity - Image Tiles */}
               {selectedTasks.includes('dish_washing') && (
                 <div>
                   <h2 className="text-lg font-semibold text-foreground mb-1">
                     How many dishes today? <span className="text-destructive">*</span>
                   </h2>
                   <p className="text-xs text-muted-foreground mb-3">Pick the right option to avoid disputes with maids.</p>
-                  <div className="space-y-2.5">
+                  <div className="grid grid-cols-3 gap-3">
                     {([
-                      { value: 'light' as DishIntensity, label: 'Light', extra: 0, desc: '5–10 items · daily routine', icon: <UtensilsCrossed className="w-6 h-6" /> },
-                      { value: 'medium' as DishIntensity, label: 'Medium', extra: 30, desc: '10–20 items · extra cooking', icon: <Sparkles className="w-6 h-6" /> },
-                      { value: 'heavy' as DishIntensity, label: 'Heavy', extra: 50, desc: '20+ items · guests / party', icon: <ChefHat className="w-6 h-6" /> },
+                      { value: 'light' as DishIntensity, label: 'Light', extra: 0, desc: '5–10 items', img: dishesLightImg },
+                      { value: 'medium' as DishIntensity, label: 'Medium', extra: 30, desc: '10–20 items', img: dishesMediumImg },
+                      { value: 'heavy' as DishIntensity, label: 'Heavy', extra: 50, desc: '20+ items', img: dishesHeavyImg },
                     ]).map((opt) => {
                       const isSel = dishIntensity === opt.value;
                       return (
@@ -681,31 +701,37 @@ export function BookingForm() {
                           type="button"
                           onClick={() => setDishIntensity(opt.value)}
                           className={cn(
-                            "w-full flex items-center gap-3.5 p-3.5 rounded-2xl border-2 transition-all duration-200 text-left relative",
+                            "flex flex-col rounded-2xl border-2 overflow-hidden transition-all duration-200 text-left relative",
                             isSel
-                              ? "border-primary bg-primary/5 shadow-sm"
+                              ? "border-primary shadow-lg shadow-primary/10"
                               : "border-border bg-card hover:border-primary/40"
                           )}
                         >
+                          {/* Image */}
+                          <div className="relative h-20 overflow-hidden">
+                            <img src={opt.img} alt={opt.label} className="w-full h-full object-cover" />
+                            {isSel && (
+                              <div className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-primary flex items-center justify-center">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-primary-foreground" />
+                              </div>
+                            )}
+                          </div>
+                          {/* Label + price */}
                           <div className={cn(
-                            "w-11 h-11 rounded-xl flex items-center justify-center shrink-0 transition-colors",
-                            isSel ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                            "px-2.5 py-2 text-center transition-colors",
+                            isSel ? "bg-primary/5" : "bg-card"
                           )}>
-                            {opt.icon}
+                            <span className={cn("text-sm font-bold block", isSel ? "text-primary" : "text-foreground")}>{opt.label}</span>
+                            <span className="text-[10px] text-muted-foreground block mt-0.5">{opt.desc}</span>
+                            <span className={cn(
+                              "inline-block text-[11px] font-bold mt-1.5 px-2 py-0.5 rounded-full",
+                              opt.extra > 0
+                                ? isSel ? "bg-primary/15 text-primary" : "bg-orange-100 text-orange-600"
+                                : isSel ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground"
+                            )}>
+                              {opt.extra > 0 ? `+₹${opt.extra}` : '₹0'}
+                            </span>
                           </div>
-                          <div className="flex-1 min-w-0">
-                            <span className="font-semibold text-foreground text-sm">{opt.label}</span>
-                            <p className="text-xs text-muted-foreground mt-0.5">{opt.desc}</p>
-                          </div>
-                          <span className={cn(
-                            "text-xs font-bold px-2.5 py-1 rounded-full shrink-0",
-                            opt.extra > 0
-                              ? isSel ? "bg-primary/15 text-primary" : "bg-orange-100 text-orange-600"
-                              : isSel ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground"
-                          )}>
-                            {opt.extra > 0 ? `+₹${opt.extra}` : '₹0'}
-                          </span>
-                          {isSel && <CheckCircle2 className="w-4 h-4 text-primary absolute top-2 right-2" />}
                         </button>
                       );
                     })}
@@ -715,30 +741,30 @@ export function BookingForm() {
 
               {/* Price Breakdown Card */}
               {selectedTasks.length > 0 && (
-                <Card className="border-primary/20 rounded-2xl overflow-hidden">
+                <Card className="border-primary/20 rounded-2xl overflow-hidden shadow-sm">
                   <CardContent className="p-0">
-                    <div className="bg-primary/5 px-5 py-3 border-b border-primary/10">
-                      <h3 className="font-semibold text-foreground text-sm">Price Breakdown</h3>
+                    <div className="bg-gradient-to-r from-primary/10 to-primary/5 px-5 py-3 border-b border-primary/10">
+                      <h3 className="font-bold text-foreground text-sm tracking-wide">💰 Price Breakdown</h3>
                     </div>
-                    <div className="px-5 py-3 space-y-2">
+                    <div className="px-5 py-3.5 space-y-2.5 bg-card">
                       {selectedTasks.map(t => (
                         <div key={t} className="flex items-center justify-between text-sm">
                           <span className="text-muted-foreground">{t === 'floor_cleaning' ? 'Floor Cleaning' : 'Dish Washing'}</span>
-                          <span className="font-medium text-foreground">₹{taskPrice(t)}</span>
+                          <span className="font-semibold text-foreground">₹{taskPrice(t)}</span>
                         </div>
                       ))}
                       {selectedTasks.includes('dish_washing') && dishIntensityExtra > 0 && (
                         <div className="flex items-center justify-between text-sm">
-                          <span className="text-muted-foreground">Dish load add-on ({dishIntensity})</span>
-                          <span className="font-medium text-primary">+₹{dishIntensityExtra}</span>
+                          <span className="text-muted-foreground">Dish load add-on <span className="capitalize">({dishIntensity})</span></span>
+                          <span className="font-semibold text-primary">+₹{dishIntensityExtra}</span>
                         </div>
                       )}
-                      <div className="border-t border-border pt-2 mt-1 flex items-center justify-between">
-                        <span className="font-bold text-foreground">Total</span>
-                        <span className="text-xl font-bold text-primary">₹{totalPrice}</span>
+                      <div className="border-t border-border pt-3 mt-1 flex items-center justify-between">
+                        <span className="font-bold text-foreground text-base">Total</span>
+                        <span className="text-2xl font-extrabold text-primary">₹{totalPrice}</span>
                       </div>
                     </div>
-                    <div className="px-5 pb-3">
+                    <div className="px-5 py-2.5 bg-muted/30 border-t border-border">
                       <p className="text-[11px] text-muted-foreground">Price may vary slightly based on actual work.</p>
                     </div>
                   </CardContent>
