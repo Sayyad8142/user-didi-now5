@@ -633,48 +633,32 @@ export function BookingForm() {
                         type="button"
                         onClick={toggleTask}
                         className={cn(
-                          "w-full rounded-2xl border-2 overflow-hidden transition-all duration-200 text-left relative",
+                          "w-full flex items-center gap-3.5 p-3 rounded-2xl border-2 transition-all duration-200 text-left relative",
                           isSelected
-                            ? "border-primary shadow-lg shadow-primary/10"
-                            : "border-border bg-card hover:border-primary/40 shadow-sm"
+                            ? "border-primary bg-primary/5 shadow-md shadow-primary/10"
+                            : "border-border bg-card hover:border-primary/40"
                         )}
                       >
-                        {/* Image */}
-                        <div className="relative h-24 overflow-hidden">
+                        {/* Thumbnail */}
+                        <div className="w-16 h-16 rounded-xl overflow-hidden shrink-0">
                           <img src={img} alt={label} className="w-full h-full object-cover" />
-                          <div className="absolute inset-0 bg-gradient-to-t from-foreground/60 to-transparent" />
-                          {/* Selected indicator */}
-                          <div className={cn(
-                            "absolute top-3 right-3 w-7 h-7 rounded-full flex items-center justify-center transition-all",
-                            isSelected
-                              ? "bg-primary shadow-lg"
-                              : "bg-card/80 border border-border backdrop-blur-sm"
-                          )}>
-                            {isSelected 
-                              ? <CheckCircle2 className="w-5 h-5 text-primary-foreground" />
-                              : <div className="w-3 h-3 rounded-full border-2 border-muted-foreground" />
-                            }
-                          </div>
-                          {/* Price badge on image */}
-                          <div className="absolute bottom-3 right-3">
-                            <span className={cn(
-                              "text-sm font-bold px-3.5 py-1.5 rounded-full backdrop-blur-md",
-                              isSelected
-                                ? "bg-primary text-primary-foreground shadow-lg"
-                                : "bg-card/90 text-foreground border border-border"
-                            )}>
-                              ₹{taskPrice(t)}
-                            </span>
-                          </div>
                         </div>
                         {/* Text */}
-                        <div className={cn(
-                          "px-4 py-3 transition-colors",
-                          isSelected ? "bg-primary/5" : "bg-card"
-                        )}>
+                        <div className="flex-1 min-w-0">
                           <h3 className="font-bold text-foreground text-[15px]">{label}</h3>
-                          <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>
+                          <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-1">{subtitle}</p>
                         </div>
+                        {/* Price pill */}
+                        <span className={cn(
+                          "text-sm font-bold px-3 py-1.5 rounded-full shrink-0",
+                          isSelected ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                        )}>
+                          ₹{taskPrice(t)}
+                        </span>
+                        {/* Check */}
+                        {isSelected && (
+                          <CheckCircle2 className="w-5 h-5 text-primary absolute top-2.5 right-2.5" />
+                        )}
                       </button>
                     );
                   })}
