@@ -14,12 +14,11 @@ import { useInstantBookingAvailability } from '@/hooks/useInstantBookingAvailabi
 interface ChooseTypeSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  serviceType: 'maid' | 'cook' | 'bathroom_cleaning';
+  serviceType: 'maid' | 'bathroom_cleaning';
 }
 
 const serviceLabels = {
   maid: 'Maid Service',
-  cook: 'Cook Service', 
   bathroom_cleaning: 'Bathroom Cleaning'
 };
 
