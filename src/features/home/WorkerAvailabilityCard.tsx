@@ -22,41 +22,32 @@ export function WorkerAvailabilityCard() {
 
   const loadWorkerCounts = async () => {
     try {
-      let query = supabase
-        .from('workers')
-        .select('service_types')
-        .eq('is_active', true)
-        .eq('is_available', true)
-        .or('is_busy.is.null,is_busy.eq.false');
-
-      // Filter by user's community if available
-      if (profile?.community && profile.community !== 'other') {
-        query = query.contains('communities', [profile.community]);
+      const community = profile?.community;
+      if (!community || community === 'other') {
+        setWorkerCounts([]);
+        setLoading(false);
+        return;
       }
 
-      const { data: workers, error } = await query;
+      const { data, error } = await supabase.rpc('get_online_workers_count', {
+        p_community: community,
+      });
 
       if (error) throw error;
-
-      // Count workers by service type
-      const counts = new Map<string, number>();
-      workers?.forEach(worker => {
-        worker.service_types?.forEach((service: string) => {
-          counts.set(service, (counts.get(service) || 0) + 1);
-        });
-      });
 
       const serviceLabels: Record<string, string> = {
         maid: 'Maids',
         cook: 'Cooks',
-        bathroom_cleaning: 'Bathroom Cleaners'
+        bathroom_cleaning: 'Bathroom Cleaners',
       };
 
-      const result = Array.from(counts.entries()).map(([service, count]) => ({
-        service,
-        count,
-        label: serviceLabels[service] || service
-      }));
+      const result = (data || [])
+        .filter((row: any) => row.online_count > 0)
+        .map((row: any) => ({
+          service: row.service,
+          count: Number(row.online_count),
+          label: serviceLabels[row.service] || row.service,
+        }));
 
       setWorkerCounts(result);
     } catch (error) {
@@ -74,34 +65,25 @@ export function WorkerAvailabilityCard() {
 
   const getAvailabilityColor = (level: 'high' | 'medium' | 'low') => {
     switch (level) {
-      case 'high':
-        return 'from-emerald-500 to-green-600';
-      case 'medium':
-        return 'from-amber-400 to-orange-500';
-      case 'low':
-        return 'from-rose-400 to-red-500';
+      case 'high': return 'from-emerald-500 to-green-600';
+      case 'medium': return 'from-amber-400 to-orange-500';
+      case 'low': return 'from-rose-400 to-red-500';
     }
   };
 
   const getAvailabilityIcon = (level: 'high' | 'medium' | 'low') => {
     switch (level) {
-      case 'high':
-        return CheckCircle2;
-      case 'medium':
-        return Clock;
-      case 'low':
-        return AlertCircle;
+      case 'high': return CheckCircle2;
+      case 'medium': return Clock;
+      case 'low': return AlertCircle;
     }
   };
 
   const getAvailabilityText = (level: 'high' | 'medium' | 'low') => {
     switch (level) {
-      case 'high':
-        return 'High booking confirmation';
-      case 'medium':
-        return 'Moderate availability';
-      case 'low':
-        return 'Limited availability';
+      case 'high': return 'Available now';
+      case 'medium': return 'Moderate availability';
+      case 'low': return 'Limited availability';
     }
   };
 
@@ -153,7 +135,7 @@ export function WorkerAvailabilityCard() {
             <h3 className="text-lg font-bold text-foreground mb-0.5">Worker Availability</h3>
             <div className="flex items-center gap-1.5">
               <Activity className="w-3.5 h-3.5 text-primary animate-pulse" />
-              <p className="text-sm text-muted-foreground font-medium">Live service status</p>
+              <p className="text-sm text-muted-foreground font-medium">Online now</p>
             </div>
           </div>
         </div>
@@ -165,7 +147,7 @@ export function WorkerAvailabilityCard() {
             const gradientColor = getAvailabilityColor(level);
             const statusText = getAvailabilityText(level);
             const StatusIcon = getAvailabilityIcon(level);
-            const percentage = Math.min(100, (count / 10) * 100);
+            const percentage = Math.min(100, (count / 100) * 100);
 
             return (
               <div 
