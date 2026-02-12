@@ -24,9 +24,10 @@ export function WorkerAvailabilityCard() {
     try {
       let query = supabase
         .from('workers')
-        .select('service_types, is_active, is_available')
+        .select('service_types, is_active, is_available, is_busy')
         .eq('is_active', true)
-        .eq('is_available', true);
+        .eq('is_available', true)
+        .or('is_busy.is.null,is_busy.eq.false');
 
       // Filter by user's community if available
       if (profile?.community && profile.community !== 'other') {
