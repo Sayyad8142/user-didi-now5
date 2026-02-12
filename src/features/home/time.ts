@@ -1,7 +1,7 @@
 export function isOpenNow(serviceType?: string): boolean {
   const now = new Date();
   const hours = now.getHours();
-  return hours >= 6 && hours < 19;
+  return hours >= 7 && hours < 19;
 }
 
 export function getOpenStatusText(serviceType?: string): string {
@@ -12,15 +12,15 @@ export function getOpenStatusText(serviceType?: string): string {
   const now = new Date();
   const hours = now.getHours();
   
-  if (hours < 6) {
-    return "Opens 6:00 AM";
+  if (hours < 7) {
+    return "Opens 7:00 AM";
   } else {
-    return "Opens 6:00 AM tomorrow";
+    return "Opens 7:00 AM tomorrow";
   }
 }
 
 export function getServiceHoursText(serviceType?: string): string {
-  return '6AM - 7PM Daily';
+  return '7AM - 7PM Daily';
 }
 
 export function firstName(fullName?: string): string {
