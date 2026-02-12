@@ -1,12 +1,23 @@
 /**
  * Hook to check if instant booking is available for a service type.
- * Currently always returns available (no limit).
+ * Returns unavailable when 0 workers are online now for the given service.
  */
-export function useInstantBookingAvailability(_serviceType: string | undefined) {
+import { useOnlineWorkerCounts } from './useOnlineWorkerCounts';
+
+export function useInstantBookingAvailability(serviceType: string | undefined) {
+  const { counts, loading, isServiceAvailable } = useOnlineWorkerCounts();
+
+  if (!serviceType) {
+    return { isAvailable: false, activeCount: 0, isLoading: loading, isError: false };
+  }
+
+  const available = isServiceAvailable(serviceType);
+  const activeCount = counts[serviceType] ?? 0;
+
   return {
-    isAvailable: true,
-    activeCount: 0,
-    isLoading: false,
+    isAvailable: available,
+    activeCount,
+    isLoading: loading,
     isError: false,
   };
 }

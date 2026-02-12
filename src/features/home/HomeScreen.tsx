@@ -13,7 +13,7 @@ import { ActiveBookingCard } from './ActiveBookingCard';
 import { openExternalUrl } from '@/lib/nativeOpen';
 import FaqSection from './FaqSection';
 import { useOnlineWorkerCounts } from '@/hooks/useOnlineWorkerCounts';
-import { toast } from 'sonner';
+
 
 export function HomeScreen() {
   const navigate = useNavigate();
@@ -21,10 +21,6 @@ export function HomeScreen() {
   const { counts, loading, isServiceAvailable } = useOnlineWorkerCounts();
 
   const handleServiceSelect = (service: 'maid' | 'bathroom_cleaning') => {
-    if (!isServiceAvailable(service)) {
-      toast.error('No workers are available right now for this service. Please try again later.');
-      return;
-    }
     navigate(`/book/${service}`);
   };
 
@@ -36,11 +32,7 @@ export function HomeScreen() {
       </header>
       <div className="max-w-md mx-auto px-4 space-y-4 bg-slate-50">
         <HeroCarousel />
-        <ServicesRow 
-          onServiceSelect={handleServiceSelect} 
-          isServiceAvailable={isServiceAvailable}
-          loading={loading}
-        />
+        <ServicesRow onServiceSelect={handleServiceSelect} />
         <ActiveBookingCard />
         
         <ServiceHours />
