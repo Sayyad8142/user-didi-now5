@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, MapPin, Home, Clock, Calendar, AlertCircle } from 'lucide-react';
+import { ArrowLeft, MapPin, Home, Clock, Calendar, AlertCircle, UtensilsCrossed, Sparkles, ChefHat } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -658,31 +658,39 @@ export function BookingForm() {
                       </p>
                       <div className="space-y-1.5">
                         {([
-                          { value: 'light' as DishIntensity, label: 'Light', extra: 0, desc: '5-10 items · daily routine' },
-                          { value: 'medium' as DishIntensity, label: 'Medium', extra: 30, desc: '10-20 items · extra cooking' },
-                          { value: 'heavy' as DishIntensity, label: 'Heavy', extra: 50, desc: '20+ items · guests / party' },
+                          { value: 'light' as DishIntensity, label: 'Light', extra: 0, desc: '5-10 items · daily routine', icon: <UtensilsCrossed className="w-5 h-5" /> },
+                          { value: 'medium' as DishIntensity, label: 'Medium', extra: 30, desc: '10-20 items · extra cooking', icon: <Sparkles className="w-5 h-5" /> },
+                          { value: 'heavy' as DishIntensity, label: 'Heavy', extra: 50, desc: '20+ items · guests / party', icon: <ChefHat className="w-5 h-5" /> },
                         ]).map((opt) => (
                           <button
                             key={opt.value}
                             type="button"
                             onClick={() => setDishIntensity(opt.value)}
                             className={cn(
-                              "w-full flex items-center justify-between px-3 py-2 rounded-lg border text-left transition-all",
+                              "w-full flex items-center justify-between px-3 py-2.5 rounded-xl border text-left transition-all",
                               dishIntensity === opt.value
                                 ? "border-primary bg-primary/10"
                                 : "border-border bg-card hover:border-primary/50"
                             )}
                           >
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-3">
                               <div className={cn(
-                                "w-4 h-4 rounded-full border-2 flex items-center justify-center",
+                                "w-8 h-8 rounded-lg flex items-center justify-center shrink-0",
+                                dishIntensity === opt.value
+                                  ? "bg-primary text-primary-foreground"
+                                  : "bg-muted text-muted-foreground"
+                              )}>
+                                {opt.icon}
+                              </div>
+                              <div className={cn(
+                                "w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0",
                                 dishIntensity === opt.value ? "border-primary" : "border-muted-foreground"
                               )}>
                                 {dishIntensity === opt.value && <div className="w-2 h-2 rounded-full bg-primary" />}
                               </div>
                               <div>
-                                <span className="text-sm font-medium text-foreground">{opt.label}</span>
-                                <span className="text-xs text-muted-foreground ml-2">{opt.desc}</span>
+                                <span className="text-sm font-semibold text-foreground">{opt.label}</span>
+                                <span className="text-xs text-muted-foreground ml-1.5">{opt.desc}</span>
                               </div>
                             </div>
                             <span className={cn(
