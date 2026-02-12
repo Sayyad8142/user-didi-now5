@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, MapPin, Home, Clock, Calendar, AlertCircle, UtensilsCrossed, Sparkles, ChefHat } from 'lucide-react';
+import { ArrowLeft, MapPin, Home, Clock, Calendar, AlertCircle, Check } from 'lucide-react';
+import serviceFloorImg from '@/assets/service-floor-cleaning.webp';
+import serviceDishImg from '@/assets/service-dish-washing.webp';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -592,123 +594,116 @@ export function BookingForm() {
               </div>
             </div>}
 
-          {/* Maid Task Selection - Modern Checkbox UI */}
-          {service_type === 'maid' && selectedFlatSize && <div className="mt-6">
-              <h2 className="text-lg font-semibold text-foreground mb-4">
-                Selected services <span className="text-destructive">*</span>
+          {/* Maid Service Selection — Premium Image Cards */}
+          {service_type === 'maid' && selectedFlatSize && <div className="mt-6 space-y-6">
+              <h2 className="text-lg font-semibold text-foreground">
+                Choose services <span className="text-destructive">*</span>
               </h2>
-              <div className="space-y-2">
-                {(["floor_cleaning", "dish_washing"] as MaidTask[]).map(t => {
-              const isSelected = selectedTasks.includes(t);
-              const toggleTask = () => {
-                if (isSelected) {
-                  // Don't allow unselecting if it's the only task selected
-                  if (selectedTasks.length > 1) {
-                    setSelectedTasks(prev => prev.filter(task => task !== t));
-                    // Clear dish intensity state when dish_washing is unselected
-                    if (t === 'dish_washing') {
-                      setDishIntensity(null);
+
+              {/* Service image cards */}
+              <div className="grid grid-cols-2 gap-3">
+                {([
+                  { task: 'floor_cleaning' as MaidTask, label: 'Floor Cleaning', desc: 'Jhaadu & Pocha', img: serviceFloorImg },
+                  { task: 'dish_washing' as MaidTask, label: 'Dish Washing', desc: 'Utensils & vessels', img: serviceDishImg },
+                ] as const).map(({ task, label, desc, img }) => {
+                  const isSelected = selectedTasks.includes(task);
+                  const toggleTask = () => {
+                    if (isSelected) {
+                      if (selectedTasks.length > 1) {
+                        setSelectedTasks(prev => prev.filter(t => t !== task));
+                        if (task === 'dish_washing') setDishIntensity(null);
+                      }
+                    } else {
+                      setSelectedTasks(prev => [...prev, task]);
                     }
-                  }
-                } else {
-                  setSelectedTasks(prev => [...prev, t]);
-                }
-              };
-              return (
-                <div key={t}>
-                  <div 
-                    onClick={toggleTask} 
-                    className={cn(
-                      "relative cursor-pointer rounded-xl border-2 p-3 transition-all duration-200", 
-                      isSelected 
-                        ? "border-primary bg-gradient-to-r from-primary/10 to-primary/5" 
-                        : "border-border bg-card hover:border-primary/50"
-                    )}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className={cn(
-                          "w-4 h-4 rounded border-2 flex items-center justify-center", 
-                          isSelected ? "border-primary bg-primary" : "border-muted-foreground"
-                        )}>
-                          {isSelected && <div className="w-2 h-2 rounded-sm bg-primary-foreground" />}
-                        </div>
-                        <div>
-                          <h3 className="font-medium text-foreground text-sm">
-                            {TASK_LABEL[t]}
-                          </h3>
-                        </div>
+                  };
+                  return (
+                    <button
+                      key={task}
+                      type="button"
+                      onClick={toggleTask}
+                      className={cn(
+                        "relative rounded-2xl overflow-hidden shadow-sm transition-all duration-200 text-left group",
+                        isSelected
+                          ? "ring-2 ring-primary shadow-md shadow-primary/10"
+                          : "ring-1 ring-border hover:shadow-md"
+                      )}
+                    >
+                      {/* Image */}
+                      <div className="relative h-28 overflow-hidden">
+                        <img src={img} alt={label} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                        {isSelected && (
+                          <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-primary flex items-center justify-center shadow-lg">
+                            <Check className="w-3.5 h-3.5 text-primary-foreground" />
+                          </div>
+                        )}
                       </div>
-                      <div className="text-right">
-                        <div className="text-lg font-bold text-primary">
-                          ₹{taskPrice(t)}
-                          {t === 'dish_washing' && isSelected && dishIntensityExtra > 0 && (
-                            <span className="text-sm font-medium text-orange-500 ml-1">+₹{dishIntensityExtra}</span>
-                          )}
-                        </div>
+                      {/* Info */}
+                      <div className={cn(
+                        "p-3 transition-colors",
+                        isSelected ? "bg-primary/5" : "bg-card"
+                      )}>
+                        <h3 className="font-semibold text-foreground text-sm">{label}</h3>
+                        <p className="text-xs text-muted-foreground mt-0.5">{desc}</p>
+                        <p className="text-lg font-bold text-primary mt-1">
+                          ₹{taskPrice(task)}
+                        </p>
                       </div>
-                    </div>
-                  </div>
-                  
-                  {/* Inline intensity radio buttons below dish washing when selected */}
-                  {t === 'dish_washing' && isSelected && (
-                    <div className="mt-3 ml-1 space-y-2">
-                      <p className="text-xs text-muted-foreground mb-2">
-                        How many dishes today? <span className="text-foreground/70">Pick right to avoid disputes.</span>
-                      </p>
-                      <div className="space-y-1.5">
-                        {([
-                          { value: 'light' as DishIntensity, label: 'Light', extra: 0, desc: '5-10 items · daily routine', icon: <UtensilsCrossed className="w-5 h-5" /> },
-                          { value: 'medium' as DishIntensity, label: 'Medium', extra: 30, desc: '10-20 items · extra cooking', icon: <Sparkles className="w-5 h-5" /> },
-                          { value: 'heavy' as DishIntensity, label: 'Heavy', extra: 50, desc: '20+ items · guests / party', icon: <ChefHat className="w-5 h-5" /> },
-                        ]).map((opt) => (
-                          <button
-                            key={opt.value}
-                            type="button"
-                            onClick={() => setDishIntensity(opt.value)}
-                            className={cn(
-                              "w-full flex items-center justify-between px-3 py-2.5 rounded-xl border text-left transition-all",
-                              dishIntensity === opt.value
-                                ? "border-primary bg-primary/10"
-                                : "border-border bg-card hover:border-primary/50"
-                            )}
-                          >
-                            <div className="flex items-center gap-3">
-                              <div className={cn(
-                                "w-8 h-8 rounded-lg flex items-center justify-center shrink-0",
-                                dishIntensity === opt.value
-                                  ? "bg-primary text-primary-foreground"
-                                  : "bg-muted text-muted-foreground"
-                              )}>
-                                {opt.icon}
-                              </div>
-                              <div className={cn(
-                                "w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0",
-                                dishIntensity === opt.value ? "border-primary" : "border-muted-foreground"
-                              )}>
-                                {dishIntensity === opt.value && <div className="w-2 h-2 rounded-full bg-primary" />}
-                              </div>
-                              <div>
-                                <span className="text-sm font-semibold text-foreground">{opt.label}</span>
-                                <span className="text-xs text-muted-foreground ml-1.5">{opt.desc}</span>
-                              </div>
-                            </div>
-                            <span className={cn(
-                              "text-xs font-semibold px-2 py-0.5 rounded-full",
-                              opt.extra > 0 ? "bg-orange-100 text-orange-600" : "bg-muted text-muted-foreground"
-                            )}>
-                              {opt.extra > 0 ? `+₹${opt.extra}` : '₹0'}
-                            </span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+                    </button>
+                  );
+                })}
               </div>
-              
+
+              {/* Dish Intensity — Soft cards with left accent bar */}
+              {selectedTasks.includes('dish_washing') && (
+                <div className="space-y-3">
+                  <div>
+                    <h3 className="text-base font-semibold text-foreground">How many dishes today?</h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">Pick right to avoid disputes</p>
+                  </div>
+
+                  {([
+                    { value: 'light' as DishIntensity, emoji: '🍽️', label: 'Light', extra: 0, desc: '5-10 items · daily routine' },
+                    { value: 'medium' as DishIntensity, emoji: '🍳', label: 'Medium', extra: 30, desc: '10-20 items · extra cooking' },
+                    { value: 'heavy' as DishIntensity, emoji: '🎉', label: 'Heavy', extra: 50, desc: '20+ items · guests / party' },
+                  ]).map((opt) => {
+                    const active = dishIntensity === opt.value;
+                    return (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => setDishIntensity(opt.value)}
+                        className={cn(
+                          "w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-left transition-all duration-200",
+                          active
+                            ? "bg-primary/8 border-l-4 border-l-primary shadow-sm shadow-primary/5"
+                            : "bg-card shadow-sm hover:shadow-md border-l-4 border-l-transparent"
+                        )}
+                        style={active ? { backgroundColor: 'hsl(var(--primary) / 0.06)' } : {}}
+                      >
+                        <span className="text-2xl shrink-0">{opt.emoji}</span>
+                        <div className="flex-1 min-w-0">
+                          <span className={cn(
+                            "text-sm font-semibold",
+                            active ? "text-primary" : "text-foreground"
+                          )}>
+                            {opt.label}
+                          </span>
+                          <p className="text-xs text-muted-foreground mt-0.5">{opt.desc}</p>
+                        </div>
+                        <span className={cn(
+                          "text-sm font-bold shrink-0",
+                          opt.extra > 0
+                            ? active ? "text-primary" : "text-orange-500"
+                            : "text-muted-foreground"
+                        )}>
+                          {opt.extra > 0 ? `+₹${opt.extra}` : '₹0'}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>}
 
           {/* Price Display */}
