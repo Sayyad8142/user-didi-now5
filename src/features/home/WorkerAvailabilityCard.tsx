@@ -1,9 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Users, Activity, CheckCircle2, AlertCircle, Clock } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
-import { useProfile } from '@/contexts/ProfileContext';
 
 interface WorkerCount {
   service: string;
@@ -11,51 +9,25 @@ interface WorkerCount {
   label: string;
 }
 
-export function WorkerAvailabilityCard() {
-  const { profile } = useProfile();
-  const [workerCounts, setWorkerCounts] = useState<WorkerCount[]>([]);
-  const [loading, setLoading] = useState(true);
+interface WorkerAvailabilityCardProps {
+  counts: Record<string, number>;
+  loading: boolean;
+}
 
-  useEffect(() => {
-    loadWorkerCounts();
-  }, [profile?.community]);
+const serviceLabels: Record<string, string> = {
+  maid: 'Maids',
+  cook: 'Cooks',
+  bathroom_cleaning: 'Bathroom Cleaners',
+};
 
-  const loadWorkerCounts = async () => {
-    try {
-      const community = profile?.community;
-      if (!community || community === 'other') {
-        setWorkerCounts([]);
-        setLoading(false);
-        return;
-      }
-
-      const { data, error } = await supabase.rpc('get_online_workers_count', {
-        p_community: community,
-      });
-
-      if (error) throw error;
-
-      const serviceLabels: Record<string, string> = {
-        maid: 'Maids',
-        cook: 'Cooks',
-        bathroom_cleaning: 'Bathroom Cleaners',
-      };
-
-      const result = (data || [])
-        .filter((row: any) => row.online_count > 0)
-        .map((row: any) => ({
-          service: row.service,
-          count: Number(row.online_count),
-          label: serviceLabels[row.service] || row.service,
-        }));
-
-      setWorkerCounts(result);
-    } catch (error) {
-      console.error('Error loading worker counts:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+export function WorkerAvailabilityCard({ counts, loading }: WorkerAvailabilityCardProps) {
+  const workerCounts: WorkerCount[] = Object.entries(counts)
+    .filter(([, count]) => count > 0)
+    .map(([service, count]) => ({
+      service,
+      count,
+      label: serviceLabels[service] || service,
+    }));
 
   const getAvailabilityLevel = (count: number): 'high' | 'medium' | 'low' => {
     if (count >= 5) return 'high';
@@ -104,7 +76,7 @@ export function WorkerAvailabilityCard() {
             </div>
           </div>
           <div className="space-y-4">
-            {[1, 2, 3].map((i) => (
+            {[1, 2].map((i) => (
               <div key={i} className="h-16 bg-muted/20 rounded-2xl animate-pulse" />
             ))}
           </div>
@@ -123,7 +95,6 @@ export function WorkerAvailabilityCard() {
       <div className="absolute bottom-0 left-0 w-32 h-32 bg-accent/5 rounded-full blur-2xl translate-y-1/2 -translate-x-1/2" />
       
       <CardContent className="relative p-6">
-        {/* Header */}
         <div className="flex items-center gap-4 mb-6">
           <div className="relative">
             <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center backdrop-blur-sm">
@@ -140,7 +111,6 @@ export function WorkerAvailabilityCard() {
           </div>
         </div>
 
-        {/* Service Cards */}
         <div className="space-y-3">
           {workerCounts.map(({ service, count, label }) => {
             const level = getAvailabilityLevel(count);
@@ -193,7 +163,6 @@ export function WorkerAvailabilityCard() {
                   </div>
                 </div>
                 
-                {/* Gradient Progress Bar */}
                 <div className="relative h-1.5 w-full bg-muted/50 rounded-full overflow-hidden">
                   <div 
                     className={cn(
@@ -215,7 +184,6 @@ export function WorkerAvailabilityCard() {
           })}
         </div>
 
-        {/* Footer Badge */}
         <div className="mt-5 pt-4 border-t border-border/30">
           <div className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-primary/5 border border-primary/10">
             <div className="w-2 h-2 bg-primary rounded-full animate-pulse" />

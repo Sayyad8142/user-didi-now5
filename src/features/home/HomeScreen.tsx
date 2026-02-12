@@ -12,13 +12,22 @@ import { FeatureCarousel } from './FeatureCarousel';
 import { ActiveBookingCard } from './ActiveBookingCard';
 import { openExternalUrl } from '@/lib/nativeOpen';
 import FaqSection from './FaqSection';
+import { useOnlineWorkerCounts } from '@/hooks/useOnlineWorkerCounts';
+import { toast } from 'sonner';
 
 export function HomeScreen() {
   const navigate = useNavigate();
   const { hasUnseenMessages, markMessagesAsSeen } = useUnseenMessages();
+  const { counts, loading, isServiceAvailable } = useOnlineWorkerCounts();
+
   const handleServiceSelect = (service: 'maid' | 'bathroom_cleaning') => {
+    if (!isServiceAvailable(service)) {
+      toast.error('No workers are available right now for this service. Please try again later.');
+      return;
+    }
     navigate(`/book/${service}`);
   };
+
   return <div className="min-h-screen gradient-bg pb-24">
       <header className="sticky top-0 z-50 bg-slate-50">
         <div className="max-w-md mx-auto px-4 bg-slate-50">
@@ -27,7 +36,11 @@ export function HomeScreen() {
       </header>
       <div className="max-w-md mx-auto px-4 space-y-4 bg-slate-50">
         <HeroCarousel />
-        <ServicesRow onServiceSelect={handleServiceSelect} />
+        <ServicesRow 
+          onServiceSelect={handleServiceSelect} 
+          isServiceAvailable={isServiceAvailable}
+          loading={loading}
+        />
         <ActiveBookingCard />
         
         <ServiceHours />
@@ -51,7 +64,7 @@ export function HomeScreen() {
           </Button>
         </div>
         
-        <WorkerAvailabilityCard />
+        <WorkerAvailabilityCard counts={counts} loading={loading} />
         <FeatureCarousel />
 
         <FaqSection />
