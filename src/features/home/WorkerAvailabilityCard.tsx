@@ -1,6 +1,6 @@
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Users, Activity, CheckCircle2, AlertCircle, Clock } from 'lucide-react';
+import { Users, Activity, CheckCircle2, AlertCircle, Flame } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface WorkerCount {
@@ -29,34 +29,20 @@ export function WorkerAvailabilityCard({ counts, loading }: WorkerAvailabilityCa
       label: serviceLabels[service] || service,
     }));
 
-  const getAvailabilityLevel = (count: number): 'high' | 'medium' | 'low' => {
-    if (count >= 5) return 'high';
-    if (count >= 3) return 'medium';
-    return 'low';
+  const isUrgent = (count: number) => count <= 3;
+
+  const getAvailabilityColor = (count: number) => {
+    return isUrgent(count) ? 'from-[#ff007a] to-rose-500' : 'from-emerald-500 to-green-600';
   };
 
-  const getAvailabilityColor = (level: 'high' | 'medium' | 'low') => {
-    switch (level) {
-      case 'high': return 'from-emerald-500 to-green-600';
-      case 'medium': return 'from-amber-400 to-orange-500';
-      case 'low': return 'from-rose-400 to-red-500';
-    }
+  const getAvailabilityIcon = (count: number) => {
+    return isUrgent(count) ? AlertCircle : CheckCircle2;
   };
 
-  const getAvailabilityIcon = (level: 'high' | 'medium' | 'low') => {
-    switch (level) {
-      case 'high': return CheckCircle2;
-      case 'medium': return Clock;
-      case 'low': return AlertCircle;
-    }
-  };
-
-  const getAvailabilityText = (level: 'high' | 'medium' | 'low') => {
-    switch (level) {
-      case 'high': return 'Available now';
-      case 'medium': return 'Moderate availability';
-      case 'low': return 'Limited availability';
-    }
+  const getAvailabilityText = (count: number) => {
+    return isUrgent(count)
+      ? `Only ${count} Experts Left – Book Now`
+      : `${count} Available Now`;
   };
 
   if (loading) {
@@ -113,10 +99,10 @@ export function WorkerAvailabilityCard({ counts, loading }: WorkerAvailabilityCa
 
         <div className="space-y-3">
           {workerCounts.map(({ service, count, label }) => {
-            const level = getAvailabilityLevel(count);
-            const gradientColor = getAvailabilityColor(level);
-            const statusText = getAvailabilityText(level);
-            const StatusIcon = getAvailabilityIcon(level);
+            const urgent = isUrgent(count);
+            const gradientColor = getAvailabilityColor(count);
+            const statusText = getAvailabilityText(count);
+            const StatusIcon = getAvailabilityIcon(count);
             const percentage = Math.min(100, (count / 100) * 100);
 
             return (
@@ -128,34 +114,27 @@ export function WorkerAvailabilityCard({ counts, loading }: WorkerAvailabilityCa
                   <div className="flex items-center gap-3">
                     <div className={cn(
                       "w-8 h-8 rounded-xl flex items-center justify-center",
-                      level === 'high' ? 'bg-green-500/10' : 
-                      level === 'medium' ? 'bg-amber-500/10' : 
-                      'bg-rose-500/10'
+                      urgent ? 'bg-[#ff007a]/10' : 'bg-green-500/10'
                     )}>
-                      <StatusIcon className={cn(
-                        "w-4 h-4",
-                        level === 'high' ? 'text-green-600' : 
-                        level === 'medium' ? 'text-amber-600' : 
-                        'text-rose-600'
-                      )} />
+                      {urgent ? (
+                        <Flame className="w-4 h-4 text-[#ff007a]" />
+                      ) : (
+                        <StatusIcon className="w-4 h-4 text-green-600" />
+                      )}
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
                         <span className="font-semibold text-foreground text-base">{label}</span>
                         <div className={cn(
-                          "px-2.5 py-0.5 rounded-full text-xs font-bold shadow-sm",
-                          level === 'high' ? 'bg-green-500 text-white' : 
-                          level === 'medium' ? 'bg-amber-500 text-white' : 
-                          'bg-rose-500 text-white'
+                          "px-2.5 py-0.5 rounded-full text-xs font-bold shadow-sm text-white",
+                          urgent ? 'bg-[#ff007a] animate-pulse' : 'bg-green-500'
                         )}>
                           {count}
                         </div>
                       </div>
                       <p className={cn(
-                        "text-xs font-medium mt-0.5",
-                        level === 'high' ? 'text-green-600' : 
-                        level === 'medium' ? 'text-amber-600' : 
-                        'text-rose-600'
+                        "text-xs font-semibold mt-0.5",
+                        urgent ? 'text-[#ff007a]' : 'text-green-600'
                       )}>
                         {statusText}
                       </p>
