@@ -597,7 +597,7 @@ export function BookingForm() {
               <h2 className="text-lg font-semibold text-foreground mb-4">
                 Selected services <span className="text-destructive">*</span>
               </h2>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
                 {(["floor_cleaning", "dish_washing"] as MaidTask[]).map(t => {
               const isSelected = selectedTasks.includes(t);
               const toggleTask = () => {
