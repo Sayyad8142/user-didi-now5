@@ -2,7 +2,7 @@ import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './AuthProvider';
 import { CleaningPulse } from '@/components/ui/cleaning-loader';
-import ConsentGate from '@/features/auth/ConsentGate';
+
 import { isDemoMode } from '@/lib/demo';
 
 interface ProtectedRouteProps {
@@ -34,5 +34,5 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     return <Navigate to="/auth" state={{ from: location }} replace />;
   }
 
-  return <ConsentGate>{children}</ConsentGate>;
+  return <>{children}</>;
 }
