@@ -97,8 +97,29 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
         return data;
       }
 
-      // No profile found - create one
-      console.log('📝 No profile found, creating new profile for:', user.id);
+      // No profile found - retry a few times before creating
+      // This handles the race condition during signup where the profile
+      // is being created by VerifyOTP concurrently
+      console.log('📝 No profile found for:', user.id, '- retrying...');
+      
+      for (let attempt = 0; attempt < 5; attempt++) {
+        await new Promise(r => setTimeout(r, 600));
+        const { data: retryData } = await supabase
+          .from("profiles")
+          .select("id, full_name, phone, community, flat_no, building_id, community_id, flat_id")
+          .eq("firebase_uid", user.id)
+          .maybeSingle();
+        
+        if (retryData) {
+          console.log('✅ Profile found on retry:', retryData.id, retryData.full_name);
+          setProfile(retryData);
+          setLoading(false);
+          return retryData;
+        }
+      }
+
+      // After retries, create a basic profile as last resort
+      console.log('📝 Creating fallback profile for:', user.id);
       const phone = normalizePhone(user.phone ?? "");
       
       const { data: created, error: createErr } = await supabase
@@ -114,6 +135,19 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
         .single();
 
       if (createErr) {
+        // Could be a unique constraint violation if profile was created concurrently
+        if (createErr.code === '23505') {
+          const { data: finalData } = await supabase
+            .from("profiles")
+            .select("id, full_name, phone, community, flat_no, building_id, community_id, flat_id")
+            .eq("firebase_uid", user.id)
+            .maybeSingle();
+          if (finalData) {
+            setProfile(finalData);
+            setLoading(false);
+            return finalData;
+          }
+        }
         console.error('❌ Profile create error:', createErr);
         setError(createErr.message || "Failed to create profile");
         setProfile(null);
