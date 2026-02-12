@@ -24,7 +24,7 @@ export function WorkerAvailabilityCard() {
     try {
       let query = supabase
         .from('workers')
-        .select('service_types, is_active, is_available, is_busy')
+        .select('service_types')
         .eq('is_active', true)
         .eq('is_available', true)
         .or('is_busy.is.null,is_busy.eq.false');
