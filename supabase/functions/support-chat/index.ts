@@ -254,6 +254,55 @@ serve(async (req) => {
       if (threadErr) console.log("⚠️ support_threads update error:", threadErr);
       else console.log("✅ Thread updated");
 
+      // --- Send admin push notification ---
+      try {
+        const { data: profileData } = await supabaseAdmin
+          .from("profiles")
+          .select("full_name, phone")
+          .eq("id", profileId!)
+          .maybeSingle();
+
+        const userName = profileData?.full_name || profileData?.phone || "User";
+        const truncMsg = message.length > 80 ? message.substring(0, 80) + "…" : message;
+
+        const SUPABASE_URL_VAL = Deno.env.get("SUPABASE_URL")!;
+        const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+        // Fire admin FCM push
+        fetch(`${SUPABASE_URL_VAL}/functions/v1/send-admin-fcm`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+          },
+          body: JSON.stringify({
+            title: `💬 ${userName}`,
+            body: truncMsg,
+            notification_type: "support_chat",
+            data: { thread_id: threadId, user_name: userName },
+          }),
+        }).catch((e) => console.log("⚠️ Admin FCM fire-and-forget error:", e));
+
+        // Fire Telegram notification
+        const TELEGRAM_BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN");
+        const TELEGRAM_CHAT_ID = Deno.env.get("TELEGRAM_CHAT_ID");
+
+        if (TELEGRAM_BOT_TOKEN && TELEGRAM_CHAT_ID) {
+          const tgMessage = `💬 Support Chat\nFrom: ${userName}\nMessage: ${truncMsg}`;
+          fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text: tgMessage }),
+          }).catch((e) => console.log("⚠️ Telegram fire-and-forget error:", e));
+        } else {
+          console.log("⚠️ Telegram credentials not configured, skipping");
+        }
+
+        console.log("✅ Admin notifications triggered");
+      } catch (notifErr) {
+        console.log("⚠️ Non-critical notification error:", notifErr);
+      }
+
       return jsonResponse({ message: inserted });
     }
 
