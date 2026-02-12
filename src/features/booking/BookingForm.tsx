@@ -63,8 +63,8 @@ export function BookingForm() {
   const [submitting, setSubmitting] = useState(false);
 
   // Check instant booking availability (must be before any early returns)
-  const { isAvailable: instantAvailable, isError: instantError } = useInstantBookingAvailability(service_type || '');
-  const instantDisabled = !instantAvailable || instantError;
+  const { isAvailable: instantAvailable, isError: instantError, isLoading: instantLoading } = useInstantBookingAvailability(service_type || '');
+  const instantDisabled = !instantLoading && (!instantAvailable || instantError);
 
 
   // Maid service specific state
