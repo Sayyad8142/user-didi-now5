@@ -3,6 +3,9 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, MapPin, Home, Clock, Calendar, AlertCircle, Check } from 'lucide-react';
 import serviceFloorImg from '@/assets/service-floor-cleaning.webp';
 import serviceDishImg from '@/assets/service-dish-washing.webp';
+import dishesLightImg from '@/assets/dishes-light.webp';
+import dishesMediumImg from '@/assets/dishes-medium.webp';
+import dishesHeavyImg from '@/assets/dishes-heavy.webp';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -665,46 +668,51 @@ export function BookingForm() {
                     <p className="text-xs text-muted-foreground mt-0.5">Pick right to avoid disputes</p>
                   </div>
 
-                  {([
-                    { value: 'light' as DishIntensity, emoji: '🍽️', label: 'Light', extra: 0, desc: '5-10 items · daily routine' },
-                    { value: 'medium' as DishIntensity, emoji: '🍳', label: 'Medium', extra: 30, desc: '10-20 items · extra cooking' },
-                    { value: 'heavy' as DishIntensity, emoji: '🎉', label: 'Heavy', extra: 50, desc: '20+ items · guests / party' },
-                  ]).map((opt) => {
-                    const active = dishIntensity === opt.value;
-                    return (
-                      <button
-                        key={opt.value}
-                        type="button"
-                        onClick={() => setDishIntensity(opt.value)}
-                        className={cn(
-                          "w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-left transition-all duration-200",
-                          active
-                            ? "bg-primary/8 border-l-4 border-l-primary shadow-sm shadow-primary/5"
-                            : "bg-card shadow-sm hover:shadow-md border-l-4 border-l-transparent"
-                        )}
-                        style={active ? { backgroundColor: 'hsl(var(--primary) / 0.06)' } : {}}
-                      >
-                        <span className="text-2xl shrink-0">{opt.emoji}</span>
-                        <div className="flex-1 min-w-0">
-                          <span className={cn(
-                            "text-sm font-semibold",
-                            active ? "text-primary" : "text-foreground"
+                  <div className="grid grid-cols-3 gap-2">
+                    {([
+                      { value: 'light' as DishIntensity, label: 'Light', extra: 0, desc: '5-10 items', img: dishesLightImg },
+                      { value: 'medium' as DishIntensity, label: 'Medium', extra: 30, desc: '10-20 items', img: dishesMediumImg },
+                      { value: 'heavy' as DishIntensity, label: 'Heavy', extra: 50, desc: '20+ items', img: dishesHeavyImg },
+                    ]).map((opt) => {
+                      const active = dishIntensity === opt.value;
+                      return (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          onClick={() => setDishIntensity(opt.value)}
+                          className={cn(
+                            "relative rounded-2xl overflow-hidden text-left transition-all duration-200",
+                            active
+                              ? "ring-2 ring-primary shadow-md shadow-primary/10"
+                              : "ring-1 ring-border shadow-sm hover:shadow-md"
+                          )}
+                        >
+                          <div className="relative h-20 overflow-hidden">
+                            <img src={opt.img} alt={opt.label} className="w-full h-full object-cover" />
+                            {active && (
+                              <div className="absolute inset-0 bg-primary/20" />
+                            )}
+                          </div>
+                          <div className={cn(
+                            "p-2 text-center transition-colors",
+                            active ? "bg-primary/5" : "bg-card"
                           )}>
-                            {opt.label}
-                          </span>
-                          <p className="text-xs text-muted-foreground mt-0.5">{opt.desc}</p>
-                        </div>
-                        <span className={cn(
-                          "text-sm font-bold shrink-0",
-                          opt.extra > 0
-                            ? active ? "text-primary" : "text-orange-500"
-                            : "text-muted-foreground"
-                        )}>
-                          {opt.extra > 0 ? `+₹${opt.extra}` : '₹0'}
-                        </span>
-                      </button>
-                    );
-                  })}
+                            <p className={cn(
+                              "text-xs font-bold",
+                              active ? "text-primary" : "text-foreground"
+                            )}>{opt.label}</p>
+                            <p className="text-[10px] text-muted-foreground">{opt.desc}</p>
+                            <p className={cn(
+                              "text-xs font-bold mt-0.5",
+                              opt.extra > 0 ? "text-orange-500" : "text-muted-foreground"
+                            )}>
+                              {opt.extra > 0 ? `+₹${opt.extra}` : '₹0'}
+                            </p>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
             </div>}
