@@ -59,6 +59,10 @@ export function BookingForm() {
   const [scheduleSheetOpen, setScheduleSheetOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
+  // Check instant booking availability (must be before any early returns)
+  const { isAvailable: instantAvailable, isError: instantError } = useInstantBookingAvailability(service_type || '');
+  const instantDisabled = !instantAvailable || instantError;
+
 
   // Maid service specific state
   const [selectedTasks, setSelectedTasks] = useState<MaidTask[]>(["floor_cleaning", "dish_washing"]); // Multiple task selection with checkboxes
@@ -381,9 +385,8 @@ export function BookingForm() {
     : selectedFlatSize ? pricingMap[selectedFlatSize] : null;
   const isServiceOpen = isOpenNow(service_type);
   
-  // Check instant booking availability
-  const { isAvailable: instantAvailable, isError: instantError } = useInstantBookingAvailability(service_type);
-  const instantDisabled = !instantAvailable || instantError;
+  
+
   
   const canBook = isServiceOpen && !instantDisabled && (
     service_type === 'maid' ? selectedFlatSize && selectedTasks.length > 0 && (!selectedTasks.includes('dish_washing') || dishIntensity) && !submitting 
