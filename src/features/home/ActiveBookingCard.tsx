@@ -486,7 +486,11 @@ const ActiveBookingCard = memo(() => {
       {activeBooking.status === "cancelled" && (
         <div className="space-y-3 mb-3">
           <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-            {activeBooking.cancel_source === "admin" ? (
+            {activeBooking.cancel_source === "user" ? (
+              <p className="text-red-800 font-medium text-sm">
+                Booking cancelled by you. You can book again anytime.
+              </p>
+            ) : activeBooking.cancel_source === "admin" ? (
               <p className="text-red-800 font-medium text-sm">
                 Booking cancelled by admin - we are unable to provide helper this time. Please try again next time.
               </p>
