@@ -48,7 +48,7 @@ export function WorkerAvailabilityCard() {
       const serviceLabels: Record<string, string> = {
         maid: 'Maids',
         cook: 'Cooks',
-        bathroom_cleaning: 'Cleaners'
+        bathroom_cleaning: 'Bathroom Cleaners'
       };
 
       const result = Array.from(counts.entries()).map(([service, count]) => ({
