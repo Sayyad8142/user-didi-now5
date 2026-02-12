@@ -7,7 +7,8 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { prettyServiceName } from '@/features/booking/utils';
 import { formatDateTime } from '@/features/bookings/dt';
 import { format } from 'date-fns';
-import { PhoneCall, Sparkles, ChefHat, ShowerHead, Clock, User, MapPin, Timer, CreditCard, Star, MessageCircle } from 'lucide-react';
+import { PhoneCall, Sparkles, ChefHat, ShowerHead, Clock, User, MapPin, Timer, CreditCard, Star, MessageCircle, RefreshCw } from 'lucide-react';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { supabase } from '@/integrations/supabase/client';
 import AssigningProgress from '@/features/bookings/AssigningProgress';
 import AutoCompleteCountdown from '@/components/AutoCompleteCountdown';
@@ -78,6 +79,9 @@ export function BookingCard({
   const [openChat, setOpenChat] = useState(false);
   const [showWorkerRatings, setShowWorkerRatings] = useState(false);
   const [showPaySheet, setShowPaySheet] = useState(false);
+  const [showChangeWorkerSheet, setShowChangeWorkerSheet] = useState(false);
+  const [changeWorkerLoading, setChangeWorkerLoading] = useState(false);
+  const [assignmentCount, setAssignmentCount] = useState(0);
   const [workerPaymentInfo, setWorkerPaymentInfo] = useState<{
     upi_id: string | null;
     upi_qr_payload: string | null;
@@ -180,6 +184,65 @@ export function BookingCard({
     };
   }, [booking.id]);
   
+  // Track assignment count (to limit worker change to 1)
+  useEffect(() => {
+    supabase
+      .from('assignments')
+      .select('id', { count: 'exact', head: true })
+      .eq('booking_id', booking.id)
+      .then(({ count }) => {
+        setAssignmentCount(count ?? 0);
+      });
+  }, [booking.id, row.worker_id]);
+
+  const workerChangeUsed = assignmentCount >= 2;
+
+  const handleChangeWorker = async () => {
+    setChangeWorkerLoading(true);
+    try {
+      // 1. Cancel current assignment
+      const { error: cancelErr } = await supabase
+        .from('assignments')
+        .update({ status: 'cancelled' })
+        .eq('booking_id', row.id)
+        .eq('status', 'assigned');
+      if (cancelErr) throw cancelErr;
+
+      // 2. Reset booking worker fields & set back to pending
+      const { error: bookingErr } = await supabase
+        .from('bookings')
+        .update({
+          status: 'pending',
+          worker_id: null,
+          worker_name: null,
+          worker_phone: null,
+          worker_photo_url: null,
+          worker_upi: null,
+          assigned_at: null,
+        })
+        .eq('id', row.id);
+      if (bookingErr) throw bookingErr;
+
+      // 3. Re-trigger dispatch
+      const { error: dispatchErr } = await supabase.functions.invoke('scheduled-dispatch', {
+        body: { booking_id: row.id },
+      });
+      if (dispatchErr) throw dispatchErr;
+
+      toast.success('Looking for another worker…');
+      setShowChangeWorkerSheet(false);
+    } catch (err: any) {
+      console.error('Change worker error:', err);
+      if (err?.message?.includes('No') || err?.message?.includes('no')) {
+        toast.error('No alternate worker available right now.');
+      } else {
+        toast.error('Could not change worker. Try again.');
+      }
+    } finally {
+      setChangeWorkerLoading(false);
+    }
+  };
+
   const title = prettyServiceName(booking.service_type);
   
   const getStatusBadge = (status: string) => {
@@ -363,7 +426,20 @@ export function BookingCard({
           </div>
         )}
 
-        {/* Time info and auto-complete countdown */}
+        {/* Request different worker */}
+        {(assignedWorker?.worker || row.worker_name) && ['assigned', 'accepted', 'on_the_way'].includes(row.status) && !workerChangeUsed && (
+          <div className="text-center -mt-1">
+            <button
+              onClick={() => setShowChangeWorkerSheet(true)}
+              className="inline-flex items-center gap-1 text-xs text-[#ff007a] hover:text-[#e6006a] transition-colors"
+            >
+              <RefreshCw className="w-3 h-3" />
+              Request different worker
+            </button>
+            <p className="text-[10px] text-muted-foreground mt-0.5">You can change once if needed.</p>
+          </div>
+        )}
+
         {row.status === 'assigned' && (
           <div className="flex items-center gap-2 p-2 bg-emerald-50 rounded-lg border border-emerald-100">
             <Timer className="h-4 w-4 text-emerald-600" />
@@ -543,6 +619,35 @@ export function BookingCard({
           onDismiss={clearIncomingCall}
         />
       )}
+
+      {/* Change Worker Confirmation Sheet */}
+      <Sheet open={showChangeWorkerSheet} onOpenChange={setShowChangeWorkerSheet}>
+        <SheetContent side="bottom" className="rounded-t-2xl px-6 pb-8">
+          <SheetHeader className="text-left">
+            <SheetTitle>Change Worker?</SheetTitle>
+            <SheetDescription>
+              We'll try to assign another available worker. Current worker will be notified.
+            </SheetDescription>
+          </SheetHeader>
+          <div className="flex gap-3 mt-6">
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={() => setShowChangeWorkerSheet(false)}
+              disabled={changeWorkerLoading}
+            >
+              Cancel
+            </Button>
+            <Button
+              className="flex-1 bg-[#ff007a] hover:bg-[#e6006a] text-white"
+              onClick={handleChangeWorker}
+              disabled={changeWorkerLoading}
+            >
+              {changeWorkerLoading ? 'Reassigning…' : 'Confirm'}
+            </Button>
+          </div>
+        </SheetContent>
+      </Sheet>
     </Card>
   );
 }
