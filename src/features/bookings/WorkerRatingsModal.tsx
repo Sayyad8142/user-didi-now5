@@ -11,6 +11,11 @@ interface WorkerRating {
   comment?: string;
   created_at: string;
   user_id: string;
+  profiles?: {
+    full_name: string;
+    flat_no: string;
+    community: string;
+  } | null;
 }
 
 interface WorkerRatingsModalProps {
@@ -39,7 +44,24 @@ export function WorkerRatingsModal({ open, onOpenChange, workerId, workerName }:
           .order('created_at', { ascending: false });
 
         if (ratingsError) throw ratingsError;
-        setRatings(ratingsData || []);
+
+        // Fetch profile info for each user
+        const userIds = [...new Set((ratingsData || []).map(r => r.user_id))];
+        let profilesMap: Record<string, { full_name: string; flat_no: string; community: string }> = {};
+        if (userIds.length > 0) {
+          const { data: profilesData } = await supabase
+            .from('profiles')
+            .select('id, full_name, flat_no, community')
+            .in('id', userIds);
+          if (profilesData) {
+            profilesMap = Object.fromEntries(profilesData.map(p => [p.id, p]));
+          }
+        }
+
+        setRatings((ratingsData || []).map(r => ({
+          ...r,
+          profiles: profilesMap[r.user_id] || null,
+        })));
 
         // Fetch aggregate stats
         const { data: statsData, error: statsError } = await supabase
@@ -114,14 +136,19 @@ export function WorkerRatingsModal({ open, onOpenChange, workerId, workerName }:
             <div className="space-y-3">
               {ratings.map((rating) => (
                 <div key={rating.id} className="bg-gray-50 rounded-lg p-3">
-                  <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center justify-between mb-1">
                     {renderStars(rating.rating)}
                     <span className="text-xs text-gray-500">
                       {format(new Date(rating.created_at), 'MMM d, yyyy')}
                     </span>
                   </div>
+                  {rating.profiles && (
+                    <p className="text-xs text-muted-foreground mb-1">
+                      {rating.profiles.full_name} • {rating.profiles.flat_no} • {rating.profiles.community}
+                    </p>
+                  )}
                   {rating.comment && (
-                    <p className="text-sm text-gray-700 mt-2">{rating.comment}</p>
+                    <p className="text-sm text-gray-700 mt-1">{rating.comment}</p>
                   )}
                 </div>
               ))}
