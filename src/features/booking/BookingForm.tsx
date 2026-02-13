@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, MapPin, Home, Clock, Calendar, AlertCircle, Check } from 'lucide-react';
+import { ArrowLeft, MapPin, Home, Clock, Calendar, AlertCircle, Check, Zap, ChevronRight } from 'lucide-react';
 import serviceFloorImg from '@/assets/service-floor-cleaning.webp';
 import serviceDishImg from '@/assets/service-dish-washing.webp';
 import dishesLightImg from '@/assets/dishes-light.webp';
@@ -747,117 +747,104 @@ export function BookingForm() {
             <PriceNote className="pb-2" />
           </div>}
 
-          {/* Action Buttons */}
-          <div className="space-y-6 mt-8">
-            {/* Instant Service Button */}
-            <div className="relative">
-              <Button 
-                onClick={handleBookNow} 
-                disabled={!canBook} 
+          {/* Choose Booking Type */}
+          <div className="mt-8 space-y-3">
+            <h3 className="text-sm font-semibold text-muted-foreground tracking-wide uppercase">Choose Booking Type</h3>
+            <div className="grid grid-cols-2 gap-3">
+              {/* Instant Card */}
+              <button
+                onClick={handleBookNow}
+                disabled={!canBook}
                 className={cn(
-                  "w-full h-16 rounded-2xl font-bold text-lg border-0 shadow-lg transition-all duration-300 disabled:transform-none disabled:shadow-md",
+                  "relative flex flex-col items-start gap-3 p-4 rounded-2xl border-2 shadow-sm transition-all duration-200 text-left",
+                  "hover:shadow-md active:scale-[0.98]",
+                  "disabled:opacity-50 disabled:pointer-events-none",
                   (!isServiceOpen || instantDisabled)
-                    ? "bg-muted text-muted-foreground cursor-not-allowed" 
-                    : "bg-gradient-to-r from-pink-600 to-pink-500 hover:from-pink-700 hover:to-pink-600 text-white hover:shadow-xl transform hover:scale-[1.02]"
+                    ? "border-border bg-muted/40 opacity-60 pointer-events-none"
+                    : "border-border bg-card hover:border-primary/40"
                 )}
               >
-              {submitting ? (
-                  <div className="flex items-center gap-3">
-                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    <span className="text-lg">Processing...</span>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-3">
-                    <Clock className="w-5 h-5" />
-                    <span>Book Now - Instant Service</span>
+                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                  <Zap className="w-5 h-5 text-primary" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-bold text-foreground text-base">Instant</div>
+                  <div className="text-xs text-muted-foreground mt-0.5">Get help in 10 mins</div>
+                </div>
+                <ChevronRight className="w-4 h-4 text-muted-foreground absolute top-4 right-4" />
+                {submitting && (
+                  <div className="absolute inset-0 bg-card/80 rounded-2xl flex items-center justify-center">
+                    <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
                   </div>
                 )}
-              </Button>
+              </button>
 
-              {/* Instant booking disabled message - only when service is open */}
-              {isServiceOpen && instantDisabled && (
-                <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-xl">
-                  <div className="flex items-start gap-2">
-                    <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
-                    <p className="text-sm text-amber-800">
-                      {instantError 
-                        ? "Service temporarily unavailable. Please try again shortly."
-                        : "All workers are busy in ongoing bookings. We'll be back shortly. You can also schedule the service for later."}
-                    </p>
-                  </div>
+              {/* Schedule Card */}
+              <button
+                onClick={() => {
+                  if (service_type === 'maid') {
+                    if (!selectedFlatSize || selectedTasks.length === 0) {
+                      toast({
+                        title: "Please complete maid booking details",
+                        description: "Select flat size and at least one task before scheduling.",
+                        variant: "destructive"
+                      });
+                      return;
+                    }
+                    if (selectedTasks.includes('dish_washing') && !dishIntensity) {
+                      toast({
+                        title: "Select dish washing workload",
+                        description: "Please choose Light, Medium, or Heavy for dish washing.",
+                        variant: "destructive"
+                      });
+                      return;
+                    }
+                    const price = totalPrice;
+                    const dishParams = selectedTasks.includes('dish_washing')
+                      ? `&dish_intensity=${dishIntensity}&dish_extra=${dishIntensityExtra}`
+                      : '';
+                    navigate(`/book/${service_type}/schedule?flat=${selectedFlatSize}&tasks=${selectedTasks.join(',')}&price=${price}${dishParams}`);
+                  } else if (service_type === 'bathroom_cleaning') {
+                    const price = bathroomTotalPrice;
+                    navigate(`/book/${service_type}/schedule?bathrooms=${bathroomCount}&glass=${hasGlassPartition ? '1' : '0'}&price=${price}`);
+                  } else {
+                    if (!selectedFlatSize) {
+                      toast({
+                        title: "Please select flat size first",
+                        description: "Choose a flat size before scheduling.",
+                        variant: "destructive"
+                      });
+                      return;
+                    }
+                    const price = pricingMap[selectedFlatSize];
+                    navigate(`/book/${service_type}/schedule?flat=${selectedFlatSize}&price=${price}`);
+                  }
+                }}
+                disabled={service_type === 'maid' ? !selectedFlatSize || selectedTasks.length === 0 || (selectedTasks.includes('dish_washing') && !dishIntensity) : service_type === 'bathroom_cleaning' ? false : !selectedFlatSize}
+                className={cn(
+                  "relative flex flex-col items-start gap-3 p-4 rounded-2xl border-2 shadow-sm transition-all duration-200 text-left",
+                  "hover:shadow-md active:scale-[0.98]",
+                  "disabled:opacity-50 disabled:pointer-events-none",
+                  "border-border bg-card hover:border-primary/40"
+                )}
+              >
+                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                  <Calendar className="w-5 h-5 text-primary" />
                 </div>
-              )}
-              {!canBook && !instantDisabled && (
-                <div className="absolute inset-0 bg-black/5 rounded-2xl pointer-events-none" />
-              )}
+                <div className="flex-1 min-w-0">
+                  <div className="font-bold text-foreground text-base">Schedule</div>
+                  <div className="text-xs text-muted-foreground mt-0.5">Pick your time</div>
+                </div>
+                <ChevronRight className="w-4 h-4 text-muted-foreground absolute top-4 right-4" />
+              </button>
             </div>
 
-            {/* Schedule Later Card */}
-            <Card className="bg-gradient-to-br from-slate-50 to-white border-2 border-slate-200/60 rounded-3xl shadow-sm hover:shadow-md transition-all duration-300">
-              <CardContent className="p-8">
-                <div className="flex items-center justify-between mb-6">
-                  <div>
-                    <h3 className="text-xl font-bold text-slate-800 mb-1">
-                      Schedule Later
-                    </h3>
-                    <p className="text-slate-600 text-sm">
-                      Choose your preferred time slot
-                    </p>
-                  </div>
-                  <div className="bg-pink-100 p-3 rounded-full">
-                    <Calendar className="w-6 h-6 text-pink-600" />
-                  </div>
-                </div>
-                
-                <Button 
-                  onClick={() => {
-                    if (service_type === 'maid') {
-                      if (!selectedFlatSize || selectedTasks.length === 0) {
-                        toast({
-                          title: "Please complete maid booking details",
-                          description: "Select flat size and at least one task before scheduling.",
-                          variant: "destructive"
-                        });
-                        return;
-                      }
-                      // Validate dish intensity selection if dish washing is selected
-                      if (selectedTasks.includes('dish_washing') && !dishIntensity) {
-                        toast({
-                          title: "Select dish washing workload",
-                          description: "Please choose Light, Medium, or Heavy for dish washing.",
-                          variant: "destructive"
-                        });
-                        return;
-                      }
-                      const price = totalPrice;
-                      const dishParams = selectedTasks.includes('dish_washing') 
-                        ? `&dish_intensity=${dishIntensity}&dish_extra=${dishIntensityExtra}` 
-                        : '';
-                      navigate(`/book/${service_type}/schedule?flat=${selectedFlatSize}&tasks=${selectedTasks.join(',')}&price=${price}${dishParams}`);
-                    } else if (service_type === 'bathroom_cleaning') {
-                      const price = bathroomTotalPrice;
-                      navigate(`/book/${service_type}/schedule?bathrooms=${bathroomCount}&glass=${hasGlassPartition ? '1' : '0'}&price=${price}`);
-                    } else {
-                      if (!selectedFlatSize) {
-                        toast({
-                          title: "Please select flat size first",
-                          description: "Choose a flat size before scheduling.",
-                          variant: "destructive"
-                        });
-                        return;
-                      }
-                      const price = pricingMap[selectedFlatSize];
-                      navigate(`/book/${service_type}/schedule?flat=${selectedFlatSize}&price=${price}`);
-                    }
-                  }} 
-                  disabled={service_type === 'maid' ? !selectedFlatSize || selectedTasks.length === 0 || (selectedTasks.includes('dish_washing') && !dishIntensity) : service_type === 'bathroom_cleaning' ? false : !selectedFlatSize} 
-                  className="w-full h-14 rounded-2xl font-semibold text-lg bg-white hover:bg-slate-50 text-slate-800 border-2 border-slate-300 hover:border-pink-400 shadow-sm hover:shadow-md transition-all duration-300 disabled:bg-slate-100 disabled:text-slate-500 disabled:border-slate-200"
-                >
-                  <span>Schedule Booking</span>
-                  <ArrowLeft className="w-5 h-5 ml-3 rotate-180" />
-                </Button>
-              </CardContent>
-            </Card>
+            {/* Instant unavailable hint */}
+            {isServiceOpen && instantDisabled && (
+              <p className="text-xs text-muted-foreground text-center mt-1">
+                Instant unavailable right now — try scheduling instead
+              </p>
+            )}
           </div>
         </div>
 
