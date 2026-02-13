@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, User, Calendar, Phone, Home, History, Search } from 'lucide-react';
+import { ArrowLeft, User, Calendar, Phone, Home, History, Search, Lock, Unlock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -10,6 +10,7 @@ import { AdminBottomNav } from '@/components/AdminBottomNav';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
 
 interface UserProfile {
   id: string;
@@ -18,6 +19,7 @@ interface UserProfile {
   community: string;
   flat_no: string;
   created_at: string;
+  is_flat_locked?: boolean;
   booking_count?: number;
   bookings?: UserBooking[];
 }
@@ -40,7 +42,7 @@ export default function AdminUsers() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
   const [showHistory, setShowHistory] = useState(false);
-
+  const { toast } = useToast();
   const loadUsers = async () => {
     try {
       setLoading(true);
@@ -154,6 +156,35 @@ export default function AdminUsers() {
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">Flat Number:</span>
                   <span className="text-sm font-medium">{selectedUser.flat_no || 'Not provided'}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Flat Locked:</span>
+                  <div className="flex items-center gap-2">
+                    <Badge variant={selectedUser.is_flat_locked ? "default" : "secondary"} className="text-xs">
+                      {selectedUser.is_flat_locked ? <><Lock className="w-3 h-3 mr-1" /> Locked</> : <><Unlock className="w-3 h-3 mr-1" /> Unlocked</>}
+                    </Badge>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-xs"
+                      onClick={async () => {
+                        const newVal = !selectedUser.is_flat_locked;
+                        const { error } = await supabase
+                          .from('profiles')
+                          .update({ is_flat_locked: newVal })
+                          .eq('id', selectedUser.id);
+                        if (error) {
+                          toast({ title: 'Error', description: error.message, variant: 'destructive' });
+                          return;
+                        }
+                        setSelectedUser(prev => prev ? { ...prev, is_flat_locked: newVal } : null);
+                        setUsers(prev => prev.map(u => u.id === selectedUser.id ? { ...u, is_flat_locked: newVal } : u));
+                        toast({ title: newVal ? 'Flat locked' : 'Flat unlocked', description: `Flat lock ${newVal ? 'enabled' : 'disabled'} for ${selectedUser.full_name}` });
+                      }}
+                    >
+                      {selectedUser.is_flat_locked ? 'Unlock' : 'Lock'}
+                    </Button>
+                  </div>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">Total Bookings:</span>
