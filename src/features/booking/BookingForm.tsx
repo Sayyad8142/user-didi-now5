@@ -840,6 +840,11 @@ export function BookingForm() {
             </div>
 
             {/* Instant unavailable hint */}
+            {!isServiceOpen && (
+              <p className="text-xs text-muted-foreground text-center mt-1">
+                We'll be back at 7:00 AM
+              </p>
+            )}
             {isServiceOpen && instantDisabled && (
               <p className="text-xs text-muted-foreground text-center mt-1">
                 Instant unavailable right now — try scheduling instead
