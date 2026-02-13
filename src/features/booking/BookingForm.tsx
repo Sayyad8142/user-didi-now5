@@ -761,10 +761,15 @@ export function BookingForm() {
                     : "bg-gradient-to-r from-pink-600 to-pink-500 hover:from-pink-700 hover:to-pink-600 text-white hover:shadow-xl transform hover:scale-[1.02]"
                 )}
               >
-                {submitting ? (
+              {submitting ? (
                   <div className="flex items-center gap-3">
                     <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                     <span className="text-lg">Processing...</span>
+                  </div>
+                ) : !isServiceOpen ? (
+                  <div className="flex items-center gap-3">
+                    <Clock className="w-5 h-5" />
+                    <span>Service Closed</span>
                   </div>
                 ) : instantDisabled ? (
                   <div className="flex items-center gap-3">
@@ -774,13 +779,25 @@ export function BookingForm() {
                 ) : (
                   <div className="flex items-center gap-3">
                     <Clock className="w-5 h-5" />
-                    <span>{isServiceOpen ? "Book Now - Instant Service" : "Service Closed"}</span>
+                    <span>Book Now - Instant Service</span>
                   </div>
                 )}
               </Button>
               
-              {/* Instant booking disabled message */}
-              {instantDisabled && (
+              {/* Service closed message - takes priority */}
+              {!isServiceOpen && (
+                <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-xl">
+                  <div className="flex items-start gap-2">
+                    <Clock className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
+                    <p className="text-sm text-amber-800">
+                      Service is closed now. We'll be back at 7:00 AM. You can schedule a booking for later.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Instant booking disabled message - only when service is open */}
+              {isServiceOpen && instantDisabled && (
                 <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-xl">
                   <div className="flex items-start gap-2">
                     <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
@@ -790,12 +807,6 @@ export function BookingForm() {
                         : "All workers are busy in ongoing bookings. We'll be back shortly. You can also schedule the service for later."}
                     </p>
                   </div>
-                </div>
-              )}
-              
-              {!isServiceOpen && !instantDisabled && (
-                <div className="mt-2 text-center text-sm text-muted-foreground">
-                  Service hours: {getServiceHoursText(service_type).replace(' Daily', '')}. {getOpenStatusText(service_type)}
                 </div>
               )}
               {!canBook && !instantDisabled && (
