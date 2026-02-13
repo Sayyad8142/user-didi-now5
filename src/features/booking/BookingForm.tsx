@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, MapPin, Home, Clock, Calendar, AlertCircle, Check, Zap, ChevronRight } from 'lucide-react';
 import serviceFloorImg from '@/assets/service-floor-cleaning.webp';
@@ -74,6 +74,7 @@ export function BookingForm() {
   // Bathroom cleaning specific state
   const [bathroomCount, setBathroomCount] = useState(1);
   const [hasGlassPartition, setHasGlassPartition] = useState(false);
+  const servicesRef = useRef<HTMLDivElement>(null);
   const GLASS_PARTITION_FEE = 30; // ₹30 per bathroom
 
   // Fetch maid task prices
@@ -503,13 +504,13 @@ export function BookingForm() {
               </h2>
               
               <div className="grid grid-cols-3 gap-3 mb-3">
-                {FLAT_SIZES.slice(0, 3).map((size) => <Button key={size} variant="outline" onClick={() => setSelectedFlatSize(size)} className={`h-12 font-medium rounded-2xl border-2 ${selectedFlatSize === size ? "border-primary bg-primary/5 text-primary" : "border-border bg-background text-foreground hover:border-primary/50"}`}>
+                {FLAT_SIZES.slice(0, 3).map((size) => <Button key={size} variant="outline" onClick={() => { setSelectedFlatSize(size); setTimeout(() => servicesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100); }} className={`h-12 font-medium rounded-2xl border-2 ${selectedFlatSize === size ? "border-primary bg-primary/5 text-primary" : "border-border bg-background text-foreground hover:border-primary/50"}`}>
                     {size}
                   </Button>)}
               </div>
               
               <div className="grid grid-cols-2 gap-3">
-                {FLAT_SIZES.slice(3).map((size) => <Button key={size} variant="outline" onClick={() => setSelectedFlatSize(size)} className={`h-12 font-medium rounded-2xl border-2 ${selectedFlatSize === size ? "border-primary bg-primary/5 text-primary" : "border-border bg-background text-foreground hover:border-primary/50"}`}>
+                {FLAT_SIZES.slice(3).map((size) => <Button key={size} variant="outline" onClick={() => { setSelectedFlatSize(size); setTimeout(() => servicesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100); }} className={`h-12 font-medium rounded-2xl border-2 ${selectedFlatSize === size ? "border-primary bg-primary/5 text-primary" : "border-border bg-background text-foreground hover:border-primary/50"}`}>
                     {size}
                   </Button>)}
               </div>
@@ -601,7 +602,7 @@ export function BookingForm() {
             </div>}
 
           {/* Maid Service Selection — Premium Image Cards */}
-          {service_type === 'maid' && selectedFlatSize && <div className="mt-6 space-y-6">
+          {service_type === 'maid' && selectedFlatSize && <div ref={servicesRef} className="mt-6 space-y-6">
               <h2 className="text-lg font-semibold text-foreground">
                 Choose services <span className="text-destructive">*</span>
               </h2>
