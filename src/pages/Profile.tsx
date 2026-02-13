@@ -7,7 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useProfile } from '@/contexts/ProfileContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate, Link } from 'react-router-dom';
-import { User, Phone, Building, Home, LogOut, Settings, Shield, Edit3, Save, X, HelpCircle, Share2, Building2, Lock, Info } from 'lucide-react';
+import { User, Phone, Building, Home, LogOut, Settings, Shield, Edit3, Save, X, HelpCircle, Share2, Building2 } from 'lucide-react';
 import { openExternalUrl } from '@/lib/nativeOpen';
 import { useToast } from '@/hooks/use-toast';
 import { AppVersionDisplay } from '@/components/AppVersionDisplay';
@@ -36,7 +36,6 @@ export default function Profile() {
   // Get the selected community to check format
   const selectedCommunity = communities.find(c => c.id === editForm.community_id);
   const isPHF = selectedCommunity?.flat_format === 'PHF';
-  const isFlatLocked = profile?.is_flat_locked === true;
 
   // Use hooks with edit form values for dynamic dropdowns
   const { buildings } = useBuildings(editForm.community_id || null);
@@ -66,37 +65,21 @@ export default function Profile() {
 
   const handleSave = async () => {
     try {
-      const updateData: Record<string, any> = {
-        full_name: editForm.full_name,
-        phone: editForm.phone,
-        updated_at: new Date().toISOString()
-      };
-
-      // Only include flat fields if not locked
-      if (!isFlatLocked) {
-        updateData.community = editForm.community;
-        updateData.community_id = editForm.community_id || null;
-        updateData.building_id = editForm.building_id || null;
-        updateData.flat_id = editForm.flat_id || null;
-        updateData.flat_no = editForm.flat_no;
-      }
-
       const { error } = await supabase
         .from('profiles')
-        .update(updateData)
+        .update({
+          full_name: editForm.full_name,
+          phone: editForm.phone,
+          community: editForm.community,
+          community_id: editForm.community_id || null,
+          building_id: editForm.building_id || null,
+          flat_id: editForm.flat_id || null,
+          flat_no: editForm.flat_no,
+          updated_at: new Date().toISOString()
+        })
         .eq('id', profile?.id);
 
-      if (error) {
-        if (error.message?.includes('locked')) {
-          toast({
-            title: 'Flat is locked',
-            description: 'Your flat number is locked after first booking. Contact support to change it.',
-            variant: 'destructive'
-          });
-          return;
-        }
-        throw error;
-      }
+      if (error) throw error;
 
       setIsEditing(false);
       toast({
@@ -104,12 +87,13 @@ export default function Profile() {
         description: 'Your profile information has been updated successfully'
       });
       
+      // Refresh the page to show updated data
       window.location.reload();
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error updating profile:', error);
       toast({
         title: 'Error',
-        description: error?.message || 'Failed to update profile',
+        description: 'Failed to update profile',
         variant: 'destructive'
       });
     }
@@ -288,18 +272,10 @@ export default function Profile() {
                 </div>
                 <div className="flex-1 space-y-1">
                   <p className="text-sm font-medium text-gray-500 uppercase tracking-wide">Community</p>
-                  {!isEditing || isFlatLocked ? (
-                    <div>
-                      <p className="text-lg font-semibold text-gray-900">
-                        {communities.find(c => c.value === profile?.community)?.name || profile?.community || 'Not provided'}
-                      </p>
-                      {isEditing && isFlatLocked && (
-                        <div className="flex items-center gap-1.5 mt-1">
-                          <Lock className="w-3 h-3 text-amber-600" />
-                          <span className="text-xs text-amber-600">Locked</span>
-                        </div>
-                      )}
-                    </div>
+                  {!isEditing ? (
+                    <p className="text-lg font-semibold text-gray-900">
+                      {communities.find(c => c.value === profile?.community)?.name || profile?.community || 'Not provided'}
+                    </p>
                   ) : (
                     <Select 
                       value={editForm.community_id} 
@@ -309,7 +285,7 @@ export default function Profile() {
                           ...prev, 
                           community_id: value,
                           community: comm?.value || '',
-                          building_id: '',
+                          building_id: '', // reset building when community changes
                           flat_id: '',
                           flat_no: ''
                         }));
@@ -340,18 +316,10 @@ export default function Profile() {
                   </div>
                   <div className="flex-1 space-y-1">
                     <p className="text-sm font-medium text-gray-500 uppercase tracking-wide">Building</p>
-                    {!isEditing || isFlatLocked ? (
-                      <div>
-                        <p className="text-lg font-semibold text-gray-900">
-                          {buildings.find(b => b.id === profile?.building_id)?.name || 'Not provided'}
-                        </p>
-                        {isEditing && isFlatLocked && (
-                          <div className="flex items-center gap-1.5 mt-1">
-                            <Lock className="w-3 h-3 text-amber-600" />
-                            <span className="text-xs text-amber-600">Locked</span>
-                          </div>
-                        )}
-                      </div>
+                    {!isEditing ? (
+                      <p className="text-lg font-semibold text-gray-900">
+                        {buildings.find(b => b.id === profile?.building_id)?.name || 'Not provided'}
+                      </p>
                     ) : (
                       <Select 
                         value={editForm.building_id} 
@@ -359,7 +327,7 @@ export default function Profile() {
                           setEditForm(prev => ({ 
                             ...prev, 
                             building_id: value,
-                            flat_id: '',
+                            flat_id: '', // reset flat when building changes
                             flat_no: ''
                           }));
                         }}
@@ -389,16 +357,8 @@ export default function Profile() {
                 </div>
                 <div className="flex-1 space-y-1">
                   <p className="text-sm font-medium text-gray-500 uppercase tracking-wide">Flat Number</p>
-                  {!isEditing || isFlatLocked ? (
-                    <div>
-                      <p className="text-lg font-semibold text-gray-900">{profile?.flat_no || 'Not provided'}</p>
-                      {isEditing && isFlatLocked && (
-                        <div className="flex items-center gap-1.5 mt-1">
-                          <Lock className="w-3 h-3 text-amber-600" />
-                          <span className="text-xs text-amber-600">Locked</span>
-                        </div>
-                      )}
-                    </div>
+                  {!isEditing ? (
+                    <p className="text-lg font-semibold text-gray-900">{profile?.flat_no || 'Not provided'}</p>
                   ) : flats.length > 0 ? (
                     <Select 
                       value={editForm.flat_id} 
@@ -433,16 +393,6 @@ export default function Profile() {
                 </div>
               </div>
             </div>
-
-            {/* Flat locked notice */}
-            {isFlatLocked && isEditing && (
-              <div className="flex items-start gap-2 p-3 bg-amber-50 rounded-xl border border-amber-200">
-                <Info className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
-                <p className="text-sm text-amber-700">
-                  Your flat is locked after first booking. To change, contact support: <a href="tel:+918008180018" className="font-semibold underline">+91 8008180018</a>
-                </p>
-              </div>
-            )}
           </div>
         </div>
 

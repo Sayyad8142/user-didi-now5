@@ -13,7 +13,6 @@ interface Profile {
   building_id?: string | null;
   community_id?: string | null;
   flat_id?: string | null;
-  is_flat_locked?: boolean;
 }
 
 interface ProfileContextType {
@@ -79,7 +78,7 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
 
       const { data, error: fetchError } = await supabase
         .from("profiles")
-        .select("id, full_name, phone, community, flat_no, building_id, community_id, flat_id, is_flat_locked")
+        .select("id, full_name, phone, community, flat_no, building_id, community_id, flat_id")
         .eq("firebase_uid", user.id)
         .maybeSingle();
 
@@ -107,7 +106,7 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
         await new Promise(r => setTimeout(r, 600));
         const { data: retryData } = await supabase
           .from("profiles")
-          .select("id, full_name, phone, community, flat_no, building_id, community_id, flat_id, is_flat_locked")
+          .select("id, full_name, phone, community, flat_no, building_id, community_id, flat_id")
           .eq("firebase_uid", user.id)
           .maybeSingle();
         
@@ -132,7 +131,7 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
           community: "other",
           flat_no: "",
         })
-        .select("id, full_name, phone, community, flat_no, building_id, community_id, flat_id, is_flat_locked")
+        .select("id, full_name, phone, community, flat_no, building_id, community_id, flat_id")
         .single();
 
       if (createErr) {
@@ -140,7 +139,7 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
         if (createErr.code === '23505') {
           const { data: finalData } = await supabase
             .from("profiles")
-            .select("id, full_name, phone, community, flat_no, building_id, community_id, flat_id, is_flat_locked")
+            .select("id, full_name, phone, community, flat_no, building_id, community_id, flat_id")
             .eq("firebase_uid", user.id)
             .maybeSingle();
           if (finalData) {
