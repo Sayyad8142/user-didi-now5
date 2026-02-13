@@ -1018,6 +1018,7 @@ export type Database = {
           display_name: string | null
           door: number | null
           flat_no: string
+          flat_size: string | null
           floor: number | null
           id: string
           tower: number | null
@@ -1030,6 +1031,7 @@ export type Database = {
           display_name?: string | null
           door?: number | null
           flat_no: string
+          flat_size?: string | null
           floor?: number | null
           id?: string
           tower?: number | null
@@ -1042,6 +1044,7 @@ export type Database = {
           display_name?: string | null
           door?: number | null
           flat_no?: string
+          flat_size?: string | null
           floor?: number | null
           id?: string
           tower?: number | null
