@@ -1574,6 +1574,7 @@ export type Database = {
           id: string
           is_admin: boolean
           is_blocked: boolean | null
+          is_flat_locked: boolean
           legal_version: string | null
           phone: string
           privacy_accepted_at: string | null
@@ -1594,6 +1595,7 @@ export type Database = {
           id?: string
           is_admin?: boolean
           is_blocked?: boolean | null
+          is_flat_locked?: boolean
           legal_version?: string | null
           phone: string
           privacy_accepted_at?: string | null
@@ -1614,6 +1616,7 @@ export type Database = {
           id?: string
           is_admin?: boolean
           is_blocked?: boolean | null
+          is_flat_locked?: boolean
           legal_version?: string | null
           phone?: string
           privacy_accepted_at?: string | null
