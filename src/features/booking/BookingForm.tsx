@@ -99,19 +99,19 @@ export function BookingForm() {
       const map = new Map<MaidTask, number>();
 
       // First, add global pricing (where community is null)
-      (data || []).filter(row => row.community === null).forEach((row: any) => {
+      (data || []).filter((row) => row.community === null).forEach((row: any) => {
         map.set(row.task, row.price_inr);
       });
 
       // Then, override with community-specific pricing if available
       if (profile?.community) {
-        (data || []).filter(row => row.community === profile.community).forEach((row: any) => {
+        (data || []).filter((row) => row.community === profile.community).forEach((row: any) => {
           map.set(row.task, row.price_inr);
         });
       }
 
       // Ensure both tasks have prices (fallback)
-      (["floor_cleaning", "dish_washing"] as MaidTask[]).forEach(t => {
+      (["floor_cleaning", "dish_washing"] as MaidTask[]).forEach((t) => {
         if (!map.has(t)) {
           map.set(t, FALLBACK_PRICES[selectedFlatSize] || 100);
         }
@@ -126,19 +126,19 @@ export function BookingForm() {
     enabled: service_type === 'bathroom_cleaning',
     queryFn: async () => {
       // exact community first
-      const { data: specific } = await supabase
-        .from("bathroom_pricing_settings")
-        .select("unit_price_inr")
-        .eq("community", profile?.community || "")
-        .maybeSingle();
+      const { data: specific } = await supabase.
+      from("bathroom_pricing_settings").
+      select("unit_price_inr").
+      eq("community", profile?.community || "").
+      maybeSingle();
       if (specific) return specific.unit_price_inr;
 
       // global fallback
-      const { data: global } = await supabase
-        .from("bathroom_pricing_settings")
-        .select("unit_price_inr")
-        .eq("community", "")
-        .maybeSingle();
+      const { data: global } = await supabase.
+      from("bathroom_pricing_settings").
+      select("unit_price_inr").
+      eq("community", "").
+      maybeSingle();
       return global?.unit_price_inr ?? 250;
     }
   });
@@ -146,10 +146,10 @@ export function BookingForm() {
   // Helper functions for maid pricing
   const taskPrice = (t: MaidTask) => taskPrices?.get(t) ?? FALLBACK_PRICES[selectedFlatSize || "2BHK"];
   const dishIntensityExtra = selectedTasks.includes('dish_washing') && dishIntensity ? getIntensityExtra(dishIntensity) : 0;
-  const totalPrice = service_type === 'maid' && selectedTasks.length > 0 
-    ? selectedTasks.reduce((sum, task) => sum + taskPrice(task), 0) + dishIntensityExtra 
-    : 0;
-  
+  const totalPrice = service_type === 'maid' && selectedTasks.length > 0 ?
+  selectedTasks.reduce((sum, task) => sum + taskPrice(task), 0) + dishIntensityExtra :
+  0;
+
   // Bathroom pricing calculation
   const bathroomBasePrice = service_type === 'bathroom_cleaning' ? (bathroomUnitPrice ?? 250) * Math.max(1, bathroomCount) : 0;
   const glassPartitionFee = service_type === 'bathroom_cleaning' && hasGlassPartition ? GLASS_PARTITION_FEE * Math.max(1, bathroomCount) : 0;
@@ -228,10 +228,10 @@ export function BookingForm() {
   };
   const handleSchedule = () => {
     if (!profile || !service_type) return;
-    
+
     // Build query parameters for ScheduleScreen
     const params = new URLSearchParams();
-    
+
     if (service_type === 'maid') {
       if (!selectedFlatSize || selectedTasks.length === 0) {
         toast({
@@ -270,12 +270,12 @@ export function BookingForm() {
       params.set('flat', selectedFlatSize);
       params.set('price', price.toString());
     }
-    
+
     navigate(`/schedule/${service_type}?${params.toString()}`);
   };
   const createBooking = async (bookingType: 'instant' | 'scheduled', scheduledDate: string | null, scheduledTime: string | null, price: number) => {
     if (service_type !== 'bathroom_cleaning' && !selectedFlatSize) return;
-    
+
     // Validate community before booking
     if (!profile.community || profile.community === 'other') {
       console.error('❌ Invalid community in profile:', profile.community);
@@ -327,11 +327,11 @@ export function BookingForm() {
         community: profile.community,
         flat_no: profile.flat_no
       };
-      
+
       console.log('📤 Sending booking data to database:', bookingData);
-      
+
       const { data, error } = await supabase.from('bookings').insert([bookingData]).select();
-      
+
       if (error) {
         console.error('❌ Booking error:', {
           error,
@@ -347,9 +347,9 @@ export function BookingForm() {
         });
         return;
       }
-      
+
       console.log('✅ Booking created successfully:', data);
-      
+
       toast({
         title: "Booking received!",
         description: bookingType === 'instant' ? "Service will arrive in 10 minutes." : "Your booking has been scheduled successfully."
@@ -383,19 +383,19 @@ export function BookingForm() {
       </div>;
   }
   const ServiceIcon = serviceIcon(service_type);
-  const currentPrice = service_type === 'maid' ? selectedFlatSize && selectedTasks.length > 0 ? totalPrice : null 
-    : service_type === 'bathroom_cleaning' ? bathroomTotalPrice
-    : selectedFlatSize ? pricingMap[selectedFlatSize] : null;
+  const currentPrice = service_type === 'maid' ? selectedFlatSize && selectedTasks.length > 0 ? totalPrice : null :
+  service_type === 'bathroom_cleaning' ? bathroomTotalPrice :
+  selectedFlatSize ? pricingMap[selectedFlatSize] : null;
   const isServiceOpen = isOpenNow(service_type);
-  
-  
 
-  
+
+
+
   const canBook = isServiceOpen && !instantDisabled && (
-    service_type === 'maid' ? selectedFlatSize && selectedTasks.length > 0 && (!selectedTasks.includes('dish_washing') || dishIntensity) && !submitting 
-    : service_type === 'bathroom_cleaning' ? !submitting
-    : selectedFlatSize && currentPrice && !submitting
-  );
+  service_type === 'maid' ? selectedFlatSize && selectedTasks.length > 0 && (!selectedTasks.includes('dish_washing') || dishIntensity) && !submitting :
+  service_type === 'bathroom_cleaning' ? !submitting :
+  selectedFlatSize && currentPrice && !submitting);
+
 
   // Guest user check - show sign up prompt instead of booking form
   if (isGuestMode()) {
@@ -428,18 +428,18 @@ export function BookingForm() {
               </div>
 
               <div className="space-y-4">
-                <Button 
+                <Button
                   onClick={() => navigate('/auth')}
-                  className="w-full h-16 rounded-2xl font-bold text-lg bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-primary-foreground shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02]"
-                >
+                  className="w-full h-16 rounded-2xl font-bold text-lg bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-primary-foreground shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02]">
+
                   Create Account & Book Now
                 </Button>
                 
-                <Button 
+                <Button
                   onClick={() => navigate('/home')}
                   variant="outline"
-                  className="w-full h-14 rounded-2xl font-semibold border-primary/20 text-primary hover:bg-primary/5 transition-all duration-300"
-                >
+                  className="w-full h-14 rounded-2xl font-semibold border-primary/20 text-primary hover:bg-primary/5 transition-all duration-300">
+
                   Browse Services
                 </Button>
               </div>
@@ -452,8 +452,8 @@ export function BookingForm() {
             </CardContent>
           </Card>
         </div>
-      </div>
-    );
+      </div>);
+
   }
 
   return <div className="min-h-screen bg-background pb-24">
@@ -503,13 +503,13 @@ export function BookingForm() {
               </h2>
               
               <div className="grid grid-cols-3 gap-3 mb-3">
-                {FLAT_SIZES.slice(0, 3).map(size => <Button key={size} variant="outline" onClick={() => setSelectedFlatSize(size)} className={`h-12 font-medium rounded-2xl border-2 ${selectedFlatSize === size ? "border-primary bg-primary/5 text-primary" : "border-border bg-background text-foreground hover:border-primary/50"}`}>
+                {FLAT_SIZES.slice(0, 3).map((size) => <Button key={size} variant="outline" onClick={() => setSelectedFlatSize(size)} className={`h-12 font-medium rounded-2xl border-2 ${selectedFlatSize === size ? "border-primary bg-primary/5 text-primary" : "border-border bg-background text-foreground hover:border-primary/50"}`}>
                     {size}
                   </Button>)}
               </div>
               
               <div className="grid grid-cols-2 gap-3">
-                {FLAT_SIZES.slice(3).map(size => <Button key={size} variant="outline" onClick={() => setSelectedFlatSize(size)} className={`h-12 font-medium rounded-2xl border-2 ${selectedFlatSize === size ? "border-primary bg-primary/5 text-primary" : "border-border bg-background text-foreground hover:border-primary/50"}`}>
+                {FLAT_SIZES.slice(3).map((size) => <Button key={size} variant="outline" onClick={() => setSelectedFlatSize(size)} className={`h-12 font-medium rounded-2xl border-2 ${selectedFlatSize === size ? "border-primary bg-primary/5 text-primary" : "border-border bg-background text-foreground hover:border-primary/50"}`}>
                     {size}
                   </Button>)}
               </div>
@@ -524,20 +524,20 @@ export function BookingForm() {
                 
                 {/* stepper */}
                 <div className="flex items-center justify-center gap-4 mt-4">
-                  <Button 
-                    variant="outline"
-                    onClick={() => setBathroomCount(c => Math.max(1, c - 1))}
-                    className="w-12 h-12 rounded-xl border-2 border-primary text-primary hover:bg-primary hover:text-primary-foreground"
-                    disabled={bathroomCount <= 1}
-                  >
+                  <Button
+                variant="outline"
+                onClick={() => setBathroomCount((c) => Math.max(1, c - 1))}
+                className="w-12 h-12 rounded-xl border-2 border-primary text-primary hover:bg-primary hover:text-primary-foreground"
+                disabled={bathroomCount <= 1}>
+
                     −
                   </Button>
                   <div className="min-w-12 text-center text-2xl font-bold text-foreground">{bathroomCount}</div>
-                  <Button 
-                    variant="outline"
-                    onClick={() => setBathroomCount(c => Math.min(10, c + 1))}
-                    className="w-12 h-12 rounded-xl border-2 border-primary text-primary hover:bg-primary hover:text-primary-foreground"
-                  >
+                  <Button
+                variant="outline"
+                onClick={() => setBathroomCount((c) => Math.min(10, c + 1))}
+                className="w-12 h-12 rounded-xl border-2 border-primary text-primary hover:bg-primary hover:text-primary-foreground">
+
                     +
                   </Button>
                 </div>
@@ -550,21 +550,21 @@ export function BookingForm() {
                 </h2>
                 <div className="space-y-2">
                   {/* Without Glass Partition */}
-                  <div 
-                    onClick={() => setHasGlassPartition(false)}
-                    className={cn(
-                      "relative cursor-pointer rounded-xl border-2 p-4 transition-all duration-200",
-                      !hasGlassPartition 
-                        ? "border-primary bg-gradient-to-r from-primary/10 to-primary/5" 
-                        : "border-border bg-card hover:border-primary/50"
-                    )}
-                  >
+                  <div
+                onClick={() => setHasGlassPartition(false)}
+                className={cn(
+                  "relative cursor-pointer rounded-xl border-2 p-4 transition-all duration-200",
+                  !hasGlassPartition ?
+                  "border-primary bg-gradient-to-r from-primary/10 to-primary/5" :
+                  "border-border bg-card hover:border-primary/50"
+                )}>
+
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <div className={cn(
-                          "w-5 h-5 rounded-full border-2 flex items-center justify-center",
-                          !hasGlassPartition ? "border-primary" : "border-muted-foreground"
-                        )}>
+                      "w-5 h-5 rounded-full border-2 flex items-center justify-center",
+                      !hasGlassPartition ? "border-primary" : "border-muted-foreground"
+                    )}>
                           {!hasGlassPartition && <div className="w-2.5 h-2.5 rounded-full bg-primary" />}
                         </div>
                         <span className="font-medium text-foreground">Without Glass Partition</span>
@@ -574,21 +574,21 @@ export function BookingForm() {
                   </div>
 
                   {/* With Glass Partition */}
-                  <div 
-                    onClick={() => setHasGlassPartition(true)}
-                    className={cn(
-                      "relative cursor-pointer rounded-xl border-2 p-4 transition-all duration-200",
-                      hasGlassPartition 
-                        ? "border-primary bg-gradient-to-r from-primary/10 to-primary/5" 
-                        : "border-border bg-card hover:border-primary/50"
-                    )}
-                  >
+                  <div
+                onClick={() => setHasGlassPartition(true)}
+                className={cn(
+                  "relative cursor-pointer rounded-xl border-2 p-4 transition-all duration-200",
+                  hasGlassPartition ?
+                  "border-primary bg-gradient-to-r from-primary/10 to-primary/5" :
+                  "border-border bg-card hover:border-primary/50"
+                )}>
+
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <div className={cn(
-                          "w-5 h-5 rounded-full border-2 flex items-center justify-center",
-                          hasGlassPartition ? "border-primary" : "border-muted-foreground"
-                        )}>
+                      "w-5 h-5 rounded-full border-2 flex items-center justify-center",
+                      hasGlassPartition ? "border-primary" : "border-muted-foreground"
+                    )}>
                           {hasGlassPartition && <div className="w-2.5 h-2.5 rounded-full bg-primary" />}
                         </div>
                         <span className="font-medium text-foreground">With Glass Partition</span>
@@ -609,116 +609,116 @@ export function BookingForm() {
               {/* Service image cards */}
               <div className="grid grid-cols-2 gap-3">
                 {([
-                  { task: 'floor_cleaning' as MaidTask, label: 'Floor Cleaning', desc: 'Jhaadu & Pocha', img: serviceFloorImg },
-                  { task: 'dish_washing' as MaidTask, label: 'Dish Washing', desc: 'Utensils & vessels', img: serviceDishImg },
-                ] as const).map(({ task, label, desc, img }) => {
-                  const isSelected = selectedTasks.includes(task);
-                  const toggleTask = () => {
-                    if (isSelected) {
-                      if (selectedTasks.length > 1) {
-                        setSelectedTasks(prev => prev.filter(t => t !== task));
-                        if (task === 'dish_washing') setDishIntensity(null);
-                      }
-                    } else {
-                      setSelectedTasks(prev => [...prev, task]);
-                    }
-                  };
-                  return (
-                    <button
-                      key={task}
-                      type="button"
-                      onClick={toggleTask}
-                      className={cn(
-                        "relative rounded-2xl overflow-hidden shadow-sm transition-all duration-200 text-left group",
-                        isSelected
-                          ? "ring-2 ring-primary shadow-md shadow-primary/10"
-                          : "ring-1 ring-border hover:shadow-md"
-                      )}
-                    >
+            { task: 'floor_cleaning' as MaidTask, label: 'Floor Cleaning', desc: 'Jhaadu & Pocha', img: serviceFloorImg },
+            { task: 'dish_washing' as MaidTask, label: 'Dish Washing', desc: 'Utensils & vessels', img: serviceDishImg }] as
+            const).map(({ task, label, desc, img }) => {
+              const isSelected = selectedTasks.includes(task);
+              const toggleTask = () => {
+                if (isSelected) {
+                  if (selectedTasks.length > 1) {
+                    setSelectedTasks((prev) => prev.filter((t) => t !== task));
+                    if (task === 'dish_washing') setDishIntensity(null);
+                  }
+                } else {
+                  setSelectedTasks((prev) => [...prev, task]);
+                }
+              };
+              return (
+                <button
+                  key={task}
+                  type="button"
+                  onClick={toggleTask}
+                  className={cn(
+                    "relative rounded-2xl overflow-hidden shadow-sm transition-all duration-200 text-left group",
+                    isSelected ?
+                    "ring-2 ring-primary shadow-md shadow-primary/10" :
+                    "ring-1 ring-border hover:shadow-md"
+                  )}>
+
                       {/* Image */}
                       <div className="relative h-28 overflow-hidden">
                         <img src={img} alt={label} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                        {isSelected && (
-                          <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-primary flex items-center justify-center shadow-lg">
+                        {isSelected &&
+                    <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-primary flex items-center justify-center shadow-lg">
                             <Check className="w-3.5 h-3.5 text-primary-foreground" />
                           </div>
-                        )}
+                    }
                       </div>
                       {/* Info */}
                       <div className={cn(
-                        "p-3 transition-colors",
-                        isSelected ? "bg-primary/5" : "bg-card"
-                      )}>
+                    "p-3 transition-colors",
+                    isSelected ? "bg-primary/5" : "bg-card"
+                  )}>
                         <h3 className="font-semibold text-foreground text-sm">{label}</h3>
                         <p className="text-xs text-muted-foreground mt-0.5">{desc}</p>
                         <p className="text-lg font-bold text-primary mt-1">
                           ₹{taskPrice(task)}
                         </p>
                       </div>
-                    </button>
-                  );
-                })}
+                    </button>);
+
+            })}
               </div>
 
               {/* Dish Intensity — Soft cards with left accent bar */}
-              {selectedTasks.includes('dish_washing') && (
-                <div className="space-y-3">
+              {selectedTasks.includes('dish_washing') &&
+          <div className="space-y-3">
                   <div>
                     <h3 className="text-base font-semibold text-foreground">How many dishes today?</h3>
                     <p className="text-xs text-muted-foreground mt-0.5">Pick right to avoid disputes</p>
                   </div>
 
                   <div className="grid grid-cols-3 gap-2">
-                    {([
-                      { value: 'light' as DishIntensity, label: 'Light', extra: 0, desc: '5-10 items', img: dishesLightImg },
-                      { value: 'medium' as DishIntensity, label: 'Medium', extra: 30, desc: '10-20 items', img: dishesMediumImg },
-                      { value: 'heavy' as DishIntensity, label: 'Heavy', extra: 50, desc: '20+ items', img: dishesHeavyImg },
-                    ]).map((opt) => {
-                      const active = dishIntensity === opt.value;
-                      return (
-                        <button
-                          key={opt.value}
-                          type="button"
-                          onClick={() => setDishIntensity(opt.value)}
-                          className={cn(
-                            "relative rounded-2xl overflow-hidden text-left transition-all duration-200",
-                            active
-                              ? "ring-2 ring-primary shadow-md shadow-primary/10"
-                              : "ring-1 ring-border shadow-sm hover:shadow-md"
-                          )}
-                        >
+                    {[
+              { value: 'light' as DishIntensity, label: 'Light', extra: 0, desc: '5-10 items', img: dishesLightImg },
+              { value: 'medium' as DishIntensity, label: 'Medium', extra: 30, desc: '10-20 items', img: dishesMediumImg },
+              { value: 'heavy' as DishIntensity, label: 'Heavy', extra: 50, desc: '20+ items', img: dishesHeavyImg }].
+              map((opt) => {
+                const active = dishIntensity === opt.value;
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setDishIntensity(opt.value)}
+                    className={cn(
+                      "relative rounded-2xl overflow-hidden text-left transition-all duration-200",
+                      active ?
+                      "ring-2 ring-primary shadow-md shadow-primary/10" :
+                      "ring-1 ring-border shadow-sm hover:shadow-md"
+                    )}>
+
                           <div className="relative h-20 overflow-hidden">
                             <img src={opt.img} alt={opt.label} className="w-full h-full object-cover" />
-                            {active && (
-                              <div className="absolute inset-0 bg-primary/20" />
-                            )}
+                            {active &&
+                      <div className="absolute inset-0 bg-primary/20" />
+                      }
                           </div>
                           <div className={cn(
-                            "p-2 text-center transition-colors",
-                            active ? "bg-primary/5" : "bg-card"
-                          )}>
+                      "p-2 text-center transition-colors",
+                      active ? "bg-primary/5" : "bg-card"
+                    )}>
                             <p className={cn(
-                              "text-xs font-bold",
-                              active ? "text-primary" : "text-foreground"
-                            )}>{opt.label}</p>
+                        "text-xs font-bold",
+                        active ? "text-primary" : "text-foreground"
+                      )}>{opt.label}</p>
                             <p className="text-[10px] text-muted-foreground">{opt.desc}</p>
                             <p className={cn(
-                              "text-xs font-bold mt-0.5",
-                              opt.extra > 0 ? "text-orange-500" : "text-muted-foreground"
-                            )}>
+                        "text-xs font-bold mt-0.5",
+                        opt.extra > 0 ? "text-orange-500" : "text-muted-foreground"
+                      )}>
                               {opt.extra > 0 ? `+₹${opt.extra}` : '₹0'}
                             </p>
                           </div>
-                        </button>
-                      );
-                    })}
+                        </button>);
+
+              })}
                   </div>
                 </div>
-              )}
+          }
             </div>}
 
           {/* Price Display */}
-          {(service_type === 'maid' && selectedFlatSize && selectedTasks.length > 0 || service_type === 'bathroom_cleaning' || (service_type !== 'maid' && service_type !== 'bathroom_cleaning' && selectedFlatSize)) && <div>
+          {(service_type === 'maid' && selectedFlatSize && selectedTasks.length > 0 || service_type === 'bathroom_cleaning' || service_type !== 'maid' && service_type !== 'bathroom_cleaning' && selectedFlatSize) && <div>
             <Card className="bg-primary/5 border-primary/20 rounded-2xl">
               <CardContent className="p-6 py-[5px] px-[24px] bg-stone-50">
                 <div className="text-center px-0">
@@ -726,20 +726,20 @@ export function BookingForm() {
                       <span className="text-3xl font-bold text-primary">
                         Price: ₹{currentPrice}
                       </span>
-                      {service_type === 'bathroom_cleaning' && (
-                        <div className="text-xs text-muted-foreground mt-2 space-y-0.5">
+                      {service_type === 'bathroom_cleaning' &&
+                  <div className="text-xs text-muted-foreground mt-2 space-y-0.5">
                           <div className="flex justify-between">
                             <span>Bathroom Cleaning:</span>
                             <span>₹{bathroomUnitPrice ?? 250} × {bathroomCount} = ₹{bathroomBasePrice}</span>
                           </div>
-                          {hasGlassPartition && (
-                            <div className="flex justify-between text-primary">
+                          {hasGlassPartition &&
+                    <div className="flex justify-between text-primary">
                               <span>Glass Partition:</span>
                               <span>₹{GLASS_PARTITION_FEE} × {bathroomCount} = ₹{glassPartitionFee}</span>
                             </div>
-                          )}
+                    }
                         </div>
-                      )}
+                  }
                     </>}
                 </div>
               </CardContent>
@@ -753,17 +753,17 @@ export function BookingForm() {
             <div className="grid grid-cols-2 gap-3">
               {/* Instant Card */}
               <button
-                onClick={handleBookNow}
-                disabled={!canBook}
-                className={cn(
-                  "relative flex flex-col items-start gap-3 p-4 rounded-2xl border-2 shadow-sm transition-all duration-200 text-left",
-                  "hover:shadow-md active:scale-[0.98]",
-                  "disabled:opacity-50 disabled:pointer-events-none",
-                  (!isServiceOpen || instantDisabled)
-                    ? "border-border bg-muted/40 opacity-60 pointer-events-none"
-                    : "border-border bg-card hover:border-primary/40"
-                )}
-              >
+              onClick={handleBookNow}
+              disabled={!canBook}
+              className={cn(
+                "relative flex flex-col items-start gap-3 p-4 rounded-2xl border-2 shadow-sm transition-all duration-200 text-left",
+                "hover:shadow-md active:scale-[0.98]",
+                "disabled:opacity-50 disabled:pointer-events-none",
+                !isServiceOpen || instantDisabled ?
+                "border-border bg-muted/40 opacity-60 pointer-events-none" :
+                "border-border bg-card hover:border-primary/40"
+              )}>
+
                 <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
                   <Zap className="w-5 h-5 text-primary" />
                 </div>
@@ -772,62 +772,62 @@ export function BookingForm() {
                   <div className="text-xs text-muted-foreground mt-0.5">Get help in 10 mins</div>
                 </div>
                 <ChevronRight className="w-4 h-4 text-muted-foreground absolute top-4 right-4" />
-                {submitting && (
-                  <div className="absolute inset-0 bg-card/80 rounded-2xl flex items-center justify-center">
+                {submitting &&
+              <div className="absolute inset-0 bg-card/80 rounded-2xl flex items-center justify-center">
                     <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
                   </div>
-                )}
+              }
               </button>
 
               {/* Schedule Card */}
               <button
-                onClick={() => {
-                  if (service_type === 'maid') {
-                    if (!selectedFlatSize || selectedTasks.length === 0) {
-                      toast({
-                        title: "Please complete maid booking details",
-                        description: "Select flat size and at least one task before scheduling.",
-                        variant: "destructive"
-                      });
-                      return;
-                    }
-                    if (selectedTasks.includes('dish_washing') && !dishIntensity) {
-                      toast({
-                        title: "Select dish washing workload",
-                        description: "Please choose Light, Medium, or Heavy for dish washing.",
-                        variant: "destructive"
-                      });
-                      return;
-                    }
-                    const price = totalPrice;
-                    const dishParams = selectedTasks.includes('dish_washing')
-                      ? `&dish_intensity=${dishIntensity}&dish_extra=${dishIntensityExtra}`
-                      : '';
-                    navigate(`/book/${service_type}/schedule?flat=${selectedFlatSize}&tasks=${selectedTasks.join(',')}&price=${price}${dishParams}`);
-                  } else if (service_type === 'bathroom_cleaning') {
-                    const price = bathroomTotalPrice;
-                    navigate(`/book/${service_type}/schedule?bathrooms=${bathroomCount}&glass=${hasGlassPartition ? '1' : '0'}&price=${price}`);
-                  } else {
-                    if (!selectedFlatSize) {
-                      toast({
-                        title: "Please select flat size first",
-                        description: "Choose a flat size before scheduling.",
-                        variant: "destructive"
-                      });
-                      return;
-                    }
-                    const price = pricingMap[selectedFlatSize];
-                    navigate(`/book/${service_type}/schedule?flat=${selectedFlatSize}&price=${price}`);
+              onClick={() => {
+                if (service_type === 'maid') {
+                  if (!selectedFlatSize || selectedTasks.length === 0) {
+                    toast({
+                      title: "Please complete maid booking details",
+                      description: "Select flat size and at least one task before scheduling.",
+                      variant: "destructive"
+                    });
+                    return;
                   }
-                }}
-                disabled={service_type === 'maid' ? !selectedFlatSize || selectedTasks.length === 0 || (selectedTasks.includes('dish_washing') && !dishIntensity) : service_type === 'bathroom_cleaning' ? false : !selectedFlatSize}
-                className={cn(
-                  "relative flex flex-col items-start gap-3 p-4 rounded-2xl border-2 shadow-sm transition-all duration-200 text-left",
-                  "hover:shadow-md active:scale-[0.98]",
-                  "disabled:opacity-50 disabled:pointer-events-none",
-                  "border-border bg-card hover:border-primary/40"
-                )}
-              >
+                  if (selectedTasks.includes('dish_washing') && !dishIntensity) {
+                    toast({
+                      title: "Select dish washing workload",
+                      description: "Please choose Light, Medium, or Heavy for dish washing.",
+                      variant: "destructive"
+                    });
+                    return;
+                  }
+                  const price = totalPrice;
+                  const dishParams = selectedTasks.includes('dish_washing') ?
+                  `&dish_intensity=${dishIntensity}&dish_extra=${dishIntensityExtra}` :
+                  '';
+                  navigate(`/book/${service_type}/schedule?flat=${selectedFlatSize}&tasks=${selectedTasks.join(',')}&price=${price}${dishParams}`);
+                } else if (service_type === 'bathroom_cleaning') {
+                  const price = bathroomTotalPrice;
+                  navigate(`/book/${service_type}/schedule?bathrooms=${bathroomCount}&glass=${hasGlassPartition ? '1' : '0'}&price=${price}`);
+                } else {
+                  if (!selectedFlatSize) {
+                    toast({
+                      title: "Please select flat size first",
+                      description: "Choose a flat size before scheduling.",
+                      variant: "destructive"
+                    });
+                    return;
+                  }
+                  const price = pricingMap[selectedFlatSize];
+                  navigate(`/book/${service_type}/schedule?flat=${selectedFlatSize}&price=${price}`);
+                }
+              }}
+              disabled={service_type === 'maid' ? !selectedFlatSize || selectedTasks.length === 0 || selectedTasks.includes('dish_washing') && !dishIntensity : service_type === 'bathroom_cleaning' ? false : !selectedFlatSize}
+              className={cn(
+                "relative flex flex-col items-start gap-3 p-4 rounded-2xl border-2 shadow-sm transition-all duration-200 text-left",
+                "hover:shadow-md active:scale-[0.98]",
+                "disabled:opacity-50 disabled:pointer-events-none",
+                "border-border bg-card hover:border-primary/40"
+              )}>
+
                 <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
                   <Calendar className="w-5 h-5 text-primary" />
                 </div>
@@ -840,16 +840,16 @@ export function BookingForm() {
             </div>
 
             {/* Instant unavailable hint */}
-            {!isServiceOpen && (
-              <p className="text-xs text-muted-foreground text-center mt-1">
+            {!isServiceOpen &&
+          <p className="text-xs text-muted-foreground mt-1 text-left">
                 We'll be back at 7:00 AM
               </p>
-            )}
-            {isServiceOpen && instantDisabled && (
-              <p className="text-xs text-muted-foreground text-center mt-1">
+          }
+            {isServiceOpen && instantDisabled &&
+          <p className="text-xs text-muted-foreground text-center mt-1">
                 Instant unavailable right now — try scheduling instead
               </p>
-            )}
+          }
           </div>
         </div>
 
