@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, MapPin, Home, Clock, Calendar, AlertCircle, Check, Zap, ChevronRight } from 'lucide-react';
+import { ArrowLeft, MapPin, Home, Clock, Calendar, AlertCircle, Check, Zap, ChevronRight, Lock } from 'lucide-react';
 import serviceFloorImg from '@/assets/service-floor-cleaning.webp';
 import serviceDishImg from '@/assets/service-dish-washing.webp';
 import dishesLightImg from '@/assets/dishes-light.webp';
@@ -56,6 +56,7 @@ export function BookingForm() {
   const {
     toast
   } = useToast();
+  // Flat size is now fetched from DB via profile.flat_id, not user-selectable
   const [selectedFlatSize, setSelectedFlatSize] = useState<FlatSize | null>(null);
   const [pricingMap, setPricingMap] = useState<PricingMap>({});
   const [loadingPricing, setLoadingPricing] = useState(true);
@@ -66,6 +67,20 @@ export function BookingForm() {
   const { isAvailable: instantAvailable, isError: instantError, isLoading: instantLoading } = useInstantBookingAvailability(service_type || '');
   const instantDisabled = !instantLoading && (!instantAvailable || instantError);
 
+  // Fetch flat_size from DB via profile.flat_id (server-authoritative)
+  const { data: dbFlatSize, isLoading: flatSizeLoading } = useQuery({
+    queryKey: ['flat_size', profile?.flat_id],
+    enabled: !!profile?.flat_id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('flats')
+        .select('flat_size')
+        .eq('id', profile!.flat_id!)
+        .maybeSingle();
+      if (error) throw error;
+      return data?.flat_size as FlatSize | null;
+    },
+  });
 
   // Maid service specific state
   const [selectedTasks, setSelectedTasks] = useState<MaidTask[]>(["floor_cleaning", "dish_washing"]); // Multiple task selection with checkboxes
@@ -165,6 +180,13 @@ export function BookingForm() {
       refreshProfile();
     }
   }, [user, service_type, navigate, profile, profileLoading, refreshProfile]);
+  // Auto-set selectedFlatSize from DB value
+  useEffect(() => {
+    if (dbFlatSize) {
+      setSelectedFlatSize(dbFlatSize);
+    }
+  }, [dbFlatSize]);
+
   useEffect(() => {
     if (profile && service_type && service_type !== 'maid' && service_type !== 'bathroom_cleaning') {
       loadPricing();
@@ -191,11 +213,20 @@ export function BookingForm() {
   };
   const handleBookNow = async () => {
     if (!profile || !service_type) return;
+    // Validate flat details for non-bathroom services
+    if (service_type !== 'bathroom_cleaning' && (!profile.flat_id || !dbFlatSize)) {
+      toast({
+        title: "Flat details incomplete",
+        description: "Please complete your flat details before booking.",
+        variant: "destructive"
+      });
+      return;
+    }
     if (service_type === 'maid') {
       if (!selectedFlatSize || selectedTasks.length === 0) {
         toast({
           title: "Please complete maid booking details",
-          description: "Select flat size and at least one task before booking.",
+          description: "Select at least one task before booking.",
           variant: "destructive"
         });
         return;
@@ -236,7 +267,7 @@ export function BookingForm() {
       if (!selectedFlatSize || selectedTasks.length === 0) {
         toast({
           title: "Please complete maid booking details",
-          description: "Select flat size and at least one task before scheduling.",
+          description: "Select at least one task before scheduling.",
           variant: "destructive"
         });
         return;
@@ -496,23 +527,49 @@ export function BookingForm() {
               </Card>
             </>}
 
-          {/* Select Flat Size */}
+          {/* Flat Size — Read-only from DB */}
           {service_type !== 'bathroom_cleaning' && <div className="mt-8">
               <h2 className="text-lg font-semibold text-foreground mb-4">
-                Select Flat Size <span className="text-destructive">*</span>
+                Flat Size
               </h2>
               
-              <div className="grid grid-cols-3 gap-3 mb-3">
-                {FLAT_SIZES.slice(0, 3).map((size) => <Button key={size} variant="outline" onClick={() => setSelectedFlatSize(size)} className={`h-12 font-medium rounded-2xl border-2 ${selectedFlatSize === size ? "border-primary bg-primary/5 text-primary" : "border-border bg-background text-foreground hover:border-primary/50"}`}>
-                    {size}
-                  </Button>)}
-              </div>
-              
-              <div className="grid grid-cols-2 gap-3">
-                {FLAT_SIZES.slice(3).map((size) => <Button key={size} variant="outline" onClick={() => setSelectedFlatSize(size)} className={`h-12 font-medium rounded-2xl border-2 ${selectedFlatSize === size ? "border-primary bg-primary/5 text-primary" : "border-border bg-background text-foreground hover:border-primary/50"}`}>
-                    {size}
-                  </Button>)}
-              </div>
+              {flatSizeLoading ? (
+                <Skeleton className="h-12 w-full rounded-2xl" />
+              ) : !profile?.flat_id || !dbFlatSize ? (
+                <Card className="border-destructive/30 bg-destructive/5 rounded-2xl">
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-3">
+                      <AlertCircle className="w-5 h-5 text-destructive flex-shrink-0" />
+                      <div>
+                        <p className="text-sm font-medium text-destructive">
+                          Please complete your flat details before booking.
+                        </p>
+                        <Button
+                          variant="link"
+                          onClick={() => navigate('/profile/settings')}
+                          className="text-destructive p-0 h-auto text-sm"
+                        >
+                          Update Profile →
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div>
+                  <Card className="border border-border rounded-2xl bg-muted/30">
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-3">
+                        <Lock className="w-4 h-4 text-muted-foreground" />
+                        <span className="text-foreground font-semibold text-lg">{dbFlatSize}</span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Flat size is auto-detected from your registered flat.
+                  </p>
+                </div>
+              )}
             </div>}
 
           {/* Bathroom Count Selector */}
@@ -808,19 +865,19 @@ export function BookingForm() {
                   const price = bathroomTotalPrice;
                   navigate(`/book/${service_type}/schedule?bathrooms=${bathroomCount}&glass=${hasGlassPartition ? '1' : '0'}&price=${price}`);
                 } else {
-                  if (!selectedFlatSize) {
+                  if (!dbFlatSize) {
                     toast({
-                      title: "Please select flat size first",
-                      description: "Choose a flat size before scheduling.",
+                      title: "Flat details incomplete",
+                      description: "Please complete your flat details before booking.",
                       variant: "destructive"
                     });
                     return;
                   }
-                  const price = pricingMap[selectedFlatSize];
-                  navigate(`/book/${service_type}/schedule?flat=${selectedFlatSize}&price=${price}`);
+                  const price = pricingMap[dbFlatSize];
+                  navigate(`/book/${service_type}/schedule?flat=${dbFlatSize}&price=${price}`);
                 }
               }}
-              disabled={service_type === 'maid' ? !selectedFlatSize || selectedTasks.length === 0 || selectedTasks.includes('dish_washing') && !dishIntensity : service_type === 'bathroom_cleaning' ? false : !selectedFlatSize}
+              disabled={service_type === 'maid' ? !selectedFlatSize || selectedTasks.length === 0 || (selectedTasks.includes('dish_washing') && !dishIntensity) : service_type === 'bathroom_cleaning' ? false : !dbFlatSize}
               className={cn(
                 "relative flex flex-col items-start gap-3 p-4 rounded-2xl border-2 shadow-sm transition-all duration-200 text-left",
                 "hover:shadow-md active:scale-[0.98]",
