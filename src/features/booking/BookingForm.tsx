@@ -357,11 +357,14 @@ export function BookingForm() {
       });
       setScheduleSheetOpen(false);
       navigate('/home');
-    } catch (err) {
+    } catch (err: any) {
       console.error('❌ Booking error:', err);
+      const isNetworkError = err?.message?.includes('Load failed') || err?.message?.includes('Failed to fetch') || err?.message?.includes('NetworkError');
       toast({
-        title: "Error",
-        description: "An unexpected error occurred. Please try again.",
+        title: "Booking Failed",
+        description: isNetworkError
+          ? "Network error – please check your internet connection and try again."
+          : `Error: ${err?.message || 'Please try again.'}`,
         variant: "destructive"
       });
     } finally {
