@@ -630,29 +630,31 @@ export function BookingForm() {
                   type="button"
                   onClick={toggleTask}
                   className={cn(
-                    "relative rounded-2xl overflow-hidden shadow-sm transition-all duration-200 text-left group",
-                    isSelected ?
-                    "ring-2 ring-primary shadow-md shadow-primary/10" :
-                    "ring-1 ring-border hover:shadow-md"
+                    "relative rounded-xl overflow-hidden text-left group transition-all duration-200",
+                    "shadow-[0_2px_12px_-4px_rgba(0,0,0,0.12)]",
+                    isSelected
+                      ? "ring-2 ring-primary shadow-[0_4px_20px_-4px_rgba(255,0,122,0.25)] scale-[1.02]"
+                      : "ring-1 ring-border hover:shadow-[0_4px_16px_-4px_rgba(0,0,0,0.15)]"
                   )}>
 
-                      {/* Image */}
-                      <div className="relative h-28 overflow-hidden">
+                      {/* Image with gradient overlay */}
+                      <div className="relative h-[140px] overflow-hidden">
                         <img src={img} alt={label} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
                         {isSelected &&
-                    <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-primary flex items-center justify-center shadow-lg">
-                            <Check className="w-3.5 h-3.5 text-primary-foreground" />
+                    <div className="absolute top-2 right-2 w-7 h-7 rounded-full bg-primary flex items-center justify-center shadow-[0_2px_8px_rgba(255,0,122,0.4)] border-2 border-primary-foreground">
+                            <Check className="w-3.5 h-3.5 text-primary-foreground" strokeWidth={3} />
                           </div>
                     }
                       </div>
                       {/* Info */}
                       <div className={cn(
-                    "p-3 transition-colors",
+                    "px-3 py-2.5 transition-colors",
                     isSelected ? "bg-primary/5" : "bg-card"
                   )}>
-                        <h3 className="font-semibold text-foreground text-sm">{label}</h3>
-                        <p className="text-xs text-muted-foreground mt-0.5">{desc}</p>
-                        <p className="text-lg font-bold text-primary mt-1">
+                        <h3 className="font-bold text-foreground text-sm">{label}</h3>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">{desc}</p>
+                        <p className="text-base font-bold text-primary mt-1">
                           ₹{taskPrice(task)}
                         </p>
                       </div>
