@@ -380,6 +380,15 @@ const ActiveBookingCard = memo(() => {
         }).catch(err => {
           console.error('[ReachStatus] Admin notification failed:', err);
         });
+
+        // Also send Telegram alert for worker not reached
+        supabase.functions.invoke('send-telegram-alert', {
+          body: {
+            message: `⚠️ WORKER NOT REACHED\nWorker: ${workerName}\nFlat: ${flatNo} (${community})\nService: ${serviceType}\nBooking ID: ${activeBooking.id}\nAction needed immediately!`,
+          },
+        }).catch(err => {
+          console.error('[ReachStatus] Telegram notification failed:', err);
+        });
       }
 
       if (reached) {

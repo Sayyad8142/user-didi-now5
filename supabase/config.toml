@@ -39,3 +39,6 @@ verify_jwt = false
 
 [functions.send-admin-fcm]
 verify_jwt = false
+
+[functions.send-telegram-alert]
+verify_jwt = false
