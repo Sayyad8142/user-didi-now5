@@ -289,6 +289,18 @@ export function BookingForm() {
       return;
     }
 
+    // Validate flat details are linked (required by DB trigger)
+    if (service_type !== 'bathroom_cleaning' && !profile.flat_id) {
+      console.error('❌ Missing flat_id in profile:', profile);
+      toast({
+        title: "Flat Details Missing",
+        description: "Please update your flat details in Account Settings before booking.",
+        variant: "destructive"
+      });
+      navigate('/profile/settings');
+      return;
+    }
+
     console.log('📝 Creating booking:', {
       serviceType: service_type,
       bookingType,
@@ -341,11 +353,15 @@ export function BookingForm() {
           hint: error.hint,
           code: error.code
         });
+        const isFlatError = error.message?.includes('flat details');
         toast({
           title: "Booking Failed",
-          description: `Error: ${error.message || 'Please try again.'}`,
+          description: isFlatError
+            ? "Please update your flat details in Account Settings before booking."
+            : `Error: ${error.message || 'Please try again.'}`,
           variant: "destructive"
         });
+        if (isFlatError) navigate('/profile/settings');
         return;
       }
 

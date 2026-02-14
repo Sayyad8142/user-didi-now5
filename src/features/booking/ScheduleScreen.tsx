@@ -136,6 +136,18 @@ export function ScheduleScreen() {
         price
       });
 
+      // Validate flat details are linked (required by DB trigger)
+      if (service_type !== 'bathroom_cleaning' && !profile.flat_id) {
+        toast({
+          title: "Flat Details Missing",
+          description: "Please update your flat details in Account Settings before booking.",
+          variant: "destructive"
+        });
+        navigate('/profile/settings');
+        setSubmitting(false);
+        return;
+      }
+
       // Calculate surcharge
       const surcharge = getExtraCharge(selectedTime);
       const finalPrice = price + surcharge;
@@ -179,11 +191,15 @@ export function ScheduleScreen() {
 
       if (error) {
         console.error('❌ Scheduled booking error:', error);
+        const isFlatError = error.message?.includes('flat details');
         toast({
           title: "Booking Failed",
-          description: `Error: ${error.message || 'Please try again.'}`,
+          description: isFlatError
+            ? "Please update your flat details in Account Settings before booking."
+            : `Error: ${error.message || 'Please try again.'}`,
           variant: "destructive"
         });
+        if (isFlatError) navigate('/profile/settings');
         return;
       }
 
