@@ -2397,6 +2397,41 @@ export type Database = {
           },
         ]
       }
+      worker_presence_logs: {
+        Row: {
+          community: string | null
+          created_at: string
+          id: string
+          service: string | null
+          status: string
+          worker_id: string
+        }
+        Insert: {
+          community?: string | null
+          created_at?: string
+          id?: string
+          service?: string | null
+          status: string
+          worker_id: string
+        }
+        Update: {
+          community?: string | null
+          created_at?: string
+          id?: string
+          service?: string | null
+          status?: string
+          worker_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "worker_presence_logs_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "workers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       worker_ratings: {
         Row: {
           booking_id: string
@@ -2917,6 +2952,10 @@ export type Database = {
       }
       create_admin_email_user: { Args: never; Returns: undefined }
       delete_my_data: { Args: never; Returns: undefined }
+      delete_worker_cascade: {
+        Args: { p_worker_id: string }
+        Returns: undefined
+      }
       ensure_worker_profile: { Args: never; Returns: Json }
       escalate_overdue_bookings: { Args: never; Returns: undefined }
       export_my_data: { Args: never; Returns: Json }
@@ -2990,6 +3029,32 @@ export type Database = {
         }[]
       }
       get_booking_status: { Args: { p_booking_id: string }; Returns: Json }
+      get_cancel_reason_breakdown:
+        | {
+            Args: {
+              p_community?: string
+              p_end: string
+              p_service?: string
+              p_start: string
+            }
+            Returns: {
+              count: number
+              reason: string
+            }[]
+          }
+        | {
+            Args: {
+              p_cancel_source?: string
+              p_community?: string
+              p_end: string
+              p_service?: string
+              p_start: string
+            }
+            Returns: {
+              count: number
+              reason: string
+            }[]
+          }
       get_legal_pdfs: {
         Args: never
         Returns: {
@@ -3004,8 +3069,45 @@ export type Database = {
           service: string
         }[]
       }
+      get_ops_hourly_metrics: {
+        Args: {
+          p_community?: string
+          p_end: string
+          p_service?: string
+          p_start: string
+        }
+        Returns: {
+          acceptance_rate_pct: number
+          assigned_auto_count: number
+          assigned_manual_count: number
+          avg_response_time_seconds: number
+          bookings_instant: number
+          bookings_scheduled: number
+          bookings_total: number
+          cancel_by_user_count: number
+          cancel_by_worker_count: number
+          cancel_total: number
+          hour_label: string
+          hour_start: string
+          not_assigned_count: number
+          rejection_count: number
+          risk_score: number
+          workers_available_count: number
+          workers_busy_count: number
+          workers_online_count: number
+        }[]
+      }
       get_ops_setting: { Args: { p_key: string }; Returns: string }
       get_profile_id: { Args: never; Returns: string }
+      get_realtime_active_workers: {
+        Args: { p_community?: string; p_service?: string }
+        Returns: {
+          active_workers: number
+          available_workers: number
+          busy_workers: number
+          offline_workers: number
+        }[]
+      }
       get_setting: {
         Args: { p_default: string; p_key: string }
         Returns: string
