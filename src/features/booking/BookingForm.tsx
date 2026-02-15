@@ -657,7 +657,7 @@ export function BookingForm() {
 
                       {/* Image */}
                       <div className="relative h-[100px] overflow-hidden">
-                        <img src={img} alt={label} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                        <img src={img} alt={label} loading="eager" fetchPriority="high" decoding="async" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent" />
                         {isSelected &&
                     <div className="absolute top-2.5 right-2.5 w-6 h-6 rounded-full bg-primary flex items-center justify-center shadow-md border-[1.5px] border-primary-foreground">
@@ -709,7 +709,7 @@ export function BookingForm() {
                     )}>
 
                           <div className="relative h-20 overflow-hidden">
-                            <img src={opt.img} alt={opt.label} className="w-full h-full object-cover" />
+                            <img src={opt.img} alt={opt.label} loading="eager" decoding="async" className="w-full h-full object-cover" />
                             {active &&
                       <div className="absolute inset-0 bg-primary/20" />
                       }
