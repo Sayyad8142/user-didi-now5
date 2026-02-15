@@ -10,6 +10,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { User, Phone, Building, Home, LogOut, Settings, Shield, Edit3, Save, X, HelpCircle, Share2, Building2 } from 'lucide-react';
 import { openExternalUrl } from '@/lib/nativeOpen';
 import { useToast } from '@/hooks/use-toast';
+import { validateName } from '@/lib/name-validation';
 import { AppVersionDisplay } from '@/components/AppVersionDisplay';
 import { useCommunities } from '@/hooks/useCommunities';
 import { useBuildings } from '@/hooks/useBuildings';
@@ -64,6 +65,11 @@ export default function Profile() {
   }, [profile]);
 
   const handleSave = async () => {
+    const nameErr = validateName(editForm.full_name);
+    if (nameErr) {
+      toast({ title: 'Invalid Name', description: nameErr, variant: 'destructive' });
+      return;
+    }
     try {
       const { error } = await supabase
         .from('profiles')

@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PhoneInputIN } from './PhoneInputIN';
 import { formatPhoneIN, isValidINPhone } from '@/lib/auth-helpers';
+import { validateName } from '@/lib/name-validation';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { CleaningLoader } from '@/components/ui/cleaning-loader';
@@ -81,8 +82,9 @@ export function AuthCard() {
 
   const validateSignUp = () => {
     const newErrors: Record<string, string> = {};
-    if (!signUpData.fullName.trim()) {
-      newErrors.fullName = 'Full name is required';
+    const nameErr = validateName(signUpData.fullName);
+    if (nameErr) {
+      newErrors.fullName = nameErr;
     }
     if (!signUpData.phone) {
       newErrors.phone = 'Mobile number is required';

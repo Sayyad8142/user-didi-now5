@@ -176,7 +176,7 @@ export function ScheduleScreen() {
         price_inr: finalPrice,
         surcharge_amount: surcharge,
         surcharge_reason: surcharge > 0 ? 'after_4pm' : null,
-        cust_name: profile.full_name,
+        cust_name: /^\+?\d{7,15}$/.test(profile.full_name.trim()) ? 'User ' + profile.phone.slice(-4) : profile.full_name,
         cust_phone: profile.phone,
         community: profile.community,
         flat_no: profile.flat_no
