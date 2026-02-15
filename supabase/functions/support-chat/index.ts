@@ -138,6 +138,7 @@ serve(async (req) => {
     const normalizeBookingId = (b: unknown) => (typeof b === "string" && b.length > 0 ? b : null);
 
     const getOrCreateThread = async (bookingId: string | null) => {
+      // First try to find existing thread
       let q = supabaseAdmin
         .from("support_threads")
         .select("*")
@@ -153,6 +154,7 @@ serve(async (req) => {
 
       if (existing?.[0]) return existing[0];
 
+      // Try to insert, but handle duplicate key gracefully (race condition)
       const { data: created, error: createErr } = await supabaseAdmin
         .from("support_threads")
         .insert({
@@ -164,7 +166,27 @@ serve(async (req) => {
         .select("*")
         .single();
 
-      if (createErr) throw createErr;
+      if (createErr) {
+        // If duplicate key error, just re-fetch the existing thread
+        if (createErr.message?.includes("duplicate key") || createErr.code === "23505") {
+          console.log("⚠️ Duplicate thread detected, re-fetching...");
+          let retryQ = supabaseAdmin
+            .from("support_threads")
+            .select("*")
+            .eq("user_id", profileId!)
+            .order("updated_at", { ascending: false })
+            .limit(1);
+
+          if (bookingId) retryQ = retryQ.eq("booking_id", bookingId);
+          else retryQ = retryQ.is("booking_id", null);
+
+          const { data: retryData, error: retryErr } = await retryQ;
+          if (retryErr) throw retryErr;
+          if (retryData?.[0]) return retryData[0];
+          throw new Error("Thread not found after duplicate key conflict");
+        }
+        throw createErr;
+      }
       return created;
     };
 
