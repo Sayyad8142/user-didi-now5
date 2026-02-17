@@ -290,33 +290,39 @@ export type Database = {
           booking_id: string
           created_at: string | null
           id: string
+          notification_status: string
+          notified_at: string | null
           offered_at: string | null
           order_sequence: number
           responded_at: string | null
           status: string | null
-          timeout_at: string | null
+          timeout_at: string
           worker_id: string
         }
         Insert: {
           booking_id: string
           created_at?: string | null
           id?: string
+          notification_status?: string
+          notified_at?: string | null
           offered_at?: string | null
           order_sequence: number
           responded_at?: string | null
           status?: string | null
-          timeout_at?: string | null
+          timeout_at?: string
           worker_id: string
         }
         Update: {
           booking_id?: string
           created_at?: string | null
           id?: string
+          notification_status?: string
+          notified_at?: string | null
           offered_at?: string | null
           order_sequence?: number
           responded_at?: string | null
           status?: string | null
-          timeout_at?: string | null
+          timeout_at?: string
           worker_id?: string
         }
         Relationships: [
@@ -378,6 +384,7 @@ export type Database = {
         Row: {
           accepted_at: string | null
           assigned_at: string | null
+          assignment_method: string
           auto_complete_after_minutes: number | null
           auto_complete_at: string | null
           bathroom_count: number | null
@@ -396,6 +403,10 @@ export type Database = {
           cust_phone: string
           dish_intensity: string | null
           dish_intensity_extra_inr: number | null
+          dispatch_attempts: number
+          dispatch_expires_at: string | null
+          dispatch_started_at: string | null
+          dispatch_status: string
           family_count: number | null
           flat_no: string
           flat_size: string | null
@@ -404,6 +415,7 @@ export type Database = {
           has_glass_partition: boolean | null
           id: string
           is_demo: boolean
+          last_dispatch_at: string | null
           maid_tasks: Database["public"]["Enums"]["maid_task"][] | null
           notes: string | null
           on_the_way_at: string | null
@@ -434,11 +446,13 @@ export type Database = {
           worker_name: string | null
           worker_phone: string | null
           worker_photo_url: string | null
+          worker_rejected_count: number
           worker_upi: string | null
         }
         Insert: {
           accepted_at?: string | null
           assigned_at?: string | null
+          assignment_method?: string
           auto_complete_after_minutes?: number | null
           auto_complete_at?: string | null
           bathroom_count?: number | null
@@ -457,6 +471,10 @@ export type Database = {
           cust_phone: string
           dish_intensity?: string | null
           dish_intensity_extra_inr?: number | null
+          dispatch_attempts?: number
+          dispatch_expires_at?: string | null
+          dispatch_started_at?: string | null
+          dispatch_status?: string
           family_count?: number | null
           flat_no: string
           flat_size?: string | null
@@ -465,6 +483,7 @@ export type Database = {
           has_glass_partition?: boolean | null
           id?: string
           is_demo?: boolean
+          last_dispatch_at?: string | null
           maid_tasks?: Database["public"]["Enums"]["maid_task"][] | null
           notes?: string | null
           on_the_way_at?: string | null
@@ -495,11 +514,13 @@ export type Database = {
           worker_name?: string | null
           worker_phone?: string | null
           worker_photo_url?: string | null
+          worker_rejected_count?: number
           worker_upi?: string | null
         }
         Update: {
           accepted_at?: string | null
           assigned_at?: string | null
+          assignment_method?: string
           auto_complete_after_minutes?: number | null
           auto_complete_at?: string | null
           bathroom_count?: number | null
@@ -518,6 +539,10 @@ export type Database = {
           cust_phone?: string
           dish_intensity?: string | null
           dish_intensity_extra_inr?: number | null
+          dispatch_attempts?: number
+          dispatch_expires_at?: string | null
+          dispatch_started_at?: string | null
+          dispatch_status?: string
           family_count?: number | null
           flat_no?: string
           flat_size?: string | null
@@ -526,6 +551,7 @@ export type Database = {
           has_glass_partition?: boolean | null
           id?: string
           is_demo?: boolean
+          last_dispatch_at?: string | null
           maid_tasks?: Database["public"]["Enums"]["maid_task"][] | null
           notes?: string | null
           on_the_way_at?: string | null
@@ -556,6 +582,7 @@ export type Database = {
           worker_name?: string | null
           worker_phone?: string | null
           worker_photo_url?: string | null
+          worker_rejected_count?: number
           worker_upi?: string | null
         }
         Relationships: [
@@ -2432,6 +2459,39 @@ export type Database = {
           },
         ]
       }
+      worker_presence_snapshots: {
+        Row: {
+          community: string | null
+          created_at: string
+          id: string
+          is_available: boolean | null
+          is_busy: boolean | null
+          last_seen_at: string | null
+          service_type: string | null
+          worker_id: string
+        }
+        Insert: {
+          community?: string | null
+          created_at?: string
+          id?: string
+          is_available?: boolean | null
+          is_busy?: boolean | null
+          last_seen_at?: string | null
+          service_type?: string | null
+          worker_id: string
+        }
+        Update: {
+          community?: string | null
+          created_at?: string
+          id?: string
+          is_available?: boolean | null
+          is_busy?: boolean | null
+          last_seen_at?: string | null
+          service_type?: string | null
+          worker_id?: string
+        }
+        Relationships: []
+      }
       worker_ratings: {
         Row: {
           booking_id: string
@@ -2579,6 +2639,7 @@ export type Database = {
           last_active_at: string | null
           last_lat: number | null
           last_lng: number | null
+          last_offer_at: string | null
           last_seen_at: string | null
           location_enabled: boolean | null
           phone: string
@@ -2612,6 +2673,7 @@ export type Database = {
           last_active_at?: string | null
           last_lat?: number | null
           last_lng?: number | null
+          last_offer_at?: string | null
           last_seen_at?: string | null
           location_enabled?: boolean | null
           phone: string
@@ -2645,6 +2707,7 @@ export type Database = {
           last_active_at?: string | null
           last_lat?: number | null
           last_lng?: number | null
+          last_offer_at?: string | null
           last_seen_at?: string | null
           location_enabled?: boolean | null
           phone?: string
@@ -2764,6 +2827,7 @@ export type Database = {
               last_active_at: string | null
               last_lat: number | null
               last_lng: number | null
+              last_offer_at: string | null
               last_seen_at: string | null
               location_enabled: boolean | null
               phone: string
@@ -2806,6 +2870,7 @@ export type Database = {
               last_active_at: string | null
               last_lat: number | null
               last_lng: number | null
+              last_offer_at: string | null
               last_seen_at: string | null
               location_enabled: boolean | null
               phone: string
@@ -2859,6 +2924,7 @@ export type Database = {
             Returns: {
               accepted_at: string | null
               assigned_at: string | null
+              assignment_method: string
               auto_complete_after_minutes: number | null
               auto_complete_at: string | null
               bathroom_count: number | null
@@ -2877,6 +2943,10 @@ export type Database = {
               cust_phone: string
               dish_intensity: string | null
               dish_intensity_extra_inr: number | null
+              dispatch_attempts: number
+              dispatch_expires_at: string | null
+              dispatch_started_at: string | null
+              dispatch_status: string
               family_count: number | null
               flat_no: string
               flat_size: string | null
@@ -2885,6 +2955,7 @@ export type Database = {
               has_glass_partition: boolean | null
               id: string
               is_demo: boolean
+              last_dispatch_at: string | null
               maid_tasks: Database["public"]["Enums"]["maid_task"][] | null
               notes: string | null
               on_the_way_at: string | null
@@ -2915,6 +2986,7 @@ export type Database = {
               worker_name: string | null
               worker_phone: string | null
               worker_photo_url: string | null
+              worker_rejected_count: number
               worker_upi: string | null
             }
             SetofOptions: {
@@ -2924,6 +2996,18 @@ export type Database = {
               isSetofReturn: false
             }
           }
+      atomic_accept_booking: {
+        Args: {
+          p_booking_id: string
+          p_worker_id: string
+          p_worker_name?: string
+          p_worker_phone?: string
+        }
+        Returns: {
+          accepted: boolean
+          message: string
+        }[]
+      }
       auto_complete_assigned: { Args: never; Returns: undefined }
       auto_handle_overdue_bookings: { Args: never; Returns: number }
       auto_heal_stale_worker_busy: {
@@ -3116,7 +3200,60 @@ export type Database = {
         Args: { p_default: number; p_key: string }
         Returns: number
       }
+      get_supply_gap_analysis: {
+        Args: never
+        Returns: {
+          acceptance_pct: number
+          accepted: number
+          hour_ist: number
+          missed: number
+          rejected: number
+          total_requests: number
+        }[]
+      }
       get_worker_contact: { Args: { p_booking_id: string }; Returns: Json }
+      get_worker_online_hourly: {
+        Args: { p_community?: string; p_date: string }
+        Returns: {
+          available_workers_count: number
+          busy_workers_count: number
+          demand_count: number
+          hour_label: string
+          hour_start: string
+          offline_workers_count: number
+          online_workers_count: number
+        }[]
+      }
+      get_worker_performance_summary: {
+        Args: never
+        Returns: {
+          acceptance_rate: number
+          accepted: number
+          community: string
+          completed: number
+          completion_rate: number
+          full_name: string
+          id: string
+          is_active: boolean
+          is_available: boolean
+          is_busy: boolean
+          last_seen_at: string
+          missed: number
+          rating: number
+          rejected: number
+          req_accepted: number
+          service_types: string[]
+          total_earnings: number
+          total_ratings: number
+        }[]
+      }
+      get_worker_rating_distribution: {
+        Args: never
+        Returns: {
+          rating_range: string
+          worker_count: number
+        }[]
+      }
       get_worker_upcoming_scheduled_bookings: {
         Args: { p_limit?: number }
         Returns: {
@@ -3333,6 +3470,8 @@ export type Database = {
       norm_phone: { Args: { p: string }; Returns: string }
       notify_next_worker: { Args: { p_booking_id: string }; Returns: Json }
       pending_sla_minutes: { Args: never; Returns: number }
+      pg_advisory_unlock_dispatch: { Args: never; Returns: boolean }
+      pg_try_advisory_lock_dispatch: { Args: never; Returns: boolean }
       pushcut_notify_support:
         | {
             Args: {
@@ -3366,6 +3505,10 @@ export type Database = {
           p_thread_id: string
           p_title: string
         }
+        Returns: undefined
+      }
+      recalc_worker_rating: {
+        Args: { p_worker_id: string }
         Returns: undefined
       }
       recompute_worker_busy: {
@@ -3520,12 +3663,14 @@ export type Database = {
         }[]
       }
       text_to_bytea: { Args: { data: string }; Returns: string }
+      timeout_expired_booking_requests: { Args: never; Returns: number }
       try_accept_booking: { Args: { p_booking_id: string }; Returns: Json }
       try_accept_pending: {
         Args: { p_booking_id: string }
         Returns: {
           accepted_at: string | null
           assigned_at: string | null
+          assignment_method: string
           auto_complete_after_minutes: number | null
           auto_complete_at: string | null
           bathroom_count: number | null
@@ -3544,6 +3689,10 @@ export type Database = {
           cust_phone: string
           dish_intensity: string | null
           dish_intensity_extra_inr: number | null
+          dispatch_attempts: number
+          dispatch_expires_at: string | null
+          dispatch_started_at: string | null
+          dispatch_status: string
           family_count: number | null
           flat_no: string
           flat_size: string | null
@@ -3552,6 +3701,7 @@ export type Database = {
           has_glass_partition: boolean | null
           id: string
           is_demo: boolean
+          last_dispatch_at: string | null
           maid_tasks: Database["public"]["Enums"]["maid_task"][] | null
           notes: string | null
           on_the_way_at: string | null
@@ -3582,6 +3732,7 @@ export type Database = {
           worker_name: string | null
           worker_phone: string | null
           worker_photo_url: string | null
+          worker_rejected_count: number
           worker_upi: string | null
         }
         SetofOptions: {
