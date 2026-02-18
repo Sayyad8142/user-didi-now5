@@ -70,6 +70,7 @@ export const getDateChips = (): Array<{ date: Date; label: string; dayLabel: str
 };
 
 export const AFTER_4PM_SURCHARGE = 20;
+export const OFF_PEAK_DISCOUNT = 10;
 
 export const getExtraCharge = (timeSlot: string): number => {
   const [hours] = timeSlot.split(':').map(Number);
@@ -80,6 +81,17 @@ export const getExtraCharge = (timeSlot: string): number => {
 export const isAfter4pmSlot = (timeSlot: string): boolean => {
   const [hours] = timeSlot.split(':').map(Number);
   return hours >= 16;
+};
+
+/** Off-peak discount: 10:00 AM – 2:00 PM inclusive (i.e. 10:00–14:00) */
+export const isOffPeakSlot = (timeSlot: string): boolean => {
+  const [hours, minutes] = timeSlot.split(':').map(Number);
+  const totalMinutes = hours * 60 + minutes;
+  return totalMinutes >= 600 && totalMinutes <= 840; // 10:00 to 14:00
+};
+
+export const getOffPeakDiscount = (timeSlot: string): number => {
+  return isOffPeakSlot(timeSlot) ? OFF_PEAK_DISCOUNT : 0;
 };
 
 export const TIME_SEGMENTS = {

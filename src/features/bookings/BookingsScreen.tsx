@@ -23,6 +23,8 @@ interface Booking {
   flat_no: string;
   created_at: string;
   price_inr?: number | null;
+  discount_inr?: number | null;
+  discount_reason?: string | null;
   worker_id?: string | null;
   worker_name?: string | null;
   worker_phone?: string | null;
