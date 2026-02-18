@@ -18,7 +18,7 @@ export function useSupportChat(threadId?: string | null) {
   const [msgs, setMsgs] = useState<SupportMsg[]>([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
-  const [mode, setMode] = useState<Mode>('unknown');
+  const [mode, setMode] = useState<Mode>('firebase');
 
   const chanRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 

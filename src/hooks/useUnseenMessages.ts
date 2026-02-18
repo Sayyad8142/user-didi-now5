@@ -8,7 +8,7 @@ type Mode = 'unknown' | 'supabase' | 'firebase';
 export const useUnseenMessages = () => {
   const [hasUnseenMessages, setHasUnseenMessages] = useState(false);
   const { user } = useAuth();
-  const [mode, setMode] = useState<Mode>('unknown');
+  const [mode, setMode] = useState<Mode>('firebase');
 
   // Detect if we have Supabase auth (admin) or Firebase-only (user app)
   useEffect(() => {
