@@ -3139,6 +3139,17 @@ export type Database = {
               reason: string
             }[]
           }
+      get_cancellation_analytics: {
+        Args: {
+          p_cancelled_by?: string
+          p_community?: string
+          p_end: string
+          p_service?: string
+          p_start: string
+          p_type?: string
+        }
+        Returns: Json
+      }
       get_legal_pdfs: {
         Args: never
         Returns: {

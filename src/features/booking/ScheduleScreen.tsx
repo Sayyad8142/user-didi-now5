@@ -50,6 +50,7 @@ export function ScheduleScreen() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [selectedTime, setSelectedTime] = useState<string>('');
   const [activeSegment, setActiveSegment] = useState<TimeSegment>('Morning');
+  const [initialSegmentSet, setInitialSegmentSet] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [price, setPrice] = useState<number | null>(null);
   const [showAvailabilityWarning, setShowAvailabilityWarning] = useState(false);
@@ -74,6 +75,25 @@ export function ScheduleScreen() {
       return;
     }
   }, [service_type, navigate]);
+
+  // Auto-select the first time segment that has available slots for today
+  useEffect(() => {
+    if (initialSegmentSet) return;
+    const today = new Date();
+    if (selectedDate.toDateString() !== today.toDateString()) return;
+    
+    const segments: TimeSegment[] = ['Morning', 'Afternoon', 'Evening'];
+    for (const seg of segments) {
+      const slots = makeSlots(TIME_SEGMENTS[seg].start, TIME_SEGMENTS[seg].end);
+      const hasAvailable = slots.some(slot => !isPastToday(slot, selectedDate));
+      if (hasAvailable) {
+        setActiveSegment(seg);
+        setInitialSegmentSet(true);
+        return;
+      }
+    }
+    setInitialSegmentSet(true);
+  }, [selectedDate]);
 
   useEffect(() => {
     if (priceParam) {
