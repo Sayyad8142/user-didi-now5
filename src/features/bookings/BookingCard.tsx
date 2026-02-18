@@ -39,6 +39,8 @@ interface Booking {
   flat_no: string;
   created_at: string;
   price_inr?: number | null;
+  discount_inr?: number | null;
+  discount_reason?: string | null;
   worker_id?: string | null;
   worker_name?: string | null;
   worker_phone?: string | null;
@@ -460,6 +462,17 @@ export function BookingCard({
               <p className="font-semibold text-blue-900 text-sm">
                 {formatDateTime(booking.scheduled_date, booking.scheduled_time)}
               </p>
+            </div>
+          </div>
+        )}
+
+        {/* Discount info */}
+        {row.discount_inr != null && row.discount_inr > 0 && (
+          <div className="flex items-center gap-2 p-2 bg-emerald-50 rounded-lg border border-emerald-100">
+            <CreditCard className="h-4 w-4 text-emerald-600" />
+            <div className="flex-1">
+              <p className="text-xs font-medium text-emerald-600">Off-peak discount applied</p>
+              <p className="font-semibold text-emerald-800 text-sm">-₹{row.discount_inr} saved</p>
             </div>
           </div>
         )}

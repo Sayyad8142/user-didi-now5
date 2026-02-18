@@ -401,6 +401,8 @@ export type Database = {
           created_at: string
           cust_name: string
           cust_phone: string
+          discount_inr: number
+          discount_reason: string | null
           dish_intensity: string | null
           dish_intensity_extra_inr: number | null
           dispatch_attempts: number
@@ -469,6 +471,8 @@ export type Database = {
           created_at?: string
           cust_name: string
           cust_phone: string
+          discount_inr?: number
+          discount_reason?: string | null
           dish_intensity?: string | null
           dish_intensity_extra_inr?: number | null
           dispatch_attempts?: number
@@ -537,6 +541,8 @@ export type Database = {
           created_at?: string
           cust_name?: string
           cust_phone?: string
+          discount_inr?: number
+          discount_reason?: string | null
           dish_intensity?: string | null
           dish_intensity_extra_inr?: number | null
           dispatch_attempts?: number
@@ -2084,6 +2090,42 @@ export type Database = {
           },
         ]
       }
+      surge_pricing_rules: {
+        Row: {
+          community: string | null
+          created_at: string
+          day_of_week: number
+          hour: number
+          id: string
+          is_active: boolean
+          multiplier: number
+          service_type: string | null
+          updated_at: string
+        }
+        Insert: {
+          community?: string | null
+          created_at?: string
+          day_of_week: number
+          hour: number
+          id?: string
+          is_active?: boolean
+          multiplier?: number
+          service_type?: string | null
+          updated_at?: string
+        }
+        Update: {
+          community?: string | null
+          created_at?: string
+          day_of_week?: number
+          hour?: number
+          id?: string
+          is_active?: boolean
+          multiplier?: number
+          service_type?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       tenants: {
         Row: {
           active: boolean | null
@@ -2630,6 +2672,7 @@ export type Database = {
           cook_cuisine_tags: string[]
           created_at: string
           fcm_token: string | null
+          first_booking_completed_at: string | null
           full_name: string
           id: string
           in_geofence: boolean | null
@@ -2637,6 +2680,7 @@ export type Database = {
           is_available: boolean | null
           is_busy: boolean | null
           last_active_at: string | null
+          last_booking_completed_at: string | null
           last_lat: number | null
           last_lng: number | null
           last_offer_at: string | null
@@ -2649,6 +2693,7 @@ export type Database = {
           selected_community_id: string | null
           service_types: string[]
           timezone: string | null
+          total_bookings_completed: number
           total_earnings: number | null
           total_ratings: number | null
           updated_at: string
@@ -2664,6 +2709,7 @@ export type Database = {
           cook_cuisine_tags?: string[]
           created_at?: string
           fcm_token?: string | null
+          first_booking_completed_at?: string | null
           full_name: string
           id?: string
           in_geofence?: boolean | null
@@ -2671,6 +2717,7 @@ export type Database = {
           is_available?: boolean | null
           is_busy?: boolean | null
           last_active_at?: string | null
+          last_booking_completed_at?: string | null
           last_lat?: number | null
           last_lng?: number | null
           last_offer_at?: string | null
@@ -2683,6 +2730,7 @@ export type Database = {
           selected_community_id?: string | null
           service_types?: string[]
           timezone?: string | null
+          total_bookings_completed?: number
           total_earnings?: number | null
           total_ratings?: number | null
           updated_at?: string
@@ -2698,6 +2746,7 @@ export type Database = {
           cook_cuisine_tags?: string[]
           created_at?: string
           fcm_token?: string | null
+          first_booking_completed_at?: string | null
           full_name?: string
           id?: string
           in_geofence?: boolean | null
@@ -2705,6 +2754,7 @@ export type Database = {
           is_available?: boolean | null
           is_busy?: boolean | null
           last_active_at?: string | null
+          last_booking_completed_at?: string | null
           last_lat?: number | null
           last_lng?: number | null
           last_offer_at?: string | null
@@ -2717,6 +2767,7 @@ export type Database = {
           selected_community_id?: string | null
           service_types?: string[]
           timezone?: string | null
+          total_bookings_completed?: number
           total_earnings?: number | null
           total_ratings?: number | null
           updated_at?: string
@@ -2818,6 +2869,7 @@ export type Database = {
               cook_cuisine_tags: string[]
               created_at: string
               fcm_token: string | null
+              first_booking_completed_at: string | null
               full_name: string
               id: string
               in_geofence: boolean | null
@@ -2825,6 +2877,7 @@ export type Database = {
               is_available: boolean | null
               is_busy: boolean | null
               last_active_at: string | null
+              last_booking_completed_at: string | null
               last_lat: number | null
               last_lng: number | null
               last_offer_at: string | null
@@ -2837,6 +2890,7 @@ export type Database = {
               selected_community_id: string | null
               service_types: string[]
               timezone: string | null
+              total_bookings_completed: number
               total_earnings: number | null
               total_ratings: number | null
               updated_at: string
@@ -2861,6 +2915,7 @@ export type Database = {
               cook_cuisine_tags: string[]
               created_at: string
               fcm_token: string | null
+              first_booking_completed_at: string | null
               full_name: string
               id: string
               in_geofence: boolean | null
@@ -2868,6 +2923,7 @@ export type Database = {
               is_available: boolean | null
               is_busy: boolean | null
               last_active_at: string | null
+              last_booking_completed_at: string | null
               last_lat: number | null
               last_lng: number | null
               last_offer_at: string | null
@@ -2880,6 +2936,7 @@ export type Database = {
               selected_community_id: string | null
               service_types: string[]
               timezone: string | null
+              total_bookings_completed: number
               total_earnings: number | null
               total_ratings: number | null
               updated_at: string
@@ -2941,6 +2998,8 @@ export type Database = {
               created_at: string
               cust_name: string
               cust_phone: string
+              discount_inr: number
+              discount_reason: string | null
               dish_intensity: string | null
               dish_intensity_extra_inr: number | null
               dispatch_attempts: number
@@ -3150,6 +3209,37 @@ export type Database = {
         }
         Returns: Json
       }
+      get_hourly_supply_demand: {
+        Args: {
+          p_booking_type?: string
+          p_community?: string
+          p_end_ts: string
+          p_service_type?: string
+          p_start_ts: string
+        }
+        Returns: {
+          bookings_assigned: number
+          bookings_completed: number
+          bookings_created: number
+          busy_workers: number
+          hour_label: string
+          hour_ts: string
+          online_workers: number
+          shortage_score: number
+          total_active_workers: number
+          utilization_pct: number
+        }[]
+      }
+      get_hourly_worker_online_metrics: {
+        Args: never
+        Returns: {
+          hour: string
+          workers_active_count: number
+          workers_available_count: number
+          workers_busy_count: number
+          workers_online_count: number
+        }[]
+      }
       get_legal_pdfs: {
         Args: never
         Returns: {
@@ -3265,6 +3355,21 @@ export type Database = {
           worker_count: number
         }[]
       }
+      get_worker_supply_health: {
+        Args: never
+        Returns: {
+          total_workers: number
+          workers_active_last_3_days: number
+          workers_active_last_7_days: number
+          workers_active_today: number
+          workers_available_now: number
+          workers_busy_now: number
+          workers_inactive_over_7_days: number
+          workers_never_received_booking: number
+          workers_offline_now: number
+          workers_with_atleast_1_booking: number
+        }[]
+      }
       get_worker_upcoming_scheduled_bookings: {
         Args: { p_limit?: number }
         Returns: {
@@ -3282,6 +3387,23 @@ export type Database = {
         Args: { p_community: string; p_service_type: string }
         Returns: {
           fcm_token: string
+          worker_id: string
+        }[]
+      }
+      get_workers_never_received_booking: {
+        Args: never
+        Returns: {
+          communities: string[]
+          created_at: string
+          earnings: number
+          is_active: boolean
+          is_available: boolean
+          last_seen_at: string
+          name: string
+          phone: string
+          rating: number
+          service_types: string[]
+          total_bookings_completed: number
           worker_id: string
         }[]
       }
@@ -3698,6 +3820,8 @@ export type Database = {
           created_at: string
           cust_name: string
           cust_phone: string
+          discount_inr: number
+          discount_reason: string | null
           dish_intensity: string | null
           dish_intensity_extra_inr: number | null
           dispatch_attempts: number

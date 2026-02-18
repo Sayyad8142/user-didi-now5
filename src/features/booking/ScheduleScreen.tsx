@@ -17,7 +17,10 @@ import {
   getDateChips, 
   getExtraCharge,
   isAfter4pmSlot,
+  isOffPeakSlot,
+  getOffPeakDiscount,
   AFTER_4PM_SURCHARGE,
+  OFF_PEAK_DISCOUNT,
   TIME_SEGMENTS,
   TIME_SEGMENTS_COOK,
   type TimeSegment 
@@ -168,9 +171,10 @@ export function ScheduleScreen() {
         return;
       }
 
-      // Calculate surcharge
+      // Calculate surcharge and discount
       const surcharge = getExtraCharge(selectedTime);
-      const finalPrice = price + surcharge;
+      const discount = getOffPeakDiscount(selectedTime);
+      const finalPrice = price + surcharge; // discount applied server-side via trigger
 
       const bookingData = {
         user_id: profile.id,
@@ -370,6 +374,7 @@ export function ScheduleScreen() {
                     const isPast = isPastToday(slot, selectedDate);
                     const isSelected = selectedTime === slot;
                     const hasSurcharge = isAfter4pmSlot(slot);
+                    const hasDiscount = isOffPeakSlot(slot);
                     
                     return (
                       <Button
@@ -382,7 +387,7 @@ export function ScheduleScreen() {
                             setShowAvailabilityWarning(true);
                           }
                         }}
-                        className={`relative rounded-xl border-2 h-12 px-2 text-xs flex flex-col items-center justify-center ${
+                        className={`relative rounded-xl border-2 h-auto min-h-[3rem] px-2 text-xs flex flex-col items-center justify-center py-1.5 ${
                           isSelected
                             ? 'border-primary bg-primary/10 text-primary'
                             : isPast
@@ -398,6 +403,13 @@ export function ScheduleScreen() {
                             +₹{AFTER_4PM_SURCHARGE}
                           </span>
                         )}
+                        {hasDiscount && !isPast && (
+                          <span className={`text-[10px] font-semibold mt-0.5 ${
+                            isSelected ? 'text-emerald-600' : 'text-emerald-500'
+                          }`}>
+                            ₹{OFF_PEAK_DISCOUNT} OFF
+                          </span>
+                        )}
                       </Button>
                     );
                   })}
@@ -410,24 +422,36 @@ export function ScheduleScreen() {
         {/* Price Summary - Always shown when price available */}
         {price !== null && (
           <div className="mt-4 p-4 bg-gradient-to-r from-primary/5 to-primary/10 rounded-2xl border border-primary/20">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Wallet className="w-5 h-5 text-primary" />
-                <span className="text-sm font-medium text-muted-foreground">Total</span>
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Wallet className="w-5 h-5 text-primary" />
+                  <span className="text-sm font-medium text-muted-foreground">Base price</span>
+                </div>
+                <span className="text-sm font-semibold text-foreground">₹{price}</span>
               </div>
-              <div className="text-right">
-                {selectedTime && isAfter4pmSlot(selectedTime) ? (
-                  <div className="flex flex-col items-end">
-                    <span className="text-xl font-bold text-foreground">
-                      ₹{price + AFTER_4PM_SURCHARGE}
-                    </span>
-                    <span className="text-xs text-orange-600">
-                      (₹{price} + ₹{AFTER_4PM_SURCHARGE} surcharge)
-                    </span>
-                  </div>
-                ) : (
-                  <span className="text-xl font-bold text-foreground">₹{price}</span>
-                )}
+
+              {selectedTime && isAfter4pmSlot(selectedTime) && (
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-orange-600">After 4 PM surcharge</span>
+                  <span className="text-xs font-semibold text-orange-600">+₹{AFTER_4PM_SURCHARGE}</span>
+                </div>
+              )}
+
+              {selectedTime && isOffPeakSlot(selectedTime) && (
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-emerald-600">Off-peak discount (10 AM–2 PM)</span>
+                  <span className="text-xs font-semibold text-emerald-600">-₹{OFF_PEAK_DISCOUNT}</span>
+                </div>
+              )}
+
+              <div className="border-t border-primary/20 pt-1.5 flex items-center justify-between">
+                <span className="text-sm font-semibold text-foreground">Total</span>
+                <span className="text-xl font-bold text-foreground">
+                  ₹{price 
+                    + (selectedTime && isAfter4pmSlot(selectedTime) ? AFTER_4PM_SURCHARGE : 0) 
+                    - (selectedTime && isOffPeakSlot(selectedTime) ? OFF_PEAK_DISCOUNT : 0)}
+                </span>
               </div>
             </div>
           </div>
