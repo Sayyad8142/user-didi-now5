@@ -70,6 +70,9 @@ export function BookingForm() {
   // Maid service specific state
   const [selectedTasks, setSelectedTasks] = useState<MaidTask[]>(["floor_cleaning", "dish_washing"]); // Multiple task selection with checkboxes
   const [dishIntensity, setDishIntensity] = useState<DishIntensity | null>(null);
+  const [dishError, setDishError] = useState(false);
+  const [dishHighlight, setDishHighlight] = useState(false);
+  const dishSectionRef = useRef<HTMLDivElement>(null);
 
   // Bathroom cleaning specific state
   const [bathroomCount, setBathroomCount] = useState(1);
@@ -173,6 +176,22 @@ export function BookingForm() {
       setLoadingPricing(false);
     }
   }, [profile, service_type]);
+
+  // Auto-scroll + highlight dish section when dish_washing is selected
+  useEffect(() => {
+    if (!selectedTasks.includes('dish_washing') || dishIntensity) return;
+    const timer = setTimeout(() => {
+      setDishHighlight(true);
+      dishSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setTimeout(() => setDishHighlight(false), 2500);
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [selectedTasks, dishIntensity]);
+
+  // Clear error when user selects intensity
+  useEffect(() => {
+    if (dishIntensity) setDishError(false);
+  }, [dishIntensity]);
   const loadPricing = async () => {
     if (!service_type || !profile) return;
     setLoadingPricing(true);
@@ -203,6 +222,10 @@ export function BookingForm() {
       }
       // Validate dish intensity selection if dish washing is selected
       if (selectedTasks.includes('dish_washing') && !dishIntensity) {
+        setDishError(true);
+        setDishHighlight(true);
+        dishSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        setTimeout(() => setDishHighlight(false), 2500);
         toast({
           title: "Select dish washing workload",
           description: "Please choose Light, Medium, or Heavy for dish washing.",
@@ -683,11 +706,18 @@ export function BookingForm() {
 
               {/* Dish Intensity — Soft cards with left accent bar */}
               {selectedTasks.includes('dish_washing') &&
-          <div className="space-y-3">
-                  <div>
+          <div
+            ref={dishSectionRef}
+            className={cn(
+              "space-y-3 rounded-2xl p-3 -mx-3 transition-all duration-500",
+              dishHighlight && "ring-2 ring-primary shadow-lg shadow-primary/20 bg-primary/5"
+            )}
+          >
+                  <div className="flex items-center gap-2">
                     <h3 className="text-base font-semibold text-foreground">How many dishes today?</h3>
-                    <p className="text-xs text-muted-foreground mt-0.5">Pick right to avoid disputes</p>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-primary bg-primary/10 px-1.5 py-0.5 rounded">Required</span>
                   </div>
+                  <p className="text-xs text-muted-foreground -mt-1">Pick Light / Medium / Heavy to continue</p>
 
                   <div className="grid grid-cols-3 gap-2">
                     {[
@@ -735,6 +765,9 @@ export function BookingForm() {
 
               })}
                   </div>
+                  {dishError && !dishIntensity && (
+                    <p className="text-xs text-destructive font-medium mt-1">⚠️ Please select dish load</p>
+                  )}
                 </div>
           }
             </div>}
@@ -814,6 +847,10 @@ export function BookingForm() {
                     return;
                   }
                   if (selectedTasks.includes('dish_washing') && !dishIntensity) {
+                    setDishError(true);
+                    setDishHighlight(true);
+                    dishSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    setTimeout(() => setDishHighlight(false), 2500);
                     toast({
                       title: "Select dish washing workload",
                       description: "Please choose Light, Medium, or Heavy for dish washing.",
