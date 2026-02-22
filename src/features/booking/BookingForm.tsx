@@ -913,7 +913,7 @@ export function BookingForm() {
         </div>
 
         {/* Schedule Sheet */}
-        <ScheduleSheet open={scheduleSheetOpen} onOpenChange={setScheduleSheetOpen} onSchedule={handleSchedule} loading={submitting} />
+        <ScheduleSheet open={scheduleSheetOpen} onOpenChange={setScheduleSheetOpen} onSchedule={handleSchedule} loading={submitting} serviceType={service_type} community={profile?.community} />
         
       </div>
     </div>;
