@@ -684,12 +684,9 @@ export function BookingForm() {
               {/* Dish Intensity — Soft cards with left accent bar */}
               {selectedTasks.includes('dish_washing') &&
           <div className="space-y-3">
-                  <div className="bg-primary/10 border border-primary/30 rounded-xl px-3 py-2.5 flex items-center gap-2">
-                    <span className="text-lg">🍽️</span>
-                    <div>
-                      <h3 className="text-sm font-bold text-foreground">Select dish workload below ↓</h3>
-                      <p className="text-[11px] text-muted-foreground">Pick right to avoid disputes with maids</p>
-                    </div>
+                  <div>
+                    <h3 className="text-base font-semibold text-foreground">How many dishes today?</h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">Pick right to avoid disputes</p>
                   </div>
 
                   <div className="grid grid-cols-3 gap-2">
@@ -697,18 +694,19 @@ export function BookingForm() {
               { value: 'light' as DishIntensity, label: 'Light', extra: 0, desc: '5-10 items', img: dishesLightImg },
               { value: 'medium' as DishIntensity, label: 'Medium', extra: 30, desc: '10-20 items', img: dishesMediumImg },
               { value: 'heavy' as DishIntensity, label: 'Heavy', extra: 50, desc: '20+ items', img: dishesHeavyImg }].
-              map((opt) => {
+              map((opt, i) => {
                 const active = dishIntensity === opt.value;
                 return (
                   <button
                     key={opt.value}
                     type="button"
                     onClick={() => setDishIntensity(opt.value)}
+                    style={{ animationDelay: `${i * 150}ms` }}
                     className={cn(
                       "relative rounded-2xl overflow-hidden text-left transition-all duration-200",
                       active ?
                       "ring-2 ring-primary shadow-md shadow-primary/10 scale-[1.02]" :
-                      "ring-2 ring-primary/40 shadow-sm hover:shadow-md"
+                      "ring-1 ring-border shadow-sm hover:shadow-md animate-scale-in"
                     )}>
 
                           <div className="relative h-20 overflow-hidden">
