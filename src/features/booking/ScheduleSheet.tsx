@@ -29,6 +29,8 @@ interface ScheduleSheetProps {
 
 type SlotAvailability = { slot_time: string; worker_count: number };
 
+const MIN_WORKERS_PER_SLOT = 2;
+
 export function ScheduleSheet({ open, onOpenChange, onSchedule, loading, serviceType, community }: ScheduleSheetProps) {
   const [selectedDate, setSelectedDate] = useState<Date>();
   const [selectedTime, setSelectedTime] = useState<string>('');
@@ -77,7 +79,7 @@ export function ScheduleSheet({ open, onOpenChange, onSchedule, loading, service
   };
 
   const canSchedule = selectedDate && selectedTime && !loading;
-  const allUnavailable = selectedDate && !loadingSlots && slotData.length > 0 && slotData.every(s => s.worker_count === 0);
+  const allUnavailable = selectedDate && !loadingSlots && slotData.length > 0 && slotData.every(s => s.worker_count < MIN_WORKERS_PER_SLOT);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -150,7 +152,7 @@ export function ScheduleSheet({ open, onOpenChange, onSchedule, loading, service
               ) : (
                 <div className="grid grid-cols-4 gap-2 max-h-48 overflow-y-auto">
                   {slotData.map((slot) => {
-                    const isUnavailable = slot.worker_count === 0;
+                    const isUnavailable = slot.worker_count < MIN_WORKERS_PER_SLOT;
                     const isSelected = selectedTime === slot.slot_time;
                     return (
                       <Button
@@ -170,7 +172,7 @@ export function ScheduleSheet({ open, onOpenChange, onSchedule, loading, service
                         <span>{slot.slot_time}</span>
                         {isUnavailable && (
                           <span className="text-[9px] leading-none text-destructive font-normal no-underline" style={{ textDecoration: 'none' }}>
-                            N/A
+                            Low supply
                           </span>
                         )}
                       </Button>
