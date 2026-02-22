@@ -683,15 +683,14 @@ export function BookingForm() {
 
               {/* Dish Intensity — Soft cards with left accent bar */}
               {selectedTasks.includes('dish_washing') &&
-          <div className="space-y-3 animate-[fadeInUp_0.3s_ease-out]">
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-base font-semibold text-foreground">How many dishes today?</h3>
-                    <span className="relative flex h-2.5 w-2.5">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-primary"></span>
-                    </span>
+          <div className="space-y-3">
+                  <div className="bg-primary/10 border border-primary/30 rounded-xl px-3 py-2.5 flex items-center gap-2">
+                    <span className="text-lg">🍽️</span>
+                    <div>
+                      <h3 className="text-sm font-bold text-foreground">Select dish workload below ↓</h3>
+                      <p className="text-[11px] text-muted-foreground">Pick right to avoid disputes with maids</p>
+                    </div>
                   </div>
-                  <p className="text-xs text-primary font-medium -mt-1">👆 Tap one to continue</p>
 
                   <div className="grid grid-cols-3 gap-2">
                     {[
@@ -709,7 +708,7 @@ export function BookingForm() {
                       "relative rounded-2xl overflow-hidden text-left transition-all duration-200",
                       active ?
                       "ring-2 ring-primary shadow-md shadow-primary/10 scale-[1.02]" :
-                      "ring-1 ring-border shadow-sm hover:shadow-md animate-[pulse_2s_ease-in-out_3]"
+                      "ring-2 ring-primary/40 shadow-sm hover:shadow-md"
                     )}>
 
                           <div className="relative h-20 overflow-hidden">
