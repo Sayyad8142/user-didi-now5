@@ -3293,6 +3293,13 @@ export type Database = {
           offline_workers: number
         }[]
       }
+      get_scheduled_slot_availability: {
+        Args: { p_community: string; p_date: string; p_service_type: string }
+        Returns: {
+          slot_time: string
+          worker_count: number
+        }[]
+      }
       get_setting: {
         Args: { p_default: string; p_key: string }
         Returns: string

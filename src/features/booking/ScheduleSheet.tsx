@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
-import { CalendarIcon, Clock } from 'lucide-react';
+import { CalendarIcon, Clock, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { 
@@ -14,16 +14,9 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface ScheduleSheetProps {
   open: boolean;
@@ -31,36 +24,51 @@ interface ScheduleSheetProps {
   onSchedule: (date: Date, time: string) => void;
   loading?: boolean;
   serviceType?: string;
+  community?: string;
 }
 
-const TIME_OPTIONS = [
-  '06:00', '06:30', '07:00', '07:30', '08:00', '08:30', '09:00', '09:30',
-  '10:00', '10:30', '11:00', '11:30', '12:00', '12:30', '13:00', '13:30',
-  '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00', '17:30',
-  '18:00', '18:30', '19:00'
-];
+type SlotAvailability = { slot_time: string; worker_count: number };
 
-const TIME_OPTIONS_COOK = [
-  '06:00', '06:30', '07:00', '07:30', '08:00', '08:30', '09:00', '09:30',
-  '10:00', '10:30', '11:00', '11:30', '12:00', '12:30', '13:00', '13:30',
-  '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00', '17:30',
-  '18:00', '18:30', '19:00', '19:30', '20:00', '20:30', '21:00'
-];
-
-// Check if time slot is between 3PM (15:00) and 7PM (19:00)
-const isLimitedAvailabilitySlot = (time: string): boolean => {
-  const [hours] = time.split(':').map(Number);
-  return hours >= 15 && hours <= 19;
-};
-
-export function ScheduleSheet({ open, onOpenChange, onSchedule, loading, serviceType }: ScheduleSheetProps) {
+export function ScheduleSheet({ open, onOpenChange, onSchedule, loading, serviceType, community }: ScheduleSheetProps) {
   const [selectedDate, setSelectedDate] = useState<Date>();
   const [selectedTime, setSelectedTime] = useState<string>('');
   const [datePickerOpen, setDatePickerOpen] = useState(false);
-  const [showAvailabilityWarning, setShowAvailabilityWarning] = useState(false);
+  const [slotData, setSlotData] = useState<SlotAvailability[]>([]);
+  const [loadingSlots, setLoadingSlots] = useState(false);
 
-  const timeOptions = serviceType === 'cook' ? TIME_OPTIONS_COOK : TIME_OPTIONS;
-  const timeLabel = serviceType === 'cook' ? '6 AM - 9 PM' : '6 AM - 7 PM';
+  // Fetch slot availability when date changes
+  useEffect(() => {
+    if (!selectedDate || !community || !serviceType) {
+      setSlotData([]);
+      return;
+    }
+
+    const fetchAvailability = async () => {
+      setLoadingSlots(true);
+      setSelectedTime(''); // reset time on date change
+      try {
+        const dateStr = format(selectedDate, 'yyyy-MM-dd');
+        const { data, error } = await supabase.rpc('get_scheduled_slot_availability', {
+          p_community: community,
+          p_service_type: serviceType,
+          p_date: dateStr,
+        });
+        if (error) {
+          console.error('Slot availability error:', error);
+          setSlotData([]);
+        } else {
+          setSlotData((data as SlotAvailability[]) || []);
+        }
+      } catch (err) {
+        console.error('Slot availability fetch failed:', err);
+        setSlotData([]);
+      } finally {
+        setLoadingSlots(false);
+      }
+    };
+
+    fetchAvailability();
+  }, [selectedDate, community, serviceType]);
 
   const handleSchedule = () => {
     if (selectedDate && selectedTime) {
@@ -69,6 +77,7 @@ export function ScheduleSheet({ open, onOpenChange, onSchedule, loading, service
   };
 
   const canSchedule = selectedDate && selectedTime && !loading;
+  const allUnavailable = selectedDate && !loadingSlots && slotData.length > 0 && slotData.every(s => s.worker_count === 0);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -82,7 +91,7 @@ export function ScheduleSheet({ open, onOpenChange, onSchedule, loading, service
         <div className="space-y-6 pb-6">
           {/* Date Picker */}
           <div className="space-y-3">
-            <label className="text-sm font-medium text-gray-700">
+            <label className="text-sm font-medium text-muted-foreground">
               Select Date *
             </label>
             <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
@@ -115,32 +124,62 @@ export function ScheduleSheet({ open, onOpenChange, onSchedule, loading, service
           </div>
 
           {/* Time Picker */}
-          <div className="space-y-3">
-            <label className="text-sm font-medium text-gray-700">
-              Select Time * ({timeLabel})
-            </label>
-            <div className="grid grid-cols-4 gap-2 max-h-48 overflow-y-auto">
-              {timeOptions.map((time) => (
-                  <Button
-                    key={time}
-                    variant={selectedTime === time ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => {
-                      setSelectedTime(time);
-                      if (isLimitedAvailabilitySlot(time)) {
-                        setShowAvailabilityWarning(true);
-                      }
-                    }}
-                    className={cn(
-                    "rounded-lg text-xs",
-                    selectedTime === time && "bg-primary text-white"
-                  )}
-                >
-                  {time}
-                </Button>
-              ))}
+          {selectedDate && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium text-muted-foreground">
+                  Select Time *
+                </label>
+              </div>
+              <p className="text-xs text-muted-foreground -mt-2">Slots update based on worker availability for the selected day.</p>
+
+              {loadingSlots ? (
+                <div className="grid grid-cols-4 gap-2">
+                  {Array.from({ length: 12 }).map((_, i) => (
+                    <Skeleton key={i} className="h-9 rounded-lg" />
+                  ))}
+                </div>
+              ) : allUnavailable ? (
+                <div className="flex flex-col items-center gap-2 py-6 text-center">
+                  <AlertCircle className="h-8 w-8 text-muted-foreground" />
+                  <p className="text-sm font-medium text-muted-foreground">
+                    No workers available for this day.
+                  </p>
+                  <p className="text-xs text-muted-foreground">Try another date.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-4 gap-2 max-h-48 overflow-y-auto">
+                  {slotData.map((slot) => {
+                    const isUnavailable = slot.worker_count === 0;
+                    const isSelected = selectedTime === slot.slot_time;
+                    return (
+                      <Button
+                        key={slot.slot_time}
+                        variant={isSelected ? "default" : "outline"}
+                        size="sm"
+                        disabled={isUnavailable}
+                        onClick={() => {
+                          if (!isUnavailable) setSelectedTime(slot.slot_time);
+                        }}
+                        className={cn(
+                          "rounded-lg text-xs flex flex-col h-auto py-1.5 gap-0",
+                          isSelected && "bg-primary text-primary-foreground",
+                          isUnavailable && "opacity-40 line-through cursor-not-allowed"
+                        )}
+                      >
+                        <span>{slot.slot_time}</span>
+                        {isUnavailable && (
+                          <span className="text-[9px] leading-none text-destructive font-normal no-underline" style={{ textDecoration: 'none' }}>
+                            N/A
+                          </span>
+                        )}
+                      </Button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
-          </div>
+          )}
         </div>
 
         {/* Action buttons */}
@@ -167,35 +206,10 @@ export function ScheduleSheet({ open, onOpenChange, onSchedule, loading, service
               <>
                 <Clock className="w-4 h-4 mr-2" />
                 Schedule Booking
-            </>
+              </>
             )}
           </Button>
         </div>
-
-        {/* Limited Availability Warning Dialog */}
-        <AlertDialog open={showAvailabilityWarning} onOpenChange={setShowAvailabilityWarning}>
-          <AlertDialogContent className="max-w-sm rounded-2xl">
-            <AlertDialogHeader>
-              <AlertDialogTitle className="text-lg font-semibold text-foreground">
-                Note
-              </AlertDialogTitle>
-              <AlertDialogDescription className="text-sm text-muted-foreground space-y-3">
-                <p>
-                  Between 3:00 PM and 7:00 PM, worker availability is limited.
-                  There is a lower chance of worker confirmation during these hours.
-                </p>
-                <p className="font-medium text-foreground">
-                  For 100% booking confirmation, we recommend booking between 6:00 AM and 3:00 PM.
-                </p>
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogAction className="w-full rounded-full bg-primary">
-                Agree & Continue
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
       </SheetContent>
     </Sheet>
   );
