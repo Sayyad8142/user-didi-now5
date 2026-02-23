@@ -26,6 +26,7 @@ const Bookings = lazy(() => import("./pages/Bookings"));
 const Profile = lazy(() => import("./pages/Profile"));
 const FAQs = lazy(() => import("./pages/FAQs"));
 const BookingForm = lazy(() => import("./features/booking/BookingForm").then(m => ({ default: m.BookingForm })));
+const SelectWorkerScreen = lazy(() => import("./features/booking/SelectWorkerScreen").then(m => ({ default: m.SelectWorkerScreen })));
 const ScheduleScreen = lazy(() => import("./features/booking/ScheduleScreen").then(m => ({ default: m.ScheduleScreen })));
 const ChatScreen = lazy(() => import("./features/chat/ChatScreen").then(m => ({ default: m.ChatScreen })));
 const TelegramSetup = lazy(() => import("./pages/TelegramSetup"));
@@ -172,6 +173,16 @@ const AppContent = () => {
             <ProtectedRoute>
               <ProtectedLayout>
                 <BookingForm />
+              </ProtectedLayout>
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/book/:service_type/select-worker" 
+          element={
+            <ProtectedRoute>
+              <ProtectedLayout>
+                <SelectWorkerScreen />
               </ProtectedLayout>
             </ProtectedRoute>
           } 

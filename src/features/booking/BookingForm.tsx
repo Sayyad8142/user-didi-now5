@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, MapPin, Home, Clock, Calendar, AlertCircle, Check, Zap, ChevronRight } from 'lucide-react';
+import { ArrowLeft, MapPin, Home, Clock, Calendar, AlertCircle, Check, Zap, ChevronRight, Star, X, Heart } from 'lucide-react';
 import serviceFloorImg from '@/assets/service-floor-cleaning.webp';
 import serviceDishImg from '@/assets/service-dish-washing.webp';
 import dishesLightImg from '@/assets/dishes-light.webp';
@@ -8,6 +8,7 @@ import dishesMediumImg from '@/assets/dishes-medium.webp';
 import dishesHeavyImg from '@/assets/dishes-heavy.webp';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { useQuery } from '@tanstack/react-query';
@@ -79,6 +80,35 @@ export function BookingForm() {
   const [hasGlassPartition, setHasGlassPartition] = useState(false);
   const servicesRef = useRef<HTMLDivElement>(null);
   const GLASS_PARTITION_FEE = 30; // ₹30 per bathroom
+
+  // Preferred worker state
+  type PreferredWorker = { id: string; full_name: string; photo_url: string | null; rating_avg: number };
+  const [preferredWorker, setPreferredWorker] = useState<PreferredWorker | null>(() => {
+    try {
+      const stored = sessionStorage.getItem('preferred_worker');
+      return stored ? JSON.parse(stored) : null;
+    } catch { return null; }
+  });
+
+  // Listen for returning from select-worker screen
+  useEffect(() => {
+    const handleFocus = () => {
+      try {
+        const stored = sessionStorage.getItem('preferred_worker');
+        if (stored) setPreferredWorker(JSON.parse(stored));
+        else setPreferredWorker(null);
+      } catch { /* ignore */ }
+    };
+    window.addEventListener('focus', handleFocus);
+    // Also check on mount / navigation return
+    handleFocus();
+    return () => window.removeEventListener('focus', handleFocus);
+  }, []);
+
+  const clearPreferredWorker = useCallback(() => {
+    sessionStorage.removeItem('preferred_worker');
+    setPreferredWorker(null);
+  }, []);
 
   // Fetch maid task prices
   const {
@@ -361,8 +391,9 @@ export function BookingForm() {
         cust_name: /^\+?\d{7,15}$/.test(profile.full_name.trim()) ? 'User ' + profile.phone.slice(-4) : profile.full_name,
         cust_phone: profile.phone,
         community: profile.community,
-        flat_no: profile.flat_no
-      };
+        flat_no: profile.flat_no,
+        preferred_worker_id: bookingType === 'instant' ? (preferredWorker?.id || null) : null,
+      } as any;
 
       console.log('📤 Sending booking data to database:', bookingData);
 
@@ -395,6 +426,7 @@ export function BookingForm() {
         description: bookingType === 'instant' ? "Service will arrive in 10 minutes." : "Your booking has been scheduled successfully."
       });
       setScheduleSheetOpen(false);
+      clearPreferredWorker();
       navigate('/home');
     } catch (err: any) {
       console.error('❌ Booking error:', err);
@@ -897,6 +929,57 @@ export function BookingForm() {
                 <ChevronRight className="w-4 h-4 text-muted-foreground absolute top-4 right-4" />
               </button>
             </div>
+
+            {/* Fav Worker Card - below instant/schedule grid */}
+            {!instantDisabled && isServiceOpen && (
+              <div className="mt-1">
+                {preferredWorker ? (
+                  <div className="flex items-center gap-3 p-3 rounded-2xl border border-primary/30 bg-primary/5">
+                    <Avatar className="w-9 h-9">
+                      {preferredWorker.photo_url ? <AvatarImage src={preferredWorker.photo_url} /> : null}
+                      <AvatarFallback className="bg-primary/10 text-primary text-xs font-bold">
+                        {preferredWorker.full_name.charAt(0)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-foreground truncate">{preferredWorker.full_name}</p>
+                      <div className="flex items-center gap-1">
+                        <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                        <span className="text-xs text-muted-foreground">{preferredWorker.rating_avg.toFixed(1)}</span>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => navigate(`/book/${service_type}/select-worker`)}
+                      className="text-xs text-primary font-medium"
+                    >
+                      Change
+                    </button>
+                    <button onClick={clearPreferredWorker} className="p-1">
+                      <X className="w-4 h-4 text-muted-foreground" />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => navigate(`/book/${service_type}/select-worker`)}
+                    className="w-full flex items-center gap-3 p-3 rounded-2xl border border-dashed border-border hover:border-primary/40 bg-card transition-colors text-left"
+                  >
+                    <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                      <Heart className="w-4 h-4 text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-foreground">Choose fav worker</p>
+                      <p className="text-[11px] text-muted-foreground">Optional • Faster service</p>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                  </button>
+                )}
+                {preferredWorker && (
+                  <p className="text-[11px] text-muted-foreground mt-1.5 px-1">
+                    We'll offer to {preferredWorker.full_name} first. If no response, others will get it.
+                  </p>
+                )}
+              </div>
+            )}
 
             {/* Instant unavailable hint */}
             {!isServiceOpen &&

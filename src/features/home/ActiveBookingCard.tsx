@@ -137,7 +137,7 @@ const ActiveBookingCard = memo(() => {
       // Fetch all matching bookings with worker's current UPI and prioritize active ones over cancelled
       const { data: allBookings, error } = await supabase
         .from('bookings')
-        .select('*, workers:worker_id(upi_id)')
+        .select('*, workers:workers!bookings_worker_id_fkey(upi_id)')
         .eq('user_id', profile.id)
         .or(`and(status.in.(pending,assigned,accepted,on_the_way,started),booking_type.eq.instant),and(status.in.(pending,assigned,accepted,on_the_way,started),booking_type.eq.scheduled,scheduled_date.gte.${today}),and(status.eq.cancelled,cancelled_at.gte.${todayStart})`)
         .order('created_at', { ascending: false });
