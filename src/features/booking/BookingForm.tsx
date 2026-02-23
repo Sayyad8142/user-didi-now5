@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, MapPin, Home, Clock, Calendar, AlertCircle, Check, Zap, ChevronRight, Star, X, Heart } from 'lucide-react';
+import { ArrowLeft, MapPin, Home, Clock, Calendar, AlertCircle, Check, Zap, ChevronRight, Star, X } from 'lucide-react';
 import serviceFloorImg from '@/assets/service-floor-cleaning.webp';
 import serviceDishImg from '@/assets/service-dish-washing.webp';
 import dishesLightImg from '@/assets/dishes-light.webp';
@@ -841,7 +841,32 @@ export function BookingForm() {
             <div className="grid grid-cols-2 gap-3">
               {/* Instant Card */}
               <button
-              onClick={handleBookNow}
+              onClick={() => {
+                // Validate before navigating to instant checkout
+                if (service_type === 'maid') {
+                  if (!selectedFlatSize || selectedTasks.length === 0) {
+                    toast({ title: "Please complete maid booking details", description: "Select flat size and at least one task.", variant: "destructive" });
+                    return;
+                  }
+                  if (selectedTasks.includes('dish_washing') && !dishIntensity) {
+                    setDishError(true);
+                    setDishHighlight(true);
+                    dishSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    setTimeout(() => setDishHighlight(false), 2500);
+                    toast({ title: "Select dish washing workload", description: "Please choose Light, Medium, or Heavy.", variant: "destructive" });
+                    return;
+                  }
+                  const dishParams = selectedTasks.includes('dish_washing') ? `&dish_intensity=${dishIntensity}&dish_extra=${dishIntensityExtra}` : '';
+                  navigate(`/book/${service_type}/instant?flat=${selectedFlatSize}&tasks=${selectedTasks.join(',')}&price=${totalPrice}${dishParams}`);
+                } else if (service_type === 'bathroom_cleaning') {
+                  navigate(`/book/${service_type}/instant?bathrooms=${bathroomCount}&glass=${hasGlassPartition ? '1' : '0'}&price=${bathroomTotalPrice}`);
+                } else {
+                  if (!selectedFlatSize) return;
+                  const price = pricingMap[selectedFlatSize];
+                  if (!price) { toast({ title: "Error", description: "Price not available.", variant: "destructive" }); return; }
+                  navigate(`/book/${service_type}/instant?flat=${selectedFlatSize}&price=${price}`);
+                }
+              }}
               disabled={!canBook}
               className={cn(
                 "relative flex flex-col items-start gap-3 p-4 rounded-2xl border-2 shadow-sm transition-all duration-200 text-left",
@@ -860,11 +885,6 @@ export function BookingForm() {
                   <div className="text-xs text-muted-foreground mt-0.5">Get help in 10 mins</div>
                 </div>
                 <ChevronRight className="w-4 h-4 text-muted-foreground absolute top-4 right-4" />
-                {submitting &&
-              <div className="absolute inset-0 bg-card/80 rounded-2xl flex items-center justify-center">
-                    <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                  </div>
-              }
               </button>
 
               {/* Schedule Card */}
@@ -931,56 +951,7 @@ export function BookingForm() {
               </button>
             </div>
 
-            {/* Fav Worker Card - below instant/schedule grid */}
-            {!instantDisabled && isServiceOpen && (
-              <div className="mt-1">
-                {preferredWorker ? (
-                  <div className="flex items-center gap-3 p-3 rounded-2xl border border-primary/30 bg-primary/5">
-                    <Avatar className="w-9 h-9">
-                      {preferredWorker.photo_url ? <AvatarImage src={preferredWorker.photo_url} /> : null}
-                      <AvatarFallback className="bg-primary/10 text-primary text-xs font-bold">
-                        {preferredWorker.full_name.charAt(0)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-foreground truncate">{preferredWorker.full_name}</p>
-                      <div className="flex items-center gap-1">
-                        <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
-                        <span className="text-xs text-muted-foreground">{preferredWorker.rating_avg.toFixed(1)}</span>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => navigate(`/book/${service_type}/select-worker`)}
-                      className="text-xs text-primary font-medium"
-                    >
-                      Change
-                    </button>
-                    <button onClick={clearPreferredWorker} className="p-1">
-                      <X className="w-4 h-4 text-muted-foreground" />
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => navigate(`/book/${service_type}/select-worker`)}
-                    className="w-full flex items-center gap-3 p-3 rounded-2xl border border-dashed border-border hover:border-primary/40 bg-card transition-colors text-left"
-                  >
-                    <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                      <Heart className="w-4 h-4 text-primary" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-foreground">Choose fav worker</p>
-                      <p className="text-[11px] text-muted-foreground">Optional • Offer booking to selected expert first</p>
-                    </div>
-                    <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                  </button>
-                )}
-                {preferredWorker && (
-                  <p className="text-[11px] text-muted-foreground mt-1.5 px-1">
-                    We'll offer to {preferredWorker.full_name} first. If no response, others will get it.
-                  </p>
-                )}
-              </div>
-            )}
+            {/* Fav Worker Card removed - now part of InstantCheckoutScreen */}
 
             {/* Instant unavailable hint */}
             {!isServiceOpen &&
