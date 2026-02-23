@@ -83,9 +83,10 @@ export function BookingForm() {
 
   // Preferred worker state
   type PreferredWorker = { id: string; full_name: string; photo_url: string | null; rating_avg: number };
+  const prefKey = `preferred_worker_${service_type}`;
   const [preferredWorker, setPreferredWorker] = useState<PreferredWorker | null>(() => {
     try {
-      const stored = sessionStorage.getItem('preferred_worker');
+      const stored = sessionStorage.getItem(prefKey);
       return stored ? JSON.parse(stored) : null;
     } catch { return null; }
   });
@@ -94,7 +95,7 @@ export function BookingForm() {
   useEffect(() => {
     const handleFocus = () => {
       try {
-        const stored = sessionStorage.getItem('preferred_worker');
+        const stored = sessionStorage.getItem(prefKey);
         if (stored) setPreferredWorker(JSON.parse(stored));
         else setPreferredWorker(null);
       } catch { /* ignore */ }
@@ -103,12 +104,12 @@ export function BookingForm() {
     // Also check on mount / navigation return
     handleFocus();
     return () => window.removeEventListener('focus', handleFocus);
-  }, []);
+  }, [prefKey]);
 
   const clearPreferredWorker = useCallback(() => {
-    sessionStorage.removeItem('preferred_worker');
+    sessionStorage.removeItem(prefKey);
     setPreferredWorker(null);
-  }, []);
+  }, [prefKey]);
 
   // Fetch maid task prices
   const {
@@ -968,7 +969,7 @@ export function BookingForm() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-foreground">Choose fav worker</p>
-                      <p className="text-[11px] text-muted-foreground">Optional • Faster service</p>
+                      <p className="text-[11px] text-muted-foreground">Optional • Offer booking to selected expert first</p>
                     </div>
                     <ChevronRight className="w-4 h-4 text-muted-foreground" />
                   </button>
