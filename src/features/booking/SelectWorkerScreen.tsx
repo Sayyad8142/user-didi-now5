@@ -48,9 +48,9 @@ export function SelectWorkerScreen() {
   );
 
   const handleSelect = (worker: EligibleWorker) => {
-    // Store in sessionStorage so BookingForm can pick it up
+    // Store per service_type so cook selection doesn't leak into maid flow
     sessionStorage.setItem(
-      'preferred_worker',
+      `preferred_worker_${service_type}`,
       JSON.stringify({
         id: worker.worker_id,
         full_name: worker.full_name,
@@ -93,7 +93,7 @@ export function SelectWorkerScreen() {
         </div>
 
         <p className="text-xs text-muted-foreground mb-4">
-          Showing workers online now for your community. Auto-refreshes every 15s.
+          Online now for {service_type?.replace(/_/g, ' ') || 'your service'}. Auto-refreshes every 15s.
         </p>
 
         {/* Worker list */}
