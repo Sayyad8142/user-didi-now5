@@ -177,47 +177,11 @@ export function InstantCheckoutScreen() {
     <div className="min-h-screen bg-background pb-24">
       <div className="max-w-md mx-auto px-4 py-6">
         {/* Header */}
-        <div className="flex items-center gap-3 mb-5">
+        <div className="flex items-center gap-3 mb-6">
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="shrink-0">
             <ArrowLeft className="w-5 h-5" />
           </Button>
-          <div>
-            <h1 className="text-xl font-semibold text-foreground">Instant Booking</h1>
-            <p className="text-xs text-muted-foreground">{serviceName} • ₹{price}</p>
-          </div>
-        </div>
-
-        {/* Summary card */}
-        <div className="rounded-2xl border border-border bg-card p-4 mb-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-muted-foreground">Community</p>
-              <p className="text-sm font-medium text-foreground">{profile?.community}</p>
-            </div>
-            <div className="text-right">
-              <p className="text-sm text-muted-foreground">Flat</p>
-              <p className="text-sm font-medium text-foreground">{profile?.flat_no}</p>
-            </div>
-          </div>
-          {flatSize && (
-            <div className="mt-2">
-              <p className="text-sm text-muted-foreground">Flat size: <span className="font-medium text-foreground">{flatSize}</span></p>
-            </div>
-          )}
-          {selectedWorker && (
-            <div className="mt-3 flex items-center gap-2 p-2 rounded-xl bg-primary/5 border border-primary/20">
-              <Avatar className="w-7 h-7">
-                {selectedWorker.photo_url ? <AvatarImage src={selectedWorker.photo_url} /> : null}
-                <AvatarFallback className="bg-primary/10 text-primary text-[10px] font-bold">
-                  {selectedWorker.full_name.charAt(0)}
-                </AvatarFallback>
-              </Avatar>
-              <span className="text-xs font-medium text-foreground truncate flex-1">{selectedWorker.full_name}</span>
-              <button onClick={clearSelection} className="p-0.5">
-                <X className="w-3.5 h-3.5 text-muted-foreground" />
-              </button>
-            </div>
-          )}
+          <h1 className="text-xl font-semibold text-foreground">Instant Booking</h1>
         </div>
 
         {/* Book Now CTA */}
@@ -236,7 +200,7 @@ export function InstantCheckoutScreen() {
             </>
           )}
         </Button>
-        <p className="text-[11px] text-muted-foreground text-center mb-8">
+        <p className="text-[11px] text-muted-foreground text-center mb-6">
           {selectedWorker
             ? `We'll offer to ${selectedWorker.full_name} first. If no response, others will get it.`
             : "Instant • We'll assign the best available expert"}
