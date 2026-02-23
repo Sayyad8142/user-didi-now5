@@ -3134,6 +3134,7 @@ export type Database = {
         Args: { p_worker_id: string }
         Returns: undefined
       }
+      dispatch_booking: { Args: { p_booking_id: string }; Returns: undefined }
       ensure_worker_profile: { Args: never; Returns: Json }
       escalate_overdue_bookings: { Args: never; Returns: undefined }
       export_my_data: { Args: never; Returns: Json }
@@ -3817,6 +3818,7 @@ export type Database = {
         }
       }
       support_mark_seen: { Args: { p_thread: string }; Returns: undefined }
+      sweep_preferred_timeouts: { Args: never; Returns: number }
       test_booking_assignment_system: {
         Args: {
           p_community?: string
