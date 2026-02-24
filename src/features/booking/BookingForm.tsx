@@ -712,8 +712,8 @@ export function BookingForm() {
                   )}>
 
                       {/* Image */}
-                      <div className="relative h-[100px] overflow-hidden">
-                        <img src={img} alt={label} loading="eager" fetchPriority="high" decoding="async" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                      <div className="relative h-[100px] overflow-hidden bg-muted">
+                        <img src={img} alt={label} loading="eager" fetchPriority="high" decoding="async" width={200} height={100} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent" />
                         {isSelected &&
                     <div className="absolute top-2.5 right-2.5 w-6 h-6 rounded-full bg-primary flex items-center justify-center shadow-md border-[1.5px] border-primary-foreground">
@@ -772,8 +772,8 @@ export function BookingForm() {
                       "ring-1 ring-border shadow-sm hover:shadow-md animate-scale-in"
                     )}>
 
-                          <div className="relative h-20 overflow-hidden">
-                            <img src={opt.img} alt={opt.label} loading="eager" decoding="async" className="w-full h-full object-cover" />
+                          <div className="relative h-20 overflow-hidden bg-muted">
+                            <img src={opt.img} alt={opt.label} loading="eager" decoding="async" width={120} height={80} className="w-full h-full object-cover" />
                             {active &&
                       <div className="absolute inset-0 bg-primary/20" />
                       }
