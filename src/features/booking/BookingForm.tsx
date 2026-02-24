@@ -561,19 +561,7 @@ export function BookingForm() {
                     {flatSizeLoading ? (
                       <Skeleton className="h-5 w-16 rounded" />
                     ) : selectedFlatSize ? (
-                      <div className="flex items-center gap-2">
-                        <span className="text-foreground font-semibold">{selectedFlatSize}</span>
-                        {service_type === 'maid' && (
-                          <button
-                            type="button"
-                            onClick={() => setPriceChartOpen(true)}
-                            className="text-xs text-primary font-medium flex items-center gap-0.5 hover:underline"
-                          >
-                            See Price Chart
-                            <ChevronDown className="w-3 h-3" />
-                          </button>
-                        )}
-                      </div>
+                      <span className="text-foreground font-semibold">{selectedFlatSize}</span>
                     ) : flatSizeError === 'no_flat_id' ? (
                       <span className="text-destructive text-sm font-medium">Update flat in Profile</span>
                     ) : flatSizeError === 'no_flat_size' ? (
@@ -583,6 +571,16 @@ export function BookingForm() {
                     )}
                   </div>
                 </div>
+                {selectedFlatSize && service_type === 'maid' && (
+                  <button
+                    type="button"
+                    onClick={() => setPriceChartOpen(true)}
+                    className="text-xs text-primary font-medium flex items-center gap-0.5 hover:underline ml-8 mt-1.5"
+                  >
+                    See Price Chart
+                    <ChevronDown className="w-3 h-3" />
+                  </button>
+                )}
                 {flatSizeError === 'no_flat_size' && (
                   <p className="text-xs text-destructive mt-2 ml-8">
                     Flat size not configured for your flat. Please contact support to continue booking.
