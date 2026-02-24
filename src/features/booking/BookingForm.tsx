@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, MapPin, Home, Clock, Calendar, AlertCircle, Check, Zap, ChevronRight, Star, X, Ruler, ChevronDown } from 'lucide-react';
+import { ArrowLeft, MapPin, Home, Clock, Calendar, AlertCircle, Check, Zap, ChevronRight, Star, X, Ruler, ChevronDown, RotateCcw } from 'lucide-react';
 import serviceFloorImg from '@/assets/service-floor-cleaning.webp';
 import serviceDishImg from '@/assets/service-dish-washing.webp';
 import dishesLightImg from '@/assets/dishes-light.webp';
@@ -453,15 +453,7 @@ export function BookingForm() {
   }
   // Show loading state if profile is still loading OR if we don't have profile data yet
   if (profileLoading || !profile) {
-    return <div className="min-h-screen gradient-bg pb-24">
-        <div className="max-w-md mx-auto px-4 py-6">
-          <div className="space-y-6">
-            <Skeleton className="h-14 w-full rounded-3xl bg-white/20" />
-            <Skeleton className="h-36 w-full rounded-3xl bg-white/20" />
-            <Skeleton className="h-52 w-full rounded-3xl bg-white/20" />
-          </div>
-        </div>
-      </div>;
+    return <BookingLoadingSkeleton />;
   }
   const ServiceIcon = serviceIcon(service_type);
   const currentPrice = service_type === 'maid' ? selectedFlatSize && selectedTasks.length > 0 ? totalPrice : null :
@@ -989,4 +981,47 @@ export function BookingForm() {
         )}
       </div>
     </div>;
+}
+
+function BookingLoadingSkeleton() {
+  const [slow, setSlow] = useState(false);
+
+  useEffect(() => {
+    const t = setTimeout(() => setSlow(true), 4000);
+    return () => clearTimeout(t);
+  }, []);
+
+  return (
+    <div className="min-h-screen gradient-bg pb-24">
+      <div className="max-w-md mx-auto px-4 py-6">
+        <div className="space-y-6">
+          <Skeleton className="h-14 w-full rounded-3xl bg-white/20" />
+          <Skeleton className="h-36 w-full rounded-3xl bg-white/20" />
+          <Skeleton className="h-52 w-full rounded-3xl bg-white/20" />
+        </div>
+        {slow && (
+          <div className="mt-8 text-center space-y-3">
+            <div className="flex justify-center">
+              <AlertCircle className="w-8 h-8 text-primary/70" />
+            </div>
+            <p className="text-sm font-medium text-foreground/80">
+              Taking longer than usual…
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Your internet connection may be slow. Please check your connection and try again.
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => window.location.reload()}
+              className="mt-2"
+            >
+              <RotateCcw className="w-4 h-4 mr-1.5" />
+              Retry
+            </Button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
