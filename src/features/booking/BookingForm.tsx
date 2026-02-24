@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, MapPin, Home, Clock, Calendar, AlertCircle, Check, Zap, ChevronRight, Star, X, Ruler } from 'lucide-react';
+import { ArrowLeft, MapPin, Home, Clock, Calendar, AlertCircle, Check, Zap, ChevronRight, Star, X, Ruler, ChevronDown } from 'lucide-react';
 import serviceFloorImg from '@/assets/service-floor-cleaning.webp';
 import serviceDishImg from '@/assets/service-dish-washing.webp';
 import dishesLightImg from '@/assets/dishes-light.webp';
@@ -25,6 +25,7 @@ import { isGuestMode } from '@/lib/demo';
 import { useInstantBookingAvailability } from '@/hooks/useInstantBookingAvailability';
 import { getIntensityExtra, type DishIntensity } from './DishIntensitySheet';
 import { useFlatSize } from '@/hooks/useFlatSize';
+import { MaidPriceChartSheet } from './MaidPriceChartSheet';
 
 // Maid task types and constants
 type MaidTask = "floor_cleaning" | "dish_washing";
@@ -64,6 +65,7 @@ export function BookingForm() {
   const [pricingMap, setPricingMap] = useState<PricingMap>({});
   const [loadingPricing, setLoadingPricing] = useState(true);
   const [scheduleSheetOpen, setScheduleSheetOpen] = useState(false);
+  const [priceChartOpen, setPriceChartOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   // Check instant booking availability (must be before any early returns)
@@ -548,33 +550,6 @@ export function BookingForm() {
         </div>
 
         <div className="space-y-4">
-          {/* Community & Flat Cards */}
-          {profile && <>
-              <Card className="border border-border rounded-2xl">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <MapPin className="w-5 h-5 text-primary" />
-                    <div className="flex-1 flex items-center justify-between">
-                      <span className="text-foreground font-medium">Community</span>
-                      <span className="text-foreground font-semibold">{profile.community}</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="border border-border rounded-2xl">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <Home className="w-5 h-5 text-primary" />
-                    <div className="flex-1 flex items-center justify-between">
-                      <span className="text-foreground font-medium">Flat Number</span>
-                      <span className="text-foreground font-semibold">{profile.flat_no}</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </>}
-
           {/* Flat Size (read-only from flats table) */}
           {service_type !== 'bathroom_cleaning' && (
             <Card className="border border-border rounded-2xl">
@@ -586,7 +561,19 @@ export function BookingForm() {
                     {flatSizeLoading ? (
                       <Skeleton className="h-5 w-16 rounded" />
                     ) : selectedFlatSize ? (
-                      <span className="text-foreground font-semibold">{selectedFlatSize}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-foreground font-semibold">{selectedFlatSize}</span>
+                        {service_type === 'maid' && (
+                          <button
+                            type="button"
+                            onClick={() => setPriceChartOpen(true)}
+                            className="text-xs text-primary font-medium flex items-center gap-0.5 hover:underline"
+                          >
+                            See Price Chart
+                            <ChevronDown className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
                     ) : flatSizeError === 'no_flat_id' ? (
                       <span className="text-destructive text-sm font-medium">Update flat in Profile</span>
                     ) : flatSizeError === 'no_flat_size' ? (
@@ -993,6 +980,15 @@ export function BookingForm() {
         {/* Schedule Sheet */}
         <ScheduleSheet open={scheduleSheetOpen} onOpenChange={setScheduleSheetOpen} onSchedule={handleSchedule} loading={submitting} serviceType={service_type} community={profile?.community} />
         
+        {/* Maid Price Chart Sheet */}
+        {service_type === 'maid' && (
+          <MaidPriceChartSheet
+            open={priceChartOpen}
+            onOpenChange={setPriceChartOpen}
+            userFlatSize={selectedFlatSize}
+            community={profile?.community}
+          />
+        )}
       </div>
     </div>;
 }
