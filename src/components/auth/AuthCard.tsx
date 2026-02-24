@@ -113,7 +113,7 @@ export function AuthCard() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const checkIfUserExists = async (phone: string): Promise<boolean> => {
+  const checkIfUserExists = async (phone: string): Promise<{ exists: boolean; networkError?: boolean }> => {
     try {
       const normalizedPhone = normalizePhone(phone);
       const formattedPhone = formatPhoneIN(phone);
@@ -126,12 +126,12 @@ export function AuthCard() {
 
       if (error) {
         console.error('Error checking user existence:', error);
-        return false;
+        return { exists: false, networkError: true };
       }
-      return !!data;
+      return { exists: !!data };
     } catch (error) {
       console.error('Error checking user existence:', error);
-      return false;
+      return { exists: false, networkError: true };
     }
   };
 
@@ -166,8 +166,13 @@ export function AuthCard() {
 
       // For sign in, check if user exists first
       if (!isSignUp) {
-        const userExists = await checkIfUserExists(phone);
-        if (!userExists) {
+        const result = await checkIfUserExists(phone);
+        if (result.networkError) {
+          setErrors({ phone: 'Network error. Please check your internet connection and try again.' });
+          setLoading(false);
+          return;
+        }
+        if (!result.exists) {
           setErrors({ phone: 'Mobile number not registered, sign up first.' });
           setLoading(false);
           return;
