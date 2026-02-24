@@ -84,7 +84,10 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
 
       if (fetchError) {
         console.error('❌ Profile fetch error:', fetchError);
-        setError(fetchError.message || "Failed to load profile");
+        const isNetworkError = fetchError.message?.includes('Failed to fetch') || 
+                               fetchError.message?.includes('NetworkError') ||
+                               fetchError.message?.includes('fetch');
+        setError(isNetworkError ? "Network error — check your connection" : (fetchError.message || "Failed to load profile"));
         setProfile(null);
         setLoading(false);
         return null;
