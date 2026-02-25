@@ -731,12 +731,14 @@ export function BookingForm() {
                       </div>
                       {/* Info */}
                       <div className={cn(
-                    "px-3 py-2 transition-colors",
+                    "px-3 py-2 transition-colors flex items-center justify-between",
                     isSelected ? "bg-primary/5" : "bg-card"
                   )}>
-                        <h3 className="font-bold text-foreground text-[13px] leading-tight">{label}</h3>
-                        <p className="text-[11px] text-muted-foreground mt-0.5 leading-tight">{desc}</p>
-                        <p className="text-[15px] font-bold text-primary mt-1 leading-tight">
+                        <div>
+                          <h3 className="font-bold text-foreground text-[13px] leading-tight">{label}</h3>
+                          <p className="text-[11px] text-muted-foreground mt-0.5 leading-tight">{desc}</p>
+                        </div>
+                        <p className="text-[15px] font-bold text-primary leading-tight shrink-0">
                           ₹{taskPrice(task)}
                         </p>
                       </div>
