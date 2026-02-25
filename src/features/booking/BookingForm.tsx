@@ -979,11 +979,15 @@ export function BookingForm() {
                   </>
                 ) : (
                   <>
-                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                      <Star className="w-4 h-4 text-primary" />
+                    <div className="flex -space-x-2">
+                      {[0, 1, 2].map((i) => (
+                        <div key={i} className="w-8 h-8 rounded-full border-2 border-card bg-primary/10 flex items-center justify-center">
+                          <Star className="w-3.5 h-3.5 text-primary" />
+                        </div>
+                      ))}
                     </div>
-                    <span className="text-sm font-medium text-primary">Choose your fav worker</span>
-                    <ChevronRight className="w-4 h-4 text-muted-foreground ml-auto" />
+                    <span className="flex-1 text-sm font-medium text-primary">Choose your fav worker</span>
+                    <ChevronRight className="w-4 h-4 text-muted-foreground" />
                   </>
                 )}
               </button>
