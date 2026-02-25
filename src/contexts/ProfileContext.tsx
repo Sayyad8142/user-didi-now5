@@ -76,27 +76,11 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
 
       console.log('🔍 Fetching profile for firebase_uid:', user.id);
 
-      // Add a timeout to prevent hanging forever on bad connections
-      const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('Request timed out. Please check your connection and retry.')), 10000)
-      );
-
-      const fetchPromise = supabase
+      const { data, error: fetchError } = await supabase
         .from("profiles")
         .select("id, full_name, phone, community, flat_no, building_id, community_id, flat_id")
         .eq("firebase_uid", user.id)
         .maybeSingle();
-
-      let data: any = null;
-      let fetchError: any = null;
-
-      try {
-        const result = await Promise.race([fetchPromise, timeoutPromise]);
-        data = (result as any)?.data ?? null;
-        fetchError = (result as any)?.error ?? null;
-      } catch (e: any) {
-        fetchError = { message: e?.message || 'Request timed out', code: 'TIMEOUT' };
-      }
 
       if (fetchError) {
         console.error('❌ Profile fetch error:', fetchError);

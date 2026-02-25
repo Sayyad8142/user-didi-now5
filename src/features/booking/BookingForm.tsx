@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, MapPin, Home, Clock, Calendar, AlertCircle, Check, Zap, ChevronRight, Star, X, Ruler, ChevronDown } from 'lucide-react';
+import { ArrowLeft, MapPin, Home, Clock, Calendar, AlertCircle, Check, Zap, ChevronRight, Star, X, Heart } from 'lucide-react';
 import serviceFloorImg from '@/assets/service-floor-cleaning.webp';
 import serviceDishImg from '@/assets/service-dish-washing.webp';
 import dishesLightImg from '@/assets/dishes-light.webp';
@@ -24,8 +24,6 @@ import { PriceNote } from '@/components/PriceNote';
 import { isGuestMode } from '@/lib/demo';
 import { useInstantBookingAvailability } from '@/hooks/useInstantBookingAvailability';
 import { getIntensityExtra, type DishIntensity } from './DishIntensitySheet';
-import { useFlatSize } from '@/hooks/useFlatSize';
-import { MaidPriceChartSheet } from './MaidPriceChartSheet';
 
 // Maid task types and constants
 type MaidTask = "floor_cleaning" | "dish_washing";
@@ -59,13 +57,10 @@ export function BookingForm() {
   const {
     toast
   } = useToast();
-  // Flat size from flats table (admin-managed, not user-selectable)
-  const { flatSize: autoFlatSize, loading: flatSizeLoading, error: flatSizeError } = useFlatSize();
-  const selectedFlatSize = autoFlatSize as FlatSize | null;
+  const [selectedFlatSize, setSelectedFlatSize] = useState<FlatSize | null>(null);
   const [pricingMap, setPricingMap] = useState<PricingMap>({});
   const [loadingPricing, setLoadingPricing] = useState(true);
   const [scheduleSheetOpen, setScheduleSheetOpen] = useState(false);
-  const [priceChartOpen, setPriceChartOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   // Check instant booking availability (must be before any early returns)
@@ -250,8 +245,8 @@ export function BookingForm() {
     if (service_type === 'maid') {
       if (!selectedFlatSize || selectedTasks.length === 0) {
         toast({
-          title: "Cannot book yet",
-          description: !selectedFlatSize ? "Flat size is not available. Please update your flat details." : "Select at least one task before booking.",
+          title: "Please complete maid booking details",
+          description: "Select flat size and at least one task before booking.",
           variant: "destructive"
         });
         return;
@@ -472,7 +467,7 @@ export function BookingForm() {
 
 
 
-  const canBook = isServiceOpen && !instantDisabled && !flatSizeLoading && !flatSizeError && (
+  const canBook = isServiceOpen && !instantDisabled && (
   service_type === 'maid' ? selectedFlatSize && selectedTasks.length > 0 && (!selectedTasks.includes('dish_washing') || dishIntensity) && !submitting :
   service_type === 'bathroom_cleaning' ? !submitting :
   selectedFlatSize && currentPrice && !submitting);
@@ -550,54 +545,51 @@ export function BookingForm() {
         </div>
 
         <div className="space-y-4">
-          {/* Flat Size (read-only from flats table) */}
-          {service_type !== 'bathroom_cleaning' && (
-            <Card className="border border-border rounded-2xl">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <Ruler className="w-5 h-5 text-primary" />
-                  <div className="flex-1 flex items-center justify-between">
-                    <span className="text-foreground font-medium">Flat Size</span>
-                    {flatSizeLoading ? (
-                      <Skeleton className="h-5 w-16 rounded" />
-                    ) : selectedFlatSize ? (
-                      <span className="text-foreground font-semibold">{selectedFlatSize}</span>
-                    ) : flatSizeError === 'no_flat_id' ? (
-                      <span className="text-destructive text-sm font-medium">Update flat in Profile</span>
-                    ) : flatSizeError === 'no_flat_size' ? (
-                      <span className="text-destructive text-sm font-medium">Contact support</span>
-                    ) : (
-                      <span className="text-muted-foreground text-sm">Not available</span>
-                    )}
+          {/* Community & Flat Cards */}
+          {profile && <>
+              <Card className="border border-border rounded-2xl">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <MapPin className="w-5 h-5 text-primary" />
+                    <div className="flex-1 flex items-center justify-between">
+                      <span className="text-foreground font-medium">Community</span>
+                      <span className="text-foreground font-semibold">{profile.community}</span>
+                    </div>
                   </div>
-                </div>
-                {selectedFlatSize && service_type === 'maid' && (
-                  <button
-                    type="button"
-                    onClick={() => setPriceChartOpen(true)}
-                    className="text-xs text-primary font-medium flex items-center gap-0.5 hover:underline ml-8 mt-1.5"
-                  >
-                    See Price Chart
-                    <ChevronDown className="w-3 h-3" />
-                  </button>
-                )}
-                {flatSizeError === 'no_flat_size' && (
-                  <p className="text-xs text-destructive mt-2 ml-8">
-                    Flat size not configured for your flat. Please contact support to continue booking.
-                  </p>
-                )}
-                {flatSizeError === 'no_flat_id' && (
-                  <Button
-                    variant="link"
-                    className="text-xs text-primary p-0 h-auto ml-8 mt-1"
-                    onClick={() => navigate('/profile')}
-                  >
-                    Update flat details →
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
-          )}
+                </CardContent>
+              </Card>
+
+              <Card className="border border-border rounded-2xl">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <Home className="w-5 h-5 text-primary" />
+                    <div className="flex-1 flex items-center justify-between">
+                      <span className="text-foreground font-medium">Flat Number</span>
+                      <span className="text-foreground font-semibold">{profile.flat_no}</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </>}
+
+          {/* Select Flat Size */}
+          {service_type !== 'bathroom_cleaning' && <div className="mt-8">
+              <h2 className="text-lg font-semibold text-foreground mb-4">
+                Select Flat Size <span className="text-destructive">*</span>
+              </h2>
+              
+              <div className="grid grid-cols-3 gap-3 mb-3">
+                {FLAT_SIZES.slice(0, 3).map((size) => <Button key={size} variant="outline" onClick={() => { setSelectedFlatSize(size); setTimeout(() => servicesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100); }} className={`h-12 font-medium rounded-2xl border-2 ${selectedFlatSize === size ? "border-primary bg-primary/5 text-primary" : "border-border bg-background text-foreground hover:border-primary/50"}`}>
+                    {size}
+                  </Button>)}
+              </div>
+              
+              <div className="grid grid-cols-2 gap-3">
+                {FLAT_SIZES.slice(3).map((size) => <Button key={size} variant="outline" onClick={() => { setSelectedFlatSize(size); setTimeout(() => servicesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100); }} className={`h-12 font-medium rounded-2xl border-2 ${selectedFlatSize === size ? "border-primary bg-primary/5 text-primary" : "border-border bg-background text-foreground hover:border-primary/50"}`}>
+                    {size}
+                  </Button>)}
+              </div>
+            </div>}
 
           {/* Bathroom Count Selector */}
           {service_type === 'bathroom_cleaning' && <div className="mt-8 space-y-6">
@@ -849,32 +841,7 @@ export function BookingForm() {
             <div className="grid grid-cols-2 gap-3">
               {/* Instant Card */}
               <button
-              onClick={() => {
-                // Validate before navigating to instant checkout
-                if (service_type === 'maid') {
-                  if (!selectedFlatSize || selectedTasks.length === 0) {
-                    toast({ title: "Cannot book yet", description: !selectedFlatSize ? "Flat size not available. Update flat details." : "Select at least one task.", variant: "destructive" });
-                    return;
-                  }
-                  if (selectedTasks.includes('dish_washing') && !dishIntensity) {
-                    setDishError(true);
-                    setDishHighlight(true);
-                    dishSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    setTimeout(() => setDishHighlight(false), 2500);
-                    toast({ title: "Select dish washing workload", description: "Please choose Light, Medium, or Heavy.", variant: "destructive" });
-                    return;
-                  }
-                  const dishParams = selectedTasks.includes('dish_washing') ? `&dish_intensity=${dishIntensity}&dish_extra=${dishIntensityExtra}` : '';
-                  navigate(`/book/${service_type}/instant?flat=${selectedFlatSize}&tasks=${selectedTasks.join(',')}&price=${totalPrice}${dishParams}`);
-                } else if (service_type === 'bathroom_cleaning') {
-                  navigate(`/book/${service_type}/instant?bathrooms=${bathroomCount}&glass=${hasGlassPartition ? '1' : '0'}&price=${bathroomTotalPrice}`);
-                } else {
-                  if (!selectedFlatSize) return;
-                  const price = pricingMap[selectedFlatSize];
-                  if (!price) { toast({ title: "Error", description: "Price not available.", variant: "destructive" }); return; }
-                  navigate(`/book/${service_type}/instant?flat=${selectedFlatSize}&price=${price}`);
-                }
-              }}
+              onClick={handleBookNow}
               disabled={!canBook}
               className={cn(
                 "relative flex flex-col items-start gap-3 p-4 rounded-2xl border-2 shadow-sm transition-all duration-200 text-left",
@@ -893,6 +860,11 @@ export function BookingForm() {
                   <div className="text-xs text-muted-foreground mt-0.5">Get help in 10 mins</div>
                 </div>
                 <ChevronRight className="w-4 h-4 text-muted-foreground absolute top-4 right-4" />
+                {submitting &&
+              <div className="absolute inset-0 bg-card/80 rounded-2xl flex items-center justify-center">
+                    <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                  </div>
+              }
               </button>
 
               {/* Schedule Card */}
@@ -959,7 +931,56 @@ export function BookingForm() {
               </button>
             </div>
 
-            {/* Fav Worker Card removed - now part of InstantCheckoutScreen */}
+            {/* Fav Worker Card - below instant/schedule grid */}
+            {!instantDisabled && isServiceOpen && (
+              <div className="mt-1">
+                {preferredWorker ? (
+                  <div className="flex items-center gap-3 p-3 rounded-2xl border border-primary/30 bg-primary/5">
+                    <Avatar className="w-9 h-9">
+                      {preferredWorker.photo_url ? <AvatarImage src={preferredWorker.photo_url} /> : null}
+                      <AvatarFallback className="bg-primary/10 text-primary text-xs font-bold">
+                        {preferredWorker.full_name.charAt(0)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-foreground truncate">{preferredWorker.full_name}</p>
+                      <div className="flex items-center gap-1">
+                        <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                        <span className="text-xs text-muted-foreground">{preferredWorker.rating_avg.toFixed(1)}</span>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => navigate(`/book/${service_type}/select-worker`)}
+                      className="text-xs text-primary font-medium"
+                    >
+                      Change
+                    </button>
+                    <button onClick={clearPreferredWorker} className="p-1">
+                      <X className="w-4 h-4 text-muted-foreground" />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => navigate(`/book/${service_type}/select-worker`)}
+                    className="w-full flex items-center gap-3 p-3 rounded-2xl border border-dashed border-border hover:border-primary/40 bg-card transition-colors text-left"
+                  >
+                    <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                      <Heart className="w-4 h-4 text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-foreground">Choose fav worker</p>
+                      <p className="text-[11px] text-muted-foreground">Optional • Offer booking to selected expert first</p>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                  </button>
+                )}
+                {preferredWorker && (
+                  <p className="text-[11px] text-muted-foreground mt-1.5 px-1">
+                    We'll offer to {preferredWorker.full_name} first. If no response, others will get it.
+                  </p>
+                )}
+              </div>
+            )}
 
             {/* Instant unavailable hint */}
             {!isServiceOpen &&
@@ -978,15 +999,6 @@ export function BookingForm() {
         {/* Schedule Sheet */}
         <ScheduleSheet open={scheduleSheetOpen} onOpenChange={setScheduleSheetOpen} onSchedule={handleSchedule} loading={submitting} serviceType={service_type} community={profile?.community} />
         
-        {/* Maid Price Chart Sheet */}
-        {service_type === 'maid' && (
-          <MaidPriceChartSheet
-            open={priceChartOpen}
-            onOpenChange={setPriceChartOpen}
-            userFlatSize={selectedFlatSize}
-            community={profile?.community}
-          />
-        )}
       </div>
     </div>;
 }

@@ -7,7 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useProfile } from '@/contexts/ProfileContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate, Link } from 'react-router-dom';
-import { User, Phone, Building, Home, LogOut, Settings, Shield, Edit3, Save, X, HelpCircle, Share2, Building2, Ruler } from 'lucide-react';
+import { User, Phone, Building, Home, LogOut, Settings, Shield, Edit3, Save, X, HelpCircle, Share2, Building2 } from 'lucide-react';
 import { openExternalUrl } from '@/lib/nativeOpen';
 import { useToast } from '@/hooks/use-toast';
 import { validateName } from '@/lib/name-validation';
@@ -16,22 +16,12 @@ import { useCommunities } from '@/hooks/useCommunities';
 import { useBuildings } from '@/hooks/useBuildings';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useFlats } from '@/hooks/useFlats';
-import { useFlatSize } from '@/hooks/useFlatSize';
 
 export default function Profile() {
-  const { profile, loading, error: profileError, refresh } = useProfile();
+  const { profile, loading, refresh } = useProfile();
   const { communities, loading: communitiesLoading } = useCommunities();
-  const { flatSize, loading: flatSizeLoading } = useFlatSize();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [showSlow, setShowSlow] = React.useState(false);
-
-  // Show "taking longer" message after 4 seconds of loading
-  React.useEffect(() => {
-    if (!loading) { setShowSlow(false); return; }
-    const timer = setTimeout(() => setShowSlow(true), 4000);
-    return () => clearTimeout(timer);
-  }, [loading]);
   
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState({
@@ -163,7 +153,7 @@ export default function Profile() {
       window.location.href = '/auth';
     }
   };
-  if (loading || profileError) {
+  if (loading || communitiesLoading) {
     return <div className="min-h-screen gradient-bg pb-24">
         <div className="max-w-md mx-auto px-4 py-8 space-y-6">
           <div className="text-center space-y-4">
@@ -175,21 +165,6 @@ export default function Profile() {
             <Skeleton className="h-32 rounded-3xl" />
             <Skeleton className="h-24 rounded-3xl" />
           </div>
-          {(showSlow || profileError) && (
-            <div className="text-center space-y-3 pt-4">
-              <p className="text-sm text-gray-500">
-                {profileError || 'Taking longer than usual…'}
-              </p>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => { setShowSlow(false); refresh(); }}
-                className="rounded-full border-primary text-primary"
-              >
-                Retry
-              </Button>
-            </div>
-          )}
         </div>
       </div>;
   }
@@ -423,25 +398,7 @@ export default function Profile() {
                   )}
                 </div>
               </div>
-            {/* Flat Size (read-only from flats table) */}
-            <div className="group">
-              <div className="flex items-start gap-4">
-                <div className="h-12 w-12 bg-pink-50 rounded-2xl flex items-center justify-center group-hover:bg-pink-100 transition-colors">
-                  <Ruler className="w-6 h-6 text-pink-600" />
-                </div>
-                <div className="flex-1 space-y-1">
-                  <p className="text-sm font-medium text-gray-500 uppercase tracking-wide">Flat Size</p>
-                  {flatSizeLoading ? (
-                    <Skeleton className="h-6 w-20 rounded" />
-                  ) : flatSize ? (
-                    <p className="text-lg font-semibold text-gray-900">{flatSize}</p>
-                  ) : (
-                    <p className="text-sm text-gray-400">Not available — contact support</p>
-                  )}
-                </div>
-              </div>
             </div>
-          </div>
           </div>
         </div>
 
