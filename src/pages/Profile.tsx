@@ -7,7 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useProfile } from '@/contexts/ProfileContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate, Link } from 'react-router-dom';
-import { User, Phone, Building, Home, LogOut, Settings, Shield, Edit3, Save, X, HelpCircle, Share2, Building2, Ruler, AlertCircle } from 'lucide-react';
+import { User, Phone, Building, Home, LogOut, Settings, Shield, Edit3, Save, X, HelpCircle, Share2, Building2, Ruler } from 'lucide-react';
 import { openExternalUrl } from '@/lib/nativeOpen';
 import { useToast } from '@/hooks/use-toast';
 import { validateName } from '@/lib/name-validation';
@@ -19,7 +19,7 @@ import { useFlats } from '@/hooks/useFlats';
 import { useFlatSize } from '@/hooks/useFlatSize';
 
 export default function Profile() {
-  const { profile, loading, error: profileError, refresh } = useProfile();
+  const { profile, loading, refresh } = useProfile();
   const { communities, loading: communitiesLoading } = useCommunities();
   const { flatSize, loading: flatSizeLoading } = useFlatSize();
   const navigate = useNavigate();
@@ -44,17 +44,12 @@ export default function Profile() {
   const { buildings } = useBuildings(editForm.community_id || null);
   const { flats } = useFlats(editForm.building_id || null, editForm.community_id || null, isPHF);
 
-  // Refresh profile on mount if profile data is incomplete or errored
+  // Refresh profile on mount if profile data is incomplete (handles new signup race condition)
   React.useEffect(() => {
     if (!loading && profile && !profile.full_name) {
       refresh();
     }
-    // Auto-retry on error (network failure)
-    if (!loading && profileError && !profile) {
-      const timer = setTimeout(() => refresh(), 2000);
-      return () => clearTimeout(timer);
-    }
-  }, [loading, profile?.full_name, profileError]);
+  }, [loading, profile?.full_name]);
 
   // Initialize form when profile loads
   React.useEffect(() => {
@@ -160,8 +155,7 @@ export default function Profile() {
       window.location.href = '/auth';
     }
   };
-  // Show loading skeleton while profile is being fetched, or when profile is null with error (auto-retrying)
-  if (loading || (!profile && !profileError)) {
+  if (loading) {
     return <div className="min-h-screen gradient-bg pb-24">
         <div className="max-w-md mx-auto px-4 py-8 space-y-6">
           <div className="text-center space-y-4">
@@ -177,19 +171,7 @@ export default function Profile() {
       </div>;
   }
 
-  // Show error state with retry when profile fetch failed
-  if (profileError && !profile) {
-    return <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4 pb-24">
-        <div className="text-center space-y-4">
-          <AlertCircle className="w-12 h-12 text-muted-foreground mx-auto" />
-          <p className="text-lg font-semibold text-foreground">Unable to load profile</p>
-          <p className="text-sm text-muted-foreground">Please check your internet connection and try again.</p>
-          <Button onClick={() => refresh()} variant="outline" className="mt-2">
-            Retry
-          </Button>
-        </div>
-      </div>;
-  }
+  // Get user initials for avatar fallback
   const getInitials = (name: string = '') => {
     return name.split(' ').map(word => word.charAt(0)).join('').toUpperCase().slice(0, 2);
   };
