@@ -46,7 +46,7 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchProfile = useCallback(async (): Promise<Profile | null> => {
+  const fetchProfile = useCallback(async (silent = false): Promise<Profile | null> => {
     try {
       // IMPORTANT: If we have a real Firebase user, always clear demo/guest mode first
       // This ensures we don't show stale guest data after login
@@ -71,8 +71,11 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
         return null;
       }
 
-      setLoading(true);
-      setError(null);
+      // Only show loading state on initial fetch, not silent retries
+      if (!silent) {
+        setLoading(true);
+        setError(null);
+      }
 
       console.log('🔍 Fetching profile for firebase_uid:', user.id);
 
@@ -195,8 +198,8 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
     const maxRetries = 10;
     const interval = setInterval(() => {
       attempts++;
-      console.log(`🔄 Auto-retrying profile fetch (attempt ${attempts}/${maxRetries})`);
-      fetchProfile();
+      console.log(`🔄 Auto-retrying profile fetch silently (attempt ${attempts}/${maxRetries})`);
+      fetchProfile(true); // silent retry - don't reset UI to loading
       if (attempts >= maxRetries) clearInterval(interval);
     }, 3000);
     return () => clearInterval(interval);
