@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, MapPin, Home, Clock, Calendar, AlertCircle, Check, Zap, ChevronRight, Star, X, Ruler, ChevronDown, HelpCircle, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, MapPin, Home, Clock, Calendar, AlertCircle, Check, Zap, ChevronRight, Star, X, Ruler, ChevronDown } from 'lucide-react';
 import serviceFloorImg from '@/assets/service-floor-cleaning.webp';
 import serviceDishImg from '@/assets/service-dish-washing.webp';
 import dishesLightImg from '@/assets/dishes-light.webp';
@@ -20,6 +20,7 @@ import { isOpenNow, getOpenStatusText, getServiceHoursText } from '@/features/ho
 import { ScheduleSheet } from './ScheduleSheet';
 import { cn } from '@/lib/utils';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { PriceNote } from '@/components/PriceNote';
 import { isGuestMode } from '@/lib/demo';
 import { useInstantBookingAvailability } from '@/hooks/useInstantBookingAvailability';
 import { getIntensityExtra, type DishIntensity } from './DishIntensitySheet';
@@ -452,12 +453,12 @@ export function BookingForm() {
   }
   // Show loading state if profile is still loading OR if we don't have profile data yet
   if (profileLoading || !profile) {
-    return <div className="min-h-screen bg-background pb-24">
+    return <div className="min-h-screen gradient-bg pb-24">
         <div className="max-w-md mx-auto px-4 py-6">
           <div className="space-y-6">
-            <Skeleton className="h-14 w-full rounded-2xl" />
-            <Skeleton className="h-36 w-full rounded-2xl" />
-            <Skeleton className="h-52 w-full rounded-2xl" />
+            <Skeleton className="h-14 w-full rounded-3xl bg-white/20" />
+            <Skeleton className="h-36 w-full rounded-3xl bg-white/20" />
+            <Skeleton className="h-52 w-full rounded-3xl bg-white/20" />
           </div>
         </div>
       </div>;
@@ -536,340 +537,6 @@ export function BookingForm() {
 
   }
 
-  // ─── MAID PREMIUM UI ────────────────────────────────────────
-  if (service_type === 'maid') {
-    const showPrice = selectedFlatSize && selectedTasks.length > 0;
-
-    return (
-      <div className="min-h-screen bg-muted/30">
-        {/* ── Sticky Header ── */}
-        <header className="sticky top-0 z-30 bg-background border-b border-border/50 shadow-sm">
-          <div className="max-w-md mx-auto flex items-center h-[60px] px-4">
-            <button onClick={() => navigate('/home')} className="p-2 -ml-2 rounded-xl hover:bg-muted transition-colors">
-              <ArrowLeft className="w-5 h-5 text-foreground" />
-            </button>
-            <h1 className="flex-1 text-center text-lg font-bold text-foreground tracking-tight">Book Maid</h1>
-            <button onClick={() => setPriceChartOpen(true)} className="p-2 -mr-2 rounded-xl hover:bg-muted transition-colors">
-              <HelpCircle className="w-5 h-5 text-muted-foreground" />
-            </button>
-          </div>
-        </header>
-
-        <div className="max-w-md mx-auto px-4 pt-5 pb-36">
-          {/* ── Flat Size Pill ── */}
-          {flatSizeLoading ? (
-            <Skeleton className="h-8 w-32 rounded-full mb-5" />
-          ) : selectedFlatSize ? (
-            <div className="flex items-center gap-2 mb-5">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-semibold">
-                <Ruler className="w-3.5 h-3.5" />
-                {selectedFlatSize}
-              </span>
-              <button
-                onClick={() => setPriceChartOpen(true)}
-                className="text-xs text-muted-foreground hover:text-primary transition-colors underline underline-offset-2"
-              >
-                See Price Chart
-              </button>
-            </div>
-          ) : flatSizeError ? (
-            <div className="mb-5 p-3 rounded-xl bg-destructive/10 border border-destructive/20">
-              <p className="text-sm text-destructive font-medium">
-                {flatSizeError === 'no_flat_id' ? 'Please update flat details in Profile' : 'Flat size not configured – contact support'}
-              </p>
-              {flatSizeError === 'no_flat_id' && (
-                <Button variant="link" className="text-xs text-primary p-0 h-auto mt-1" onClick={() => navigate('/profile')}>
-                  Update flat details →
-                </Button>
-              )}
-            </div>
-          ) : null}
-
-          {/* ── Section 1: Select Services ── */}
-          {selectedFlatSize && (
-            <div ref={servicesRef} className="animate-fade-in">
-              <h2 className="text-base font-bold text-foreground mb-3">Select Services</h2>
-
-              <div className="grid grid-cols-2 gap-3">
-                {([
-                  { task: 'floor_cleaning' as MaidTask, label: 'Floor Cleaning', desc: 'Jhaadu & Pocha', img: serviceFloorImg },
-                  { task: 'dish_washing' as MaidTask, label: 'Dish Washing', desc: 'Utensils & vessels', img: serviceDishImg }
-                ] as const).map(({ task, label, desc, img }) => {
-                  const isSelected = selectedTasks.includes(task);
-                  const toggleTask = () => {
-                    if (isSelected) {
-                      if (selectedTasks.length > 1) {
-                        setSelectedTasks((prev) => prev.filter((t) => t !== task));
-                        if (task === 'dish_washing') setDishIntensity(null);
-                      }
-                    } else {
-                      setSelectedTasks((prev) => [...prev, task]);
-                    }
-                  };
-                  return (
-                    <button
-                      key={task}
-                      type="button"
-                      onClick={toggleTask}
-                      className={cn(
-                        "relative rounded-2xl overflow-hidden text-left group transition-all duration-200 bg-card",
-                        isSelected
-                          ? "ring-2 ring-primary shadow-lg shadow-primary/10 scale-[1.02]"
-                          : "ring-1 ring-border/40 shadow-sm hover:shadow-md hover:ring-border"
-                      )}
-                    >
-                      {/* Image */}
-                      <div className="relative h-[120px] overflow-hidden">
-                        <img src={img} alt={label} loading="eager" fetchPriority="high" decoding="async" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent" />
-                        {/* Check badge */}
-                        {isSelected && (
-                          <div className="absolute top-3 right-3 w-7 h-7 rounded-full bg-primary flex items-center justify-center shadow-md animate-scale-in">
-                            <Check className="w-4 h-4 text-primary-foreground" strokeWidth={3} />
-                          </div>
-                        )}
-                      </div>
-                      {/* Info */}
-                      <div className={cn("p-3 transition-colors", isSelected ? "bg-primary/5" : "bg-card")}>
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <h3 className="font-bold text-foreground text-sm leading-tight">{label}</h3>
-                            <p className="text-[11px] text-muted-foreground mt-0.5">{desc}</p>
-                          </div>
-                          <span className="text-base font-bold text-primary">₹{taskPrice(task)}</span>
-                        </div>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* ── Section 2: Dish Quantity (Redesigned) ── */}
-          {selectedTasks.includes('dish_washing') && selectedFlatSize && (
-            <div
-              ref={dishSectionRef}
-              className={cn(
-                "mt-6 animate-fade-in rounded-2xl p-4 transition-all duration-500",
-                dishHighlight && "ring-2 ring-primary shadow-lg shadow-primary/20 bg-primary/5"
-              )}
-            >
-              <div className="flex items-center justify-between mb-3">
-                <h2 className="text-base font-bold text-foreground">Dish Quantity</h2>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-primary-foreground bg-primary px-2 py-0.5 rounded-full">
-                  Required
-                </span>
-              </div>
-
-              <div className="grid grid-cols-3 gap-2.5">
-                {[
-                  { value: 'light' as DishIntensity, label: 'Light', extra: 0, desc: '5–10 items', img: dishesLightImg, recommended: false },
-                  { value: 'medium' as DishIntensity, label: 'Medium', extra: 30, desc: '10–20 items', img: dishesMediumImg, recommended: true },
-                  { value: 'heavy' as DishIntensity, label: 'Heavy', extra: 50, desc: '20+ items', img: dishesHeavyImg, recommended: false },
-                ].map((opt, i) => {
-                  const active = dishIntensity === opt.value;
-                  return (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      onClick={() => setDishIntensity(opt.value)}
-                      style={{ animationDelay: `${i * 100}ms` }}
-                      className={cn(
-                        "relative rounded-2xl overflow-hidden text-left transition-all duration-200 animate-scale-in",
-                        active
-                          ? "ring-2 ring-primary shadow-md shadow-primary/15 scale-[1.03] bg-primary/5"
-                          : "ring-1 ring-border/40 shadow-sm hover:shadow-md bg-card"
-                      )}
-                    >
-                      {/* Recommended badge */}
-                      {opt.recommended && (
-                        <div className="absolute top-1.5 left-1.5 z-10">
-                          <span className="text-[9px] font-bold uppercase tracking-wide bg-chart-2 text-primary-foreground px-1.5 py-0.5 rounded-full shadow-sm">
-                            Popular
-                          </span>
-                        </div>
-                      )}
-                      {/* Image */}
-                      <div className="relative h-[80px] overflow-hidden">
-                        <img src={opt.img} alt={opt.label} loading="eager" decoding="async" className="w-full h-full object-cover" />
-                        {active && <div className="absolute inset-0 bg-primary/15" />}
-                      </div>
-                      {/* Info */}
-                      <div className="p-2 text-center">
-                        <p className={cn("text-xs font-bold", active ? "text-primary" : "text-foreground")}>{opt.label}</p>
-                        <p className="text-[10px] text-muted-foreground mt-0.5">{opt.desc}</p>
-                        <p className={cn(
-                          "text-xs font-bold mt-1",
-                          opt.extra > 0 ? "text-destructive" : "text-muted-foreground"
-                        )}>
-                          {opt.extra > 0 ? `+₹${opt.extra}` : '₹0'}
-                        </p>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {dishError && !dishIntensity && (
-                <p className="text-xs text-destructive font-medium mt-2 flex items-center gap-1">
-                  <AlertCircle className="w-3.5 h-3.5" />
-                  Please select a dish workload to continue
-                </p>
-              )}
-            </div>
-          )}
-
-          {/* ── Section 3: Live Price Summary ── */}
-          {showPrice && (
-            <div className="mt-6 animate-fade-in">
-              <div className="rounded-2xl bg-card border border-border/50 shadow-md p-5">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Total Price</p>
-                    <div className="flex items-baseline gap-1 mt-0.5">
-                      <span className="text-3xl font-extrabold text-primary tracking-tight transition-all duration-300">
-                        ₹{currentPrice}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="w-11 h-11 rounded-full bg-primary/10 flex items-center justify-center">
-                    <ShieldCheck className="w-5 h-5 text-primary" />
-                  </div>
-                </div>
-                <p className="text-[11px] text-muted-foreground mt-2">
-                  Transparent pricing · No hidden charges
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* ── Section 4: Booking Type ── */}
-          <div className="mt-6">
-            <h2 className="text-sm font-semibold text-muted-foreground tracking-wide uppercase mb-3">Choose Booking Type</h2>
-            <div className="grid grid-cols-2 gap-3">
-              {/* Instant Card */}
-              <button
-              onClick={() => {
-                if (service_type === 'maid') {
-                  if (!selectedFlatSize || selectedTasks.length === 0) {
-                    toast({ title: "Cannot book yet", description: !selectedFlatSize ? "Flat size not available. Update flat details." : "Select at least one task.", variant: "destructive" });
-                    return;
-                  }
-                  if (selectedTasks.includes('dish_washing') && !dishIntensity) {
-                    setDishError(true);
-                    setDishHighlight(true);
-                    dishSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    setTimeout(() => setDishHighlight(false), 2500);
-                    toast({ title: "Select dish washing workload", description: "Please choose Light, Medium, or Heavy.", variant: "destructive" });
-                    return;
-                  }
-                  const dishParams = selectedTasks.includes('dish_washing') ? `&dish_intensity=${dishIntensity}&dish_extra=${dishIntensityExtra}` : '';
-                  navigate(`/book/${service_type}/instant?flat=${selectedFlatSize}&tasks=${selectedTasks.join(',')}&price=${totalPrice}${dishParams}`);
-                } else if (service_type === 'bathroom_cleaning') {
-                  navigate(`/book/${service_type}/instant?bathrooms=${bathroomCount}&glass=${hasGlassPartition ? '1' : '0'}&price=${bathroomTotalPrice}`);
-                } else {
-                  if (!selectedFlatSize) return;
-                  const price = pricingMap[selectedFlatSize];
-                  if (!price) { toast({ title: "Error", description: "Price not available.", variant: "destructive" }); return; }
-                  navigate(`/book/${service_type}/instant?flat=${selectedFlatSize}&price=${price}`);
-                }
-              }}
-              disabled={!canBook}
-              className={cn(
-                "relative flex flex-col items-start gap-3 p-4 rounded-2xl border-2 shadow-sm transition-all duration-200 text-left",
-                "hover:shadow-md active:scale-[0.98]",
-                "disabled:opacity-50 disabled:pointer-events-none",
-                !isServiceOpen || instantDisabled ?
-                "border-border bg-muted/40 opacity-60 pointer-events-none" :
-                "border-border bg-card hover:border-primary/40"
-              )}>
-                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                  <Zap className="w-5 h-5 text-primary" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="font-bold text-foreground text-base">Instant</div>
-                  <div className="text-xs text-muted-foreground mt-0.5">Get help in 10 mins</div>
-                </div>
-                <ChevronRight className="w-4 h-4 text-muted-foreground absolute top-4 right-4" />
-              </button>
-
-              {/* Schedule Card */}
-              <button
-              onClick={() => {
-                if (!selectedFlatSize || selectedTasks.length === 0) {
-                  toast({
-                    title: "Please complete maid booking details",
-                    description: "Select flat size and at least one task before scheduling.",
-                    variant: "destructive"
-                  });
-                  return;
-                }
-                if (selectedTasks.includes('dish_washing') && !dishIntensity) {
-                  setDishError(true);
-                  setDishHighlight(true);
-                  dishSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                  setTimeout(() => setDishHighlight(false), 2500);
-                  toast({
-                    title: "Select dish washing workload",
-                    description: "Please choose Light, Medium, or Heavy for dish washing.",
-                    variant: "destructive"
-                  });
-                  return;
-                }
-                const price = totalPrice;
-                const dishParams = selectedTasks.includes('dish_washing') ?
-                `&dish_intensity=${dishIntensity}&dish_extra=${dishIntensityExtra}` :
-                '';
-                navigate(`/book/${service_type}/schedule?flat=${selectedFlatSize}&tasks=${selectedTasks.join(',')}&price=${price}${dishParams}`);
-              }}
-              disabled={!selectedFlatSize || selectedTasks.length === 0 || selectedTasks.includes('dish_washing') && !dishIntensity}
-              className={cn(
-                "relative flex flex-col items-start gap-3 p-4 rounded-2xl border-2 shadow-sm transition-all duration-200 text-left",
-                "hover:shadow-md active:scale-[0.98]",
-                "disabled:opacity-50 disabled:pointer-events-none",
-                "border-border bg-card hover:border-primary/40"
-              )}>
-                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                  <Calendar className="w-5 h-5 text-primary" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="font-bold text-foreground text-base">Schedule</div>
-                  <div className="text-xs text-muted-foreground mt-0.5">Pick your time</div>
-                </div>
-                <ChevronRight className="w-4 h-4 text-muted-foreground absolute top-4 right-4" />
-              </button>
-            </div>
-
-            {/* Instant unavailable hint */}
-            {!isServiceOpen &&
-              <p className="text-xs text-muted-foreground mt-2 text-center">
-                We'll be back at 7:00 AM
-              </p>
-            }
-            {isServiceOpen && instantDisabled &&
-              <p className="text-xs text-muted-foreground text-center mt-2">
-                Instant unavailable right now — try scheduling instead
-              </p>
-            }
-          </div>
-        </div>
-
-        {/* Schedule Sheet */}
-        <ScheduleSheet open={scheduleSheetOpen} onOpenChange={setScheduleSheetOpen} onSchedule={handleSchedule} loading={submitting} serviceType={service_type} community={profile?.community} />
-
-        {/* Maid Price Chart Sheet */}
-        <MaidPriceChartSheet
-          open={priceChartOpen}
-          onOpenChange={setPriceChartOpen}
-          userFlatSize={selectedFlatSize}
-          community={profile?.community}
-        />
-      </div>
-    );
-  }
-
-  // ─── NON-MAID SERVICES (bathroom_cleaning, etc.) ─────────────────
   return <div className="min-h-screen bg-background pb-24">
       <div className="max-w-md mx-auto px-4 py-6">
         {/* Header */}
@@ -904,6 +571,16 @@ export function BookingForm() {
                     )}
                   </div>
                 </div>
+                {selectedFlatSize && service_type === 'maid' && (
+                  <button
+                    type="button"
+                    onClick={() => setPriceChartOpen(true)}
+                    className="text-xs text-primary font-medium flex items-center gap-0.5 hover:underline ml-8 mt-1.5"
+                  >
+                    See Price Chart
+                    <ChevronDown className="w-3 h-3" />
+                  </button>
+                )}
                 {flatSizeError === 'no_flat_size' && (
                   <p className="text-xs text-destructive mt-2 ml-8">
                     Flat size not configured for your flat. Please contact support to continue booking.
@@ -1007,12 +684,141 @@ export function BookingForm() {
               </div>
             </div>}
 
+          {/* Maid Service Selection — Premium Image Cards */}
+          {service_type === 'maid' && selectedFlatSize && <div ref={servicesRef} className="mt-6 space-y-6">
+              <h2 className="text-lg font-semibold text-foreground">
+                Choose services <span className="text-destructive">*</span>
+              </h2>
+
+              {/* Service image cards */}
+              <div className="grid grid-cols-2 gap-3">
+                {([
+            { task: 'floor_cleaning' as MaidTask, label: 'Floor Cleaning', desc: 'Jhaadu & Pocha', img: serviceFloorImg },
+            { task: 'dish_washing' as MaidTask, label: 'Dish Washing', desc: 'Utensils & vessels', img: serviceDishImg }] as
+            const).map(({ task, label, desc, img }) => {
+              const isSelected = selectedTasks.includes(task);
+              const toggleTask = () => {
+                if (isSelected) {
+                  if (selectedTasks.length > 1) {
+                    setSelectedTasks((prev) => prev.filter((t) => t !== task));
+                    if (task === 'dish_washing') setDishIntensity(null);
+                  }
+                } else {
+                  setSelectedTasks((prev) => [...prev, task]);
+                }
+              };
+              return (
+                <button
+                  key={task}
+                  type="button"
+                  onClick={toggleTask}
+                  className={cn(
+                    "relative rounded-2xl overflow-hidden text-left group transition-all duration-200",
+                    isSelected
+                      ? "ring-[2.5px] ring-primary shadow-lg scale-[1.02]"
+                      : "ring-1 ring-border/60 shadow-sm hover:shadow-md"
+                  )}>
+
+                      {/* Image */}
+                      <div className="relative h-[100px] overflow-hidden">
+                        <img src={img} alt={label} loading="eager" fetchPriority="high" decoding="async" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent" />
+                        {isSelected &&
+                    <div className="absolute top-2.5 right-2.5 w-6 h-6 rounded-full bg-primary flex items-center justify-center shadow-md border-[1.5px] border-primary-foreground">
+                            <Check className="w-3 h-3 text-primary-foreground" strokeWidth={3} />
+                          </div>
+                    }
+                      </div>
+                      {/* Info */}
+                      <div className={cn(
+                    "px-3 py-2 transition-colors",
+                    isSelected ? "bg-primary/5" : "bg-card"
+                  )}>
+                        <h3 className="font-bold text-foreground text-[13px] leading-tight">{label}</h3>
+                        <p className="text-[11px] text-muted-foreground mt-0.5 leading-tight">{desc}</p>
+                        <p className="text-[15px] font-bold text-primary mt-1 leading-tight">
+                          ₹{taskPrice(task)}
+                        </p>
+                      </div>
+                    </button>);
+
+            })}
+              </div>
+
+              {/* Dish Intensity — Soft cards with left accent bar */}
+              {selectedTasks.includes('dish_washing') &&
+          <div
+            ref={dishSectionRef}
+            className={cn(
+              "space-y-3 rounded-2xl p-3 -mx-3 transition-all duration-500",
+              dishHighlight && "ring-2 ring-primary shadow-lg shadow-primary/20 bg-primary/5"
+            )}
+          >
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base font-semibold text-foreground">How many dishes today?</h3>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-primary bg-primary/10 px-1.5 py-0.5 rounded">Required</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground -mt-1">Pick Light / Medium / Heavy to continue</p>
+
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+              { value: 'light' as DishIntensity, label: 'Light', extra: 0, desc: '5-10 items', img: dishesLightImg },
+              { value: 'medium' as DishIntensity, label: 'Medium', extra: 30, desc: '10-20 items', img: dishesMediumImg },
+              { value: 'heavy' as DishIntensity, label: 'Heavy', extra: 50, desc: '20+ items', img: dishesHeavyImg }].
+              map((opt, i) => {
+                const active = dishIntensity === opt.value;
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setDishIntensity(opt.value)}
+                    style={{ animationDelay: `${i * 150}ms` }}
+                    className={cn(
+                      "relative rounded-2xl overflow-hidden text-left transition-all duration-200",
+                      active ?
+                      "ring-2 ring-primary shadow-md shadow-primary/10 scale-[1.02]" :
+                      "ring-1 ring-border shadow-sm hover:shadow-md animate-scale-in"
+                    )}>
+
+                          <div className="relative h-20 overflow-hidden">
+                            <img src={opt.img} alt={opt.label} loading="eager" decoding="async" className="w-full h-full object-cover" />
+                            {active &&
+                      <div className="absolute inset-0 bg-primary/20" />
+                      }
+                          </div>
+                          <div className={cn(
+                      "p-2 text-center transition-colors",
+                      active ? "bg-primary/5" : "bg-card"
+                    )}>
+                            <p className={cn(
+                        "text-xs font-bold",
+                        active ? "text-primary" : "text-foreground"
+                      )}>{opt.label}</p>
+                            <p className="text-[10px] text-muted-foreground">{opt.desc}</p>
+                            <p className={cn(
+                        "text-xs font-bold mt-0.5",
+                        opt.extra > 0 ? "text-orange-500" : "text-muted-foreground"
+                      )}>
+                              {opt.extra > 0 ? `+₹${opt.extra}` : '₹0'}
+                            </p>
+                          </div>
+                        </button>);
+
+              })}
+                  </div>
+                  {dishError && !dishIntensity && (
+                    <p className="text-xs text-destructive font-medium mt-1">⚠️ Please select dish load</p>
+                  )}
+                </div>
+          }
+            </div>}
+
           {/* Price Display */}
-          {(service_type === 'bathroom_cleaning' || service_type !== 'maid' && service_type !== 'bathroom_cleaning' && selectedFlatSize) && <div>
+          {(service_type === 'maid' && selectedFlatSize && selectedTasks.length > 0 || service_type === 'bathroom_cleaning' || service_type !== 'maid' && service_type !== 'bathroom_cleaning' && selectedFlatSize) && <div>
             <Card className="bg-primary/5 border-primary/20 rounded-2xl">
-              <CardContent className="p-6 py-[5px] px-[24px] bg-muted/30">
+              <CardContent className="p-6 py-[5px] px-[24px] bg-stone-50">
                 <div className="text-center px-0">
-                  {loadingPricing && service_type !== 'bathroom_cleaning' ? <Skeleton className="h-8 w-32 mx-auto rounded-lg" /> : <>
+                  {loadingPricing && service_type !== 'maid' && service_type !== 'bathroom_cleaning' ? <Skeleton className="h-8 w-32 mx-auto rounded-lg" /> : <>
                       <span className="text-3xl font-bold text-primary">
                         Price: ₹{currentPrice}
                       </span>
@@ -1034,6 +840,7 @@ export function BookingForm() {
                 </div>
               </CardContent>
             </Card>
+            <PriceNote className="pb-2" />
           </div>}
 
           {/* Choose Booking Type */}
@@ -1043,7 +850,23 @@ export function BookingForm() {
               {/* Instant Card */}
               <button
               onClick={() => {
-                if (service_type === 'bathroom_cleaning') {
+                // Validate before navigating to instant checkout
+                if (service_type === 'maid') {
+                  if (!selectedFlatSize || selectedTasks.length === 0) {
+                    toast({ title: "Cannot book yet", description: !selectedFlatSize ? "Flat size not available. Update flat details." : "Select at least one task.", variant: "destructive" });
+                    return;
+                  }
+                  if (selectedTasks.includes('dish_washing') && !dishIntensity) {
+                    setDishError(true);
+                    setDishHighlight(true);
+                    dishSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    setTimeout(() => setDishHighlight(false), 2500);
+                    toast({ title: "Select dish washing workload", description: "Please choose Light, Medium, or Heavy.", variant: "destructive" });
+                    return;
+                  }
+                  const dishParams = selectedTasks.includes('dish_washing') ? `&dish_intensity=${dishIntensity}&dish_extra=${dishIntensityExtra}` : '';
+                  navigate(`/book/${service_type}/instant?flat=${selectedFlatSize}&tasks=${selectedTasks.join(',')}&price=${totalPrice}${dishParams}`);
+                } else if (service_type === 'bathroom_cleaning') {
                   navigate(`/book/${service_type}/instant?bathrooms=${bathroomCount}&glass=${hasGlassPartition ? '1' : '0'}&price=${bathroomTotalPrice}`);
                 } else {
                   if (!selectedFlatSize) return;
@@ -1075,7 +898,33 @@ export function BookingForm() {
               {/* Schedule Card */}
               <button
               onClick={() => {
-                if (service_type === 'bathroom_cleaning') {
+                if (service_type === 'maid') {
+                  if (!selectedFlatSize || selectedTasks.length === 0) {
+                    toast({
+                      title: "Please complete maid booking details",
+                      description: "Select flat size and at least one task before scheduling.",
+                      variant: "destructive"
+                    });
+                    return;
+                  }
+                  if (selectedTasks.includes('dish_washing') && !dishIntensity) {
+                    setDishError(true);
+                    setDishHighlight(true);
+                    dishSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    setTimeout(() => setDishHighlight(false), 2500);
+                    toast({
+                      title: "Select dish washing workload",
+                      description: "Please choose Light, Medium, or Heavy for dish washing.",
+                      variant: "destructive"
+                    });
+                    return;
+                  }
+                  const price = totalPrice;
+                  const dishParams = selectedTasks.includes('dish_washing') ?
+                  `&dish_intensity=${dishIntensity}&dish_extra=${dishIntensityExtra}` :
+                  '';
+                  navigate(`/book/${service_type}/schedule?flat=${selectedFlatSize}&tasks=${selectedTasks.join(',')}&price=${price}${dishParams}`);
+                } else if (service_type === 'bathroom_cleaning') {
                   const price = bathroomTotalPrice;
                   navigate(`/book/${service_type}/schedule?bathrooms=${bathroomCount}&glass=${hasGlassPartition ? '1' : '0'}&price=${price}`);
                 } else {
@@ -1091,7 +940,7 @@ export function BookingForm() {
                   navigate(`/book/${service_type}/schedule?flat=${selectedFlatSize}&price=${price}`);
                 }
               }}
-              disabled={service_type === 'bathroom_cleaning' ? false : !selectedFlatSize}
+              disabled={service_type === 'maid' ? !selectedFlatSize || selectedTasks.length === 0 || selectedTasks.includes('dish_washing') && !dishIntensity : service_type === 'bathroom_cleaning' ? false : !selectedFlatSize}
               className={cn(
                 "relative flex flex-col items-start gap-3 p-4 rounded-2xl border-2 shadow-sm transition-all duration-200 text-left",
                 "hover:shadow-md active:scale-[0.98]",
@@ -1110,6 +959,8 @@ export function BookingForm() {
               </button>
             </div>
 
+            {/* Fav Worker Card removed - now part of InstantCheckoutScreen */}
+
             {/* Instant unavailable hint */}
             {!isServiceOpen &&
           <p className="text-xs text-muted-foreground mt-1 text-left">
@@ -1126,6 +977,16 @@ export function BookingForm() {
 
         {/* Schedule Sheet */}
         <ScheduleSheet open={scheduleSheetOpen} onOpenChange={setScheduleSheetOpen} onSchedule={handleSchedule} loading={submitting} serviceType={service_type} community={profile?.community} />
+        
+        {/* Maid Price Chart Sheet */}
+        {service_type === 'maid' && (
+          <MaidPriceChartSheet
+            open={priceChartOpen}
+            onOpenChange={setPriceChartOpen}
+            userFlatSize={selectedFlatSize}
+            community={profile?.community}
+          />
+        )}
       </div>
     </div>;
 }
