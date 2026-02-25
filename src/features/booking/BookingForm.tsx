@@ -54,7 +54,6 @@ export function BookingForm() {
   const {
     profile,
     loading: profileLoading,
-    error: profileError,
     refresh: refreshProfile
   } = useProfile();
   const {
@@ -452,13 +451,9 @@ export function BookingForm() {
   if (!user || !service_type || !isValidServiceType(service_type)) {
     return null;
   }
-  // Show error/offline screen if profile failed to load (even if still "loading" with an error)
-  if (profileError && !profile) {
-    return <BookingErrorScreen error={profileError} onRetry={refreshProfile} />;
-  }
-  // Show loading state if profile is still loading
+  // Show loading state if profile is still loading OR if we don't have profile data yet
   if (profileLoading || !profile) {
-    return <BookingLoadingSkeleton onGiveUp={refreshProfile} />;
+    return <BookingLoadingSkeleton />;
   }
   const ServiceIcon = serviceIcon(service_type);
   const currentPrice = service_type === 'maid' ? selectedFlatSize && selectedTasks.length > 0 ? totalPrice : null :
@@ -717,8 +712,8 @@ export function BookingForm() {
                   )}>
 
                       {/* Image */}
-                      <div className="relative h-[100px] overflow-hidden bg-muted">
-                        <img src={img} alt={label} loading="eager" fetchPriority="high" decoding="async" width={200} height={100} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                      <div className="relative h-[100px] overflow-hidden">
+                        <img src={img} alt={label} loading="eager" fetchPriority="high" decoding="async" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent" />
                         {isSelected &&
                     <div className="absolute top-2.5 right-2.5 w-6 h-6 rounded-full bg-primary flex items-center justify-center shadow-md border-[1.5px] border-primary-foreground">
@@ -777,8 +772,8 @@ export function BookingForm() {
                       "ring-1 ring-border shadow-sm hover:shadow-md animate-scale-in"
                     )}>
 
-                          <div className="relative h-20 overflow-hidden bg-muted">
-                            <img src={opt.img} alt={opt.label} loading="eager" decoding="async" width={120} height={80} className="w-full h-full object-cover" />
+                          <div className="relative h-20 overflow-hidden">
+                            <img src={opt.img} alt={opt.label} loading="eager" decoding="async" className="w-full h-full object-cover" />
                             {active &&
                       <div className="absolute inset-0 bg-primary/20" />
                       }
@@ -988,11 +983,11 @@ export function BookingForm() {
     </div>;
 }
 
-function BookingLoadingSkeleton({ onGiveUp }: { onGiveUp?: () => void }) {
+function BookingLoadingSkeleton() {
   const [slow, setSlow] = useState(false);
 
   useEffect(() => {
-    const t = setTimeout(() => setSlow(true), 3000);
+    const t = setTimeout(() => setSlow(true), 4000);
     return () => clearTimeout(t);
   }, []);
 
@@ -1013,12 +1008,12 @@ function BookingLoadingSkeleton({ onGiveUp }: { onGiveUp?: () => void }) {
               Taking longer than usual…
             </p>
             <p className="text-xs text-muted-foreground">
-              Your internet connection may be slow.
+              Your internet connection may be slow. Please check your connection and try again.
             </p>
             <Button
               variant="outline"
               size="sm"
-              onClick={onGiveUp || (() => window.location.reload())}
+              onClick={() => window.location.reload()}
               className="mt-2"
             >
               <RotateCcw className="w-4 h-4 mr-1.5" />
@@ -1026,29 +1021,6 @@ function BookingLoadingSkeleton({ onGiveUp }: { onGiveUp?: () => void }) {
             </Button>
           </div>
         )}
-      </div>
-    </div>
-  );
-}
-
-function BookingErrorScreen({ error, onRetry }: { error: string | null; onRetry: () => void }) {
-  const [retrying, setRetrying] = useState(false);
-  const handleRetry = async () => {
-    setRetrying(true);
-    try { await onRetry(); } catch {} finally { setRetrying(false); }
-  };
-  return (
-    <div className="min-h-screen gradient-bg pb-24 flex items-center justify-center">
-      <div className="max-w-sm mx-auto px-4 text-center space-y-4">
-        <AlertCircle className="w-12 h-12 text-destructive mx-auto" />
-        <h2 className="text-lg font-semibold text-foreground">Unable to load</h2>
-        <p className="text-sm text-muted-foreground">
-          {error || "Could not load your profile. Please check your internet connection and try again."}
-        </p>
-        <Button onClick={handleRetry} size="lg" className="w-full" disabled={retrying}>
-          <RotateCcw className={cn("w-4 h-4 mr-2", retrying && "animate-spin")} />
-          {retrying ? "Retrying…" : "Retry"}
-        </Button>
       </div>
     </div>
   );
