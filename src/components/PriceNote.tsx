@@ -29,7 +29,7 @@ export function PriceNote({ className }: PriceNoteProps) {
   return (
     <div className={cn("mt-2 flex items-start gap-2 text-xs text-muted-foreground italic", className)}>
       <Info size={16} className="mt-0.5 flex-shrink-0" />
-      <span>{note}</span>
-    </div>
-  );
+      
+    </div>);
+
 }
