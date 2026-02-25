@@ -54,6 +54,7 @@ export function BookingForm() {
   const {
     profile,
     loading: profileLoading,
+    error: profileError,
     refresh: refreshProfile
   } = useProfile();
   const {
@@ -451,9 +452,13 @@ export function BookingForm() {
   if (!user || !service_type || !isValidServiceType(service_type)) {
     return null;
   }
-  // Show loading state if profile is still loading OR if we don't have profile data yet
-  if (profileLoading || !profile) {
+  // Show loading state if profile is still loading
+  if (profileLoading) {
     return <BookingLoadingSkeleton />;
+  }
+  // Show error/offline screen if profile failed to load
+  if (!profile) {
+    return <BookingErrorScreen error={profileError} onRetry={() => window.location.reload()} />;
   }
   const ServiceIcon = serviceIcon(service_type);
   const currentPrice = service_type === 'maid' ? selectedFlatSize && selectedTasks.length > 0 ? totalPrice : null :
@@ -1021,6 +1026,24 @@ function BookingLoadingSkeleton() {
             </Button>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+function BookingErrorScreen({ error, onRetry }: { error: string | null; onRetry: () => void }) {
+  return (
+    <div className="min-h-screen gradient-bg pb-24 flex items-center justify-center">
+      <div className="max-w-sm mx-auto px-4 text-center space-y-4">
+        <AlertCircle className="w-12 h-12 text-destructive mx-auto" />
+        <h2 className="text-lg font-semibold text-foreground">Unable to load</h2>
+        <p className="text-sm text-muted-foreground">
+          {error || "Could not load your profile. Please check your internet connection and try again."}
+        </p>
+        <Button onClick={onRetry} size="lg" className="w-full">
+          <RotateCcw className="w-4 h-4 mr-2" />
+          Retry
+        </Button>
       </div>
     </div>
   );
