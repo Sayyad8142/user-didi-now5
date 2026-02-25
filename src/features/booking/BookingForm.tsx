@@ -981,8 +981,8 @@ export function BookingForm() {
                   <>
                     <div className="flex -space-x-2">
                       {[0, 1, 2].map((i) => (
-                        <div key={i} className="w-8 h-8 rounded-full border-2 border-card bg-primary/10 flex items-center justify-center">
-                          <Star className="w-3.5 h-3.5 text-primary" />
+                        <div key={i} className="w-8 h-8 rounded-full border-2 border-card bg-primary/10 flex items-center justify-center overflow-hidden">
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5 text-primary/60"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v1.2c0 .7.5 1.2 1.2 1.2h16.8c.7 0 1.2-.5 1.2-1.2v-1.2c0-3.2-6.4-4.8-9.6-4.8z"/></svg>
                         </div>
                       ))}
                     </div>
