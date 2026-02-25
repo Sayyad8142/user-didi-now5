@@ -406,13 +406,6 @@ export function ScheduleScreen() {
                             +₹{AFTER_4PM_SURCHARGE}
                           </span>
                         )}
-                        {hasDiscount && !isPast && (
-                          <span className={`text-[10px] font-semibold mt-0.5 ${
-                            isSelected ? 'text-emerald-600' : 'text-emerald-500'
-                          }`}>
-                            ₹{OFF_PEAK_DISCOUNT} OFF
-                          </span>
-                        )}
                       </Button>
                     );
                   })}
@@ -441,19 +434,12 @@ export function ScheduleScreen() {
                 </div>
               )}
 
-              {selectedTime && isOffPeakSlot(selectedTime) && (
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-emerald-600">Off-peak discount (10 AM–2 PM)</span>
-                  <span className="text-xs font-semibold text-emerald-600">-₹{OFF_PEAK_DISCOUNT}</span>
-                </div>
-              )}
 
               <div className="border-t border-primary/20 pt-1.5 flex items-center justify-between">
                 <span className="text-sm font-semibold text-foreground">Total</span>
                 <span className="text-xl font-bold text-foreground">
                   ₹{price 
-                    + (selectedTime && isAfter4pmSlot(selectedTime) ? AFTER_4PM_SURCHARGE : 0) 
-                    - (selectedTime && isOffPeakSlot(selectedTime) ? OFF_PEAK_DISCOUNT : 0)}
+                    + (selectedTime && isAfter4pmSlot(selectedTime) ? AFTER_4PM_SURCHARGE : 0)}
                 </span>
               </div>
             </div>
