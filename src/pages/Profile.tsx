@@ -19,11 +19,19 @@ import { useFlats } from '@/hooks/useFlats';
 import { useFlatSize } from '@/hooks/useFlatSize';
 
 export default function Profile() {
-  const { profile, loading, refresh } = useProfile();
+  const { profile, loading, error: profileError, refresh } = useProfile();
   const { communities, loading: communitiesLoading } = useCommunities();
   const { flatSize, loading: flatSizeLoading } = useFlatSize();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [showSlow, setShowSlow] = React.useState(false);
+
+  // Show "taking longer" message after 4 seconds of loading
+  React.useEffect(() => {
+    if (!loading) { setShowSlow(false); return; }
+    const timer = setTimeout(() => setShowSlow(true), 4000);
+    return () => clearTimeout(timer);
+  }, [loading]);
   
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState({
@@ -155,7 +163,7 @@ export default function Profile() {
       window.location.href = '/auth';
     }
   };
-  if (loading) {
+  if (loading || profileError) {
     return <div className="min-h-screen gradient-bg pb-24">
         <div className="max-w-md mx-auto px-4 py-8 space-y-6">
           <div className="text-center space-y-4">
@@ -167,6 +175,21 @@ export default function Profile() {
             <Skeleton className="h-32 rounded-3xl" />
             <Skeleton className="h-24 rounded-3xl" />
           </div>
+          {(showSlow || profileError) && (
+            <div className="text-center space-y-3 pt-4">
+              <p className="text-sm text-gray-500">
+                {profileError || 'Taking longer than usual…'}
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => { setShowSlow(false); refresh(); }}
+                className="rounded-full border-primary text-primary"
+              >
+                Retry
+              </Button>
+            </div>
+          )}
         </div>
       </div>;
   }
