@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, MapPin, Home, Clock, Calendar, AlertCircle, Check, Zap, ChevronRight, Star, X, Ruler, ChevronDown } from 'lucide-react';
-
+import dishesLightImg from '@/assets/dishes-light.webp';
+import dishesMediumImg from '@/assets/dishes-medium.webp';
+import dishesHeavyImg from '@/assets/dishes-heavy.webp';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -744,44 +746,52 @@ export function BookingForm() {
                     <h3 className="text-base font-semibold text-foreground">How many dishes today?</h3>
                     <span className="text-[10px] font-bold uppercase tracking-wider text-primary bg-primary/10 px-1.5 py-0.5 rounded">Required</span>
                   </div>
+                  <p className="text-xs text-muted-foreground -mt-1">Pick Light / Medium / Heavy to continue</p>
 
-                  <div className="space-y-2">
+                  <div className="grid grid-cols-3 gap-2">
                     {[
-              { value: 'light' as DishIntensity, label: 'Light', extra: 0, desc: '5-10 items' },
-              { value: 'medium' as DishIntensity, label: 'Medium', extra: 30, desc: '10-20 items' },
-              { value: 'heavy' as DishIntensity, label: 'Heavy', extra: 50, desc: '20+ items' }].
-              map((opt) => {
+              { value: 'light' as DishIntensity, label: 'Light', extra: 0, desc: '5-10 items', img: dishesLightImg },
+              { value: 'medium' as DishIntensity, label: 'Medium', extra: 30, desc: '10-20 items', img: dishesMediumImg },
+              { value: 'heavy' as DishIntensity, label: 'Heavy', extra: 50, desc: '20+ items', img: dishesHeavyImg }].
+              map((opt, i) => {
                 const active = dishIntensity === opt.value;
                 return (
                   <button
                     key={opt.value}
                     type="button"
                     onClick={() => setDishIntensity(opt.value)}
+                    style={{ animationDelay: `${i * 150}ms` }}
                     className={cn(
-                      "w-full flex items-center gap-3 rounded-xl border-2 p-4 transition-all duration-200 text-left",
-                      active
-                        ? "border-primary bg-primary/5"
-                        : "border-border bg-card hover:border-primary/50"
-                    )}
-                  >
-                    <div className={cn(
-                      "w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0",
-                      active ? "border-primary" : "border-muted-foreground"
+                      "relative rounded-2xl overflow-hidden text-left transition-all duration-200",
+                      active ?
+                      "ring-2 ring-primary shadow-md shadow-primary/10 scale-[1.02]" :
+                      "ring-1 ring-border shadow-sm hover:shadow-md animate-scale-in"
                     )}>
-                      {active && <div className="w-2.5 h-2.5 rounded-full bg-primary" />}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-sm text-foreground">{opt.label}</p>
-                      <p className="text-xs text-muted-foreground">{opt.desc}</p>
-                    </div>
-                    <span className={cn(
-                      "text-[15px] font-bold shrink-0",
-                      opt.extra > 0 ? "text-primary" : "text-muted-foreground"
+
+                          <div className="relative h-20 overflow-hidden">
+                            <img src={opt.img} alt={opt.label} loading="eager" decoding="async" className="w-full h-full object-cover" />
+                            {active &&
+                      <div className="absolute inset-0 bg-primary/20" />
+                      }
+                          </div>
+                          <div className={cn(
+                      "p-2 text-center transition-colors",
+                      active ? "bg-primary/5" : "bg-card"
                     )}>
-                      {opt.extra > 0 ? `+₹${opt.extra}` : '₹0'}
-                    </span>
-                  </button>
-                );
+                            <p className={cn(
+                        "text-xs font-bold",
+                        active ? "text-primary" : "text-foreground"
+                      )}>{opt.label}</p>
+                            <p className="text-[10px] text-muted-foreground">{opt.desc}</p>
+                            <p className={cn(
+                        "text-xs font-bold mt-0.5",
+                        opt.extra > 0 ? "text-orange-500" : "text-muted-foreground"
+                      )}>
+                              {opt.extra > 0 ? `+₹${opt.extra}` : '₹0'}
+                            </p>
+                          </div>
+                        </button>);
+
               })}
                   </div>
                   {dishError && !dishIntensity && (
