@@ -46,7 +46,7 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchProfile = useCallback(async (silent = false): Promise<Profile | null> => {
+  const fetchProfile = useCallback(async (): Promise<Profile | null> => {
     try {
       // IMPORTANT: If we have a real Firebase user, always clear demo/guest mode first
       // This ensures we don't show stale guest data after login
@@ -71,35 +71,16 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
         return null;
       }
 
-      // Only show loading state on initial fetch, not silent retries
-      if (!silent) {
-        setLoading(true);
-        setError(null);
-      }
+      setLoading(true);
+      setError(null);
 
       console.log('🔍 Fetching profile for firebase_uid:', user.id);
 
-      // Add a timeout to prevent hanging forever on bad connections
-      const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('Request timed out. Please check your connection and retry.')), 10000)
-      );
-
-      const fetchPromise = supabase
+      const { data, error: fetchError } = await supabase
         .from("profiles")
         .select("id, full_name, phone, community, flat_no, building_id, community_id, flat_id")
         .eq("firebase_uid", user.id)
         .maybeSingle();
-
-      let data: any = null;
-      let fetchError: any = null;
-
-      try {
-        const result = await Promise.race([fetchPromise, timeoutPromise]);
-        data = (result as any)?.data ?? null;
-        fetchError = (result as any)?.error ?? null;
-      } catch (e: any) {
-        fetchError = { message: e?.message || 'Request timed out', code: 'TIMEOUT' };
-      }
 
       if (fetchError) {
         console.error('❌ Profile fetch error:', fetchError);
@@ -190,20 +171,6 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
   useEffect(() => {
     fetchProfile();
   }, [fetchProfile]);
-
-  // Auto-retry on error every 3 seconds (up to 10 times)
-  useEffect(() => {
-    if (!error || loading) return;
-    let attempts = 0;
-    const maxRetries = 10;
-    const interval = setInterval(() => {
-      attempts++;
-      console.log(`🔄 Auto-retrying profile fetch silently (attempt ${attempts}/${maxRetries})`);
-      fetchProfile(true); // silent retry - don't reset UI to loading
-      if (attempts >= maxRetries) clearInterval(interval);
-    }, 3000);
-    return () => clearInterval(interval);
-  }, [error, loading, fetchProfile]);
 
   // Also listen for demo mode changes
   useEffect(() => {

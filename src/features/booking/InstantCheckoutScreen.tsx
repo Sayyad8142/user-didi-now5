@@ -12,7 +12,6 @@ import { useProfile } from '@/contexts/ProfileContext';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { cn } from '@/lib/utils';
 import { prettyServiceName } from './pricing';
-import { useFlatSize } from '@/hooks/useFlatSize';
 
 type EligibleWorker = {
   worker_id: string;
@@ -34,10 +33,8 @@ export function InstantCheckoutScreen() {
   const [search, setSearch] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  // Flat size from admin-managed flats table
-  const { flatSize: autoFlatSize } = useFlatSize();
-
-  // Read booking params from URL (except flat_size which comes from hook)
+  // Read booking params from URL
+  const flatSize = searchParams.get('flat');
   const priceParam = searchParams.get('price');
   const price = priceParam ? Number(priceParam) : 0;
   const tasks = searchParams.get('tasks');
@@ -116,7 +113,7 @@ export function InstantCheckoutScreen() {
         scheduled_time: null,
         notes: null,
         status: 'pending',
-        flat_size: service_type === 'bathroom_cleaning' ? null : autoFlatSize,
+        flat_size: service_type === 'bathroom_cleaning' ? null : flatSize,
         price_inr: price,
         family_count: null,
         food_pref: null,

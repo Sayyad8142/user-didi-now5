@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, MapPin, Home, Clock, Calendar, AlertCircle, Check, Zap, ChevronRight, Star, X, Ruler, ChevronDown } from 'lucide-react';
+import { ArrowLeft, MapPin, Home, Clock, Calendar, AlertCircle, Check, Zap, ChevronRight, Star, X } from 'lucide-react';
 import serviceFloorImg from '@/assets/service-floor-cleaning.webp';
 import serviceDishImg from '@/assets/service-dish-washing.webp';
 import dishesLightImg from '@/assets/dishes-light.webp';
@@ -24,8 +24,6 @@ import { PriceNote } from '@/components/PriceNote';
 import { isGuestMode } from '@/lib/demo';
 import { useInstantBookingAvailability } from '@/hooks/useInstantBookingAvailability';
 import { getIntensityExtra, type DishIntensity } from './DishIntensitySheet';
-import { useFlatSize } from '@/hooks/useFlatSize';
-import { MaidPriceChartSheet } from './MaidPriceChartSheet';
 
 // Maid task types and constants
 type MaidTask = "floor_cleaning" | "dish_washing";
@@ -54,19 +52,15 @@ export function BookingForm() {
   const {
     profile,
     loading: profileLoading,
-    error: profileError,
     refresh: refreshProfile
   } = useProfile();
   const {
     toast
   } = useToast();
-  // Flat size from flats table (admin-managed, not user-selectable)
-  const { flatSize: autoFlatSize, loading: flatSizeLoading, error: flatSizeError } = useFlatSize();
-  const selectedFlatSize = autoFlatSize as FlatSize | null;
+  const [selectedFlatSize, setSelectedFlatSize] = useState<FlatSize | null>(null);
   const [pricingMap, setPricingMap] = useState<PricingMap>({});
   const [loadingPricing, setLoadingPricing] = useState(true);
   const [scheduleSheetOpen, setScheduleSheetOpen] = useState(false);
-  const [priceChartOpen, setPriceChartOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   // Check instant booking availability (must be before any early returns)
@@ -251,8 +245,8 @@ export function BookingForm() {
     if (service_type === 'maid') {
       if (!selectedFlatSize || selectedTasks.length === 0) {
         toast({
-          title: "Cannot book yet",
-          description: !selectedFlatSize ? "Flat size is not available. Please update your flat details." : "Select at least one task before booking.",
+          title: "Please complete maid booking details",
+          description: "Select flat size and at least one task before booking.",
           variant: "destructive"
         });
         return;
@@ -452,9 +446,8 @@ export function BookingForm() {
   if (!user || !service_type || !isValidServiceType(service_type)) {
     return null;
   }
-
-  // Show loading state only while actively loading (not on error)
-  if (profileLoading && !profileError) {
+  // Show loading state if profile is still loading OR if we don't have profile data yet
+  if (profileLoading || !profile) {
     return <div className="min-h-screen gradient-bg pb-24">
         <div className="max-w-md mx-auto px-4 py-6">
           <div className="space-y-6">
@@ -462,23 +455,6 @@ export function BookingForm() {
             <Skeleton className="h-36 w-full rounded-3xl bg-white/20" />
             <Skeleton className="h-52 w-full rounded-3xl bg-white/20" />
           </div>
-        </div>
-      </div>;
-  }
-
-  // Show error/retry screen when profile failed to load
-  if (!profile) {
-    return <div className="min-h-screen bg-background pb-24">
-        <div className="max-w-md mx-auto px-4 py-6 flex flex-col items-center justify-center min-h-[60vh] text-center space-y-4">
-          <AlertCircle className="w-12 h-12 text-muted-foreground" />
-          <h2 className="text-lg font-semibold text-foreground">Connection issue</h2>
-          <p className="text-sm text-muted-foreground">{profileError || 'Unable to load your profile. Please check your internet connection.'}</p>
-          <Button onClick={() => refreshProfile()} variant="outline" className="rounded-2xl">
-            Retry
-          </Button>
-          <Button variant="ghost" size="sm" onClick={() => navigate('/home')} className="text-muted-foreground">
-            Go Home
-          </Button>
         </div>
       </div>;
   }
@@ -491,7 +467,7 @@ export function BookingForm() {
 
 
 
-  const canBook = isServiceOpen && !instantDisabled && !flatSizeLoading && !flatSizeError && (
+  const canBook = isServiceOpen && !instantDisabled && (
   service_type === 'maid' ? selectedFlatSize && selectedTasks.length > 0 && (!selectedTasks.includes('dish_washing') || dishIntensity) && !submitting :
   service_type === 'bathroom_cleaning' ? !submitting :
   selectedFlatSize && currentPrice && !submitting);
@@ -569,54 +545,51 @@ export function BookingForm() {
         </div>
 
         <div className="space-y-4">
-          {/* Flat Size (read-only from flats table) */}
-          {service_type !== 'bathroom_cleaning' && (
-            <Card className="border border-border rounded-2xl">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <Ruler className="w-5 h-5 text-primary" />
-                  <div className="flex-1 flex items-center justify-between">
-                    <span className="text-foreground font-medium">Flat Size</span>
-                    {flatSizeLoading ? (
-                      <Skeleton className="h-5 w-16 rounded" />
-                    ) : selectedFlatSize ? (
-                      <span className="text-foreground font-semibold">{selectedFlatSize}</span>
-                    ) : flatSizeError === 'no_flat_id' ? (
-                      <span className="text-destructive text-sm font-medium">Update flat in Profile</span>
-                    ) : flatSizeError === 'no_flat_size' ? (
-                      <span className="text-destructive text-sm font-medium">Contact support</span>
-                    ) : (
-                      <span className="text-muted-foreground text-sm">Not available</span>
-                    )}
+          {/* Community & Flat Cards */}
+          {profile && <>
+              <Card className="border border-border rounded-2xl">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <MapPin className="w-5 h-5 text-primary" />
+                    <div className="flex-1 flex items-center justify-between">
+                      <span className="text-foreground font-medium">Community</span>
+                      <span className="text-foreground font-semibold">{profile.community}</span>
+                    </div>
                   </div>
-                </div>
-                {selectedFlatSize && service_type === 'maid' && (
-                  <button
-                    type="button"
-                    onClick={() => setPriceChartOpen(true)}
-                    className="text-xs text-primary font-medium flex items-center gap-0.5 hover:underline ml-8 mt-1.5"
-                  >
-                    See Price Chart
-                    <ChevronDown className="w-3 h-3" />
-                  </button>
-                )}
-                {flatSizeError === 'no_flat_size' && (
-                  <p className="text-xs text-destructive mt-2 ml-8">
-                    Flat size not configured for your flat. Please contact support to continue booking.
-                  </p>
-                )}
-                {flatSizeError === 'no_flat_id' && (
-                  <Button
-                    variant="link"
-                    className="text-xs text-primary p-0 h-auto ml-8 mt-1"
-                    onClick={() => navigate('/profile')}
-                  >
-                    Update flat details →
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
-          )}
+                </CardContent>
+              </Card>
+
+              <Card className="border border-border rounded-2xl">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <Home className="w-5 h-5 text-primary" />
+                    <div className="flex-1 flex items-center justify-between">
+                      <span className="text-foreground font-medium">Flat Number</span>
+                      <span className="text-foreground font-semibold">{profile.flat_no}</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </>}
+
+          {/* Select Flat Size */}
+          {service_type !== 'bathroom_cleaning' && <div className="mt-8">
+              <h2 className="text-lg font-semibold text-foreground mb-4">
+                Select Flat Size <span className="text-destructive">*</span>
+              </h2>
+              
+              <div className="grid grid-cols-3 gap-3 mb-3">
+                {FLAT_SIZES.slice(0, 3).map((size) => <Button key={size} variant="outline" onClick={() => { setSelectedFlatSize(size); setTimeout(() => servicesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100); }} className={`h-12 font-medium rounded-2xl border-2 ${selectedFlatSize === size ? "border-primary bg-primary/5 text-primary" : "border-border bg-background text-foreground hover:border-primary/50"}`}>
+                    {size}
+                  </Button>)}
+              </div>
+              
+              <div className="grid grid-cols-2 gap-3">
+                {FLAT_SIZES.slice(3).map((size) => <Button key={size} variant="outline" onClick={() => { setSelectedFlatSize(size); setTimeout(() => servicesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100); }} className={`h-12 font-medium rounded-2xl border-2 ${selectedFlatSize === size ? "border-primary bg-primary/5 text-primary" : "border-border bg-background text-foreground hover:border-primary/50"}`}>
+                    {size}
+                  </Button>)}
+              </div>
+            </div>}
 
           {/* Bathroom Count Selector */}
           {service_type === 'bathroom_cleaning' && <div className="mt-8 space-y-6">
@@ -872,7 +845,7 @@ export function BookingForm() {
                 // Validate before navigating to instant checkout
                 if (service_type === 'maid') {
                   if (!selectedFlatSize || selectedTasks.length === 0) {
-                    toast({ title: "Cannot book yet", description: !selectedFlatSize ? "Flat size not available. Update flat details." : "Select at least one task.", variant: "destructive" });
+                    toast({ title: "Please complete maid booking details", description: "Select flat size and at least one task.", variant: "destructive" });
                     return;
                   }
                   if (selectedTasks.includes('dish_washing') && !dishIntensity) {
@@ -997,15 +970,6 @@ export function BookingForm() {
         {/* Schedule Sheet */}
         <ScheduleSheet open={scheduleSheetOpen} onOpenChange={setScheduleSheetOpen} onSchedule={handleSchedule} loading={submitting} serviceType={service_type} community={profile?.community} />
         
-        {/* Maid Price Chart Sheet */}
-        {service_type === 'maid' && (
-          <MaidPriceChartSheet
-            open={priceChartOpen}
-            onOpenChange={setPriceChartOpen}
-            userFlatSize={selectedFlatSize}
-            community={profile?.community}
-          />
-        )}
       </div>
     </div>;
 }
