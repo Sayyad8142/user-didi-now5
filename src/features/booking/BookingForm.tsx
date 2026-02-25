@@ -775,19 +775,21 @@ export function BookingForm() {
                       }
                           </div>
                           <div className={cn(
-                      "p-2 text-center transition-colors",
+                      "p-2 transition-colors",
                       active ? "bg-primary/5" : "bg-card"
                     )}>
-                             <p className={cn(
-                        "text-[10px] font-bold",
-                        opt.extra > 0 ? "text-orange-500" : "text-muted-foreground"
-                      )}>
-                               {opt.extra > 0 ? `+₹${opt.extra}` : '₹0'}
-                             </p>
-                             <p className={cn(
-                        "text-xs font-bold",
-                        active ? "text-primary" : "text-foreground"
-                      )}>{opt.label}</p>
+                             <div className="flex items-center justify-between">
+                               <p className={cn(
+                          "text-xs font-bold",
+                          active ? "text-primary" : "text-foreground"
+                        )}>{opt.label}</p>
+                               <p className={cn(
+                          "text-[10px] font-bold",
+                          opt.extra > 0 ? "text-orange-500" : "text-muted-foreground"
+                        )}>
+                                 {opt.extra > 0 ? `+₹${opt.extra}` : '₹0'}
+                               </p>
+                             </div>
                              <p className="text-[10px] text-muted-foreground">{opt.desc}</p>
                            </div>
                         </button>);
