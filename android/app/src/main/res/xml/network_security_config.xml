@@ -10,5 +10,6 @@
     <domain includeSubdomains="true">didisnow.com</domain>
     <domain includeSubdomains="true">supabase.co</domain>
     <domain includeSubdomains="true">supabase.in</domain>
+    <domain includeSubdomains="true">api.didisnow.com</domain>
   </domain-config>
 </network-security-config>
