@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, MapPin, Home, Clock, Calendar, AlertCircle, Check, Zap, ChevronRight, Star, X, Ruler, ChevronDown } from 'lucide-react';
-import serviceFloorImg from '@/assets/service-floor-cleaning.webp';
-import serviceDishImg from '@/assets/service-dish-washing.webp';
 import dishesLightImg from '@/assets/dishes-light.webp';
 import dishesMediumImg from '@/assets/dishes-medium.webp';
 import dishesHeavyImg from '@/assets/dishes-heavy.webp';
@@ -690,61 +688,49 @@ export function BookingForm() {
                 Choose services <span className="text-destructive">*</span>
               </h2>
 
-              {/* Service image cards */}
-              <div className="grid grid-cols-2 gap-3">
+              {/* Service selection */}
+              <div className="space-y-2">
                 {([
-            { task: 'floor_cleaning' as MaidTask, label: 'Floor Cleaning', desc: 'Jhaadu & Pocha', img: serviceFloorImg },
-            { task: 'dish_washing' as MaidTask, label: 'Dish Washing', desc: 'Utensils & vessels', img: serviceDishImg }] as
-            const).map(({ task, label, desc, img }) => {
-              const isSelected = selectedTasks.includes(task);
-              const toggleTask = () => {
-                if (isSelected) {
-                  if (selectedTasks.length > 1) {
-                    setSelectedTasks((prev) => prev.filter((t) => t !== task));
-                    if (task === 'dish_washing') setDishIntensity(null);
-                  }
-                } else {
-                  setSelectedTasks((prev) => [...prev, task]);
-                }
-              };
-              return (
-                <button
-                  key={task}
-                  type="button"
-                  onClick={toggleTask}
-                  className={cn(
-                    "relative rounded-2xl overflow-hidden text-left group transition-all duration-200",
-                    isSelected
-                      ? "ring-[2.5px] ring-primary shadow-lg scale-[1.02]"
-                      : "ring-1 ring-border/60 shadow-sm hover:shadow-md"
-                  )}>
-
-                      {/* Image */}
-                      <div className="relative h-[72px] overflow-hidden">
-                        <img src={img} alt={label} loading="eager" fetchPriority="high" decoding="async" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent" />
-                        {isSelected &&
-                    <div className="absolute top-2.5 right-2.5 w-6 h-6 rounded-full bg-primary flex items-center justify-center shadow-md border-[1.5px] border-primary-foreground">
-                            <Check className="w-3 h-3 text-primary-foreground" strokeWidth={3} />
-                          </div>
+                  { task: 'floor_cleaning' as MaidTask, label: 'Floor Cleaning', desc: 'Jhaadu & Pocha' },
+                  { task: 'dish_washing' as MaidTask, label: 'Dish Washing', desc: 'Utensils & vessels' },
+                ] as const).map(({ task, label, desc }) => {
+                  const isSelected = selectedTasks.includes(task);
+                  const toggleTask = () => {
+                    if (isSelected) {
+                      if (selectedTasks.length > 1) {
+                        setSelectedTasks((prev) => prev.filter((t) => t !== task));
+                        if (task === 'dish_washing') setDishIntensity(null);
+                      }
+                    } else {
+                      setSelectedTasks((prev) => [...prev, task]);
                     }
-                      </div>
-                      {/* Info */}
+                  };
+                  return (
+                    <button
+                      key={task}
+                      type="button"
+                      onClick={toggleTask}
+                      className={cn(
+                        "w-full flex items-center gap-3 rounded-xl border-2 p-4 transition-all duration-200 text-left",
+                        isSelected
+                          ? "border-primary bg-primary/5"
+                          : "border-border bg-card hover:border-primary/50"
+                      )}
+                    >
                       <div className={cn(
-                    "px-3 py-2 transition-colors flex items-center justify-between",
-                    isSelected ? "bg-primary/5" : "bg-card"
-                  )}>
-                        <div>
-                          <h3 className="font-bold text-foreground text-[13px] leading-tight">{label}</h3>
-                          <p className="text-[11px] text-muted-foreground mt-0.5 leading-tight">{desc}</p>
-                        </div>
-                        <p className="text-[15px] font-bold text-primary leading-tight shrink-0">
-                          ₹{taskPrice(task)}
-                        </p>
+                        "w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0",
+                        isSelected ? "border-primary" : "border-muted-foreground"
+                      )}>
+                        {isSelected && <div className="w-2.5 h-2.5 rounded-full bg-primary" />}
                       </div>
-                    </button>);
-
-            })}
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-sm text-foreground">{label}</p>
+                        <p className="text-xs text-muted-foreground">{desc}</p>
+                      </div>
+                      <span className="text-[15px] font-bold text-primary shrink-0">₹{taskPrice(task)}</span>
+                    </button>
+                  );
+                })}
               </div>
 
               {/* Dish Intensity — Soft cards with left accent bar */}
