@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Star, Search, X, Zap } from 'lucide-react';
+import { ArrowLeft, Star, Search, X, Zap, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -34,10 +34,8 @@ export function InstantCheckoutScreen() {
   const [search, setSearch] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  // Flat size from admin-managed flats table
   const { flatSize: autoFlatSize } = useFlatSize();
 
-  // Read booking params from URL (except flat_size which comes from hook)
   const priceParam = searchParams.get('price');
   const price = priceParam ? Number(priceParam) : 0;
   const tasks = searchParams.get('tasks');
@@ -46,7 +44,6 @@ export function InstantCheckoutScreen() {
   const bathroomCount = searchParams.get('bathrooms');
   const hasGlass = searchParams.get('glass') === '1';
 
-  // Preferred worker selection state (local, not sessionStorage until booking)
   const [selectedWorker, setSelectedWorker] = useState<EligibleWorker | null>(null);
 
   const { data: workers, isLoading } = useQuery({
@@ -83,7 +80,6 @@ export function InstantCheckoutScreen() {
   const handleBookNow = async () => {
     if (!profile || !service_type || !user) return;
 
-    // Validate community
     if (!profile.community || profile.community === 'other') {
       toast({
         title: "Profile Incomplete",
@@ -94,7 +90,6 @@ export function InstantCheckoutScreen() {
       return;
     }
 
-    // Validate flat details for non-bathroom services
     if (service_type !== 'bathroom_cleaning' && !profile.flat_id) {
       toast({
         title: "Flat Details Missing",
@@ -151,7 +146,6 @@ export function InstantCheckoutScreen() {
         return;
       }
 
-      // Clear any stored preferred worker for this service
       sessionStorage.removeItem(`preferred_worker_${service_type}`);
 
       toast({
@@ -177,56 +171,49 @@ export function InstantCheckoutScreen() {
   const serviceName = service_type ? prettyServiceName(service_type) : 'Service';
 
   return (
-    <div className="min-h-screen bg-background pb-24">
+    <div className="min-h-screen bg-background pb-40">
       <div className="max-w-md mx-auto px-4 py-6">
         {/* Header */}
-        <div className="flex items-center gap-3 mb-6">
+        <div className="flex items-center gap-3 mb-5">
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="shrink-0">
             <ArrowLeft className="w-5 h-5" />
           </Button>
           <h1 className="text-xl font-semibold text-foreground">Instant Booking</h1>
         </div>
 
-        {/* Book Now CTA */}
-        <Button
-          onClick={handleBookNow}
-          disabled={submitting}
-          className="w-full h-14 rounded-2xl text-base font-bold shadow-lg mb-1"
-          size="lg"
-        >
-          {submitting ? (
-            <div className="w-5 h-5 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
-          ) : (
-            <>
-              <Zap className="w-5 h-5 mr-2" />
-              Book Now
-            </>
-          )}
-        </Button>
-        <p className="text-[11px] text-muted-foreground text-center mb-6">
-          {selectedWorker
-            ? `We'll offer to ${selectedWorker.full_name} first. If no response, others will get it.`
-            : "Instant • We'll assign the best available expert"}
-        </p>
+        {/* Selected worker indicator */}
+        {selectedWorker && (
+          <div className="flex items-center gap-2 bg-primary/5 border border-primary/20 rounded-xl px-3 py-2 mb-4">
+            <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />
+            <p className="text-xs text-foreground flex-1">
+              <span className="font-semibold">{selectedWorker.full_name}</span> will be offered first
+            </p>
+            <button onClick={clearSelection} className="text-xs text-primary font-medium">
+              Clear
+            </button>
+          </div>
+        )}
 
         {/* Available Experts */}
-        <div className="space-y-3">
-          <div>
-            <h3 className="text-sm font-semibold text-foreground">Available experts <span className="text-muted-foreground font-normal">(optional)</span></h3>
+        <div>
+          <div className="mb-3">
+            <h3 className="text-sm font-semibold text-foreground">
+              Choose a favourite expert <span className="text-muted-foreground font-normal">(optional)</span>
+            </h3>
             <p className="text-[11px] text-muted-foreground mt-0.5">
-              Select one to offer booking to them first. If they don't respond, we'll send to others.
+              They'll get your booking first. If no response, we'll assign the best available.
             </p>
           </div>
 
           {/* Search */}
           {(workers?.length || 0) > 3 && (
-            <div className="relative">
+            <div className="relative mb-3">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
                 placeholder="Search by name..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="pl-9 rounded-xl"
+                className="pl-9 rounded-xl h-9 text-sm"
               />
               {search && (
                 <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2">
@@ -238,15 +225,14 @@ export function InstantCheckoutScreen() {
 
           {/* Worker list */}
           {isLoading ? (
-            <div className="space-y-3">
+            <div className="space-y-2">
               {[1, 2, 3].map((i) => (
-                <div key={i} className="flex items-center gap-3 p-4 rounded-2xl border border-border">
-                  <Skeleton className="w-12 h-12 rounded-full" />
-                  <div className="flex-1 space-y-2">
-                    <Skeleton className="h-4 w-32" />
-                    <Skeleton className="h-3 w-24" />
+                <div key={i} className="flex items-center gap-3 p-3 rounded-xl border border-border">
+                  <Skeleton className="w-10 h-10 rounded-full" />
+                  <div className="flex-1 space-y-1.5">
+                    <Skeleton className="h-3.5 w-28" />
+                    <Skeleton className="h-3 w-20" />
                   </div>
-                  <Skeleton className="h-9 w-20 rounded-xl" />
                 </div>
               ))}
             </div>
@@ -260,7 +246,7 @@ export function InstantCheckoutScreen() {
               </p>
             </div>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               {filtered.map((w) => {
                 const isSelected = selectedWorker?.worker_id === w.worker_id;
                 return (
@@ -268,39 +254,36 @@ export function InstantCheckoutScreen() {
                     key={w.worker_id}
                     onClick={() => handleSelect(w)}
                     className={cn(
-                      "w-full flex items-center gap-3 p-3.5 rounded-2xl border-2 bg-card shadow-sm transition-all duration-200 text-left",
+                      "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border bg-card transition-all duration-150 text-left",
                       isSelected
-                        ? "border-primary bg-primary/5"
+                        ? "border-primary bg-primary/5 shadow-sm"
                         : "border-border hover:border-primary/30"
                     )}
                   >
-                    <Avatar className="w-11 h-11">
+                    <Avatar className="w-9 h-9">
                       {w.photo_url ? <AvatarImage src={w.photo_url} alt={w.full_name} /> : null}
-                      <AvatarFallback className="bg-primary/10 text-primary font-bold text-sm">
+                      <AvatarFallback className="bg-primary/10 text-primary font-bold text-xs">
                         {w.full_name.charAt(0)}
                       </AvatarFallback>
                     </Avatar>
 
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-foreground text-sm truncate">{w.full_name}</p>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <div className="flex items-center gap-0.5">
-                          <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                          <span className="text-xs font-medium text-foreground">
-                            {w.rating_avg.toFixed(1)}
-                          </span>
-                          {w.rating_count > 0 && (
-                            <span className="text-xs text-muted-foreground">({w.rating_count})</span>
-                          )}
-                        </div>
-                        <span className="text-xs text-muted-foreground">
-                          • {w.completed_bookings_count} done
+                      <div className="flex items-center gap-2">
+                        <p className="font-semibold text-foreground text-[13px] truncate">{w.full_name}</p>
+                        <span className="inline-flex items-center gap-1 text-[9px] font-medium text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-full shrink-0">
+                          <span className="w-1 h-1 rounded-full bg-emerald-500" />
+                          Online
                         </span>
                       </div>
-                      <span className="inline-flex items-center gap-1 mt-1 text-[10px] font-medium text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-full">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                        Online
-                      </span>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                        <span className="text-[11px] font-medium text-foreground">
+                          {w.rating_avg.toFixed(1)}
+                        </span>
+                        <span className="text-[11px] text-muted-foreground">
+                          · {w.completed_bookings_count} jobs
+                        </span>
+                      </div>
                     </div>
 
                     <div className={cn(
@@ -317,17 +300,32 @@ export function InstantCheckoutScreen() {
             </div>
           )}
 
-          {selectedWorker && (
-            <button
-              onClick={clearSelection}
-              className="text-xs text-primary font-medium mx-auto block mt-1"
-            >
-              Clear selection
-            </button>
-          )}
-
-          <p className="text-[10px] text-muted-foreground text-center">
+          <p className="text-[10px] text-muted-foreground text-center mt-3">
             Auto-refreshes every 15s
+          </p>
+        </div>
+      </div>
+
+      {/* Fixed bottom Book Now bar */}
+      <div className="fixed bottom-[72px] inset-x-0 z-30 bg-background/95 backdrop-blur border-t border-border px-4 py-3">
+        <div className="max-w-md mx-auto">
+          <Button
+            onClick={handleBookNow}
+            disabled={submitting}
+            className="w-full h-12 rounded-xl text-base font-bold shadow-lg"
+            size="lg"
+          >
+            {submitting ? (
+              <div className="w-5 h-5 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <>
+                <Zap className="w-5 h-5 mr-2" />
+                Book Now{price ? ` · ₹${price}` : ''}
+              </>
+            )}
+          </Button>
+          <p className="text-[10px] text-muted-foreground text-center mt-1">
+            Instant • We'll assign the best available expert
           </p>
         </div>
       </div>
