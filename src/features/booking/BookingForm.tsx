@@ -885,46 +885,6 @@ export function BookingForm() {
                 <ChevronRight className="w-4 h-4 text-muted-foreground absolute top-4 right-4" />
               </button>
 
-              {/* Choose Fav Worker - below Instant card */}
-              {isServiceOpen && !instantDisabled && (
-                <button
-                  onClick={() => navigate(`/book/${service_type}/select-worker`)}
-                  className="flex items-center gap-3 px-4 py-3 rounded-xl border border-border bg-card hover:bg-accent/50 transition-colors -mt-1"
-                >
-                  {preferredWorker ? (
-                    <>
-                      <Avatar className="w-8 h-8">
-                        {preferredWorker.photo_url && <AvatarImage src={preferredWorker.photo_url} />}
-                        <AvatarFallback className="bg-primary/10 text-primary text-xs font-bold">
-                          {preferredWorker.full_name.charAt(0)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 text-left min-w-0">
-                        <p className="text-sm font-semibold text-foreground truncate">{preferredWorker.full_name}</p>
-                        <p className="text-[10px] text-muted-foreground flex items-center gap-0.5">
-                          <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
-                          {preferredWorker.rating_avg.toFixed(1)} · Preferred
-                        </p>
-                      </div>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); clearPreferredWorker(); }}
-                        className="p-1 rounded-full hover:bg-muted"
-                      >
-                        <X className="w-3.5 h-3.5 text-muted-foreground" />
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                        <Star className="w-4 h-4 text-primary" />
-                      </div>
-                      <span className="text-sm font-medium text-primary">Choose your fav worker</span>
-                      <ChevronRight className="w-4 h-4 text-muted-foreground ml-auto" />
-                    </>
-                  )}
-                </button>
-              )}
-
               {/* Schedule Card */}
               <button
               onClick={() => {
@@ -989,7 +949,45 @@ export function BookingForm() {
               </button>
             </div>
 
-            {/* Fav Worker Card removed - now part of InstantCheckoutScreen */}
+            {/* Choose Fav Worker - below the grid */}
+            {isServiceOpen && !instantDisabled && (
+              <button
+                onClick={() => navigate(`/book/${service_type}/select-worker`)}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-border bg-card hover:bg-accent/50 transition-colors"
+              >
+                {preferredWorker ? (
+                  <>
+                    <Avatar className="w-8 h-8">
+                      {preferredWorker.photo_url && <AvatarImage src={preferredWorker.photo_url} />}
+                      <AvatarFallback className="bg-primary/10 text-primary text-xs font-bold">
+                        {preferredWorker.full_name.charAt(0)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 text-left min-w-0">
+                      <p className="text-sm font-semibold text-foreground truncate">{preferredWorker.full_name}</p>
+                      <p className="text-[10px] text-muted-foreground flex items-center gap-0.5">
+                        <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                        {preferredWorker.rating_avg.toFixed(1)} · Preferred
+                      </p>
+                    </div>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); clearPreferredWorker(); }}
+                      className="p-1 rounded-full hover:bg-muted"
+                    >
+                      <X className="w-3.5 h-3.5 text-muted-foreground" />
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                      <Star className="w-4 h-4 text-primary" />
+                    </div>
+                    <span className="text-sm font-medium text-primary">Choose your fav worker</span>
+                    <ChevronRight className="w-4 h-4 text-muted-foreground ml-auto" />
+                  </>
+                )}
+              </button>
+            )}
 
             {/* Instant unavailable hint */}
             {!isServiceOpen &&
