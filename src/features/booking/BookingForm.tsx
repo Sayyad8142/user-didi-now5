@@ -720,7 +720,7 @@ export function BookingForm() {
                   )}>
 
                       {/* Image */}
-                      <div className="relative h-[100px] overflow-hidden">
+                      <div className="relative h-[72px] overflow-hidden">
                         <img src={img} alt={label} loading="eager" fetchPriority="high" decoding="async" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent" />
                         {isSelected &&
