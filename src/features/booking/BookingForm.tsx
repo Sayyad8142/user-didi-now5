@@ -85,13 +85,13 @@ export function BookingForm() {
   const GLASS_PARTITION_FEE = 30; // ₹30 per bathroom
 
   // Preferred worker state
-  type PreferredWorker = { id: string; full_name: string; photo_url: string | null; rating_avg: number };
+  type PreferredWorker = {id: string;full_name: string;photo_url: string | null;rating_avg: number;};
   const prefKey = `preferred_worker_${service_type}`;
   const [preferredWorker, setPreferredWorker] = useState<PreferredWorker | null>(() => {
     try {
       const stored = sessionStorage.getItem(prefKey);
       return stored ? JSON.parse(stored) : null;
-    } catch { return null; }
+    } catch {return null;}
   });
 
   // Listen for returning from select-worker screen
@@ -99,9 +99,9 @@ export function BookingForm() {
     const handleFocus = () => {
       try {
         const stored = sessionStorage.getItem(prefKey);
-        if (stored) setPreferredWorker(JSON.parse(stored));
-        else setPreferredWorker(null);
-      } catch { /* ignore */ }
+        if (stored) setPreferredWorker(JSON.parse(stored));else
+        setPreferredWorker(null);
+      } catch {/* ignore */}
     };
     window.addEventListener('focus', handleFocus);
     // Also check on mount / navigation return
@@ -396,7 +396,7 @@ export function BookingForm() {
         cust_phone: profile.phone,
         community: profile.community,
         flat_no: profile.flat_no,
-        preferred_worker_id: bookingType === 'instant' ? (preferredWorker?.id || null) : null,
+        preferred_worker_id: bookingType === 'instant' ? preferredWorker?.id || null : null
       } as any;
 
       console.log('📤 Sending booking data to database:', bookingData);
@@ -414,9 +414,9 @@ export function BookingForm() {
         const isFlatError = error.message?.includes('flat details');
         toast({
           title: "Booking Failed",
-          description: isFlatError
-            ? "Please update your flat details in Account Settings before booking."
-            : `Error: ${error.message || 'Please try again.'}`,
+          description: isFlatError ?
+          "Please update your flat details in Account Settings before booking." :
+          `Error: ${error.message || 'Please try again.'}`,
           variant: "destructive"
         });
         if (isFlatError) navigate('/profile/settings');
@@ -437,9 +437,9 @@ export function BookingForm() {
       const isNetworkError = err?.message?.includes('Load failed') || err?.message?.includes('Failed to fetch') || err?.message?.includes('NetworkError');
       toast({
         title: "Booking Failed",
-        description: isNetworkError
-          ? "Network error – please check your internet connection and try again."
-          : `Error: ${err?.message || 'Please try again.'}`,
+        description: isNetworkError ?
+        "Network error – please check your internet connection and try again." :
+        `Error: ${err?.message || 'Please try again.'}`,
         variant: "destructive"
       });
     } finally {
@@ -549,53 +549,53 @@ export function BookingForm() {
 
         <div className="space-y-4">
           {/* Flat Size (read-only from flats table) */}
-          {service_type !== 'bathroom_cleaning' && (
-            <Card className="border border-border rounded-2xl">
+          {service_type !== 'bathroom_cleaning' &&
+        <Card className="border border-border rounded-2xl">
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
                   <Ruler className="w-5 h-5 text-primary" />
                   <div className="flex-1 flex items-center justify-between">
                     <span className="text-foreground font-medium">Flat Size</span>
-                    {flatSizeLoading ? (
-                      <Skeleton className="h-5 w-16 rounded" />
-                    ) : selectedFlatSize ? (
-                      <span className="text-foreground font-semibold">{selectedFlatSize}</span>
-                    ) : flatSizeError === 'no_flat_id' ? (
-                      <span className="text-destructive text-sm font-medium">Update flat in Profile</span>
-                    ) : flatSizeError === 'no_flat_size' ? (
-                      <span className="text-destructive text-sm font-medium">Contact support</span>
-                    ) : (
-                      <span className="text-muted-foreground text-sm">Not available</span>
-                    )}
+                    {flatSizeLoading ?
+                <Skeleton className="h-5 w-16 rounded" /> :
+                selectedFlatSize ?
+                <span className="text-foreground font-semibold">{selectedFlatSize}</span> :
+                flatSizeError === 'no_flat_id' ?
+                <span className="text-destructive text-sm font-medium">Update flat in Profile</span> :
+                flatSizeError === 'no_flat_size' ?
+                <span className="text-destructive text-sm font-medium">Contact support</span> :
+
+                <span className="text-muted-foreground text-sm">Not available</span>
+                }
                   </div>
                 </div>
-                {selectedFlatSize && service_type === 'maid' && (
-                  <button
-                    type="button"
-                    onClick={() => setPriceChartOpen(true)}
-                    className="text-xs text-primary font-medium flex items-center gap-0.5 hover:underline ml-8 mt-1.5"
-                  >
+                {selectedFlatSize && service_type === 'maid' &&
+            <button
+              type="button"
+              onClick={() => setPriceChartOpen(true)}
+              className="text-xs text-primary font-medium flex items-center gap-0.5 hover:underline ml-8 mt-1.5">
+
                     See Price Chart
                     <ChevronDown className="w-3 h-3" />
                   </button>
-                )}
-                {flatSizeError === 'no_flat_size' && (
-                  <p className="text-xs text-destructive mt-2 ml-8">
+            }
+                {flatSizeError === 'no_flat_size' &&
+            <p className="text-xs text-destructive mt-2 ml-8">
                     Flat size not configured for your flat. Please contact support to continue booking.
                   </p>
-                )}
-                {flatSizeError === 'no_flat_id' && (
-                  <Button
-                    variant="link"
-                    className="text-xs text-primary p-0 h-auto ml-8 mt-1"
-                    onClick={() => navigate('/profile')}
-                  >
+            }
+                {flatSizeError === 'no_flat_id' &&
+            <Button
+              variant="link"
+              className="text-xs text-primary p-0 h-auto ml-8 mt-1"
+              onClick={() => navigate('/profile')}>
+
                     Update flat details →
                   </Button>
-                )}
+            }
               </CardContent>
             </Card>
-          )}
+        }
 
           {/* Bathroom Count Selector */}
           {service_type === 'bathroom_cleaning' && <div className="mt-8 space-y-6">
@@ -691,36 +691,36 @@ export function BookingForm() {
               {/* Service selection */}
               <div className="space-y-2">
                 {([
-                  { task: 'floor_cleaning' as MaidTask, label: 'Floor Cleaning', desc: 'Jhaadu & Pocha' },
-                  { task: 'dish_washing' as MaidTask, label: 'Dish Washing', desc: 'Utensils & vessels' },
-                ] as const).map(({ task, label, desc }) => {
-                  const isSelected = selectedTasks.includes(task);
-                  const toggleTask = () => {
-                    if (isSelected) {
-                      if (selectedTasks.length > 1) {
-                        setSelectedTasks((prev) => prev.filter((t) => t !== task));
-                        if (task === 'dish_washing') setDishIntensity(null);
-                      }
-                    } else {
-                      setSelectedTasks((prev) => [...prev, task]);
-                    }
-                  };
-                  return (
-                    <button
-                      key={task}
-                      type="button"
-                      onClick={toggleTask}
-                      className={cn(
-                        "w-full flex items-center gap-3 rounded-xl border-2 p-4 transition-all duration-200 text-left",
-                        isSelected
-                          ? "border-primary bg-primary/5"
-                          : "border-border bg-card hover:border-primary/50"
-                      )}
-                    >
+            { task: 'floor_cleaning' as MaidTask, label: 'Floor Cleaning', desc: 'Jhaadu & Pocha' },
+            { task: 'dish_washing' as MaidTask, label: 'Dish Washing', desc: 'Utensils & vessels' }] as
+            const).map(({ task, label, desc }) => {
+              const isSelected = selectedTasks.includes(task);
+              const toggleTask = () => {
+                if (isSelected) {
+                  if (selectedTasks.length > 1) {
+                    setSelectedTasks((prev) => prev.filter((t) => t !== task));
+                    if (task === 'dish_washing') setDishIntensity(null);
+                  }
+                } else {
+                  setSelectedTasks((prev) => [...prev, task]);
+                }
+              };
+              return (
+                <button
+                  key={task}
+                  type="button"
+                  onClick={toggleTask}
+                  className={cn(
+                    "w-full flex items-center gap-3 rounded-xl border-2 p-4 transition-all duration-200 text-left",
+                    isSelected ?
+                    "border-primary bg-primary/5" :
+                    "border-border bg-card hover:border-primary/50"
+                  )}>
+
                       <div className={cn(
-                        "w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0",
-                        isSelected ? "border-primary" : "border-muted-foreground"
-                      )}>
+                    "w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0",
+                    isSelected ? "border-primary" : "border-muted-foreground"
+                  )}>
                         {isSelected && <div className="w-2.5 h-2.5 rounded-full bg-primary" />}
                       </div>
                       <div className="flex-1 min-w-0">
@@ -728,9 +728,9 @@ export function BookingForm() {
                         <p className="text-xs text-muted-foreground">{desc}</p>
                       </div>
                       <span className="text-[15px] font-bold text-primary shrink-0">₹{taskPrice(task)}</span>
-                    </button>
-                  );
-                })}
+                    </button>);
+
+            })}
               </div>
 
               {/* Dish Intensity — Soft cards with left accent bar */}
@@ -740,13 +740,13 @@ export function BookingForm() {
             className={cn(
               "space-y-3 rounded-2xl p-3 -mx-3 transition-all duration-500",
               dishHighlight && "ring-2 ring-primary shadow-lg shadow-primary/20 bg-primary/5"
-            )}
-          >
+            )}>
+
                   <div className="flex items-center gap-2">
                     <h3 className="text-base font-semibold text-foreground">How many dishes today?</h3>
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-primary bg-primary/10 px-1.5 py-0.5 rounded">Required</span>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-primary bg-primary/10 py-0.5 rounded px-[2px] mx-[2px] text-right">Required</span>
                   </div>
-                  <p className="text-xs text-muted-foreground -mt-1">Pick Light / Medium / Heavy to continue</p>
+                  
 
                   <div className="grid grid-cols-3 gap-2">
                     {[
@@ -794,9 +794,9 @@ export function BookingForm() {
 
               })}
                   </div>
-                  {dishError && !dishIntensity && (
-                    <p className="text-xs text-destructive font-medium mt-1">⚠️ Please select dish load</p>
-                  )}
+                  {dishError && !dishIntensity &&
+            <p className="text-xs text-destructive font-medium mt-1">⚠️ Please select dish load</p>
+            }
                 </div>
           }
             </div>}
@@ -859,7 +859,7 @@ export function BookingForm() {
                 } else {
                   if (!selectedFlatSize) return;
                   const price = pricingMap[selectedFlatSize];
-                  if (!price) { toast({ title: "Error", description: "Price not available.", variant: "destructive" }); return; }
+                  if (!price) {toast({ title: "Error", description: "Price not available.", variant: "destructive" });return;}
                   navigate(`/book/${service_type}/instant?flat=${selectedFlatSize}&price=${price}`);
                 }
               }}
@@ -967,14 +967,14 @@ export function BookingForm() {
         <ScheduleSheet open={scheduleSheetOpen} onOpenChange={setScheduleSheetOpen} onSchedule={handleSchedule} loading={submitting} serviceType={service_type} community={profile?.community} />
         
         {/* Maid Price Chart Sheet */}
-        {service_type === 'maid' && (
-          <MaidPriceChartSheet
-            open={priceChartOpen}
-            onOpenChange={setPriceChartOpen}
-            userFlatSize={selectedFlatSize}
-            community={profile?.community}
-          />
-        )}
+        {service_type === 'maid' &&
+      <MaidPriceChartSheet
+        open={priceChartOpen}
+        onOpenChange={setPriceChartOpen}
+        userFlatSize={selectedFlatSize}
+        community={profile?.community} />
+
+      }
       </div>
     </div>;
 }
