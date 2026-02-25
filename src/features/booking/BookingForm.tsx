@@ -744,7 +744,7 @@ export function BookingForm() {
 
                   <div className="flex items-center gap-2">
                     <h3 className="text-base font-semibold text-foreground">How many dishes today?</h3>
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-primary bg-primary/10 py-0.5 rounded px-[2px] mx-[2px] text-right">Required</span>
+                    
                   </div>
                   
 
