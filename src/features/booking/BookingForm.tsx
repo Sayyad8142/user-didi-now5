@@ -830,7 +830,7 @@ export function BookingForm() {
                 </div>
               </CardContent>
             </Card>
-            <PriceNote className="pb-2" />
+            
           </div>}
 
           {/* Choose Booking Type */}
