@@ -54,6 +54,7 @@ export function BookingForm() {
   const {
     profile,
     loading: profileLoading,
+    error: profileError,
     refresh: refreshProfile
   } = useProfile();
   const {
@@ -451,8 +452,9 @@ export function BookingForm() {
   if (!user || !service_type || !isValidServiceType(service_type)) {
     return null;
   }
-  // Show loading state if profile is still loading OR if we don't have profile data yet
-  if (profileLoading || !profile) {
+
+  // Show loading state only while actively loading (not on error)
+  if (profileLoading && !profileError) {
     return <div className="min-h-screen gradient-bg pb-24">
         <div className="max-w-md mx-auto px-4 py-6">
           <div className="space-y-6">
@@ -460,6 +462,23 @@ export function BookingForm() {
             <Skeleton className="h-36 w-full rounded-3xl bg-white/20" />
             <Skeleton className="h-52 w-full rounded-3xl bg-white/20" />
           </div>
+        </div>
+      </div>;
+  }
+
+  // Show error/retry screen when profile failed to load
+  if (!profile) {
+    return <div className="min-h-screen bg-background pb-24">
+        <div className="max-w-md mx-auto px-4 py-6 flex flex-col items-center justify-center min-h-[60vh] text-center space-y-4">
+          <AlertCircle className="w-12 h-12 text-muted-foreground" />
+          <h2 className="text-lg font-semibold text-foreground">Connection issue</h2>
+          <p className="text-sm text-muted-foreground">{profileError || 'Unable to load your profile. Please check your internet connection.'}</p>
+          <Button onClick={() => refreshProfile()} variant="outline" className="rounded-2xl">
+            Retry
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => navigate('/home')} className="text-muted-foreground">
+            Go Home
+          </Button>
         </div>
       </div>;
   }
