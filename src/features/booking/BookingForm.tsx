@@ -452,13 +452,13 @@ export function BookingForm() {
   if (!user || !service_type || !isValidServiceType(service_type)) {
     return null;
   }
-  // Show loading state if profile is still loading
-  if (profileLoading) {
-    return <BookingLoadingSkeleton />;
+  // Show error/offline screen if profile failed to load (even if still "loading" with an error)
+  if (profileError && !profile) {
+    return <BookingErrorScreen error={profileError} onRetry={refreshProfile} />;
   }
-  // Show error/offline screen if profile failed to load
-  if (!profile) {
-    return <BookingErrorScreen error={profileError} onRetry={() => window.location.reload()} />;
+  // Show loading state if profile is still loading
+  if (profileLoading || !profile) {
+    return <BookingLoadingSkeleton onGiveUp={refreshProfile} />;
   }
   const ServiceIcon = serviceIcon(service_type);
   const currentPrice = service_type === 'maid' ? selectedFlatSize && selectedTasks.length > 0 ? totalPrice : null :
@@ -988,11 +988,11 @@ export function BookingForm() {
     </div>;
 }
 
-function BookingLoadingSkeleton() {
+function BookingLoadingSkeleton({ onGiveUp }: { onGiveUp?: () => void }) {
   const [slow, setSlow] = useState(false);
 
   useEffect(() => {
-    const t = setTimeout(() => setSlow(true), 4000);
+    const t = setTimeout(() => setSlow(true), 3000);
     return () => clearTimeout(t);
   }, []);
 
@@ -1013,12 +1013,12 @@ function BookingLoadingSkeleton() {
               Taking longer than usual…
             </p>
             <p className="text-xs text-muted-foreground">
-              Your internet connection may be slow. Please check your connection and try again.
+              Your internet connection may be slow.
             </p>
             <Button
               variant="outline"
               size="sm"
-              onClick={() => window.location.reload()}
+              onClick={onGiveUp || (() => window.location.reload())}
               className="mt-2"
             >
               <RotateCcw className="w-4 h-4 mr-1.5" />
@@ -1032,6 +1032,11 @@ function BookingLoadingSkeleton() {
 }
 
 function BookingErrorScreen({ error, onRetry }: { error: string | null; onRetry: () => void }) {
+  const [retrying, setRetrying] = useState(false);
+  const handleRetry = async () => {
+    setRetrying(true);
+    try { await onRetry(); } catch {} finally { setRetrying(false); }
+  };
   return (
     <div className="min-h-screen gradient-bg pb-24 flex items-center justify-center">
       <div className="max-w-sm mx-auto px-4 text-center space-y-4">
@@ -1040,9 +1045,9 @@ function BookingErrorScreen({ error, onRetry }: { error: string | null; onRetry:
         <p className="text-sm text-muted-foreground">
           {error || "Could not load your profile. Please check your internet connection and try again."}
         </p>
-        <Button onClick={onRetry} size="lg" className="w-full">
-          <RotateCcw className="w-4 h-4 mr-2" />
-          Retry
+        <Button onClick={handleRetry} size="lg" className="w-full" disabled={retrying}>
+          <RotateCcw className={cn("w-4 h-4 mr-2", retrying && "animate-spin")} />
+          {retrying ? "Retrying…" : "Retry"}
         </Button>
       </div>
     </div>
