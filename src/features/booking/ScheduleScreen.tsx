@@ -10,6 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useProfile } from '@/contexts/ProfileContext';
 import { prettyServiceName, isValidServiceType, getPricingMap } from './pricing';
+import { useFlatSize } from '@/hooks/useFlatSize';
 import { 
   makeSlots, 
   toDisplay12h, 
@@ -49,6 +50,7 @@ export function ScheduleScreen() {
   const { user } = useAuth();
   const { profile, loading: profileLoading } = useProfile();
   const { toast } = useToast();
+  const { flatSize: autoFlatSize } = useFlatSize();
 
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [selectedTime, setSelectedTime] = useState<string>('');
@@ -58,7 +60,8 @@ export function ScheduleScreen() {
   const [price, setPrice] = useState<number | null>(null);
   const [showAvailabilityWarning, setShowAvailabilityWarning] = useState(false);
 
-  const flatSize = searchParams.get('flat');
+  // Use flat size from hook (admin-managed) instead of URL param
+  const flatSize = autoFlatSize || searchParams.get('flat');
   const priceParam = searchParams.get('price');
   const familyCount = searchParams.get('family');
   const foodPreference = searchParams.get('food') as 'veg' | 'non_veg' | null;
