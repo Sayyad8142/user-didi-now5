@@ -163,7 +163,7 @@ export default function Profile() {
       window.location.href = '/auth';
     }
   };
-  if (loading || profileError) {
+  if (loading && !profileError) {
     return <div className="min-h-screen gradient-bg pb-24">
         <div className="max-w-md mx-auto px-4 py-8 space-y-6">
           <div className="text-center space-y-4">
@@ -175,21 +175,36 @@ export default function Profile() {
             <Skeleton className="h-32 rounded-3xl" />
             <Skeleton className="h-24 rounded-3xl" />
           </div>
-          {(showSlow || profileError) && (
+          {showSlow && (
             <div className="text-center space-y-3 pt-4">
-              <p className="text-sm text-gray-500">
-                {profileError || 'Taking longer than usual…'}
-              </p>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => { setShowSlow(false); refresh(); }}
-                className="rounded-full border-primary text-primary"
-              >
-                Retry
-              </Button>
+              <p className="text-sm text-muted-foreground">Taking longer than usual…</p>
             </div>
           )}
+        </div>
+      </div>;
+  }
+
+  if (profileError && !profile) {
+    return <div className="min-h-screen gradient-bg pb-24">
+        <div className="max-w-md mx-auto px-4 py-8">
+          <div className="text-center space-y-4 pt-20">
+            <div className="h-16 w-16 bg-destructive/10 rounded-full flex items-center justify-center mx-auto">
+              <User className="w-8 h-8 text-destructive" />
+            </div>
+            <h2 className="text-lg font-semibold text-foreground">Connection issue</h2>
+            <p className="text-sm text-muted-foreground">
+              {profileError}
+            </p>
+            <p className="text-xs text-muted-foreground">Retrying automatically…</p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => refresh()}
+              className="rounded-full border-primary text-primary mt-2"
+            >
+              Retry Now
+            </Button>
+          </div>
         </div>
       </div>;
   }

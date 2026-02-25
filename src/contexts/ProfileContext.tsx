@@ -188,6 +188,20 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
     fetchProfile();
   }, [fetchProfile]);
 
+  // Auto-retry on error every 3 seconds (up to 10 times)
+  useEffect(() => {
+    if (!error || loading) return;
+    let attempts = 0;
+    const maxRetries = 10;
+    const interval = setInterval(() => {
+      attempts++;
+      console.log(`🔄 Auto-retrying profile fetch (attempt ${attempts}/${maxRetries})`);
+      fetchProfile();
+      if (attempts >= maxRetries) clearInterval(interval);
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [error, loading, fetchProfile]);
+
   // Also listen for demo mode changes
   useEffect(() => {
     const handleDemoModeChange = () => {
