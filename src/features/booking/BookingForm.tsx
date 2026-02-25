@@ -39,6 +39,179 @@ const FALLBACK_PRICES: Record<string, number> = {
   "3.5BHK": 130,
   "4BHK": 150
 };
+
+type PreferredWorkerInfo = { id: string; full_name: string; photo_url: string | null; rating_avg: number };
+
+function FavWorkerDropdown({
+  serviceType,
+  community,
+  preferredWorker,
+  onSelect,
+  onClear,
+}: {
+  serviceType: string;
+  community?: string;
+  preferredWorker: PreferredWorkerInfo | null;
+  onSelect: (w: PreferredWorkerInfo) => void;
+  onClear: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  const { data: workers, isLoading } = useQuery({
+    queryKey: ['eligible-workers-dropdown', serviceType, community],
+    enabled: !!serviceType && !!community && open,
+    refetchInterval: open ? 15000 : false,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('get_eligible_workers', {
+        p_service: serviceType,
+        p_community: community!,
+        p_limit: 20,
+      });
+      if (error) throw error;
+      return (data || []) as Array<{
+        worker_id: string;
+        full_name: string;
+        photo_url: string | null;
+        rating_avg: number;
+        rating_count: number;
+        completed_bookings_count: number;
+      }>;
+    },
+  });
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className={cn(
+          "w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 border-dashed transition-all",
+          preferredWorker
+            ? "border-primary/40 bg-primary/5"
+            : "border-primary/20 bg-card hover:border-primary/40 hover:bg-primary/5"
+        )}
+      >
+        {preferredWorker ? (
+          <>
+            <Avatar className="w-9 h-9 ring-2 ring-primary/30">
+              {preferredWorker.photo_url && <AvatarImage src={preferredWorker.photo_url} />}
+              <AvatarFallback className="bg-primary/10 text-primary text-xs font-bold">
+                {preferredWorker.full_name.charAt(0)}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 text-left min-w-0">
+              <p className="text-sm font-semibold text-foreground truncate">{preferredWorker.full_name}</p>
+              <p className="text-[10px] text-muted-foreground flex items-center gap-0.5">
+                <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                {preferredWorker.rating_avg.toFixed(1)} · Your pick
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onClear(); setOpen(false); }}
+              className="p-1.5 rounded-full hover:bg-muted transition-colors"
+            >
+              <X className="w-3.5 h-3.5 text-muted-foreground" />
+            </button>
+          </>
+        ) : (
+          <>
+            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
+              <Star className="w-4 h-4 text-primary" />
+            </div>
+            <span className="flex-1 text-left text-sm font-medium text-primary">Choose your fav worker</span>
+            <ChevronDown className={cn("w-4 h-4 text-primary/60 transition-transform", open && "rotate-180")} />
+          </>
+        )}
+      </button>
+
+      {open && (
+        <div className="absolute left-0 right-0 mt-2 z-50 rounded-xl border border-border bg-popover shadow-lg overflow-hidden animate-in fade-in-0 zoom-in-95 duration-150">
+          <div className="px-3 py-2.5 border-b border-border bg-muted/30">
+            <p className="text-xs font-semibold text-foreground">Available Workers</p>
+            <p className="text-[10px] text-muted-foreground">Tap to select your preferred worker</p>
+          </div>
+          <div className="max-h-48 overflow-y-auto">
+            {isLoading ? (
+              <div className="p-3 space-y-3">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="flex items-center gap-3">
+                    <Skeleton className="w-8 h-8 rounded-full" />
+                    <div className="flex-1 space-y-1">
+                      <Skeleton className="h-3 w-24" />
+                      <Skeleton className="h-2 w-16" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : !workers?.length ? (
+              <div className="p-4 text-center">
+                <p className="text-xs text-muted-foreground">No workers available right now</p>
+              </div>
+            ) : (
+              workers.map((w) => {
+                const isSelected = preferredWorker?.id === w.worker_id;
+                return (
+                  <button
+                    key={w.worker_id}
+                    type="button"
+                    onClick={() => {
+                      onSelect({
+                        id: w.worker_id,
+                        full_name: w.full_name,
+                        photo_url: w.photo_url,
+                        rating_avg: w.rating_avg,
+                      });
+                      setOpen(false);
+                    }}
+                    className={cn(
+                      "w-full flex items-center gap-3 px-3 py-2.5 hover:bg-accent/50 transition-colors",
+                      isSelected && "bg-primary/5"
+                    )}
+                  >
+                    <Avatar className="w-8 h-8">
+                      {w.photo_url && <AvatarImage src={w.photo_url} />}
+                      <AvatarFallback className="bg-primary/10 text-primary text-[10px] font-bold">
+                        {w.full_name.charAt(0)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 text-left min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">{w.full_name}</p>
+                      <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                        <span className="flex items-center gap-0.5">
+                          <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-400" />
+                          {w.rating_avg.toFixed(1)}
+                        </span>
+                        <span>·</span>
+                        <span>{w.completed_bookings_count} jobs</span>
+                      </div>
+                    </div>
+                    {isSelected && (
+                      <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center">
+                        <Check className="w-3 h-3 text-primary-foreground" />
+                      </div>
+                    )}
+                  </button>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function BookingForm() {
   const {
     service_type
@@ -951,42 +1124,16 @@ export function BookingForm() {
 
             {/* Choose Fav Worker - below the grid */}
             {isServiceOpen && !instantDisabled && (
-              <button
-                onClick={() => navigate(`/book/${service_type}/select-worker`)}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-border bg-card hover:bg-accent/50 transition-colors"
-              >
-                {preferredWorker ? (
-                  <>
-                    <Avatar className="w-8 h-8">
-                      {preferredWorker.photo_url && <AvatarImage src={preferredWorker.photo_url} />}
-                      <AvatarFallback className="bg-primary/10 text-primary text-xs font-bold">
-                        {preferredWorker.full_name.charAt(0)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 text-left min-w-0">
-                      <p className="text-sm font-semibold text-foreground truncate">{preferredWorker.full_name}</p>
-                      <p className="text-[10px] text-muted-foreground flex items-center gap-0.5">
-                        <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
-                        {preferredWorker.rating_avg.toFixed(1)} · Preferred
-                      </p>
-                    </div>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); clearPreferredWorker(); }}
-                      className="p-1 rounded-full hover:bg-muted"
-                    >
-                      <X className="w-3.5 h-3.5 text-muted-foreground" />
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                      <Star className="w-4 h-4 text-primary" />
-                    </div>
-                    <span className="text-sm font-medium text-primary">Choose your fav worker</span>
-                    <ChevronRight className="w-4 h-4 text-muted-foreground ml-auto" />
-                  </>
-                )}
-              </button>
+              <FavWorkerDropdown
+                serviceType={service_type!}
+                community={profile?.community}
+                preferredWorker={preferredWorker}
+                onSelect={(w) => {
+                  sessionStorage.setItem(prefKey, JSON.stringify(w));
+                  setPreferredWorker(w);
+                }}
+                onClear={clearPreferredWorker}
+              />
             )}
 
             {/* Instant unavailable hint */}
