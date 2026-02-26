@@ -9,6 +9,9 @@ export default defineConfig(({ mode }) => ({
     host: "::",
     port: 8080,
   },
+  define: {
+    __APP_BUILD_ID__: JSON.stringify(new Date().toISOString().replace(/[-:T]/g, "").slice(0, 14)),
+  },
   plugins: [
     react(),
     mode === 'development' &&

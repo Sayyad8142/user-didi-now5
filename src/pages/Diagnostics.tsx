@@ -1,12 +1,14 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CheckCircle2, XCircle, Loader2, Copy, RefreshCw } from "lucide-react";
+import { CheckCircle2, XCircle, Loader2, Copy, RefreshCw, Trash2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://api.didisnow.com";
 const ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+// @ts-ignore - injected by Vite define
+const BUILD_ID = typeof __APP_BUILD_ID__ !== "undefined" ? __APP_BUILD_ID__ : "dev";
 
 type TestStatus = "idle" | "running" | "pass" | "fail";
 
@@ -20,6 +22,16 @@ export default function Diagnostics() {
   const [rest, setRest] = useState<TestResult>({ status: "idle" });
   const [auth, setAuth] = useState<TestResult>({ status: "idle" });
   const [ws, setWs] = useState<TestResult>({ status: "idle" });
+  const [hasSW, setHasSW] = useState(false);
+  const [clearing, setClearing] = useState(false);
+
+  useEffect(() => {
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.getRegistrations().then((regs) => {
+        setHasSW(regs.length > 0);
+      });
+    }
+  }, []);
 
   const runRest = useCallback(async () => {
     setRest({ status: "running" });
@@ -86,6 +98,27 @@ export default function Diagnostics() {
     runWs();
   }, [runRest, runAuth, runWs]);
 
+  const hardRefresh = useCallback(async () => {
+    setClearing(true);
+    try {
+      // Unregister all service workers
+      if ("serviceWorker" in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map((r) => r.unregister()));
+      }
+      // Clear all Cache Storage
+      if ("caches" in window) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map((k) => caches.delete(k)));
+      }
+      // Force reload bypassing cache
+      window.location.reload();
+    } catch (e) {
+      setClearing(false);
+      toast({ title: "Failed to clear cache", variant: "destructive" });
+    }
+  }, []);
+
   const statusLabel = (s: TestStatus) => s === "pass" ? "✅ PASS" : s === "fail" ? "❌ FAIL" : s === "running" ? "⏳ Running" : "—";
 
   const copyDebug = useCallback(() => {
@@ -93,8 +126,10 @@ export default function Diagnostics() {
     const lines = [
       `URL: ${window.location.href}`,
       `DNS domain: ${domain}`,
+      `Build ID: ${BUILD_ID}`,
       `User-Agent: ${navigator.userAgent}`,
       `Timestamp: ${new Date().toISOString()}`,
+      `SW registered: ${hasSW ? "Yes" : "No"}`,
       ``,
       `REST API: ${statusLabel(rest.status)}${rest.detail ? ` (${rest.detail})` : ""}${rest.ms != null ? ` ${rest.ms}ms` : ""}`,
       `Auth: ${statusLabel(auth.status)}${auth.detail ? ` (${auth.detail})` : ""}${auth.ms != null ? ` ${auth.ms}ms` : ""}`,
@@ -103,7 +138,7 @@ export default function Diagnostics() {
     navigator.clipboard.writeText(lines.join("\n")).then(() => {
       toast({ title: "Copied to clipboard" });
     });
-  }, [rest, auth, ws]);
+  }, [rest, auth, ws, hasSW]);
 
   const StatusIcon = ({ status }: { status: TestStatus }) => {
     if (status === "running") return <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />;
@@ -131,6 +166,7 @@ export default function Diagnostics() {
         <CardHeader className="pb-3">
           <CardTitle className="text-lg">Network Diagnostics</CardTitle>
           <p className="text-xs text-muted-foreground">Test connectivity to Supabase backend</p>
+          <p className="text-[10px] font-mono text-muted-foreground/70 mt-1">Build: {BUILD_ID} · SW: {hasSW ? "Yes" : "No"}</p>
         </CardHeader>
         <CardContent className="space-y-0">
           <TestRow label="REST API" result={rest} />
@@ -144,9 +180,23 @@ export default function Diagnostics() {
           <RefreshCw className="w-4 h-4" /> Run All Tests
         </Button>
         <Button variant="outline" onClick={copyDebug} className="gap-2">
-          <Copy className="w-4 h-4" /> Copy Debug Info
+          <Copy className="w-4 h-4" /> Copy
         </Button>
       </div>
+
+      <Button
+        variant="destructive"
+        onClick={hardRefresh}
+        disabled={clearing}
+        className="w-full mt-3 gap-2"
+      >
+        {clearing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+        Clear cache & reload
+      </Button>
+
+      <p className="text-[10px] text-muted-foreground text-center mt-2">
+        Unregisters service workers, clears Cache Storage, and force-reloads.
+      </p>
     </div>
   );
 }
