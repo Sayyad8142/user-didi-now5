@@ -73,7 +73,7 @@ export function BookingForm() {
 
   // Maid service specific state
   const [selectedTasks, setSelectedTasks] = useState<MaidTask[]>(["floor_cleaning", "dish_washing"]); // Multiple task selection with checkboxes
-  const [dishIntensity, setDishIntensity] = useState<DishIntensity | null>(null);
+  const [dishIntensity, setDishIntensity] = useState<DishIntensity | null>('light');
   const [dishError, setDishError] = useState(false);
   const [dishHighlight, setDishHighlight] = useState(false);
   const dishSectionRef = useRef<HTMLDivElement>(null);
