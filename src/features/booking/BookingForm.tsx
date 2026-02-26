@@ -944,7 +944,7 @@ export function BookingForm() {
                           </div>
                     )}
                       </div>
-                      <span className="flex-1 text-[11px] font-medium text-primary">Choose Your Fav Maid</span>
+                      <span className="flex-1 text-[11px] font-medium text-primary">Choose Your Fav Maid For Instant</span>
                       <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />
                     </>
                 }
