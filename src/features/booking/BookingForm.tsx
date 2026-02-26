@@ -911,43 +911,51 @@ export function BookingForm() {
                     navigate(`/book/${service_type}/instant?flat=${selectedFlatSize}&price=${price}`);
                   }
                 }}
-                className="w-full flex items-center gap-2 px-2.5 py-2 rounded-xl border border-border bg-card hover:bg-accent/50 transition-colors">
+                className="group w-full rounded-xl border border-dashed border-primary/30 bg-gradient-to-r from-primary/[0.04] to-primary/[0.08] hover:from-primary/[0.08] hover:to-primary/[0.14] transition-all duration-200 overflow-hidden">
 
-                  {preferredWorker ?
-                <>
-                      <Avatar className="w-6 h-6">
-                        {preferredWorker.photo_url && <AvatarImage src={preferredWorker.photo_url} />}
-                        <AvatarFallback className="bg-primary/10 text-primary text-[10px] font-bold">
-                          {preferredWorker.full_name.charAt(0)}
-                        </AvatarFallback>
-                      </Avatar>
+                  {preferredWorker ? (
+                    <div className="flex items-center gap-3 px-3 py-2.5">
+                      <div className="relative">
+                        <Avatar className="w-8 h-8 ring-2 ring-primary/30 ring-offset-1 ring-offset-background">
+                          {preferredWorker.photo_url && <AvatarImage src={preferredWorker.photo_url} />}
+                          <AvatarFallback className="bg-primary/10 text-primary text-xs font-bold">
+                            {preferredWorker.full_name.charAt(0)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-background" />
+                      </div>
                       <div className="flex-1 text-left min-w-0">
-                        <p className="text-[11px] font-semibold text-foreground truncate">{preferredWorker.full_name}</p>
-                        <p className="text-[9px] text-muted-foreground flex items-center gap-0.5">
-                          <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-400" />
-                          {preferredWorker.rating_avg.toFixed(1)}
+                        <p className="text-xs font-semibold text-foreground truncate">{preferredWorker.full_name}</p>
+                        <p className="text-[10px] text-muted-foreground flex items-center gap-1 mt-0.5">
+                          <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                          <span className="font-medium">{preferredWorker.rating_avg.toFixed(1)}</span>
+                          <span className="text-muted-foreground/60">· Your pick</span>
                         </p>
                       </div>
                       <button
-                    onClick={(e) => {e.stopPropagation();clearPreferredWorker();}}
-                    className="p-0.5 rounded-full hover:bg-muted">
-
-                        <X className="w-3 h-3 text-muted-foreground" />
+                        onClick={(e) => {e.stopPropagation();clearPreferredWorker();}}
+                        className="p-1 rounded-full hover:bg-destructive/10 transition-colors">
+                        <X className="w-3.5 h-3.5 text-muted-foreground hover:text-destructive" />
                       </button>
-                    </> :
-
-                <>
-                      <div className="flex -space-x-1.5">
-                        {[0, 1, 2].map((i) =>
-                    <div key={i} className="w-5 h-5 rounded-full border-[1.5px] border-card bg-primary/10 flex items-center justify-center overflow-hidden">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3 h-3 text-primary/60"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v1.2c0 .7.5 1.2 1.2 1.2h16.8c.7 0 1.2-.5 1.2-1.2v-1.2c0-3.2-6.4-4.8-9.6-4.8z" /></svg>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-3 px-3 py-3">
+                      <div className="flex -space-x-2">
+                        {[0, 1, 2].map((i) => (
+                          <div key={i} className="w-7 h-7 rounded-full border-2 border-background bg-primary/10 flex items-center justify-center shadow-sm">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5 text-primary/50"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v1.2c0 .7.5 1.2 1.2 1.2h16.8c.7 0 1.2-.5 1.2-1.2v-1.2c0-3.2-6.4-4.8-9.6-4.8z" /></svg>
                           </div>
-                    )}
+                        ))}
                       </div>
-                      <span className="flex-1 text-[11px] font-medium text-primary">Choose Your Fav Maid For Instant</span>
-                      <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />
-                    </>
-                }
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold text-foreground">Choose Your Fav Worker</p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">Pick a preferred expert for priority booking</p>
+                      </div>
+                      <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                        <ChevronRight className="w-4 h-4 text-primary" />
+                      </div>
+                    </div>
+                  )}
                 </button>
               }
               </div>
