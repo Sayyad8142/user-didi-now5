@@ -225,19 +225,17 @@ export function InstantCheckoutScreen() {
 
           {/* Worker list */}
           {isLoading ? (
-            <div className="space-y-2">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="flex items-center gap-3 p-3 rounded-xl border border-border">
-                  <Skeleton className="w-10 h-10 rounded-full" />
-                  <div className="flex-1 space-y-1.5">
-                    <Skeleton className="h-3.5 w-28" />
-                    <Skeleton className="h-3 w-20" />
-                  </div>
+            <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="flex flex-col items-center gap-1.5 min-w-[72px]">
+                  <Skeleton className="w-14 h-14 rounded-full" />
+                  <Skeleton className="h-3 w-12" />
+                  <Skeleton className="h-2.5 w-10" />
                 </div>
               ))}
             </div>
           ) : filtered.length === 0 ? (
-            <div className="text-center py-8">
+            <div className="text-center py-6">
               <p className="text-muted-foreground font-medium text-sm">
                 {search ? 'No workers match your search' : 'No experts online right now'}
               </p>
@@ -246,7 +244,7 @@ export function InstantCheckoutScreen() {
               </p>
             </div>
           ) : (
-            <div className="space-y-1.5">
+            <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide">
               {filtered.map((w) => {
                 const isSelected = selectedWorker?.worker_id === w.worker_id;
                 return (
@@ -254,55 +252,44 @@ export function InstantCheckoutScreen() {
                     key={w.worker_id}
                     onClick={() => handleSelect(w)}
                     className={cn(
-                      "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border bg-card transition-all duration-150 text-left",
+                      "flex flex-col items-center gap-1 min-w-[76px] max-w-[80px] px-2 py-2.5 rounded-2xl transition-all duration-200 text-center relative shrink-0",
                       isSelected
-                        ? "border-primary bg-primary/5 shadow-sm"
-                        : "border-border hover:border-primary/30"
+                        ? "bg-primary/10 ring-2 ring-primary shadow-md scale-[1.02]"
+                        : "bg-card hover:bg-accent/50"
                     )}
                   >
-                    <Avatar className="w-9 h-9">
-                      {w.photo_url ? <AvatarImage src={w.photo_url} alt={w.full_name} /> : null}
-                      <AvatarFallback className="bg-primary/10 text-primary font-bold text-xs">
-                        {w.full_name.charAt(0)}
-                      </AvatarFallback>
-                    </Avatar>
-
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="font-semibold text-foreground text-[13px] truncate">{w.full_name}</p>
-                        <span className="inline-flex items-center gap-1 text-[9px] font-medium text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-full shrink-0">
-                          <span className="w-1 h-1 rounded-full bg-emerald-500" />
-                          Online
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1.5 mt-0.5">
-                        <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
-                        <span className="text-[11px] font-medium text-foreground">
-                          {w.rating_avg.toFixed(1)}
-                        </span>
-                        <span className="text-[11px] text-muted-foreground">
-                          · {w.completed_bookings_count} jobs
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className={cn(
-                      "shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors",
-                      isSelected ? "border-primary bg-primary" : "border-muted-foreground/30"
-                    )}>
+                    <div className="relative">
+                      <Avatar className={cn(
+                        "w-12 h-12 ring-2 transition-all",
+                        isSelected ? "ring-primary" : "ring-border"
+                      )}>
+                        {w.photo_url ? <AvatarImage src={w.photo_url} alt={w.full_name} /> : null}
+                        <AvatarFallback className="bg-primary/10 text-primary font-bold text-sm">
+                          {w.full_name.charAt(0)}
+                        </AvatarFallback>
+                      </Avatar>
+                      {/* Online dot */}
+                      <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-background" />
+                      {/* Selected checkmark */}
                       {isSelected && (
-                        <div className="w-2 h-2 rounded-full bg-primary-foreground" />
+                        <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-primary flex items-center justify-center shadow-sm">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-primary-foreground" />
+                        </span>
                       )}
+                    </div>
+                    <p className="text-[11px] font-semibold text-foreground leading-tight truncate w-full mt-0.5">
+                      {w.full_name.split(' ')[0]}
+                    </p>
+                    <div className="flex items-center gap-0.5">
+                      <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-400" />
+                      <span className="text-[10px] font-medium text-foreground">{w.rating_avg.toFixed(1)}</span>
+                      <span className="text-[9px] text-muted-foreground">· {w.completed_bookings_count}</span>
                     </div>
                   </button>
                 );
               })}
             </div>
           )}
-
-          <p className="text-[10px] text-muted-foreground text-center mt-3">
-            Auto-refreshes every 15s
-          </p>
         </div>
       </div>
 
