@@ -57,6 +57,7 @@ const TermsScreen = lazy(() => import("./features/legal/TermsScreen").then(m => 
 const AccountSettings = lazy(() => import("./routes/profile/AccountSettings"));
 const SupportScreen = lazy(() => import("./routes/support/SupportScreen"));
 const CallPage = lazy(() => import("./pages/CallPage"));
+const Diagnostics = lazy(() => import("./pages/Diagnostics"));
 
 // Loading component with pink background
 const PageLoader = () => (
@@ -308,6 +309,7 @@ const AppContent = () => {
             </Suspense>
           } 
         />
+        <Route path="/diagnostics" element={<Diagnostics />} />
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
         <Route path="*" element={<NotFound />} />
       </Routes>
