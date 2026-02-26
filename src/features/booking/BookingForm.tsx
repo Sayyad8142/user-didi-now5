@@ -396,7 +396,7 @@ export function BookingForm() {
         cust_phone: profile.phone,
         community: profile.community,
         flat_no: profile.flat_no,
-        preferred_worker_id: bookingType === 'instant' ? preferredWorker?.id || null : null
+        preferred_worker_id: null
       } as any;
 
       console.log('📤 Sending booking data to database:', bookingData);
@@ -839,10 +839,9 @@ export function BookingForm() {
             <div className="grid grid-cols-2 gap-3 items-start">
               {/* Instant Card + Fav Worker stacked */}
               <div className="flex flex-col gap-2">
-              {/* Instant Card */}
+              {/* Instant Card — books immediately */}
               <button
               onClick={() => {
-                // Validate before navigating to instant checkout
                 if (service_type === 'maid') {
                   if (!selectedFlatSize || selectedTasks.length === 0) {
                     toast({ title: "Cannot book yet", description: !selectedFlatSize ? "Flat size not available. Update flat details." : "Select at least one task.", variant: "destructive" });
@@ -856,18 +855,10 @@ export function BookingForm() {
                     toast({ title: "Select dish washing workload", description: "Please choose Light, Medium, or Heavy.", variant: "destructive" });
                     return;
                   }
-                  const dishParams = selectedTasks.includes('dish_washing') ? `&dish_intensity=${dishIntensity}&dish_extra=${dishIntensityExtra}` : '';
-                  navigate(`/book/${service_type}/instant?flat=${selectedFlatSize}&tasks=${selectedTasks.join(',')}&price=${totalPrice}${dishParams}`);
-                } else if (service_type === 'bathroom_cleaning') {
-                  navigate(`/book/${service_type}/instant?bathrooms=${bathroomCount}&glass=${hasGlassPartition ? '1' : '0'}&price=${bathroomTotalPrice}`);
-                } else {
-                  if (!selectedFlatSize) return;
-                  const price = pricingMap[selectedFlatSize];
-                  if (!price) {toast({ title: "Error", description: "Price not available.", variant: "destructive" });return;}
-                  navigate(`/book/${service_type}/instant?flat=${selectedFlatSize}&price=${price}`);
                 }
+                handleBookNow();
               }}
-              disabled={!canBook}
+              disabled={!canBook || submitting}
               className={cn(
                 "relative flex flex-col items-start gap-3 p-4 rounded-2xl border-2 shadow-sm transition-all duration-200 text-left",
                 "hover:shadow-md active:scale-[0.98]",
@@ -884,13 +875,42 @@ export function BookingForm() {
                   <div className="font-bold text-foreground text-base">Instant</div>
                   <div className="text-xs text-muted-foreground mt-0.5">Get help in 10 mins</div>
                 </div>
-                <ChevronRight className="w-4 h-4 text-muted-foreground absolute top-4 right-4" />
+                {submitting ? (
+                  <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin absolute top-4 right-4" />
+                ) : (
+                  <ChevronRight className="w-4 h-4 text-muted-foreground absolute top-4 right-4" />
+                )}
               </button>
 
-              {/* Choose Fav Worker - under Instant only */}
+              {/* Choose Fav Worker — opens worker selection + books from there */}
               {isServiceOpen && !instantDisabled && (
                 <button
-                  onClick={() => navigate(`/book/${service_type}/select-worker`)}
+                  onClick={() => {
+                    // Validate before navigating
+                    if (service_type === 'maid') {
+                      if (!selectedFlatSize || selectedTasks.length === 0) {
+                        toast({ title: "Cannot book yet", description: !selectedFlatSize ? "Flat size not available." : "Select at least one task.", variant: "destructive" });
+                        return;
+                      }
+                      if (selectedTasks.includes('dish_washing') && !dishIntensity) {
+                        setDishError(true);
+                        setDishHighlight(true);
+                        dishSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        setTimeout(() => setDishHighlight(false), 2500);
+                        toast({ title: "Select dish washing workload", description: "Please choose Light, Medium, or Heavy.", variant: "destructive" });
+                        return;
+                      }
+                      const dishParams = selectedTasks.includes('dish_washing') ? `&dish_intensity=${dishIntensity}&dish_extra=${dishIntensityExtra}` : '';
+                      navigate(`/book/${service_type}/instant?flat=${selectedFlatSize}&tasks=${selectedTasks.join(',')}&price=${totalPrice}${dishParams}`);
+                    } else if (service_type === 'bathroom_cleaning') {
+                      navigate(`/book/${service_type}/instant?bathrooms=${bathroomCount}&glass=${hasGlassPartition ? '1' : '0'}&price=${bathroomTotalPrice}`);
+                    } else {
+                      if (!selectedFlatSize) return;
+                      const price = pricingMap[selectedFlatSize];
+                      if (!price) { toast({ title: "Error", description: "Price not available.", variant: "destructive" }); return; }
+                      navigate(`/book/${service_type}/instant?flat=${selectedFlatSize}&price=${price}`);
+                    }
+                  }}
                   className="w-full flex items-center gap-2 px-2.5 py-2 rounded-xl border border-border bg-card hover:bg-accent/50 transition-colors"
                 >
                   {preferredWorker ? (

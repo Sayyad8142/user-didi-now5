@@ -28,7 +28,7 @@ const Bookings = lazy(() => import("./pages/Bookings"));
 const Profile = lazy(() => import("./pages/Profile"));
 const FAQs = lazy(() => import("./pages/FAQs"));
 const BookingForm = lazy(() => import("./features/booking/BookingForm").then(m => ({ default: m.BookingForm })));
-const SelectWorkerScreen = lazy(() => import("./features/booking/SelectWorkerScreen").then(m => ({ default: m.SelectWorkerScreen })));
+// SelectWorkerScreen removed — InstantCheckoutScreen handles worker selection + booking
 const InstantCheckoutScreen = lazy(() => import("./features/booking/InstantCheckoutScreen").then(m => ({ default: m.InstantCheckoutScreen })));
 const ScheduleScreen = lazy(() => import("./features/booking/ScheduleScreen").then(m => ({ default: m.ScheduleScreen })));
 const ChatScreen = lazy(() => import("./features/chat/ChatScreen").then(m => ({ default: m.ChatScreen })));
@@ -102,7 +102,7 @@ const AppContent = () => {
         <Route path="/faqs" element={<ProtectedRoute><ProtectedLayout><FAQs /></ProtectedLayout></ProtectedRoute>} />
         <Route path="/book/:service_type" element={<ProtectedRoute><ProtectedLayout><BookingForm /></ProtectedLayout></ProtectedRoute>} />
         <Route path="/book/:service_type/instant" element={<ProtectedRoute><ProtectedLayout><InstantCheckoutScreen /></ProtectedLayout></ProtectedRoute>} />
-        <Route path="/book/:service_type/select-worker" element={<ProtectedRoute><ProtectedLayout><SelectWorkerScreen /></ProtectedLayout></ProtectedRoute>} />
+        {/* select-worker route removed — merged into /instant */}
         <Route path="/book/:service_type/schedule" element={<ProtectedRoute><ProtectedLayout><ScheduleScreen /></ProtectedLayout></ProtectedRoute>} />
         <Route path="/admin" element={<AdminGate><AdminLayout /></AdminGate>} />
         <Route path="/admin/communities" element={<AdminGate><AdminCommunities /></AdminGate>} />
