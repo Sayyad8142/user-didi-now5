@@ -354,7 +354,7 @@ export function InstantCheckoutScreen() {
           <div className="mb-[76px] pb-safe">
             <Button
               onClick={handleBookNow}
-              disabled={submitting}
+              disabled={submitting || !selectedWorker}
               className="w-full h-12 rounded-2xl text-base font-bold shadow-lg"
               size="lg"
             >
