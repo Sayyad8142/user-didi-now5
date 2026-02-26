@@ -16,7 +16,6 @@ interface WorkerAvailabilityCardProps {
 
 const serviceLabels: Record<string, string> = {
   maid: 'Maids',
-  cook: 'Cooks',
   bathroom_cleaning: 'Bathroom Cleaners',
 };
 
