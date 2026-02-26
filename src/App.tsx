@@ -2,9 +2,10 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Routes, Route } from "react-router-dom";
-import { useState, useEffect, Suspense, lazy } from "react";
+import { useState, useEffect, useCallback, Suspense, lazy } from "react";
 import { UpdateBanner } from "@/components/UpdateBanner";
 import { OfflineScreen } from "@/components/OfflineScreen";
+import { NetworkBlockedScreen } from "@/components/NetworkBlockedScreen";
 import { useWebVersion } from "@/hooks/useWebVersion";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { BottomTabs } from "@/components/BottomTabs";
@@ -317,15 +318,42 @@ const AppContent = () => {
   );
 };
 
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://api.didisnow.com";
+const ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
 const App = () => {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [networkBlocked, setNetworkBlocked] = useState(false);
+  const [checkedOnce, setCheckedOnce] = useState(false);
   const { updateAvailable, handleRefresh, dismissUpdate } = useWebVersion();
   
   // Preload all screens in background after app starts
   useAppWarmup();
 
+  const checkRest = useCallback(async () => {
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/?apikey=${ANON_KEY}`, {
+        method: "GET",
+        signal: AbortSignal.timeout(8000),
+      });
+      if (res.ok) {
+        setNetworkBlocked(false);
+      } else {
+        setNetworkBlocked(true);
+      }
+    } catch {
+      // Network error / DNS blocked / timeout
+      setNetworkBlocked(true);
+    } finally {
+      setCheckedOnce(true);
+    }
+  }, []);
+
   useEffect(() => {
-    // Simple online/offline detection
+    checkRest();
+  }, [checkRest]);
+
+  useEffect(() => {
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
 
@@ -340,6 +368,10 @@ const App = () => {
 
   if (!isOnline) {
     return <OfflineScreen onRetry={() => setIsOnline(navigator.onLine)} />;
+  }
+
+  if (checkedOnce && networkBlocked) {
+    return <NetworkBlockedScreen onRetry={() => { setNetworkBlocked(false); setCheckedOnce(false); checkRest(); }} />;
   }
 
   return (
