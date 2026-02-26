@@ -13,8 +13,9 @@ export default function TelegramSetup() {
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const { toast } = useToast();
 
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "https://api.didisnow.com";
   const [functionUrl, setFunctionUrl] = useState(
-    'https://paywwbuqycovjopryele.functions.supabase.co/new-booking-telegram'
+    `${supabaseUrl}/functions/v1/new-booking-telegram`
   );
   const [webhookSecret, setWebhookSecret] = useState('');
   const [testPayload, setTestPayload] = useState(JSON.stringify({
