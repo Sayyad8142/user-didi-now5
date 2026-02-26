@@ -171,7 +171,7 @@ export function InstantCheckoutScreen() {
   const serviceName = service_type ? prettyServiceName(service_type) : 'Service';
 
   return (
-    <div className="min-h-screen bg-background pb-40">
+    <div className="min-h-screen bg-background pb-48">
       <div className="max-w-md mx-auto px-4 py-6">
         {/* Header */}
         <div className="flex items-center gap-3 mb-6">
@@ -242,12 +242,14 @@ export function InstantCheckoutScreen() {
           {/* Workers grid */}
           <div className="px-4 pb-4">
             {isLoading ? (
-              <div className="grid grid-cols-4 gap-3">
-                {[1, 2, 3, 4].map((i) => (
-                  <div key={i} className="flex flex-col items-center gap-1.5">
-                    <Skeleton className="w-14 h-14 rounded-full" />
-                    <Skeleton className="h-3 w-10" />
-                    <Skeleton className="h-2 w-8" />
+              <div className="space-y-1">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="flex items-center gap-3 px-3 py-2.5">
+                    <Skeleton className="w-11 h-11 rounded-full shrink-0" />
+                    <div className="flex-1 space-y-1.5">
+                      <Skeleton className="h-3 w-24" />
+                      <Skeleton className="h-2.5 w-16" />
+                    </div>
                   </div>
                 ))}
               </div>
@@ -264,7 +266,7 @@ export function InstantCheckoutScreen() {
                 </p>
               </div>
             ) : (
-              <div className="grid grid-cols-4 gap-2">
+              <div className="space-y-0.5">
                 {filtered.map((w) => {
                   const isSelected = selectedWorker?.worker_id === w.worker_id;
                   return (
@@ -272,56 +274,60 @@ export function InstantCheckoutScreen() {
                       key={w.worker_id}
                       onClick={() => handleSelect(w)}
                       className={cn(
-                        "flex flex-col items-center gap-1 py-3 px-1 rounded-2xl transition-all duration-200 relative group",
+                        "flex items-center gap-3 w-full px-3 py-2.5 rounded-xl transition-all duration-200",
                         isSelected
-                          ? "bg-primary/8 ring-[1.5px] ring-primary shadow-[0_2px_12px_-4px_hsl(var(--primary)/0.3)]"
-                          : "hover:bg-muted/40 active:scale-95"
+                          ? "bg-primary/8 ring-[1.5px] ring-primary"
+                          : "hover:bg-muted/40 active:scale-[0.98]"
                       )}
                     >
-                      {/* Avatar with online indicator */}
-                      <div className="relative">
+                      {/* Avatar */}
+                      <div className="relative shrink-0">
                         <div className={cn(
                           "rounded-full p-[2px] transition-all",
-                          isSelected
-                            ? "bg-gradient-to-br from-primary to-primary/60"
-                            : "bg-transparent"
+                          isSelected ? "bg-gradient-to-br from-primary to-primary/60" : "bg-transparent"
                         )}>
                           <Avatar className={cn(
-                            "w-[52px] h-[52px] border-2 transition-all",
+                            "w-11 h-11 border-2 transition-all",
                             isSelected ? "border-background" : "border-border"
                           )}>
                             {w.photo_url ? <AvatarImage src={w.photo_url} alt={w.full_name} /> : null}
                             <AvatarFallback className={cn(
-                              "font-bold text-base transition-colors",
+                              "font-bold text-sm transition-colors",
                               isSelected ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground"
                             )}>
                               {w.full_name.charAt(0)}
                             </AvatarFallback>
                           </Avatar>
                         </div>
-                        {/* Online pulse */}
-                        <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-500 border-[2px] border-background shadow-sm" />
-                        {/* Check badge */}
+                        <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 border-[2px] border-background" />
                         {isSelected && (
-                          <span className="absolute -top-0.5 -right-0.5 w-[18px] h-[18px] rounded-full bg-primary flex items-center justify-center shadow-md ring-2 ring-background">
+                          <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-primary flex items-center justify-center ring-2 ring-background">
                             <Check className="w-2.5 h-2.5 text-primary-foreground stroke-[3]" />
                           </span>
                         )}
                       </div>
 
-                      {/* Name */}
-                      <p className={cn(
-                        "text-[11px] leading-tight truncate w-full text-center mt-0.5",
-                        isSelected ? "font-bold text-primary" : "font-medium text-foreground"
-                      )}>
-                        {w.full_name.split(' ')[0]}
-                      </p>
+                      {/* Info */}
+                      <div className="flex-1 min-w-0 text-left">
+                        <p className={cn(
+                          "text-[13px] leading-tight truncate",
+                          isSelected ? "font-bold text-primary" : "font-medium text-foreground"
+                        )}>
+                          {w.full_name}
+                        </p>
+                        <div className="flex items-center gap-1 mt-0.5">
+                          <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                          <span className="text-[11px] font-semibold text-foreground">{w.rating_avg.toFixed(1)}</span>
+                          <span className="text-[10px] text-muted-foreground">· {w.completed_bookings_count} bookings</span>
+                        </div>
+                      </div>
 
-                      {/* Rating */}
-                      <div className="flex items-center gap-0.5">
-                        <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-400" />
-                        <span className="text-[10px] font-semibold text-foreground">{w.rating_avg.toFixed(1)}</span>
-                        <span className="text-[9px] text-muted-foreground">· {w.completed_bookings_count}</span>
+                      {/* Selection indicator */}
+                      <div className={cn(
+                        "w-5 h-5 rounded-full border-2 shrink-0 flex items-center justify-center transition-colors",
+                        isSelected ? "border-primary bg-primary" : "border-muted-foreground/30"
+                      )}>
+                        {isSelected && <Check className="w-3 h-3 text-primary-foreground stroke-[3]" />}
                       </div>
                     </button>
                   );
@@ -343,7 +349,7 @@ export function InstantCheckoutScreen() {
       </div>
 
       {/* Fixed bottom Book Now bar */}
-      <div className="fixed bottom-[72px] inset-x-0 z-30 bg-background/95 backdrop-blur-md border-t border-border px-4 py-3">
+      <div className="fixed bottom-[68px] inset-x-0 z-30 bg-background/95 backdrop-blur-md border-t border-border px-4 py-2.5">
         <div className="max-w-md mx-auto">
           <Button
             onClick={handleBookNow}
