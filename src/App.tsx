@@ -14,6 +14,7 @@ import { useAppWarmup } from "@/hooks/useAppWarmup";
 import AuthGate from "@/auth/AuthGate";
 import { IncomingCallHandler } from "@/components/IncomingCallHandler";
 import { PushNotificationProvider } from "@/components/PushNotificationProvider";
+import { initSupabase } from "@/integrations/supabase/client";
 
 // Immediate load for critical pages
 import Index from "./pages/Index";
@@ -67,8 +68,6 @@ const PageLoader = () => (
   </div>
 );
 
-
-
 const ProtectedLayout = ({ children }: { children: React.ReactNode }) => (
   <div className="relative safe-top">
     <div className="pb-safe-bottom">
@@ -79,7 +78,6 @@ const ProtectedLayout = ({ children }: { children: React.ReactNode }) => (
 );
 
 const AppContent = () => {
-  // Handle hardware back button on mobile devices (inside Router context)
   useBackButton();
   
   return (
@@ -94,275 +92,71 @@ const AppContent = () => {
         <Route path="/legal/privacy" element={<PrivacyPolicyScreen />} />
         <Route path="/legal/privacy-pdf" element={<PrivacyPolicy />} />
         <Route path="/legal/terms" element={<TermsScreen />} />
-        <Route 
-          path="/home" 
-          element={
-            <ProtectedRoute>
-              <ProtectedLayout>
-                <Home />
-              </ProtectedLayout>
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/bookings" 
-          element={
-            <ProtectedRoute>
-              <ProtectedLayout>
-                <Bookings />
-              </ProtectedLayout>
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/profile" 
-          element={
-            <ProtectedRoute>
-              <ProtectedLayout>
-                <Profile />
-              </ProtectedLayout>
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/profile/account" 
-          element={
-            <ProtectedRoute>
-              <ProtectedLayout>
-                <AccountSettings />
-              </ProtectedLayout>
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/support" 
-          element={
-            <ProtectedRoute>
-              <ProtectedLayout>
-                <SupportScreen />
-              </ProtectedLayout>
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/chat" 
-          element={
-            <ProtectedRoute>
-              <ChatScreen />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/call" 
-          element={
-            <ProtectedRoute>
-              <CallPage />
-            </ProtectedRoute>
-          } 
-        />
-        <Route
-          path="/faqs" 
-          element={
-            <ProtectedRoute>
-              <ProtectedLayout>
-                <FAQs />
-              </ProtectedLayout>
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/book/:service_type" 
-          element={
-            <ProtectedRoute>
-              <ProtectedLayout>
-                <BookingForm />
-              </ProtectedLayout>
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/book/:service_type/instant" 
-          element={
-            <ProtectedRoute>
-              <ProtectedLayout>
-                <InstantCheckoutScreen />
-              </ProtectedLayout>
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/book/:service_type/select-worker" 
-          element={
-            <ProtectedRoute>
-              <ProtectedLayout>
-                <SelectWorkerScreen />
-              </ProtectedLayout>
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/book/:service_type/schedule" 
-          element={
-            <ProtectedRoute>
-              <ProtectedLayout>
-                <ScheduleScreen />
-              </ProtectedLayout>
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/admin" 
-          element={
-            <AdminGate>
-              <AdminLayout />
-            </AdminGate>
-          } 
-        />
-        <Route 
-          path="/admin/communities" 
-          element={
-            <AdminGate>
-              <AdminCommunities />
-            </AdminGate>
-          } 
-        />
-        <Route 
-          path="/admin/users" 
-          element={
-            <AdminGate>
-              <AdminUsers />
-            </AdminGate>
-          } 
-        />
-        <Route 
-          path="/admin/pricing" 
-          element={
-            <AdminGate>
-              <AdminPricing />
-            </AdminGate>
-          } 
-        />
-        <Route 
-          path="/admin/settings" 
-          element={
-            <AdminGate>
-              <AdminSettings />
-            </AdminGate>
-          } 
-        />
-        <Route 
-          path="/admin/daily-bookings" 
-          element={
-            <AdminGate>
-              <AdminDailyBookings />
-            </AdminGate>
-          } 
-        />
-        <Route 
-          path="/admin/feedback" 
-          element={
-            <AdminGate>
-              <AdminFeedback />
-            </AdminGate>
-          } 
-        />
-        <Route 
-          path="/admin/completed-bookings" 
-          element={
-            <AdminGate>
-              <AdminCompletedBookings />
-            </AdminGate>
-          } 
-        />
-        <Route 
-          path="/admin/workers" 
-          element={
-            <AdminGate>
-              <AdminWorkers />
-            </AdminGate>
-          } 
-        />
-        <Route 
-          path="/admin/chat" 
-          element={
-            <AdminGate>
-              <AdminChat />
-            </AdminGate>
-          } 
-        />
-        <Route 
-          path="/admin/bookings" 
-          element={
-            <AdminGate>
-              <AdminBookings />
-            </AdminGate>
-          } 
-        />
-        <Route 
-          path="/telegram-setup" 
-          element={<TelegramSetup />} 
-        />
-        <Route 
-          path="/test-telegram" 
-          element={
-            <Suspense fallback={<PageLoader />}>
-              <TestTelegram />
-            </Suspense>
-          } 
-        />
+        <Route path="/home" element={<ProtectedRoute><ProtectedLayout><Home /></ProtectedLayout></ProtectedRoute>} />
+        <Route path="/bookings" element={<ProtectedRoute><ProtectedLayout><Bookings /></ProtectedLayout></ProtectedRoute>} />
+        <Route path="/profile" element={<ProtectedRoute><ProtectedLayout><Profile /></ProtectedLayout></ProtectedRoute>} />
+        <Route path="/profile/account" element={<ProtectedRoute><ProtectedLayout><AccountSettings /></ProtectedLayout></ProtectedRoute>} />
+        <Route path="/support" element={<ProtectedRoute><ProtectedLayout><SupportScreen /></ProtectedLayout></ProtectedRoute>} />
+        <Route path="/chat" element={<ProtectedRoute><ChatScreen /></ProtectedRoute>} />
+        <Route path="/call" element={<ProtectedRoute><CallPage /></ProtectedRoute>} />
+        <Route path="/faqs" element={<ProtectedRoute><ProtectedLayout><FAQs /></ProtectedLayout></ProtectedRoute>} />
+        <Route path="/book/:service_type" element={<ProtectedRoute><ProtectedLayout><BookingForm /></ProtectedLayout></ProtectedRoute>} />
+        <Route path="/book/:service_type/instant" element={<ProtectedRoute><ProtectedLayout><InstantCheckoutScreen /></ProtectedLayout></ProtectedRoute>} />
+        <Route path="/book/:service_type/select-worker" element={<ProtectedRoute><ProtectedLayout><SelectWorkerScreen /></ProtectedLayout></ProtectedRoute>} />
+        <Route path="/book/:service_type/schedule" element={<ProtectedRoute><ProtectedLayout><ScheduleScreen /></ProtectedLayout></ProtectedRoute>} />
+        <Route path="/admin" element={<AdminGate><AdminLayout /></AdminGate>} />
+        <Route path="/admin/communities" element={<AdminGate><AdminCommunities /></AdminGate>} />
+        <Route path="/admin/users" element={<AdminGate><AdminUsers /></AdminGate>} />
+        <Route path="/admin/pricing" element={<AdminGate><AdminPricing /></AdminGate>} />
+        <Route path="/admin/settings" element={<AdminGate><AdminSettings /></AdminGate>} />
+        <Route path="/admin/daily-bookings" element={<AdminGate><AdminDailyBookings /></AdminGate>} />
+        <Route path="/admin/feedback" element={<AdminGate><AdminFeedback /></AdminGate>} />
+        <Route path="/admin/completed-bookings" element={<AdminGate><AdminCompletedBookings /></AdminGate>} />
+        <Route path="/admin/workers" element={<AdminGate><AdminWorkers /></AdminGate>} />
+        <Route path="/admin/chat" element={<AdminGate><AdminChat /></AdminGate>} />
+        <Route path="/admin/bookings" element={<AdminGate><AdminBookings /></AdminGate>} />
+        <Route path="/telegram-setup" element={<TelegramSetup />} />
+        <Route path="/test-telegram" element={<Suspense fallback={<PageLoader />}><TestTelegram /></Suspense>} />
         <Route path="/diagnostics" element={<Diagnostics />} />
-        {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
         <Route path="*" element={<NotFound />} />
       </Routes>
     </Suspense>
   );
 };
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://api.didisnow.com";
-const ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-
 const App = () => {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [networkBlocked, setNetworkBlocked] = useState(false);
-  const [checkedOnce, setCheckedOnce] = useState(false);
+  const [resolving, setResolving] = useState(true);
   const { updateAvailable, handleRefresh, dismissUpdate } = useWebVersion();
-  
-  // Preload all screens in background after app starts
+
   useAppWarmup();
 
-  const checkRest = useCallback(async () => {
+  const resolveBackend = useCallback(async () => {
+    setResolving(true);
+    setNetworkBlocked(false);
     try {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/?apikey=${ANON_KEY}`, {
-        method: "GET",
-        signal: AbortSignal.timeout(8000),
-      });
-      if (res.ok) {
-        setNetworkBlocked(false);
-      } else {
-        setNetworkBlocked(true);
-      }
+      const ok = await initSupabase();
+      setNetworkBlocked(!ok);
     } catch {
-      // Network error / DNS blocked / timeout
       setNetworkBlocked(true);
     } finally {
-      setCheckedOnce(true);
+      setResolving(false);
     }
   }, []);
 
   useEffect(() => {
-    checkRest();
-  }, [checkRest]);
+    resolveBackend();
+  }, [resolveBackend]);
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
-
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
     return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
     };
   }, []);
 
@@ -370,8 +164,19 @@ const App = () => {
     return <OfflineScreen onRetry={() => setIsOnline(navigator.onLine)} />;
   }
 
-  if (checkedOnce && networkBlocked) {
-    return <NetworkBlockedScreen onRetry={() => { setNetworkBlocked(false); setCheckedOnce(false); checkRest(); }} />;
+  // Show loader while resolving backend
+  if (resolving) {
+    return <PageLoader />;
+  }
+
+  if (networkBlocked) {
+    return (
+      <NetworkBlockedScreen
+        onRetry={() => {
+          resolveBackend();
+        }}
+      />
+    );
   }
 
   return (
