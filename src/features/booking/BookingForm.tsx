@@ -836,7 +836,9 @@ export function BookingForm() {
           {/* Choose Booking Type */}
           <div className="mt-8 space-y-3">
             <h3 className="text-sm font-semibold text-muted-foreground tracking-wide uppercase">Choose Booking Type</h3>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-3 items-start">
+              {/* Instant Card + Fav Worker stacked */}
+              <div className="flex flex-col gap-2">
               {/* Instant Card */}
               <button
               onClick={() => {
@@ -884,6 +886,51 @@ export function BookingForm() {
                 </div>
                 <ChevronRight className="w-4 h-4 text-muted-foreground absolute top-4 right-4" />
               </button>
+
+              {/* Choose Fav Worker - under Instant only */}
+              {isServiceOpen && !instantDisabled && (
+                <button
+                  onClick={() => navigate(`/book/${service_type}/select-worker`)}
+                  className="w-full flex items-center gap-2 px-2.5 py-2 rounded-xl border border-border bg-card hover:bg-accent/50 transition-colors"
+                >
+                  {preferredWorker ? (
+                    <>
+                      <Avatar className="w-6 h-6">
+                        {preferredWorker.photo_url && <AvatarImage src={preferredWorker.photo_url} />}
+                        <AvatarFallback className="bg-primary/10 text-primary text-[10px] font-bold">
+                          {preferredWorker.full_name.charAt(0)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 text-left min-w-0">
+                        <p className="text-[11px] font-semibold text-foreground truncate">{preferredWorker.full_name}</p>
+                        <p className="text-[9px] text-muted-foreground flex items-center gap-0.5">
+                          <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-400" />
+                          {preferredWorker.rating_avg.toFixed(1)}
+                        </p>
+                      </div>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); clearPreferredWorker(); }}
+                        className="p-0.5 rounded-full hover:bg-muted"
+                      >
+                        <X className="w-3 h-3 text-muted-foreground" />
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex -space-x-1.5">
+                        {[0, 1, 2].map((i) => (
+                          <div key={i} className="w-5 h-5 rounded-full border-[1.5px] border-card bg-primary/10 flex items-center justify-center overflow-hidden">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3 h-3 text-primary/60"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v1.2c0 .7.5 1.2 1.2 1.2h16.8c.7 0 1.2-.5 1.2-1.2v-1.2c0-3.2-6.4-4.8-9.6-4.8z"/></svg>
+                          </div>
+                        ))}
+                      </div>
+                      <span className="flex-1 text-[11px] font-medium text-primary">Fav worker</span>
+                      <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />
+                    </>
+                  )}
+                </button>
+              )}
+              </div>
 
               {/* Schedule Card */}
               <button
@@ -949,49 +996,6 @@ export function BookingForm() {
               </button>
             </div>
 
-            {/* Choose Fav Worker - below the grid */}
-            {isServiceOpen && !instantDisabled && (
-              <button
-                onClick={() => navigate(`/book/${service_type}/select-worker`)}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-border bg-card hover:bg-accent/50 transition-colors"
-              >
-                {preferredWorker ? (
-                  <>
-                    <Avatar className="w-8 h-8">
-                      {preferredWorker.photo_url && <AvatarImage src={preferredWorker.photo_url} />}
-                      <AvatarFallback className="bg-primary/10 text-primary text-xs font-bold">
-                        {preferredWorker.full_name.charAt(0)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 text-left min-w-0">
-                      <p className="text-sm font-semibold text-foreground truncate">{preferredWorker.full_name}</p>
-                      <p className="text-[10px] text-muted-foreground flex items-center gap-0.5">
-                        <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
-                        {preferredWorker.rating_avg.toFixed(1)} · Preferred
-                      </p>
-                    </div>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); clearPreferredWorker(); }}
-                      className="p-1 rounded-full hover:bg-muted"
-                    >
-                      <X className="w-3.5 h-3.5 text-muted-foreground" />
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <div className="flex -space-x-2">
-                      {[0, 1, 2].map((i) => (
-                        <div key={i} className="w-8 h-8 rounded-full border-2 border-card bg-primary/10 flex items-center justify-center overflow-hidden">
-                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5 text-primary/60"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v1.2c0 .7.5 1.2 1.2 1.2h16.8c.7 0 1.2-.5 1.2-1.2v-1.2c0-3.2-6.4-4.8-9.6-4.8z"/></svg>
-                        </div>
-                      ))}
-                    </div>
-                    <span className="flex-1 text-sm font-medium text-primary">Choose your fav worker</span>
-                    <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                  </>
-                )}
-              </button>
-            )}
 
             {/* Instant unavailable hint */}
             {!isServiceOpen &&
