@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Star, Search, X, Zap, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, Star, Search, X, Zap, Check, Users, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -174,132 +174,181 @@ export function InstantCheckoutScreen() {
     <div className="min-h-screen bg-background pb-40">
       <div className="max-w-md mx-auto px-4 py-6">
         {/* Header */}
-        <div className="flex items-center gap-3 mb-5">
-          <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="shrink-0">
+        <div className="flex items-center gap-3 mb-6">
+          <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="shrink-0 rounded-full">
             <ArrowLeft className="w-5 h-5" />
           </Button>
-          <h1 className="text-xl font-semibold text-foreground">Instant Booking</h1>
+          <div>
+            <h1 className="text-lg font-bold text-foreground leading-tight">Instant Booking</h1>
+            <p className="text-[11px] text-muted-foreground">{serviceName} • arrives in ~10 min</p>
+          </div>
         </div>
 
-        {/* Selected worker indicator */}
-        {selectedWorker && (
-          <div className="flex items-center gap-2 bg-primary/5 border border-primary/20 rounded-xl px-3 py-2 mb-4">
-            <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />
-            <p className="text-xs text-foreground flex-1">
-              <span className="font-semibold">{selectedWorker.full_name}</span> will be offered first
-            </p>
-            <button onClick={clearSelection} className="text-xs text-primary font-medium">
-              Clear
-            </button>
-          </div>
-        )}
-
-        {/* Available Experts */}
-        <div>
-          <div className="mb-3">
-            <h3 className="text-sm font-semibold text-foreground">
-              Choose a favourite expert <span className="text-muted-foreground font-normal">(optional)</span>
-            </h3>
-            <p className="text-[11px] text-muted-foreground mt-0.5">
-              They'll get your booking first. If no response, we'll assign the best available.
-            </p>
+        {/* Expert Selection Card */}
+        <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
+          {/* Card header */}
+          <div className="px-4 pt-4 pb-3 flex items-start justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
+                <Users className="w-4 h-4 text-primary" />
+              </div>
+              <div>
+                <h3 className="text-[13px] font-bold text-foreground leading-tight">
+                  Choose your expert
+                </h3>
+                <p className="text-[10px] text-muted-foreground">Optional • Priority booking</p>
+              </div>
+            </div>
+            {selectedWorker && (
+              <button onClick={clearSelection} className="text-[11px] text-primary font-semibold px-2 py-1 rounded-lg hover:bg-primary/5 transition-colors">
+                Clear
+              </button>
+            )}
           </div>
 
-          {/* Search */}
-          {(workers?.length || 0) > 3 && (
-            <div className="relative mb-3">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                placeholder="Search by name..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-9 rounded-xl h-9 text-sm"
-              />
-              {search && (
-                <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2">
-                  <X className="w-4 h-4 text-muted-foreground" />
-                </button>
-              )}
+          {/* Selected worker banner */}
+          {selectedWorker && (
+            <div className="mx-4 mb-3 flex items-center gap-2.5 bg-primary/5 border border-primary/15 rounded-xl px-3 py-2">
+              <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center shrink-0">
+                <Check className="w-3.5 h-3.5 text-primary-foreground" />
+              </div>
+              <p className="text-[11px] text-foreground">
+                <span className="font-bold">{selectedWorker.full_name}</span>
+                <span className="text-muted-foreground"> gets first priority</span>
+              </p>
             </div>
           )}
 
-          {/* Worker list */}
-          {isLoading ? (
-            <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide">
-              {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="flex flex-col items-center gap-1.5 min-w-[72px]">
-                  <Skeleton className="w-14 h-14 rounded-full" />
-                  <Skeleton className="h-3 w-12" />
-                  <Skeleton className="h-2.5 w-10" />
-                </div>
-              ))}
-            </div>
-          ) : filtered.length === 0 ? (
-            <div className="text-center py-6">
-              <p className="text-muted-foreground font-medium text-sm">
-                {search ? 'No workers match your search' : 'No experts online right now'}
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                You can still book instantly — we'll find the best available expert.
-              </p>
-            </div>
-          ) : (
-            <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide">
-              {filtered.map((w) => {
-                const isSelected = selectedWorker?.worker_id === w.worker_id;
-                return (
-                  <button
-                    key={w.worker_id}
-                    onClick={() => handleSelect(w)}
-                    className={cn(
-                      "flex flex-col items-center gap-1 min-w-[76px] max-w-[80px] px-2 py-2.5 rounded-2xl transition-all duration-200 text-center relative shrink-0",
-                      isSelected
-                        ? "bg-primary/10 ring-2 ring-primary shadow-md scale-[1.02]"
-                        : "bg-card hover:bg-accent/50"
-                    )}
-                  >
-                    <div className="relative">
-                      <Avatar className={cn(
-                        "w-12 h-12 ring-2 transition-all",
-                        isSelected ? "ring-primary" : "ring-border"
-                      )}>
-                        {w.photo_url ? <AvatarImage src={w.photo_url} alt={w.full_name} /> : null}
-                        <AvatarFallback className="bg-primary/10 text-primary font-bold text-sm">
-                          {w.full_name.charAt(0)}
-                        </AvatarFallback>
-                      </Avatar>
-                      {/* Online dot */}
-                      <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-background" />
-                      {/* Selected checkmark */}
-                      {isSelected && (
-                        <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-primary flex items-center justify-center shadow-sm">
-                          <CheckCircle2 className="w-3.5 h-3.5 text-primary-foreground" />
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-[11px] font-semibold text-foreground leading-tight truncate w-full mt-0.5">
-                      {w.full_name.split(' ')[0]}
-                    </p>
-                    <div className="flex items-center gap-0.5">
-                      <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-400" />
-                      <span className="text-[10px] font-medium text-foreground">{w.rating_avg.toFixed(1)}</span>
-                      <span className="text-[9px] text-muted-foreground">· {w.completed_bookings_count}</span>
-                    </div>
+          {/* Search */}
+          {(workers?.length || 0) > 3 && (
+            <div className="px-4 mb-3">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                <Input
+                  placeholder="Search by name..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="pl-9 rounded-xl h-8 text-xs bg-muted/50 border-0 focus-visible:ring-1"
+                />
+                {search && (
+                  <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2">
+                    <X className="w-3.5 h-3.5 text-muted-foreground" />
                   </button>
-                );
-              })}
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Workers grid */}
+          <div className="px-4 pb-4">
+            {isLoading ? (
+              <div className="grid grid-cols-4 gap-3">
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className="flex flex-col items-center gap-1.5">
+                    <Skeleton className="w-14 h-14 rounded-full" />
+                    <Skeleton className="h-3 w-10" />
+                    <Skeleton className="h-2 w-8" />
+                  </div>
+                ))}
+              </div>
+            ) : filtered.length === 0 ? (
+              <div className="text-center py-6 px-2">
+                <div className="w-10 h-10 rounded-full bg-muted/60 flex items-center justify-center mx-auto mb-2">
+                  <Users className="w-5 h-5 text-muted-foreground" />
+                </div>
+                <p className="text-muted-foreground font-medium text-xs">
+                  {search ? 'No match found' : 'No experts online'}
+                </p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">
+                  We'll auto-assign the best available.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-4 gap-2">
+                {filtered.map((w) => {
+                  const isSelected = selectedWorker?.worker_id === w.worker_id;
+                  return (
+                    <button
+                      key={w.worker_id}
+                      onClick={() => handleSelect(w)}
+                      className={cn(
+                        "flex flex-col items-center gap-1 py-3 px-1 rounded-2xl transition-all duration-200 relative group",
+                        isSelected
+                          ? "bg-primary/8 ring-[1.5px] ring-primary shadow-[0_2px_12px_-4px_hsl(var(--primary)/0.3)]"
+                          : "hover:bg-muted/40 active:scale-95"
+                      )}
+                    >
+                      {/* Avatar with online indicator */}
+                      <div className="relative">
+                        <div className={cn(
+                          "rounded-full p-[2px] transition-all",
+                          isSelected
+                            ? "bg-gradient-to-br from-primary to-primary/60"
+                            : "bg-transparent"
+                        )}>
+                          <Avatar className={cn(
+                            "w-[52px] h-[52px] border-2 transition-all",
+                            isSelected ? "border-background" : "border-border"
+                          )}>
+                            {w.photo_url ? <AvatarImage src={w.photo_url} alt={w.full_name} /> : null}
+                            <AvatarFallback className={cn(
+                              "font-bold text-base transition-colors",
+                              isSelected ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground"
+                            )}>
+                              {w.full_name.charAt(0)}
+                            </AvatarFallback>
+                          </Avatar>
+                        </div>
+                        {/* Online pulse */}
+                        <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-500 border-[2px] border-background shadow-sm" />
+                        {/* Check badge */}
+                        {isSelected && (
+                          <span className="absolute -top-0.5 -right-0.5 w-[18px] h-[18px] rounded-full bg-primary flex items-center justify-center shadow-md ring-2 ring-background">
+                            <Check className="w-2.5 h-2.5 text-primary-foreground stroke-[3]" />
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Name */}
+                      <p className={cn(
+                        "text-[11px] leading-tight truncate w-full text-center mt-0.5",
+                        isSelected ? "font-bold text-primary" : "font-medium text-foreground"
+                      )}>
+                        {w.full_name.split(' ')[0]}
+                      </p>
+
+                      {/* Rating */}
+                      <div className="flex items-center gap-0.5">
+                        <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-400" />
+                        <span className="text-[10px] font-semibold text-foreground">{w.rating_avg.toFixed(1)}</span>
+                        <span className="text-[9px] text-muted-foreground">· {w.completed_bookings_count}</span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Card footer hint */}
+          {!isLoading && filtered.length > 0 && (
+            <div className="border-t border-border/50 px-4 py-2 bg-muted/20">
+              <p className="text-[10px] text-muted-foreground text-center flex items-center justify-center gap-1">
+                <Sparkles className="w-3 h-3" />
+                Skip selection to auto-match with the best expert
+              </p>
             </div>
           )}
         </div>
       </div>
 
       {/* Fixed bottom Book Now bar */}
-      <div className="fixed bottom-[72px] inset-x-0 z-30 bg-background/95 backdrop-blur border-t border-border px-4 py-3">
+      <div className="fixed bottom-[72px] inset-x-0 z-30 bg-background/95 backdrop-blur-md border-t border-border px-4 py-3">
         <div className="max-w-md mx-auto">
           <Button
             onClick={handleBookNow}
             disabled={submitting}
-            className="w-full h-12 rounded-xl text-base font-bold shadow-lg"
+            className="w-full h-12 rounded-2xl text-base font-bold shadow-lg"
             size="lg"
           >
             {submitting ? (
@@ -311,9 +360,6 @@ export function InstantCheckoutScreen() {
               </>
             )}
           </Button>
-          <p className="text-[10px] text-muted-foreground text-center mt-1">
-            Instant • We'll assign the best available expert
-          </p>
         </div>
       </div>
     </div>
