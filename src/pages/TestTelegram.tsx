@@ -32,7 +32,7 @@ export default function TestTelegram() {
     };
 
     try {
-      const functionUrl = 'https://paywwbuqycovjopryele.functions.supabase.co/new-booking-telegram';
+      const functionUrl = `${import.meta.env.VITE_SUPABASE_URL || "https://api.didisnow.com"}/functions/v1/new-booking-telegram`;
       
       console.log('Sending test payload to:', functionUrl);
       console.log('Payload:', JSON.stringify(testPayload, null, 2));
@@ -99,7 +99,7 @@ export default function TestTelegram() {
           <div className="space-y-2">
             <p className="text-sm text-muted-foreground">
               Function URL: <code className="bg-muted px-2 py-1 rounded">
-                https://paywwbuqycovjopryele.functions.supabase.co/new-booking-telegram
+                {import.meta.env.VITE_SUPABASE_URL || "https://api.didisnow.com"}/functions/v1/new-booking-telegram
               </code>
             </p>
             <p className="text-sm text-muted-foreground">
