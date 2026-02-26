@@ -171,7 +171,7 @@ export function InstantCheckoutScreen() {
   const serviceName = service_type ? prettyServiceName(service_type) : 'Service';
 
   return (
-    <div className="min-h-screen bg-background pb-48">
+    <div className="min-h-screen bg-background pb-44">
       <div className="max-w-md mx-auto px-4 py-6">
         {/* Header */}
         <div className="flex items-center gap-3 mb-6">
@@ -348,24 +348,26 @@ export function InstantCheckoutScreen() {
         </div>
       </div>
 
-      {/* Fixed bottom Book Now bar */}
-      <div className="fixed bottom-[68px] inset-x-0 z-30 bg-background/95 backdrop-blur-md border-t border-border px-4 py-2.5">
-        <div className="max-w-md mx-auto">
-          <Button
-            onClick={handleBookNow}
-            disabled={submitting}
-            className="w-full h-12 rounded-2xl text-base font-bold shadow-lg"
-            size="lg"
-          >
-            {submitting ? (
-              <div className="w-5 h-5 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
-            ) : (
-              <>
-                <Zap className="w-5 h-5 mr-2" />
-                Book Now{price ? ` · ₹${price}` : ''}
-              </>
-            )}
-          </Button>
+      {/* Fixed bottom Book Now bar — sits just above BottomTabs */}
+      <div className="fixed bottom-0 inset-x-0 z-50 pointer-events-none">
+        <div className="max-w-md mx-auto px-4 pointer-events-auto">
+          <div className="mb-[76px] pb-safe">
+            <Button
+              onClick={handleBookNow}
+              disabled={submitting}
+              className="w-full h-12 rounded-2xl text-base font-bold shadow-lg"
+              size="lg"
+            >
+              {submitting ? (
+                <div className="w-5 h-5 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <>
+                  <Zap className="w-5 h-5 mr-2" />
+                  Book Now{price ? ` · ₹${price}` : ''}
+                </>
+              )}
+            </Button>
+          </div>
         </div>
       </div>
     </div>
