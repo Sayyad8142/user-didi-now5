@@ -10,6 +10,9 @@ import { PushNotificationProvider } from "@/components/PushNotificationProvider"
 import App from "./App.tsx";
 import "./index.css";
 
+// @ts-ignore - injected by Vite define
+console.info("[App] Build ID:", typeof __APP_BUILD_ID__ !== "undefined" ? __APP_BUILD_ID__ : "dev");
+
 // Hide native splash screen once WebView content is painted
 // Keep native splash visible until HTML splash is rendered
 (async () => {
