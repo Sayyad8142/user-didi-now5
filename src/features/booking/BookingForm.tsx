@@ -768,8 +768,8 @@ export function BookingForm() {
                       "ring-1 ring-border shadow-sm hover:shadow-md animate-scale-in"
                     )}>
 
-                          <div className="relative h-20 overflow-hidden">
-                            <img src={opt.img} alt={opt.label} loading="eager" decoding="async" className="w-full h-full object-cover" />
+                          <div className="relative h-20 overflow-hidden bg-muted">
+                            <img src={opt.img} alt={opt.label} width={120} height={80} loading="eager" decoding="async" fetchPriority="high" className="w-full h-full object-cover" />
                             {active &&
                       <div className="absolute inset-0 bg-primary/20" />
                       }
