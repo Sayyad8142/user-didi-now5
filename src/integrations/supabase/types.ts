@@ -844,6 +844,36 @@ export type Database = {
         }
         Relationships: []
       }
+      dish_intensity_pricing: {
+        Row: {
+          community: string
+          description: string
+          extra_inr: number
+          id: string
+          intensity: string
+          label: string
+          updated_at: string
+        }
+        Insert: {
+          community?: string
+          description?: string
+          extra_inr?: number
+          id?: string
+          intensity: string
+          label?: string
+          updated_at?: string
+        }
+        Update: {
+          community?: string
+          description?: string
+          extra_inr?: number
+          id?: string
+          intensity?: string
+          label?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       events_ingestion: {
         Row: {
           error_count: number | null

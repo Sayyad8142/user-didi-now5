@@ -100,6 +100,85 @@ function BathroomSettings({ community }: { community: string }) {
   );
 }
 
+function DishIntensitySettings({ community }: { community: string }) {
+  const qc = useQueryClient();
+  const INTENSITIES = ['light', 'medium', 'heavy'] as const;
+  const DEFAULTS = { light: { extra: 0, label: 'Light', desc: '5-10 items' }, medium: { extra: 30, label: 'Medium', desc: '10-20 items' }, heavy: { extra: 50, label: 'Heavy', desc: '20+ items' } };
+
+  const { data: rows, isLoading } = useQuery({
+    queryKey: ['dish_intensity_admin', community],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('dish_intensity_pricing')
+        .select('intensity, extra_inr, label, description')
+        .eq('community', community);
+      if (error) throw error;
+      return data ?? [];
+    }
+  });
+
+  const [form, setForm] = useState<Record<string, { extra: number; label: string; desc: string }>>({});
+  useEffect(() => {
+    const draft: Record<string, { extra: number; label: string; desc: string }> = {};
+    for (const i of INTENSITIES) {
+      const row = rows?.find(r => r.intensity === i);
+      draft[i] = {
+        extra: row?.extra_inr ?? DEFAULTS[i].extra,
+        label: row?.label ?? DEFAULTS[i].label,
+        desc: row?.description ?? DEFAULTS[i].desc,
+      };
+    }
+    setForm(draft);
+  }, [rows]);
+
+  const upsert = useMutation({
+    mutationFn: async () => {
+      const payload = INTENSITIES.map(i => ({
+        community,
+        intensity: i,
+        extra_inr: Number(form[i]?.extra) || 0,
+        label: form[i]?.label || DEFAULTS[i].label,
+        description: form[i]?.desc || DEFAULTS[i].desc,
+        updated_at: new Date().toISOString(),
+      }));
+      const { error } = await supabase.from('dish_intensity_pricing').upsert(payload, { onConflict: 'community,intensity' });
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['dish_intensity_admin', community] }),
+  });
+
+  return (
+    <CardContent className="pt-6">
+      {isLoading ? (
+        <div className="text-sm text-muted-foreground">Loading...</div>
+      ) : (
+        <div className="space-y-4">
+          {INTENSITIES.map(i => (
+            <div key={i} className="grid grid-cols-3 gap-3 items-end">
+              <div className="space-y-1">
+                <Label className="text-xs">Label</Label>
+                <Input value={form[i]?.label ?? ''} onChange={e => setForm(p => ({ ...p, [i]: { ...p[i], label: e.target.value } }))} className="h-10" />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Extra ₹</Label>
+                <Input type="number" value={form[i]?.extra ?? 0} onChange={e => setForm(p => ({ ...p, [i]: { ...p[i], extra: Number(e.target.value) } }))} className="h-10" />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Description</Label>
+                <Input value={form[i]?.desc ?? ''} onChange={e => setForm(p => ({ ...p, [i]: { ...p[i], desc: e.target.value } }))} className="h-10" />
+              </div>
+            </div>
+          ))}
+          <Button onClick={() => upsert.mutate()} disabled={upsert.isPending} className="w-full h-12">
+            <Save className="w-4 h-4 mr-2" />
+            {upsert.isPending ? 'Saving...' : 'Save Dish Intensity Pricing'}
+          </Button>
+        </div>
+      )}
+    </CardContent>
+  );
+}
+
 export default function AdminPricing() {
   const qc = useQueryClient();
   const [community, setCommunity] = useState(""); // '' = Global
@@ -397,6 +476,17 @@ export default function AdminPricing() {
               </div>
             )}
           </CardContent>
+        </Card>
+
+        {/* Dish Intensity Pricing */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Dish Washing Intensity Pricing</CardTitle>
+            <CardDescription>
+              Extra charges for dish washing workload (Light / Medium / Heavy)
+            </CardDescription>
+          </CardHeader>
+          <DishIntensitySettings community={community} />
         </Card>
 
         {/* Bathroom Cleaning Pricing */}
