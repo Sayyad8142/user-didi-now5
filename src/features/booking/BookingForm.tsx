@@ -863,7 +863,7 @@ export function BookingForm() {
             <h3 className="text-sm font-semibold text-muted-foreground tracking-wide uppercase">Choose Booking Type</h3>
             <div className="grid grid-cols-2 gap-3 items-start">
               {/* Instant Card + Fav Worker stacked */}
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-0">
               {/* Instant Card — books immediately */}
               <button
                 onClick={() => {
@@ -898,6 +898,13 @@ export function BookingForm() {
                   "border-border bg-card hover:border-primary/40"
                 )}>
 
+                {/* Closed badge */}
+                {(!isServiceOpen || instantBlocked) && (
+                  <span className="absolute top-3 right-3 bg-primary text-primary-foreground text-[11px] font-bold px-2 py-0.5 rounded-[10px] leading-tight">
+                    Closed
+                  </span>
+                )}
+
                 <div className={cn(
                   "w-10 h-10 rounded-full flex items-center justify-center",
                   isSupplyFull ? "bg-muted" : "bg-primary/10"
@@ -910,12 +917,45 @@ export function BookingForm() {
                     {isSupplyFull ? "Not Available Right Now" : "Get help in 10 mins"}
                   </div>
                 </div>
-                {submitting ?
+                {submitting && !(!isServiceOpen || instantBlocked) ?
                 <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin absolute top-4 right-4" /> :
-
+                !(!isServiceOpen || instantBlocked) &&
                 <ChevronRight className="w-4 h-4 text-muted-foreground absolute top-4 right-4" />
                 }
               </button>
+
+              {/* Status board when instant is unavailable */}
+              {(!isServiceOpen || instantBlocked) && (
+                <div className="animate-fade-in">
+                  {/* Connector triangle */}
+                  <div className="flex justify-start pl-6">
+                    <div className="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-b-[8px] border-b-primary" />
+                  </div>
+                  <div className="border border-primary rounded-xl p-3 bg-[hsl(340,100%,97%)]">
+                    <div className="flex items-start gap-2.5">
+                      <Clock className="w-[18px] h-[18px] text-primary mt-0.5 shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold text-foreground leading-tight">
+                          {isSupplyFull ? "All experts are busy" : "Instant booking unavailable"}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-0.5 leading-snug">
+                          {!isServiceOpen
+                            ? "We'll be back at 7:00 AM. You can schedule your booking now."
+                            : isSupplyFull
+                            ? "Our experts are currently busy. Schedule your booking instead."
+                            : "Instant is unavailable right now. Schedule your booking instead."}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={handleSchedule}
+                      className="mt-2.5 ml-auto block bg-primary text-primary-foreground text-[13px] font-semibold px-3.5 py-1.5 rounded-full hover:bg-primary/90 transition-colors"
+                    >
+                      Schedule Now
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {/* Choose Fav Worker — opens worker selection + books from there */}
               {isServiceOpen && !instantBlocked &&
@@ -946,7 +986,7 @@ export function BookingForm() {
                     navigate(`/book/${service_type}/instant?flat=${selectedFlatSize}&price=${price}`);
                   }
                 }}
-                className="w-full flex items-center gap-2 px-2.5 py-2 rounded-xl border border-border bg-card hover:bg-accent/50 transition-colors">
+                className="w-full flex items-center gap-2 px-2.5 py-2 mt-2 rounded-xl border border-border bg-card hover:bg-accent/50 transition-colors">
 
                   {preferredWorker ?
                 <>
@@ -1051,23 +1091,6 @@ export function BookingForm() {
               </button>
             </div>
 
-
-            {/* Instant unavailable hint */}
-            {!isServiceOpen &&
-          <p className="text-xs text-muted-foreground mt-1 text-left">
-                We'll be back at 7:00 AM
-              </p>
-          }
-            {isServiceOpen && instantBlocked && !isSupplyFull &&
-          <p className="text-xs text-muted-foreground text-center mt-1">
-                Instant unavailable right now — try scheduling instead
-              </p>
-          }
-            {isServiceOpen && isSupplyFull &&
-          <p className="text-xs text-muted-foreground text-center mt-1">
-                All experts are busy — try scheduling instead
-              </p>
-          }
           </div>
         </div>
 
