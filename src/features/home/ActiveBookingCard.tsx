@@ -3,8 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Sparkles, ChefHat, ShowerHead, ArrowRight, X, CreditCard, PhoneCall, MessageCircle, Star, CheckCircle, XCircle } from 'lucide-react';
+import { Sparkles, ChefHat, ShowerHead, ArrowRight, X, CreditCard, PhoneCall, MessageCircle, Star, CheckCircle, XCircle, RefreshCw } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { useProfile } from '@/contexts/ProfileContext';
 import { prettyServiceName } from '@/features/booking/utils';
 import AssigningProgress from '@/features/bookings/AssigningProgress';
@@ -124,6 +125,9 @@ const ActiveBookingCard = memo(() => {
     upi_qr_url: string | null;
     full_name: string | null;
   } | null>(null);
+  const [showChangeWorkerSheet, setShowChangeWorkerSheet] = useState(false);
+  const [changeWorkerLoading, setChangeWorkerLoading] = useState(false);
+  const [assignmentCount, setAssignmentCount] = useState(0);
 
   const fetchActiveBooking = useCallback(async () => {
     if (!profile?.id) return;
@@ -283,9 +287,66 @@ const ActiveBookingCard = memo(() => {
     return () => clearInterval(interval);
   }, [activeBooking]);
 
+  // Fetch assignment count for change worker limit
+  useEffect(() => {
+    if (!activeBooking?.id) return;
+    supabase
+      .from('assignments')
+      .select('id', { count: 'exact', head: true })
+      .eq('booking_id', activeBooking.id)
+      .then(({ count }) => {
+        setAssignmentCount(count ?? 0);
+      });
+  }, [activeBooking?.id, activeBooking?.worker_id]);
+
+  const workerChangeUsed = assignmentCount >= 2;
+
   if (loading || !activeBooking) {
     return null;
   }
+
+  const handleChangeWorker = async () => {
+    setChangeWorkerLoading(true);
+    try {
+      const { error: cancelErr } = await supabase
+        .from('assignments')
+        .update({ status: 'cancelled' })
+        .eq('booking_id', activeBooking.id)
+        .eq('status', 'assigned');
+      if (cancelErr) throw cancelErr;
+
+      const { error: bookingErr } = await supabase
+        .from('bookings')
+        .update({
+          status: 'pending',
+          worker_id: null,
+          worker_name: null,
+          worker_phone: null,
+          worker_photo_url: null,
+          worker_upi: null,
+          assigned_at: null,
+        })
+        .eq('id', activeBooking.id);
+      if (bookingErr) throw bookingErr;
+
+      const { error: dispatchErr } = await supabase.functions.invoke('scheduled-dispatch', {
+        body: { booking_id: activeBooking.id },
+      });
+      if (dispatchErr) throw dispatchErr;
+
+      toast.success('Looking for another worker…');
+      setShowChangeWorkerSheet(false);
+    } catch (err: any) {
+      console.error('Change worker error:', err);
+      if (err?.message?.includes('No') || err?.message?.includes('no')) {
+        toast.error('No alternate worker available right now.');
+      } else {
+        toast.error('Could not change worker. Try again.');
+      }
+    } finally {
+      setChangeWorkerLoading(false);
+    }
+  };
 
   const handleViewDetails = () => {
     navigate('/bookings');
@@ -487,6 +548,19 @@ const ActiveBookingCard = memo(() => {
         </div>
       )}
 
+      {/* Change Worker Button */}
+      {activeBooking.worker_name && ['assigned', 'accepted', 'on_the_way'].includes(activeBooking.status) && !workerChangeUsed && (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setShowChangeWorkerSheet(true)}
+          className="w-full h-8 text-xs border-dashed border-muted-foreground/30 text-muted-foreground hover:text-foreground hover:border-foreground/40 mb-3"
+        >
+          <RefreshCw className="w-3 h-3 mr-1.5" />
+          Change Worker
+        </Button>
+      )}
+
       {activeBooking.status === 'pending' && (
         <AssigningProgress booking={activeBooking} />
       )}
@@ -652,6 +726,35 @@ const ActiveBookingCard = memo(() => {
           workerName={activeBooking.worker_name}
         />
       )}
+
+      {/* Change Worker Confirmation Sheet */}
+      <Sheet open={showChangeWorkerSheet} onOpenChange={setShowChangeWorkerSheet}>
+        <SheetContent side="bottom" className="rounded-t-2xl px-6 pb-8">
+          <SheetHeader className="text-left">
+            <SheetTitle>Change Worker?</SheetTitle>
+            <SheetDescription>
+              We'll try to assign another available worker. Current worker will be notified.
+            </SheetDescription>
+          </SheetHeader>
+          <div className="flex gap-3 mt-6">
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={() => setShowChangeWorkerSheet(false)}
+              disabled={changeWorkerLoading}
+            >
+              Cancel
+            </Button>
+            <Button
+              className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground"
+              onClick={handleChangeWorker}
+              disabled={changeWorkerLoading}
+            >
+              {changeWorkerLoading ? 'Reassigning…' : 'Confirm'}
+            </Button>
+          </div>
+        </SheetContent>
+      </Sheet>
     </Card>
   );
 });
