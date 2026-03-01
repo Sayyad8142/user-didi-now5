@@ -130,6 +130,11 @@ export function InstantCheckoutScreen() {
 
       if (error) {
         console.error('❌ Booking error:', error);
+        // Handle SUPPLY_FULL from DB trigger
+        if (error.message?.includes('SUPPLY_FULL')) {
+          setSupplyModalOpen(true);
+          return;
+        }
         const isFlatError = error.message?.includes('flat details');
         toast({
           title: "Booking Failed",

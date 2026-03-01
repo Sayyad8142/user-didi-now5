@@ -430,6 +430,12 @@ export function BookingForm() {
           hint: error.hint,
           code: error.code
         });
+        // Handle SUPPLY_FULL from DB trigger
+        if (error.message?.includes('SUPPLY_FULL')) {
+          refetchSupply();
+          setSupplyModalOpen(true);
+          return;
+        }
         const isFlatError = error.message?.includes('flat details');
         toast({
           title: "Booking Failed",
