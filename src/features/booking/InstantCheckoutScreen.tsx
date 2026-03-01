@@ -6,23 +6,13 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
-import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { cn } from '@/lib/utils';
 import { prettyServiceName } from './pricing';
 import { useFlatSize } from '@/hooks/useFlatSize';
-
-type EligibleWorker = {
-  worker_id: string;
-  full_name: string;
-  photo_url: string | null;
-  rating_avg: number;
-  rating_count: number;
-  completed_bookings_count: number;
-  last_seen_at: string | null;
-};
+import { useFavoriteWorkers, type FavoriteWorker } from '@/hooks/useFavoriteWorkers';
 
 export function InstantCheckoutScreen() {
   const navigate = useNavigate();
@@ -44,28 +34,22 @@ export function InstantCheckoutScreen() {
   const bathroomCount = searchParams.get('bathrooms');
   const hasGlass = searchParams.get('glass') === '1';
 
-  const [selectedWorker, setSelectedWorker] = useState<EligibleWorker | null>(null);
+  const [selectedWorker, setSelectedWorker] = useState<FavoriteWorker | null>(null);
 
-  const { data: workers, isLoading } = useQuery({
-    queryKey: ['eligible-workers', service_type, profile?.community],
-    enabled: !!service_type && !!profile?.community,
-    refetchInterval: 15000,
-    queryFn: async () => {
-      const { data, error } = await supabase.rpc('get_eligible_workers', {
-        p_service: service_type!,
-        p_community: profile!.community,
-        p_limit: 50,
-      });
-      if (error) throw error;
-      return (data || []) as EligibleWorker[];
-    },
-  });
+  const { data: workers, isLoading } = useFavoriteWorkers(service_type, profile?.community);
 
   const filtered = (workers || []).filter((w) =>
     w.full_name.toLowerCase().includes(search.toLowerCase())
   );
 
-  const handleSelect = (worker: EligibleWorker) => {
+  const handleSelect = (worker: FavoriteWorker) => {
+    if (!worker.is_online) {
+      toast({
+        title: 'Expert is offline',
+        description: 'This expert is offline right now. Try another or book without preference.',
+      });
+      return;
+    }
     if (selectedWorker?.worker_id === worker.worker_id) {
       setSelectedWorker(null);
     } else {
@@ -194,7 +178,7 @@ export function InstantCheckoutScreen() {
               </div>
               <div>
                 <h3 className="text-[13px] font-bold text-foreground leading-tight">
-                  Choose your expert
+                  Your previous experts
                 </h3>
                 <p className="text-[10px] text-muted-foreground">Optional • Priority booking</p>
               </div>
@@ -239,7 +223,7 @@ export function InstantCheckoutScreen() {
             </div>
           )}
 
-          {/* Workers grid */}
+          {/* Workers list */}
           <div className="px-4 pb-4">
             {isLoading ? (
               <div className="space-y-1">
@@ -259,16 +243,29 @@ export function InstantCheckoutScreen() {
                   <Users className="w-5 h-5 text-muted-foreground" />
                 </div>
                 <p className="text-muted-foreground font-medium text-xs">
-                  {search ? 'No match found' : 'No experts online'}
+                  {search ? 'No match found' : 'No previous experts yet'}
                 </p>
                 <p className="text-[10px] text-muted-foreground mt-0.5">
-                  We'll auto-assign the best available.
+                  {search ? 'Try a different name.' : 'Book once to see your favorite experts here.'}
                 </p>
+                {!search && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-3 text-xs rounded-xl"
+                    onClick={handleBookNow}
+                    disabled={submitting}
+                  >
+                    <Zap className="w-3.5 h-3.5 mr-1" />
+                    Book instantly
+                  </Button>
+                )}
               </div>
             ) : (
               <div className="space-y-0.5">
                 {filtered.map((w) => {
                   const isSelected = selectedWorker?.worker_id === w.worker_id;
+                  const isOnline = w.is_online;
                   return (
                     <button
                       key={w.worker_id}
@@ -277,7 +274,9 @@ export function InstantCheckoutScreen() {
                         "flex items-center gap-3 w-full px-3 py-2.5 rounded-xl transition-all duration-200",
                         isSelected
                           ? "bg-primary/8 ring-[1.5px] ring-primary"
-                          : "hover:bg-muted/40 active:scale-[0.98]"
+                          : isOnline
+                            ? "hover:bg-muted/40 active:scale-[0.98]"
+                            : "opacity-60 cursor-default"
                       )}
                     >
                       {/* Avatar */}
@@ -299,7 +298,11 @@ export function InstantCheckoutScreen() {
                             </AvatarFallback>
                           </Avatar>
                         </div>
-                        <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 border-[2px] border-background" />
+                        {/* Online/Offline dot */}
+                        <span className={cn(
+                          "absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-[2px] border-background",
+                          isOnline ? "bg-emerald-500" : "bg-muted-foreground/40"
+                        )} />
                         {isSelected && (
                           <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-primary flex items-center justify-center ring-2 ring-background">
                             <Check className="w-2.5 h-2.5 text-primary-foreground stroke-[3]" />
@@ -317,15 +320,27 @@ export function InstantCheckoutScreen() {
                         </p>
                         <div className="flex items-center gap-1 mt-0.5">
                           <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
-                          <span className="text-[11px] font-semibold text-foreground">{w.rating_avg.toFixed(1)}</span>
+                          <span className="text-[11px] font-semibold text-foreground">{Number(w.rating_avg).toFixed(1)}</span>
                           <span className="text-[10px] text-muted-foreground">· {w.completed_bookings_count} bookings</span>
                         </div>
+                        <span className={cn(
+                          "inline-flex items-center gap-1 mt-0.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full",
+                          isOnline
+                            ? "text-emerald-600 bg-emerald-50"
+                            : "text-muted-foreground bg-muted/60"
+                        )}>
+                          <span className={cn(
+                            "w-1.5 h-1.5 rounded-full",
+                            isOnline ? "bg-emerald-500" : "bg-muted-foreground/40"
+                          )} />
+                          {isOnline ? 'Online' : 'Offline'}
+                        </span>
                       </div>
 
                       {/* Selection indicator */}
                       <div className={cn(
                         "w-5 h-5 rounded-full border-2 shrink-0 flex items-center justify-center transition-colors",
-                        isSelected ? "border-primary bg-primary" : "border-muted-foreground/30"
+                        isSelected ? "border-primary bg-primary" : isOnline ? "border-muted-foreground/30" : "border-muted-foreground/20"
                       )}>
                         {isSelected && <Check className="w-3 h-3 text-primary-foreground stroke-[3]" />}
                       </div>
@@ -348,7 +363,7 @@ export function InstantCheckoutScreen() {
         </div>
       </div>
 
-      {/* Fixed bottom Book Now bar — sits just above BottomTabs */}
+      {/* Fixed bottom Book Now bar */}
       <div className="fixed bottom-0 inset-x-0 z-50 pointer-events-none">
         <div className="max-w-md mx-auto px-4 pointer-events-auto">
           <div className="mb-[76px] pb-safe">
