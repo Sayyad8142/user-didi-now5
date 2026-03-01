@@ -1,25 +1,14 @@
 import React, { useState } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Star, Search, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
 import { useProfile } from '@/contexts/ProfileContext';
 import { cn } from '@/lib/utils';
-
-type EligibleWorker = {
-  worker_id: string;
-  full_name: string;
-  photo_url: string | null;
-  rating_avg: number;
-  rating_count: number;
-  completed_bookings_count: number;
-  last_seen_at: string | null;
-};
+import { useFavoriteWorkers, type FavoriteWorker } from '@/hooks/useFavoriteWorkers';
 
 export function SelectWorkerScreen() {
   const navigate = useNavigate();
@@ -28,27 +17,20 @@ export function SelectWorkerScreen() {
   const { toast } = useToast();
   const [search, setSearch] = useState('');
 
-  const { data: workers, isLoading } = useQuery({
-    queryKey: ['eligible-workers', service_type, profile?.community],
-    enabled: !!service_type && !!profile?.community,
-    refetchInterval: 15000, // refresh every 15s
-    queryFn: async () => {
-      const { data, error } = await supabase.rpc('get_eligible_workers', {
-        p_service: service_type!,
-        p_community: profile!.community,
-        p_limit: 50,
-      });
-      if (error) throw error;
-      return (data || []) as EligibleWorker[];
-    },
-  });
+  const { data: workers, isLoading } = useFavoriteWorkers(service_type, profile?.community);
 
   const filtered = (workers || []).filter((w) =>
     w.full_name.toLowerCase().includes(search.toLowerCase())
   );
 
-  const handleSelect = (worker: EligibleWorker) => {
-    // Store per service_type so cook selection doesn't leak into maid flow
+  const handleSelect = (worker: FavoriteWorker) => {
+    if (!worker.is_online) {
+      toast({
+        title: 'Expert is offline',
+        description: 'This expert is offline right now.',
+      });
+      return;
+    }
     sessionStorage.setItem(
       `preferred_worker_${service_type}`,
       JSON.stringify({
@@ -73,7 +55,7 @@ export function SelectWorkerScreen() {
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="shrink-0">
             <ArrowLeft className="w-5 h-5" />
           </Button>
-          <h1 className="text-xl font-semibold text-foreground">Select Worker</h1>
+          <h1 className="text-xl font-semibold text-foreground">Your Previous Experts</h1>
         </div>
 
         {/* Search */}
@@ -93,7 +75,7 @@ export function SelectWorkerScreen() {
         </div>
 
         <p className="text-xs text-muted-foreground mb-4">
-          Online now for {service_type?.replace(/_/g, ' ') || 'your service'}. Auto-refreshes every 15s.
+          Experts you've booked before for {service_type?.replace(/_/g, ' ') || 'this service'}. Auto-refreshes every 15s.
         </p>
 
         {/* Worker list */}
@@ -113,59 +95,80 @@ export function SelectWorkerScreen() {
         ) : filtered.length === 0 ? (
           <div className="text-center py-12">
             <p className="text-muted-foreground font-medium">
-              {search ? 'No workers match your search' : 'No workers online right now'}
+              {search ? 'No workers match your search' : 'No previous experts yet'}
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              You can still book instantly — we'll find the best available worker.
+              {search ? 'Try a different name.' : 'Book once to see your favorite experts here.'}
             </p>
           </div>
         ) : (
           <div className="space-y-3">
-            {filtered.map((w) => (
-              <div
-                key={w.worker_id}
-                className="flex items-center gap-3 p-4 rounded-2xl border border-border bg-card shadow-sm"
-              >
-                <Avatar className="w-12 h-12">
-                  {w.photo_url ? (
-                    <AvatarImage src={w.photo_url} alt={w.full_name} />
-                  ) : null}
-                  <AvatarFallback className="bg-primary/10 text-primary font-bold">
-                    {w.full_name.charAt(0)}
-                  </AvatarFallback>
-                </Avatar>
+            {filtered.map((w) => {
+              const isOnline = w.is_online;
+              return (
+                <div
+                  key={w.worker_id}
+                  className={cn(
+                    "flex items-center gap-3 p-4 rounded-2xl border border-border bg-card shadow-sm",
+                    !isOnline && "opacity-60"
+                  )}
+                >
+                  <div className="relative">
+                    <Avatar className="w-12 h-12">
+                      {w.photo_url ? (
+                        <AvatarImage src={w.photo_url} alt={w.full_name} />
+                      ) : null}
+                      <AvatarFallback className="bg-primary/10 text-primary font-bold">
+                        {w.full_name.charAt(0)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className={cn(
+                      "absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-card",
+                      isOnline ? "bg-emerald-500" : "bg-muted-foreground/40"
+                    )} />
+                  </div>
 
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-foreground text-sm truncate">{w.full_name}</p>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <div className="flex items-center gap-0.5">
-                      <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                      <span className="text-xs font-medium text-foreground">
-                        {w.rating_avg.toFixed(1)}
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-foreground text-sm truncate">{w.full_name}</p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <div className="flex items-center gap-0.5">
+                        <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                        <span className="text-xs font-medium text-foreground">
+                          {Number(w.rating_avg).toFixed(1)}
+                        </span>
+                        {w.rating_count > 0 && (
+                          <span className="text-xs text-muted-foreground">({w.rating_count})</span>
+                        )}
+                      </div>
+                      <span className="text-xs text-muted-foreground">
+                        • {w.completed_bookings_count} done
                       </span>
-                      {w.rating_count > 0 && (
-                        <span className="text-xs text-muted-foreground">({w.rating_count})</span>
-                      )}
                     </div>
-                    <span className="text-xs text-muted-foreground">
-                      • {w.completed_bookings_count} done
+                    <span className={cn(
+                      "inline-flex items-center gap-1 mt-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full",
+                      isOnline
+                        ? "text-emerald-600 bg-emerald-50"
+                        : "text-muted-foreground bg-muted/60"
+                    )}>
+                      <span className={cn(
+                        "w-1.5 h-1.5 rounded-full",
+                        isOnline ? "bg-emerald-500" : "bg-muted-foreground/40"
+                      )} />
+                      {isOnline ? 'Online' : 'Offline'}
                     </span>
                   </div>
-                  <span className="inline-flex items-center gap-1 mt-1 text-[10px] font-medium text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-full">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                    Online
-                  </span>
-                </div>
 
-                <Button
-                  size="sm"
-                  onClick={() => handleSelect(w)}
-                  className="rounded-xl text-xs font-semibold px-4"
-                >
-                  Select
-                </Button>
-              </div>
-            ))}
+                  <Button
+                    size="sm"
+                    onClick={() => handleSelect(w)}
+                    disabled={!isOnline}
+                    className="rounded-xl text-xs font-semibold px-4"
+                  >
+                    Select
+                  </Button>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
