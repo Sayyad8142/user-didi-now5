@@ -466,13 +466,12 @@ export function ScheduleScreen() {
               <AlertDialogTitle className="text-lg font-semibold text-foreground">
                 Note
               </AlertDialogTitle>
-              <AlertDialogDescription className="text-sm text-muted-foreground space-y-3">
+              <AlertDialogDescription className="text-sm text-muted-foreground space-y-2">
                 <p>
-                  Between 3:00 PM and 7:00 PM, worker availability is limited.
-                  There is a lower chance of worker confirmation during these hours.
+                  Availability is limited between 3 PM – 7 PM.
                 </p>
                 <p className="font-medium text-foreground">
-                  For 100% booking confirmation, we recommend booking between 6:00 AM and 3:00 PM.
+                  Book before 3 PM for guaranteed worker assignment.
                 </p>
               </AlertDialogDescription>
             </AlertDialogHeader>
