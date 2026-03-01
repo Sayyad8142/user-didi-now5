@@ -23,7 +23,8 @@ import { isGuestMode } from '@/lib/demo';
 import { useInstantBookingAvailability } from '@/hooks/useInstantBookingAvailability';
 import { useSupplyCheck, checkInstantBookingAvailability } from '@/hooks/useSupplyCheck';
 import { SupplyFullModal } from '@/components/SupplyFullModal';
-import { getIntensityExtra, type DishIntensity } from './DishIntensitySheet';
+import { type DishIntensity } from './DishIntensitySheet';
+import { useDishIntensityPricing } from '@/hooks/useDishIntensityPricing';
 import { useFlatSize } from '@/hooks/useFlatSize';
 import { MaidPriceChartSheet } from './MaidPriceChartSheet';
 
@@ -188,6 +189,13 @@ export function BookingForm() {
       return global?.unit_price_inr ?? 250;
     }
   });
+
+  // Fetch dish intensity pricing from DB
+  const { data: dishIntensityPrices } = useDishIntensityPricing(profile?.community);
+  const getIntensityExtra = (i: DishIntensity): number => {
+    const found = dishIntensityPrices?.find(p => p.intensity === i);
+    return found?.extra_inr ?? 0;
+  };
 
   // Helper functions for maid pricing
   const taskPrice = (t: MaidTask) => taskPrices?.get(t) ?? FALLBACK_PRICES[selectedFlatSize || "2BHK"];
@@ -774,11 +782,14 @@ export function BookingForm() {
                   
 
                   <div className="grid grid-cols-3 gap-2">
-                    {[
-              { value: 'light' as DishIntensity, label: 'Light', extra: 0, desc: '5-10 items', img: dishesLightImg },
-              { value: 'medium' as DishIntensity, label: 'Medium', extra: 30, desc: '10-20 items', img: dishesMediumImg },
-              { value: 'heavy' as DishIntensity, label: 'Heavy', extra: 50, desc: '20+ items', img: dishesHeavyImg }].
-              map((opt, i) => {
+                    {(dishIntensityPrices ?? []).map((p, i) => {
+              const opt = { 
+                value: p.intensity as DishIntensity, 
+                label: p.label, 
+                extra: p.extra_inr, 
+                desc: p.description, 
+                img: p.intensity === 'light' ? dishesLightImg : p.intensity === 'medium' ? dishesMediumImg : dishesHeavyImg 
+              };
                 const active = dishIntensity === opt.value;
                 return (
                   <button
