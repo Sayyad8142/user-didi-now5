@@ -924,37 +924,15 @@ export function BookingForm() {
                 }
               </button>
 
-              {/* Status board when instant is unavailable */}
+              {/* Status hint when instant is unavailable */}
               {(!isServiceOpen || instantBlocked) && (
-                <div className="animate-fade-in">
-                  {/* Connector triangle */}
-                  <div className="flex justify-start pl-6">
-                    <div className="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-b-[8px] border-b-primary" />
-                  </div>
-                  <div className="border border-primary rounded-xl p-3 bg-[hsl(340,100%,97%)]">
-                    <div className="flex items-start gap-2.5">
-                      <Clock className="w-[18px] h-[18px] text-primary mt-0.5 shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-bold text-foreground leading-tight">
-                          {isSupplyFull ? "All experts are busy" : "Instant booking unavailable"}
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-0.5 leading-snug">
-                          {!isServiceOpen
-                            ? "We'll be back at 7:00 AM. You can schedule your booking now."
-                            : isSupplyFull
-                            ? "Our experts are currently busy. Schedule your booking instead."
-                            : "Instant is unavailable right now. Schedule your booking instead."}
-                        </p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={handleSchedule}
-                      className="mt-2.5 ml-auto block bg-primary text-primary-foreground text-[13px] font-semibold px-3.5 py-1.5 rounded-full hover:bg-primary/90 transition-colors"
-                    >
-                      Schedule Now
-                    </button>
-                  </div>
-                </div>
+                <p className="text-xs text-muted-foreground mt-1.5 animate-fade-in">
+                  {!isServiceOpen
+                    ? "We'll be back at 7:00 AM"
+                    : isSupplyFull
+                    ? "All experts are busy right now"
+                    : "Instant unavailable right now"}
+                </p>
               )}
 
               {/* Choose Fav Worker — opens worker selection + books from there */}
