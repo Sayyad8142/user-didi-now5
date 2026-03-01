@@ -15,17 +15,12 @@ import {
   makeSlots, 
   toDisplay12h, 
   isPastToday, 
-  getDateChips, 
-  getExtraCharge,
-  isAfter4pmSlot,
-  isOffPeakSlot,
-  getOffPeakDiscount,
-  AFTER_4PM_SURCHARGE,
-  OFF_PEAK_DISCOUNT,
+  getDateChips,
   TIME_SEGMENTS,
   TIME_SEGMENTS_COOK,
   type TimeSegment 
 } from './slot-utils';
+import { useSlotSurge } from '@/hooks/useSlotSurge';
 import { format } from 'date-fns';
 import {
   AlertDialog,
@@ -59,6 +54,9 @@ export function ScheduleScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [price, setPrice] = useState<number | null>(null);
   const [showAvailabilityWarning, setShowAvailabilityWarning] = useState(false);
+
+  // Dynamic slot surge pricing
+  const { getSurge } = useSlotSurge(profile?.community_id, service_type || 'maid');
 
   // Use flat size from hook (admin-managed) instead of URL param
   const flatSize = autoFlatSize || searchParams.get('flat');
@@ -174,10 +172,9 @@ export function ScheduleScreen() {
         return;
       }
 
-      // Calculate surcharge and discount
-      const surcharge = getExtraCharge(selectedTime);
-      const discount = getOffPeakDiscount(selectedTime);
-      const finalPrice = price + surcharge; // discount applied server-side via trigger
+      // Calculate surge from dynamic slot_surge_pricing
+      const surcharge = getSurge(selectedTime);
+      const finalPrice = price + surcharge;
 
       const bookingData = {
         user_id: profile.id,
@@ -202,7 +199,7 @@ export function ScheduleScreen() {
           : null,
         price_inr: finalPrice,
         surcharge_amount: surcharge,
-        surcharge_reason: surcharge > 0 ? 'after_4pm' : null,
+        surcharge_reason: surcharge > 0 ? 'slot_surge' : null,
         cust_name: /^\+?\d{7,15}$/.test(profile.full_name.trim()) ? 'User ' + profile.phone.slice(-4) : profile.full_name,
         cust_phone: profile.phone,
         community: profile.community,
@@ -376,8 +373,7 @@ export function ScheduleScreen() {
                   {currentSegmentSlots.map((slot) => {
                     const isPast = isPastToday(slot, selectedDate);
                     const isSelected = selectedTime === slot;
-                    const hasSurcharge = isAfter4pmSlot(slot);
-                    const hasDiscount = isOffPeakSlot(slot);
+                    const slotSurge = getSurge(slot);
                     
                     return (
                       <Button
@@ -399,11 +395,11 @@ export function ScheduleScreen() {
                         }`}
                       >
                         <span className="font-medium">{toDisplay12h(slot)}</span>
-                        {hasSurcharge && (
+                        {slotSurge > 0 && (
                           <span className={`text-[10px] font-semibold mt-0.5 ${
                             isSelected ? 'text-primary' : 'text-orange-500'
                           }`}>
-                            +₹{AFTER_4PM_SURCHARGE}
+                            +₹{slotSurge}
                           </span>
                         )}
                       </Button>
@@ -427,10 +423,10 @@ export function ScheduleScreen() {
                 <span className="text-sm font-semibold text-foreground">₹{price}</span>
               </div>
 
-              {selectedTime && isAfter4pmSlot(selectedTime) && (
+              {selectedTime && getSurge(selectedTime) > 0 && (
                 <div className="flex items-center justify-between">
-                  <span className="text-xs text-orange-600">After 4 PM surcharge</span>
-                  <span className="text-xs font-semibold text-orange-600">+₹{AFTER_4PM_SURCHARGE}</span>
+                  <span className="text-xs text-orange-600">Slot surge</span>
+                  <span className="text-xs font-semibold text-orange-600">+₹{getSurge(selectedTime)}</span>
                 </div>
               )}
 
@@ -438,8 +434,7 @@ export function ScheduleScreen() {
               <div className="border-t border-primary/20 pt-1.5 flex items-center justify-between">
                 <span className="text-sm font-semibold text-foreground">Total</span>
                 <span className="text-xl font-bold text-foreground">
-                  ₹{price 
-                    + (selectedTime && isAfter4pmSlot(selectedTime) ? AFTER_4PM_SURCHARGE : 0)}
+                  ₹{price + (selectedTime ? getSurge(selectedTime) : 0)}
                 </span>
               </div>
             </div>
