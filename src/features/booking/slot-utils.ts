@@ -56,7 +56,7 @@ export const getDateChips = (): Array<{ date: Date; label: string; dayLabel: str
   
   for (let i = 0; i < 7; i++) {
     const date = addDays(today, i);
-    const label = i === 0 ? 'TODAY' : format(date, 'EEE').toUpperCase();
+    const label = i === 0 ? 'TODAY' : i === 1 ? 'TOMORROW' : format(date, 'EEE').toUpperCase();
     const dayLabel = format(date, 'd');
     chips.push({
       date,
