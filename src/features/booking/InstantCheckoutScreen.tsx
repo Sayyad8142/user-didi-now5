@@ -13,6 +13,8 @@ import { cn } from '@/lib/utils';
 import { prettyServiceName } from './pricing';
 import { useFlatSize } from '@/hooks/useFlatSize';
 import { useFavoriteWorkers, type FavoriteWorker } from '@/hooks/useFavoriteWorkers';
+import { checkInstantBookingAvailability } from '@/hooks/useSupplyCheck';
+import { SupplyFullModal } from '@/components/SupplyFullModal';
 
 export function InstantCheckoutScreen() {
   const navigate = useNavigate();
@@ -23,6 +25,7 @@ export function InstantCheckoutScreen() {
   const { toast } = useToast();
   const [search, setSearch] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [supplyModalOpen, setSupplyModalOpen] = useState(false);
 
   const { flatSize: autoFlatSize } = useFlatSize();
 
@@ -63,6 +66,15 @@ export function InstantCheckoutScreen() {
 
   const handleBookNow = async () => {
     if (!profile || !service_type || !user) return;
+
+    // Server-side supply check
+    if (profile.community) {
+      const available = await checkInstantBookingAvailability(profile.community);
+      if (!available) {
+        setSupplyModalOpen(true);
+        return;
+      }
+    }
 
     if (!profile.community || profile.community === 'other') {
       toast({
@@ -385,6 +397,16 @@ export function InstantCheckoutScreen() {
           </div>
         </div>
       </div>
+
+      {/* Supply Full Modal */}
+      <SupplyFullModal
+        open={supplyModalOpen}
+        onClose={() => setSupplyModalOpen(false)}
+        onSchedule={() => {
+          setSupplyModalOpen(false);
+          navigate(`/book/${service_type}/schedule`);
+        }}
+      />
     </div>
   );
 }

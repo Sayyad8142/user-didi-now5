@@ -3160,6 +3160,7 @@ export type Database = {
       }
       bytea_to_text: { Args: { data: string }; Returns: string }
       check_expired_assignments: { Args: never; Returns: Json }
+      check_instant_supply: { Args: { p_community: string }; Returns: number }
       cleanup_old_support_chats: { Args: never; Returns: undefined }
       cleanup_old_worker_busy_logs: { Args: never; Returns: undefined }
       cleanup_stale_worker_busy_flags: {
