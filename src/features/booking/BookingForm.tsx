@@ -561,9 +561,9 @@ export function BookingForm() {
   }
 
   return <div className="min-h-screen bg-background pb-24">
-      <div className="max-w-md mx-auto px-4 py-6">
+      <div className="max-w-md mx-auto px-4 pt-3 pb-6">
         {/* Header */}
-        <div className="flex items-center mb-6">
+        <div className="flex items-center mb-3">
           <Button variant="ghost" size="sm" onClick={() => navigate('/home')} className="p-2">
             <ArrowLeft className="w-5 h-5" />
           </Button>
@@ -572,7 +572,7 @@ export function BookingForm() {
           </h1>
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-3">
           {/* Flat Size (read-only from flats table) */}
           {service_type !== 'bathroom_cleaning' &&
         <Card className="border border-border rounded-2xl">
