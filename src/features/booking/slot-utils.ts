@@ -69,30 +69,20 @@ export const getDateChips = (): Array<{ date: Date; label: string; dayLabel: str
   return chips;
 };
 
-export const AFTER_4PM_SURCHARGE = 20;
-export const OFF_PEAK_DISCOUNT = 10;
+// Legacy constants kept for backward compat but no longer used
+export const AFTER_4PM_SURCHARGE = 0;
+export const OFF_PEAK_DISCOUNT = 0;
 
-export const getExtraCharge = (timeSlot: string): number => {
-  const [hours] = timeSlot.split(':').map(Number);
-  // Extra ₹20 for slots at or after 4:00 PM (16:00)
-  return hours >= 16 ? AFTER_4PM_SURCHARGE : 0;
-};
+/** @deprecated Use useSlotSurge hook instead */
+export const getExtraCharge = (_timeSlot: string): number => 0;
 
-export const isAfter4pmSlot = (timeSlot: string): boolean => {
-  const [hours] = timeSlot.split(':').map(Number);
-  return hours >= 16;
-};
+/** @deprecated No longer used — surge is dynamic from DB */
+export const isAfter4pmSlot = (_timeSlot: string): boolean => false;
 
-/** Off-peak discount: 10:00 AM – 2:00 PM inclusive (i.e. 10:00–14:00) */
-export const isOffPeakSlot = (timeSlot: string): boolean => {
-  const [hours, minutes] = timeSlot.split(':').map(Number);
-  const totalMinutes = hours * 60 + minutes;
-  return totalMinutes >= 600 && totalMinutes <= 840; // 10:00 to 14:00
-};
+/** Off-peak discount: currently disabled */
+export const isOffPeakSlot = (_timeSlot: string): boolean => false;
 
-export const getOffPeakDiscount = (timeSlot: string): number => {
-  return isOffPeakSlot(timeSlot) ? OFF_PEAK_DISCOUNT : 0;
-};
+export const getOffPeakDiscount = (_timeSlot: string): number => 0;
 
 export const TIME_SEGMENTS = {
   Morning: { start: '07:00', end: '11:45' },

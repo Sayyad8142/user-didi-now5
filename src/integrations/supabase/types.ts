@@ -478,6 +478,8 @@ export type Database = {
           scheduled_date: string | null
           scheduled_time: string | null
           service_type: string
+          slot_surge_amount: number
+          slot_surge_time: string | null
           started_at: string | null
           status: string
           surcharge_amount: number | null
@@ -549,6 +551,8 @@ export type Database = {
           scheduled_date?: string | null
           scheduled_time?: string | null
           service_type: string
+          slot_surge_amount?: number
+          slot_surge_time?: string | null
           started_at?: string | null
           status?: string
           surcharge_amount?: number | null
@@ -620,6 +624,8 @@ export type Database = {
           scheduled_date?: string | null
           scheduled_time?: string | null
           service_type?: string
+          slot_surge_amount?: number
+          slot_surge_time?: string | null
           started_at?: string | null
           status?: string
           surcharge_amount?: number | null
@@ -2044,6 +2050,47 @@ export type Database = {
         }
         Relationships: []
       }
+      slot_surge_pricing: {
+        Row: {
+          community_id: string
+          id: string
+          is_active: boolean
+          service_key: string
+          slot_period: string
+          slot_time: string
+          surge_amount: number
+          updated_at: string
+        }
+        Insert: {
+          community_id: string
+          id?: string
+          is_active?: boolean
+          service_key?: string
+          slot_period: string
+          slot_time: string
+          surge_amount?: number
+          updated_at?: string
+        }
+        Update: {
+          community_id?: string
+          id?: string
+          is_active?: boolean
+          service_key?: string
+          slot_period?: string
+          slot_time?: string
+          surge_amount?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "slot_surge_pricing_community_id_fkey"
+            columns: ["community_id"]
+            isOneToOne: false
+            referencedRelation: "communities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       support_messages: {
         Row: {
           created_at: string
@@ -3109,6 +3156,8 @@ export type Database = {
               scheduled_date: string | null
               scheduled_time: string | null
               service_type: string
+              slot_surge_amount: number
+              slot_surge_time: string | null
               started_at: string | null
               status: string
               surcharge_amount: number | null
@@ -3969,6 +4018,8 @@ export type Database = {
           scheduled_date: string | null
           scheduled_time: string | null
           service_type: string
+          slot_surge_amount: number
+          slot_surge_time: string | null
           started_at: string | null
           status: string
           surcharge_amount: number | null
