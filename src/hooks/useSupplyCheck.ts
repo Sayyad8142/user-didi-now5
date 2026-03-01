@@ -5,7 +5,7 @@ const MAX_PENDING_INSTANT = 3;
 
 /**
  * Reusable hook: checks if instant booking supply is full for a community.
- * Queries the `check_instant_supply` RPC which counts pending instant bookings.
+ * Only counts bookings with status = 'pending' (not dispatched/accepted/assigned).
  * Refetches every 15s for near-realtime accuracy.
  */
 export function useSupplyCheck(communityId: string | undefined) {
