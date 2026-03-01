@@ -430,16 +430,15 @@ export function BookingCard({
 
         {/* Request different worker */}
         {(assignedWorker?.worker || row.worker_name) && ['assigned', 'accepted', 'on_the_way'].includes(row.status) && !workerChangeUsed && (
-          <div className="text-center -mt-1">
-            <button
-              onClick={() => setShowChangeWorkerSheet(true)}
-              className="inline-flex items-center gap-1 text-xs text-[#ff007a] hover:text-[#e6006a] transition-colors"
-            >
-              <RefreshCw className="w-3 h-3" />
-              Request different worker
-            </button>
-            <p className="text-[10px] text-muted-foreground mt-0.5">You can change once if needed.</p>
-          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowChangeWorkerSheet(true)}
+            className="w-full h-8 text-xs border-dashed border-muted-foreground/30 text-muted-foreground hover:text-foreground hover:border-foreground/40"
+          >
+            <RefreshCw className="w-3 h-3 mr-1.5" />
+            Change Worker
+          </Button>
         )}
 
         {row.status === 'assigned' && (
