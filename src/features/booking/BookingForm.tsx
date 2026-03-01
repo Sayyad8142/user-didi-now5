@@ -21,6 +21,8 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { PriceNote } from '@/components/PriceNote';
 import { isGuestMode } from '@/lib/demo';
 import { useInstantBookingAvailability } from '@/hooks/useInstantBookingAvailability';
+import { useSupplyCheck, checkInstantBookingAvailability } from '@/hooks/useSupplyCheck';
+import { SupplyFullModal } from '@/components/SupplyFullModal';
 import { getIntensityExtra, type DishIntensity } from './DishIntensitySheet';
 import { useFlatSize } from '@/hooks/useFlatSize';
 import { MaidPriceChartSheet } from './MaidPriceChartSheet';
@@ -70,6 +72,12 @@ export function BookingForm() {
   const { isAvailable: instantAvailable, isError: instantError, isLoading: instantLoading } = useInstantBookingAvailability(service_type || '');
   const instantDisabled = !instantLoading && (!instantAvailable || instantError);
 
+  // Supply protection: max 3 pending instant bookings per community
+  const { isSupplyFull, refetch: refetchSupply } = useSupplyCheck(profile?.community);
+  const [supplyModalOpen, setSupplyModalOpen] = useState(false);
+
+  // Combined instant disabled state
+  const instantBlocked = instantDisabled || isSupplyFull;
 
   // Maid service specific state
   const [selectedTasks, setSelectedTasks] = useState<MaidTask[]>(["floor_cleaning", "dish_washing"]); // Multiple task selection with checkboxes
@@ -245,6 +253,17 @@ export function BookingForm() {
   };
   const handleBookNow = async () => {
     if (!profile || !service_type) return;
+
+    // Server-side supply check before creating booking
+    if (profile.community) {
+      const available = await checkInstantBookingAvailability(profile.community);
+      if (!available) {
+        refetchSupply();
+        setSupplyModalOpen(true);
+        return;
+      }
+    }
+
     if (service_type === 'maid') {
       if (!selectedFlatSize || selectedTasks.length === 0) {
         toast({
@@ -470,7 +489,7 @@ export function BookingForm() {
 
 
 
-  const canBook = isServiceOpen && !instantDisabled && !flatSizeLoading && !flatSizeError && (
+  const canBook = isServiceOpen && !instantBlocked && !flatSizeLoading && !flatSizeError && (
   service_type === 'maid' ? selectedFlatSize && selectedTasks.length > 0 && (!selectedTasks.includes('dish_washing') || dishIntensity) && !submitting :
   service_type === 'bathroom_cleaning' ? !submitting :
   selectedFlatSize && currentPrice && !submitting);
@@ -842,6 +861,11 @@ export function BookingForm() {
               {/* Instant Card — books immediately */}
               <button
                 onClick={() => {
+                  // If supply is full, show modal instead of booking
+                  if (isSupplyFull) {
+                    setSupplyModalOpen(true);
+                    return;
+                  }
                   if (service_type === 'maid') {
                     if (!selectedFlatSize || selectedTasks.length === 0) {
                       toast({ title: "Cannot book yet", description: !selectedFlatSize ? "Flat size not available. Update flat details." : "Select at least one task.", variant: "destructive" });
@@ -863,17 +887,22 @@ export function BookingForm() {
                   "relative flex flex-col items-start gap-3 p-4 rounded-2xl border-2 shadow-sm transition-all duration-200 text-left",
                   "hover:shadow-md active:scale-[0.98]",
                   "disabled:opacity-50 disabled:pointer-events-none",
-                  !isServiceOpen || instantDisabled ?
-                  "border-border bg-muted/40 opacity-60 pointer-events-none" :
+                  !isServiceOpen || instantBlocked ?
+                  "border-border bg-muted/40 opacity-60" :
                   "border-border bg-card hover:border-primary/40"
                 )}>
 
-                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                  <Zap className="w-5 h-5 text-primary" />
+                <div className={cn(
+                  "w-10 h-10 rounded-full flex items-center justify-center",
+                  isSupplyFull ? "bg-muted" : "bg-primary/10"
+                )}>
+                  <Zap className={cn("w-5 h-5", isSupplyFull ? "text-muted-foreground" : "text-primary")} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="font-bold text-foreground text-base">Instant</div>
-                  <div className="text-xs text-muted-foreground mt-0.5">Get help in 10 mins</div>
+                  <div className={cn("font-bold text-base", isSupplyFull ? "text-muted-foreground" : "text-foreground")}>Instant</div>
+                  <div className="text-xs text-muted-foreground mt-0.5">
+                    {isSupplyFull ? "Not Available Right Now" : "Get help in 10 mins"}
+                  </div>
                 </div>
                 {submitting ?
                 <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin absolute top-4 right-4" /> :
@@ -883,7 +912,7 @@ export function BookingForm() {
               </button>
 
               {/* Choose Fav Worker — opens worker selection + books from there */}
-              {isServiceOpen && !instantDisabled &&
+              {isServiceOpen && !instantBlocked &&
               <button
                 onClick={() => {
                   // Validate before navigating
@@ -1023,9 +1052,14 @@ export function BookingForm() {
                 We'll be back at 7:00 AM
               </p>
           }
-            {isServiceOpen && instantDisabled &&
+            {isServiceOpen && instantBlocked && !isSupplyFull &&
           <p className="text-xs text-muted-foreground text-center mt-1">
                 Instant unavailable right now — try scheduling instead
+              </p>
+          }
+            {isServiceOpen && isSupplyFull &&
+          <p className="text-xs text-muted-foreground text-center mt-1">
+                All experts are busy — try scheduling instead
               </p>
           }
           </div>
@@ -1041,8 +1075,17 @@ export function BookingForm() {
         onOpenChange={setPriceChartOpen}
         userFlatSize={selectedFlatSize}
         community={profile?.community} />
-
       }
+
+        {/* Supply Full Modal */}
+        <SupplyFullModal
+          open={supplyModalOpen}
+          onClose={() => setSupplyModalOpen(false)}
+          onSchedule={() => {
+            setSupplyModalOpen(false);
+            handleSchedule();
+          }}
+        />
       </div>
     </div>;
 }
