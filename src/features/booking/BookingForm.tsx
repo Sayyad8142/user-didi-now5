@@ -80,7 +80,7 @@ export function BookingForm() {
   const instantBlocked = instantDisabled || isSupplyFull;
 
   // Maid service specific state
-  const [selectedTasks, setSelectedTasks] = useState<MaidTask[]>(["floor_cleaning", "dish_washing"]); // Multiple task selection with checkboxes
+  const [selectedTasks, setSelectedTasks] = useState<MaidTask[]>([]); // User selects manually
   const [dishIntensity, setDishIntensity] = useState<DishIntensity | null>('light');
   const [dishError, setDishError] = useState(false);
   const [dishHighlight, setDishHighlight] = useState(false);
