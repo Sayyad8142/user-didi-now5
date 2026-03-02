@@ -14,8 +14,14 @@ export function useOnlineWorkerCounts() {
 
   useEffect(() => {
     const community = profile?.community;
-    if (!community || community === 'other' || !isOpenNow()) {
+    if (!community || community === 'other') {
       setCounts({});
+      setLoading(false);
+      return;
+    }
+
+    if (!isOpenNow()) {
+      setCounts({ maid: 0, bathroom_cleaning: 0 });
       setLoading(false);
       return;
     }
