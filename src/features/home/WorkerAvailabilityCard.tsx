@@ -21,7 +21,7 @@ const serviceLabels: Record<string, string> = {
 
 export function WorkerAvailabilityCard({ counts, loading }: WorkerAvailabilityCardProps) {
   const workerCounts: WorkerCount[] = Object.entries(counts)
-    .filter(([service, count]) => count > 0 && service !== 'cook')
+    .filter(([service]) => service !== 'cook')
     .map(([service, count]) => ({
       service,
       count,
