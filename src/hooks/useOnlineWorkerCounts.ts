@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useProfile } from '@/contexts/ProfileContext';
+import { isOpenNow } from '@/features/home/time';
 
 interface OnlineCounts {
   [service: string]: number;
@@ -13,7 +14,7 @@ export function useOnlineWorkerCounts() {
 
   useEffect(() => {
     const community = profile?.community;
-    if (!community || community === 'other') {
+    if (!community || community === 'other' || !isOpenNow()) {
       setCounts({});
       setLoading(false);
       return;
