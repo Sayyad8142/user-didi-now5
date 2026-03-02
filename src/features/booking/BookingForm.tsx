@@ -944,12 +944,9 @@ export function BookingForm() {
               {(!isServiceOpen || instantBlocked) && (
                 <div className="mt-2 animate-fade-in">
                   {!isServiceOpen ? (
-                    <div className="flex items-center gap-3 bg-pink-50 rounded-xl px-3 py-2.5">
-                      <span className="text-xl">👩‍🔧📅</span>
-                      <p className="text-xs font-medium text-foreground/80">
-                        Our experts are resting now, choose from next available slots.
-                      </p>
-                    </div>
+                    <p className="text-[11px] text-muted-foreground leading-tight">
+                      Experts are offline · Schedule for tomorrow →
+                    </p>
                   ) : isSupplyFull ? (
                     <div className="flex items-center gap-1.5 bg-orange-50 border border-orange-200 rounded-xl px-3 py-1.5">
                       <AlertCircle className="w-3.5 h-3.5 text-orange-500 shrink-0" />
