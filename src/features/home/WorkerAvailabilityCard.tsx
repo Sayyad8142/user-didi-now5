@@ -39,8 +39,9 @@ export function WorkerAvailabilityCard({ counts, loading }: WorkerAvailabilityCa
   };
 
   const getAvailabilityText = (count: number) => {
+    if (count === 0) return 'Try scheduling for tomorrow';
     return isUrgent(count)
-      ? `Only ${count} Experts Left – Book Now`
+      ? `Only ${count} Experts Left`
       : `${count} Available Now`;
   };
 
@@ -162,14 +163,6 @@ export function WorkerAvailabilityCard({ counts, loading }: WorkerAvailabilityCa
           })}
         </div>
 
-        <div className="mt-5 pt-4 border-t border-border/30">
-          <div className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-primary/5 border border-primary/10">
-            <div className="w-2 h-2 bg-primary rounded-full animate-pulse" />
-            <p className="text-xs font-medium text-foreground/80">
-              Instant booking confirmation when available
-            </p>
-          </div>
-        </div>
       </CardContent>
     </Card>
   );
