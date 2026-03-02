@@ -909,10 +909,15 @@ export function BookingForm() {
                   "border-border bg-card hover:border-primary/40"
                 )}>
 
-                {/* Closed badge */}
-                {(!isServiceOpen || instantBlocked) && (
+                {/* Status badge */}
+                {!isServiceOpen && (
                   <span className="absolute top-3 right-3 bg-primary text-primary-foreground text-[11px] font-bold px-2 py-0.5 rounded-[10px] leading-tight">
                     Closed
+                  </span>
+                )}
+                {isServiceOpen && instantBlocked && (
+                  <span className="absolute top-3 right-3 bg-orange-500 text-white text-[11px] font-bold px-2 py-0.5 rounded-[10px] leading-tight animate-pulse">
+                    Busy
                   </span>
                 )}
 
@@ -937,13 +942,27 @@ export function BookingForm() {
 
               {/* Status hint when instant is unavailable */}
               {(!isServiceOpen || instantBlocked) && (
-                <p className="text-xs text-muted-foreground mt-1.5 animate-fade-in">
-                  {!isServiceOpen
-                    ? "We'll be back at 7:00 AM"
-                    : isSupplyFull
-                    ? "All experts are busy right now"
-                    : "Instant unavailable right now"}
-                </p>
+                <div className="mt-2 animate-fade-in">
+                  {!isServiceOpen ? (
+                    <p className="text-xs text-muted-foreground">
+                      We'll be back at 7:00 AM
+                    </p>
+                  ) : isSupplyFull ? (
+                    <div className="flex items-center gap-1.5 bg-orange-50 border border-orange-200 rounded-xl px-3 py-1.5">
+                      <AlertCircle className="w-3.5 h-3.5 text-orange-500 shrink-0" />
+                      <p className="text-xs font-semibold text-orange-600">
+                        All experts are busy right now
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1.5 bg-orange-50 border border-orange-200 rounded-xl px-3 py-1.5">
+                      <AlertCircle className="w-3.5 h-3.5 text-orange-500 shrink-0" />
+                      <p className="text-xs font-semibold text-orange-600">
+                        Instant unavailable right now
+                      </p>
+                    </div>
+                  )}
+                </div>
               )}
 
               {/* Choose Fav Worker — opens worker selection + books from there */}
