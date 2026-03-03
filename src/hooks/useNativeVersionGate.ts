@@ -55,7 +55,7 @@ export function useNativeVersionGate(): NativeVersionGateState {
           return;
         }
 
-        const minCode = data.min_user_version_code ?? 1;
+        const minCode = data.min_user_version_code ?? 0;
         const minName = data.min_user_version_name ?? '1.0.0';
         const msg = data.user_update_message ?? 'Please update the app to continue.';
         const url = data.play_store_url_user ?? '';
