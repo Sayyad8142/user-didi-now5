@@ -47,7 +47,19 @@ export function ScheduleScreen() {
   const { toast } = useToast();
   const { flatSize: autoFlatSize } = useFlatSize();
 
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date>(() => {
+    // Auto-select the first date that has available (non-past) slots
+    const chips = getDateChips();
+    const allSegments: TimeSegment[] = ['Morning', 'Afternoon', 'Evening'];
+    for (const chip of chips.slice(0, 4)) {
+      const hasSlot = allSegments.some(seg => {
+        const slots = makeSlots(TIME_SEGMENTS[seg].start, TIME_SEGMENTS[seg].end);
+        return slots.some(slot => !isPastToday(slot, chip.date));
+      });
+      if (hasSlot) return chip.date;
+    }
+    return new Date();
+  });
   const [selectedTime, setSelectedTime] = useState<string>('');
   const [activeSegment, setActiveSegment] = useState<TimeSegment>('Morning');
   const [initialSegmentSet, setInitialSegmentSet] = useState(false);
