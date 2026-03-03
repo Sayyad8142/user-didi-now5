@@ -31,13 +31,15 @@ function isPhoneAllowlisted(phone: string | null | undefined, allowlist: string)
   if (!phone || !allowlist.trim()) return false;
   const phoneDigits = toDigits(phone);
   const phoneLast10 = last10(phoneDigits);
-  const entries = allowlist.split(',').map(e => toDigits(e.trim())).filter(Boolean);
-  return entries.some(entry => {
-    // If entry has +, require exact match
-    if (entry.startsWith('+')) return entry === phoneDigits;
-    // Otherwise match exact or last-10-digit match
-    const entryLast10 = last10(entry);
-    return entry === phoneDigits || entryLast10 === phoneLast10;
+  const rawEntries = allowlist.split(',').map(s => s.trim()).filter(Boolean);
+  const entries = rawEntries.map(raw => ({
+    exactE164: raw.startsWith('+'),
+    digits: toDigits(raw),
+    last10: last10(toDigits(raw)),
+  }));
+  return entries.some(e => {
+    if (e.exactE164) return e.digits === phoneDigits;
+    return e.digits === phoneDigits || e.last10 === phoneLast10;
   });
 }
 
