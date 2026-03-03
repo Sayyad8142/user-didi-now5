@@ -10,6 +10,8 @@ import { OfflineScreen } from "@/components/OfflineScreen";
 import { NetworkBlockedScreen } from "@/components/NetworkBlockedScreen";
 import { useWebVersion } from "@/hooks/useWebVersion";
 import { useNativeVersionGate } from "@/hooks/useNativeVersionGate";
+import { useMaintenanceMode } from "@/hooks/useMaintenanceMode";
+import { MaintenanceScreen } from "@/components/MaintenanceScreen";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { BottomTabs } from "@/components/BottomTabs";
 import { useBackButton } from "@/hooks/useBackButton";
@@ -133,6 +135,7 @@ const App = () => {
   const [resolving, setResolving] = useState(true);
   const { updateAvailable, updateMode, handleRefresh, dismissUpdate } = useWebVersion();
   const nativeGate = useNativeVersionGate();
+  const maintenance = useMaintenanceMode();
 
   useAppWarmup();
 
@@ -168,8 +171,8 @@ const App = () => {
     return <OfflineScreen onRetry={() => setIsOnline(navigator.onLine)} />;
   }
 
-  // Show loader while resolving backend or checking native version
-  if (resolving || nativeGate.checking) {
+  // Show loader while resolving backend or checking native version or maintenance
+  if (resolving || nativeGate.checking || maintenance.checking) {
     return <PageLoader />;
   }
 
@@ -181,6 +184,18 @@ const App = () => {
         storeUrl={nativeGate.storeUrl}
         currentVersion={nativeGate.currentVersion}
         requiredVersion={nativeGate.requiredVersion}
+      />
+    );
+  }
+
+  // Maintenance mode — block before network/update checks
+  if (maintenance.isMaintenance) {
+    return (
+      <MaintenanceScreen
+        title={maintenance.title}
+        message={maintenance.message}
+        ctaLabel={maintenance.ctaLabel}
+        onRetry={maintenance.recheck}
       />
     );
   }
