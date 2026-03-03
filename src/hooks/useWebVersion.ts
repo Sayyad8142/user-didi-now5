@@ -120,12 +120,11 @@ export function useWebVersion(): VersionState {
 
     log('refreshing with cache-bust…');
 
-    // Cache-busting redirect for Capacitor WebView reliability
-    const bustUrl =
-      window.location.origin +
-      window.location.pathname +
-      '?v=' + encodeURIComponent(ver) +
-      '&t=' + Date.now();
+    // Cache-busting redirect — preserves hash routes + existing query params
+    const url = new URL(window.location.href);
+    url.searchParams.set('v', ver);
+    url.searchParams.set('t', String(Date.now()));
+    const bustUrl = url.toString();
 
     setTimeout(() => {
       try {
