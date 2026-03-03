@@ -2,16 +2,24 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 const LS_KEY = 'didi_web_version';
-const POLL_MS = 3 * 60 * 1000; // 3 minutes
+const POLL_MS = 3 * 60 * 1000;
 const isDev = import.meta.env.DEV;
 
 function log(...args: unknown[]) {
   if (isDev) console.log('[WebVersion]', ...args);
 }
 
+type UpdateMode = 'soft' | 'block';
+
+function normalizeMode(raw: string | undefined | null): UpdateMode {
+  const v = (raw || 'soft').toLowerCase().trim();
+  if (v === 'hard' || v === 'force' || v === 'block') return 'block';
+  return 'soft';
+}
+
 interface VersionState {
   updateAvailable: boolean;
-  updateMode: 'soft' | 'force';
+  updateMode: UpdateMode;
   currentVersion: string;
   handleRefresh: () => void;
   dismissUpdate: () => void;
@@ -29,29 +37,24 @@ async function fetchVersionSettings() {
   }
 
   const version = data?.find(r => r.key === 'web_version')?.value || '1.0.0';
-  const mode = (data?.find(r => r.key === 'web_update_mode')?.value || 'soft') as 'soft' | 'force';
+  const mode = normalizeMode(data?.find(r => r.key === 'web_update_mode')?.value);
   return { version, mode };
 }
 
 function getStoredVersion(): string {
-  try {
-    return localStorage.getItem(LS_KEY) || '';
-  } catch {
-    return '';
-  }
+  try { return localStorage.getItem(LS_KEY) || ''; } catch { return ''; }
 }
 
 function setStoredVersion(v: string) {
-  try {
-    localStorage.setItem(LS_KEY, v);
-  } catch { /* noop */ }
+  try { localStorage.setItem(LS_KEY, v); } catch { /* noop */ }
 }
 
 export function useWebVersion(): VersionState {
   const [updateAvailable, setUpdateAvailable] = useState(false);
-  const [updateMode, setUpdateMode] = useState<'soft' | 'force'>('soft');
+  const [updateMode, setUpdateMode] = useState<UpdateMode>('soft');
   const [currentVersion, setCurrentVersion] = useState('');
   const [dismissed, setDismissed] = useState(false);
+  const latestVersion = useRef('');
   const intervalRef = useRef<ReturnType<typeof setInterval>>();
 
   const check = useCallback(async () => {
@@ -63,13 +66,22 @@ export function useWebVersion(): VersionState {
 
     setCurrentVersion(remote);
     setUpdateMode(mode);
+    latestVersion.current = remote;
 
     const stored = getStoredVersion();
 
-    // First visit – seed localStorage, no update prompt
+    // First visit
     if (!stored) {
       setStoredVersion(remote);
-      log('first visit, seeded version');
+      if (mode === 'block') {
+        // Admin wants immediate block — force the update screen
+        log('first visit + block mode => show blocking screen');
+        setUpdateAvailable(true);
+        setDismissed(false);
+      } else {
+        log('first visit + soft mode => seed silently');
+        setUpdateAvailable(false);
+      }
       return;
     }
 
@@ -89,8 +101,8 @@ export function useWebVersion(): VersionState {
   }, [check]);
 
   const handleRefresh = useCallback(() => {
-    const result = currentVersion;
-    if (result) setStoredVersion(result);
+    const ver = latestVersion.current;
+    if (ver) setStoredVersion(ver);
 
     // Best-effort: unregister service workers
     if ('serviceWorker' in navigator) {
@@ -106,18 +118,37 @@ export function useWebVersion(): VersionState {
       }).catch(() => {});
     }
 
-    log('refreshing…');
-    setTimeout(() => {
-      window.location.reload();
-    }, 100);
-  }, [currentVersion]);
+    log('refreshing with cache-bust…');
 
-  const dismissUpdate = useCallback(() => {
-    setDismissed(true);
+    // Cache-busting redirect for Capacitor WebView reliability
+    const bustUrl =
+      window.location.origin +
+      window.location.pathname +
+      '?v=' + encodeURIComponent(ver) +
+      '&t=' + Date.now();
+
+    setTimeout(() => {
+      try {
+        window.location.href = bustUrl;
+      } catch {
+        window.location.reload();
+      }
+    }, 100);
   }, []);
 
+  const dismissUpdate = useCallback(() => {
+    // Only soft mode can be dismissed
+    if (updateMode === 'soft') {
+      setDismissed(true);
+    }
+  }, [updateMode]);
+
+  // Block mode is never dismissible
+  const effectivelyAvailable =
+    updateAvailable && (updateMode === 'block' ? true : !dismissed);
+
   return {
-    updateAvailable: updateAvailable && !dismissed,
+    updateAvailable: effectivelyAvailable,
     updateMode,
     currentVersion,
     handleRefresh,

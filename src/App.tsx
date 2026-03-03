@@ -195,8 +195,8 @@ const App = () => {
     );
   }
 
-  // Hard update: block entire UI
-  if (updateAvailable && updateMode === 'force') {
+  // Hard/force update: block entire UI
+  if (updateAvailable && updateMode === 'block') {
     return <UpdateRequiredScreen onRefresh={handleRefresh} />;
   }
 
