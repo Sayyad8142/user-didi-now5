@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Routes, Route } from "react-router-dom";
 import { useState, useEffect, useCallback, Suspense, lazy } from "react";
 import { UpdateBanner } from "@/components/UpdateBanner";
+import { UpdateRequiredScreen } from "@/components/UpdateRequiredScreen";
 import { OfflineScreen } from "@/components/OfflineScreen";
 import { NetworkBlockedScreen } from "@/components/NetworkBlockedScreen";
 import { useWebVersion } from "@/hooks/useWebVersion";
@@ -128,7 +129,7 @@ const App = () => {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [networkBlocked, setNetworkBlocked] = useState(false);
   const [resolving, setResolving] = useState(true);
-  const { updateAvailable, handleRefresh, dismissUpdate } = useWebVersion();
+  const { updateAvailable, updateMode, handleRefresh, dismissUpdate } = useWebVersion();
 
   useAppWarmup();
 
@@ -179,9 +180,14 @@ const App = () => {
     );
   }
 
+  // Hard update: block entire UI
+  if (updateAvailable && updateMode === 'force') {
+    return <UpdateRequiredScreen onRefresh={handleRefresh} />;
+  }
+
   return (
     <TooltipProvider>
-      {updateAvailable && (
+      {updateAvailable && updateMode === 'soft' && (
         <UpdateBanner onRefresh={handleRefresh} onDismiss={dismissUpdate} />
       )}
       <Toaster />
