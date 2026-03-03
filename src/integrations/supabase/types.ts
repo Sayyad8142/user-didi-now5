@@ -87,17 +87,29 @@ export type Database = {
         Row: {
           created_at: string | null
           id: string
+          min_user_version_code: number
+          min_user_version_name: string
           min_worker_version_code: number
+          play_store_url_user: string
+          user_update_message: string
         }
         Insert: {
           created_at?: string | null
           id?: string
+          min_user_version_code?: number
+          min_user_version_name?: string
           min_worker_version_code?: number
+          play_store_url_user?: string
+          user_update_message?: string
         }
         Update: {
           created_at?: string | null
           id?: string
+          min_user_version_code?: number
+          min_user_version_name?: string
           min_worker_version_code?: number
+          play_store_url_user?: string
+          user_update_message?: string
         }
         Relationships: []
       }

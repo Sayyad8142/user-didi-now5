@@ -5,9 +5,11 @@ import { Routes, Route } from "react-router-dom";
 import { useState, useEffect, useCallback, Suspense, lazy } from "react";
 import { UpdateBanner } from "@/components/UpdateBanner";
 import { UpdateRequiredScreen } from "@/components/UpdateRequiredScreen";
+import { NativeUpdateRequiredScreen } from "@/components/NativeUpdateRequiredScreen";
 import { OfflineScreen } from "@/components/OfflineScreen";
 import { NetworkBlockedScreen } from "@/components/NetworkBlockedScreen";
 import { useWebVersion } from "@/hooks/useWebVersion";
+import { useNativeVersionGate } from "@/hooks/useNativeVersionGate";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { BottomTabs } from "@/components/BottomTabs";
 import { useBackButton } from "@/hooks/useBackButton";
@@ -130,6 +132,7 @@ const App = () => {
   const [networkBlocked, setNetworkBlocked] = useState(false);
   const [resolving, setResolving] = useState(true);
   const { updateAvailable, updateMode, handleRefresh, dismissUpdate } = useWebVersion();
+  const nativeGate = useNativeVersionGate();
 
   useAppWarmup();
 
@@ -165,9 +168,21 @@ const App = () => {
     return <OfflineScreen onRetry={() => setIsOnline(navigator.onLine)} />;
   }
 
-  // Show loader while resolving backend
-  if (resolving) {
+  // Show loader while resolving backend or checking native version
+  if (resolving || nativeGate.checking) {
     return <PageLoader />;
+  }
+
+  // Native version too old — block entire app
+  if (nativeGate.blocked) {
+    return (
+      <NativeUpdateRequiredScreen
+        message={nativeGate.message}
+        storeUrl={nativeGate.storeUrl}
+        currentVersion={nativeGate.currentVersion}
+        requiredVersion={nativeGate.requiredVersion}
+      />
+    );
   }
 
   if (networkBlocked) {
