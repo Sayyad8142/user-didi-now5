@@ -18,15 +18,27 @@ interface MaintenanceState {
   recheck: () => void;
 }
 
-function normalizePhone(p: string): string {
-  return p.replace(/[\s\-()]/g, '');
+function toDigits(p: string): string {
+  return p.replace(/[^\d+]/g, '').replace(/(?!^\+)\+/g, '');
+}
+
+function last10(digits: string): string {
+  const d = digits.replace(/^\+/, '');
+  return d.length >= 10 ? d.slice(-10) : d;
 }
 
 function isPhoneAllowlisted(phone: string | null | undefined, allowlist: string): boolean {
   if (!phone || !allowlist.trim()) return false;
-  const normalized = normalizePhone(phone);
-  const entries = allowlist.split(',').map(e => normalizePhone(e.trim())).filter(Boolean);
-  return entries.some(entry => normalized.endsWith(entry) || entry.endsWith(normalized) || normalized === entry);
+  const phoneDigits = toDigits(phone);
+  const phoneLast10 = last10(phoneDigits);
+  const entries = allowlist.split(',').map(e => toDigits(e.trim())).filter(Boolean);
+  return entries.some(entry => {
+    // If entry has +, require exact match
+    if (entry.startsWith('+')) return entry === phoneDigits;
+    // Otherwise match exact or last-10-digit match
+    const entryLast10 = last10(entry);
+    return entry === phoneDigits || entryLast10 === phoneLast10;
+  });
 }
 
 export function useMaintenanceMode(): MaintenanceState {
@@ -38,7 +50,7 @@ export function useMaintenanceMode(): MaintenanceState {
     ctaLabel: 'Retry',
     recheck: () => {},
   });
-  const intervalRef = useRef<ReturnType<typeof setInterval>>();
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const check = useCallback(async () => {
     try {
@@ -98,7 +110,7 @@ export function useMaintenanceMode(): MaintenanceState {
   useEffect(() => {
     check();
     intervalRef.current = setInterval(check, POLL_MS);
-    return () => clearInterval(intervalRef.current);
+    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [check]);
 
   // Expose recheck so the retry button can trigger it
