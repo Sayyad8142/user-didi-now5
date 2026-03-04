@@ -29,7 +29,7 @@ interface ScheduleSheetProps {
 
 type SlotAvailability = { slot_time: string; worker_count: number };
 
-const MIN_WORKERS_PER_SLOT = 2;
+const MIN_WORKERS_PER_SLOT = 1;
 
 export function ScheduleSheet({ open, onOpenChange, onSchedule, loading, serviceType, community }: ScheduleSheetProps) {
   const [selectedDate, setSelectedDate] = useState<Date>();
