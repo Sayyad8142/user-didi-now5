@@ -1,6 +1,5 @@
 import React from 'react';
 import { Clock } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
 import { isOpenNow, getOpenStatusText, getServiceHoursText } from './time';
 
 interface ServiceHoursProps {
