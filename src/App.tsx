@@ -68,6 +68,7 @@ const PrivacyPolicy = lazy(() => import("./routes/legal/PrivacyPolicy"));
 const PrivacyPolicyScreen = lazy(() => import("./features/legal/PrivacyPolicyScreen").then(m => ({ default: m.PrivacyPolicyScreen })));
 const TermsScreen = lazy(() => import("./features/legal/TermsScreen").then(m => ({ default: m.TermsScreen })));
 const AccountSettings = lazy(() => import("./routes/profile/AccountSettings"));
+const BookingDetail = lazy(() => import("./pages/BookingDetail"));
 const SupportScreen = lazy(() => import("./routes/support/SupportScreen"));
 const CallPage = lazy(() => import("./pages/CallPage"));
 const Diagnostics = lazy(() => import("./pages/Diagnostics"));
@@ -134,6 +135,7 @@ const AppContent = () => {
         <Route path="/legal/terms" element={<TermsScreen />} />
         <Route path="/home" element={<ProtectedRoute><ProtectedLayout><Home /></ProtectedLayout></ProtectedRoute>} />
         <Route path="/bookings" element={<ProtectedRoute><ProtectedLayout><Bookings /></ProtectedLayout></ProtectedRoute>} />
+        <Route path="/booking/:id" element={<ProtectedRoute><ProtectedLayout><BookingDetail /></ProtectedLayout></ProtectedRoute>} />
         <Route path="/profile" element={<ProtectedRoute><ProtectedLayout><Profile /></ProtectedLayout></ProtectedRoute>} />
         <Route path="/profile/account" element={<ProtectedRoute><ProtectedLayout><AccountSettings /></ProtectedLayout></ProtectedRoute>} />
         <Route path="/support" element={<ProtectedRoute><ProtectedLayout><SupportScreen /></ProtectedLayout></ProtectedRoute>} />
