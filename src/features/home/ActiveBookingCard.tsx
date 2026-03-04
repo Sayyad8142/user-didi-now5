@@ -489,9 +489,6 @@ const ActiveBookingCard = memo(() => {
             <h3 className="font-semibold text-sm">
               {prettyServiceName(activeBooking.service_type)}
             </h3>
-            <p className="text-xs text-muted-foreground">
-              {activeBooking.community} • {activeBooking.flat_no}
-            </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
