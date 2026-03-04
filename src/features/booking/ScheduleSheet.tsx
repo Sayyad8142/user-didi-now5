@@ -29,7 +29,7 @@ interface ScheduleSheetProps {
 
 type SlotAvailability = { slot_time: string; worker_count: number };
 
-const MIN_WORKERS_PER_SLOT = 2;
+const MIN_WORKERS_PER_SLOT = 1;
 
 export function ScheduleSheet({ open, onOpenChange, onSchedule, loading, serviceType, community }: ScheduleSheetProps) {
   const [selectedDate, setSelectedDate] = useState<Date>();
@@ -166,13 +166,13 @@ export function ScheduleSheet({ open, onOpenChange, onSchedule, loading, service
                         className={cn(
                           "rounded-lg text-xs flex flex-col h-auto py-1.5 gap-0",
                           isSelected && "bg-primary text-primary-foreground",
-                          isUnavailable && "opacity-40 line-through cursor-not-allowed"
+                          isUnavailable && "opacity-40 bg-muted text-muted-foreground cursor-not-allowed"
                         )}
                       >
-                        <span>{slot.slot_time}</span>
+                        <span className={cn(isUnavailable && "line-through")}>{slot.slot_time}</span>
                         {isUnavailable && (
-                          <span className="text-[9px] leading-none text-destructive font-normal no-underline" style={{ textDecoration: 'none' }}>
-                            Low supply
+                          <span className="text-[9px] leading-none text-muted-foreground font-normal" style={{ textDecoration: 'none' }}>
+                            Unavailable
                           </span>
                         )}
                       </Button>

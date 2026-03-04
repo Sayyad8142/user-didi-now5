@@ -228,10 +228,13 @@ export function ScheduleScreen() {
       if (error) {
         console.error('❌ Scheduled booking error:', error);
         const isFlatError = error.message?.includes('flat details');
+        const isSlotError = error.message?.includes('Slot unavailable') || error.message?.includes('Not enough workers');
         toast({
-          title: "Booking Failed",
+          title: isSlotError ? "Slot unavailable" : "Booking Failed",
           description: isFlatError
             ? "Please update your flat details in Account Settings before booking."
+            : isSlotError
+            ? "No workers are available at this time. Please choose another time slot."
             : `Error: ${error.message || 'Please try again.'}`,
           variant: "destructive"
         });
