@@ -4,39 +4,26 @@ import { supabase } from "@/integrations/supabase/client";
 import { RotateCw, Calendar, Users } from "lucide-react";
 
 export default function QuickStats(){
-  const [stats,setStats] = useState<any>({active:0,pending:0,completed:0,users:0,today:0,workers:0});
+  const [stats,setStats] = useState<any>({pending:0,completed:0,users:0,today:0,workers:0,revenue:0});
   const [isLoading, setIsLoading] = useState(false);
   
   async function load(){
     setIsLoading(true);
     try {
-      const todayDate = new Date().toISOString().split('T')[0];
-      
-      // Optimize: Use fewer, more efficient queries
-      const [bookingsResult, usersResult, workersResult] = await Promise.all([
-        // Get all booking counts in one query
-        supabase.from("bookings").select("status,created_at"),
+      const [rpcResult, usersResult, workersResult] = await Promise.all([
+        supabase.rpc('admin_quick_stats'),
         supabase.from("profiles").select("*",{count:"exact", head:true}),
         supabase.from("workers").select("*",{count:"exact", head:true}).eq("is_active", true),
       ]);
       
-      // Process booking data client-side to avoid multiple queries
-      const bookings = bookingsResult.data || [];
-      const pending = bookings.filter(b => b.status === 'pending').length;
-      const assigned = bookings.filter(b => b.status === 'assigned').length;
-      const completed = bookings.filter(b => b.status === 'completed').length;
-      const todayBookings = bookings.filter(b => 
-        b.created_at?.startsWith(todayDate)
-      ).length;
-      
-      const active = pending + assigned;
+      const s = rpcResult.data as any ?? {};
       setStats({
-        active, 
-        pending, 
-        completed, 
+        today: s.today ?? 0,
+        pending: s.pending ?? 0,
+        completed: s.completed ?? 0,
+        revenue: s.revenue ?? 0,
         users: usersResult.count ?? 0, 
-        today: todayBookings, 
-        workers: workersResult.count ?? 0
+        workers: workersResult.count ?? 0,
       });
     } catch (error) {
       console.error('Error loading stats:', error);
@@ -59,6 +46,7 @@ export default function QuickStats(){
     { label: "Today's Bookings", value: stats.today, linkTo: "/admin/daily-bookings", clickable: true, icon: Calendar },
     { label: "Pending", value: stats.pending, clickable: false },
     { label: "Completed", value: stats.completed, linkTo: "/admin/completed-bookings", clickable: true, icon: Calendar },
+    { label: "Revenue ₹", value: stats.revenue, clickable: false },
     { label: "Total Users", value: stats.users, linkTo: "/admin/users", clickable: true, icon: Calendar },
     { label: "Total Workers", value: stats.workers, linkTo: "/admin/workers", clickable: true, icon: Users },
   ];
