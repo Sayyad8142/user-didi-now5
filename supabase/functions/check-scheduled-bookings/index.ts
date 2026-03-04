@@ -28,14 +28,20 @@ serve(async (req) => {
   try {
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // Fetch scheduled bookings that need pre-alert
+    // Fetch only scheduled bookings within the actionable window (today/tomorrow)
+    // This avoids scanning the entire bookings table every run
+    const nowIST = new Date(Date.now() + 5.5 * 60 * 60 * 1000); // UTC → IST
+    const todayIST = nowIST.toISOString().slice(0, 10);
+    const tomorrowIST = new Date(nowIST.getTime() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
     const { data: bookings, error: bookingsError } = await supabase
       .from('bookings')
       .select('*')
       .eq('booking_type', 'scheduled')
       .eq('status', 'pending')
       .not('scheduled_date', 'is', null)
-      .not('scheduled_time', 'is', null);
+      .not('scheduled_time', 'is', null)
+      .in('scheduled_date', [todayIST, tomorrowIST]);
 
     if (bookingsError) {
       console.error('❌ Error fetching bookings:', bookingsError);
