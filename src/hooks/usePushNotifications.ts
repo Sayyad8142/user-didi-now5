@@ -3,7 +3,7 @@ import { useEffect, useCallback, useState } from "react";
 import { PushNotifications } from "@capacitor/push-notifications";
 import { Capacitor } from "@capacitor/core";
 import { supabase } from "@/integrations/supabase/client";
-import { getFirebaseIdToken } from "@/lib/firebase";
+import { getFirebaseIdToken, getFcmToken, onForegroundMessage, showForegroundNotification } from "@/lib/firebase";
 
 interface UsePushNotificationsOptions {
   userId?: string | null;
@@ -59,17 +59,58 @@ export function usePushNotifications({ userId }: UsePushNotificationsOptions) {
     [userId]
   );
 
-  const register = useCallback(async () => {
+  const registerWebPush = useCallback(async () => {
     try {
-      if (!userId) {
-        console.log("No userId, skipping push registration");
+      if (!userId) return;
+
+      // Check browser support
+      if (!("Notification" in window) || !("serviceWorker" in navigator)) {
+        console.log("Web push: browser does not support notifications");
+        setLastError("Browser does not support push notifications");
         return;
       }
 
-      if (!Capacitor.isNativePlatform()) {
-        console.log("Push notifications: not a native platform, skipping");
+      // Request permission
+      let permission = Notification.permission;
+      if (permission === "default") {
+        permission = await Notification.requestPermission();
+      }
+
+      if (permission !== "granted") {
+        console.log("Web push: permission not granted:", permission);
+        setLastError("Notification permission not granted");
         return;
       }
+
+      // Get FCM token (handles SW registration + VAPID key internally)
+      const token = await getFcmToken();
+      if (!token) {
+        setLastError("Failed to get web push token");
+        return;
+      }
+
+      console.log("🌐 Web FCM token obtained:", token.substring(0, 20) + "...");
+
+      const deviceInfo: DeviceInfo = {
+        platform: "web",
+        model: navigator.userAgent,
+      };
+
+      await registerTokenInSupabase(token, deviceInfo);
+
+      // Listen for foreground messages
+      onForegroundMessage((payload) => {
+        showForegroundNotification(payload);
+      });
+    } catch (err: any) {
+      console.error("Error during web push registration:", err);
+      setLastError(err?.message ?? "Web push registration error");
+    }
+  }, [userId, registerTokenInSupabase]);
+
+  const registerNativePush = useCallback(async () => {
+    try {
+      if (!userId) return;
 
       // 1. Check permission
       let permStatus = await PushNotifications.checkPermissions();
@@ -108,7 +149,6 @@ export function usePushNotifications({ userId }: UsePushNotificationsOptions) {
       // 5. When notification received in foreground
       PushNotifications.addListener("pushNotificationReceived", (notification) => {
         console.log("Push notification received:", notification);
-        // Optional: show in-app toast/snackbar here
       });
 
       // 6. When user taps the notification
@@ -116,14 +156,26 @@ export function usePushNotifications({ userId }: UsePushNotificationsOptions) {
         "pushNotificationActionPerformed",
         (action) => {
           console.log("Push notification action performed:", action);
-          // Optional: navigate using action.notification.data.booking_id, etc.
         }
       );
     } catch (err: any) {
-      console.error("Error during push registration:", err);
-      setLastError(err?.message ?? "Unknown push registration error");
+      console.error("Error during native push registration:", err);
+      setLastError(err?.message ?? "Native push registration error");
     }
   }, [userId, registerTokenInSupabase]);
+
+  const register = useCallback(async () => {
+    if (!userId) {
+      console.log("No userId, skipping push registration");
+      return;
+    }
+
+    if (Capacitor.isNativePlatform()) {
+      await registerNativePush();
+    } else {
+      await registerWebPush();
+    }
+  }, [userId, registerNativePush, registerWebPush]);
 
   useEffect(() => {
     if (!userId) return;
