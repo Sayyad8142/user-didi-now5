@@ -2989,6 +2989,7 @@ export type Database = {
           web_version: string
         }[]
       }
+      admin_quick_stats: { Args: never; Returns: Json }
       admin_reject_worker_registration: {
         Args: { p_rejection_reason: string; p_request_id: string }
         Returns: undefined
