@@ -1,7 +1,7 @@
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, useNavigate } from "react-router-dom";
 import { useState, useEffect, useCallback, Suspense, lazy } from "react";
 import { UpdateBanner } from "@/components/UpdateBanner";
 import { UpdateRequiredScreen } from "@/components/UpdateRequiredScreen";
@@ -20,6 +20,8 @@ import AuthGate from "@/auth/AuthGate";
 import { IncomingCallHandler } from "@/components/IncomingCallHandler";
 import { PushNotificationProvider } from "@/components/PushNotificationProvider";
 import { initSupabase } from "@/integrations/supabase/client";
+import { usePushDeepLink } from "@/hooks/usePushDeepLink";
+import { normalizeDeepLink, navigateDeepLink } from "@/lib/deepLink";
 
 // Immediate load for critical pages
 import Index from "./pages/Index";
@@ -84,7 +86,36 @@ const ProtectedLayout = ({ children }: { children: React.ReactNode }) => (
 
 const AppContent = () => {
   useBackButton();
-  
+  const navigate = useNavigate();
+  usePushDeepLink(navigate);
+
+  // Handle ?dl= query param and SW postMessage deep links
+  useEffect(() => {
+    // 1. Query param  ?dl=/booking/abc
+    const params = new URLSearchParams(window.location.search);
+    const dl = params.get('dl');
+    if (dl) {
+      const path = normalizeDeepLink(dl);
+      if (path) {
+        navigateDeepLink(path, navigate);
+      }
+      // Remove ?dl from URL without reload
+      params.delete('dl');
+      const clean = params.toString();
+      window.history.replaceState({}, '', window.location.pathname + (clean ? `?${clean}` : ''));
+    }
+
+    // 2. Listen for SW postMessage deep links (web push click on existing tab)
+    const handler = (event: MessageEvent) => {
+      if (event.data?.type === 'DEEP_LINK' && event.data.path) {
+        const path = normalizeDeepLink(event.data.path);
+        if (path) navigateDeepLink(path, navigate);
+      }
+    };
+    navigator.serviceWorker?.addEventListener('message', handler);
+    return () => navigator.serviceWorker?.removeEventListener('message', handler);
+  }, [navigate]);
+
   return (
     <Suspense fallback={<PageLoader />}>
       <Routes>
