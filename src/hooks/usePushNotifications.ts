@@ -1,6 +1,5 @@
 // src/hooks/usePushNotifications.ts
 import { useEffect, useCallback, useState } from "react";
-import { PushNotifications } from "@capacitor/push-notifications";
 import { Capacitor } from "@capacitor/core";
 import { supabase } from "@/integrations/supabase/client";
 import { getFirebaseIdToken, getFcmToken, onForegroundMessage, showForegroundNotification } from "@/lib/firebase";
