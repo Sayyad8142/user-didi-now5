@@ -41,9 +41,11 @@ self.addEventListener('notificationclick', (event) => {
   event.notification.close();
 
   const data = event.notification.data || {};
-  const deepLink = data.deep_link || null;
+  const rawLink = data.deep_link;
+  // Validate: must be a string starting with /
+  const deepLink = (typeof rawLink === 'string' && rawLink.startsWith('/')) ? rawLink : null;
   const baseUrl = 'https://app.didisnow.com';
-  const targetUrl = deepLink ? `${baseUrl}${deepLink}` : baseUrl + '/home';
+  const targetUrl = deepLink ? `${baseUrl}${deepLink}` : `${baseUrl}/`;
 
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
@@ -51,8 +53,9 @@ self.addEventListener('notificationclick', (event) => {
       for (const client of clientList) {
         if (client.url.startsWith(baseUrl) && 'focus' in client) {
           client.focus();
-          // Post message so the app can navigate
-          client.postMessage({ type: 'DEEP_LINK', path: deepLink });
+          if (deepLink) {
+            client.postMessage({ type: 'DEEP_LINK', path: deepLink });
+          }
           return;
         }
       }

@@ -22,6 +22,10 @@ import { PushNotificationProvider } from "@/components/PushNotificationProvider"
 import { initSupabase } from "@/integrations/supabase/client";
 import { usePushDeepLink } from "@/hooks/usePushDeepLink";
 import { normalizeDeepLink, navigateDeepLink } from "@/lib/deepLink";
+import { registerServiceWorker } from "@/lib/registerServiceWorker";
+
+// Register SW early for web push
+registerServiceWorker();
 
 // Immediate load for critical pages
 import Index from "./pages/Index";

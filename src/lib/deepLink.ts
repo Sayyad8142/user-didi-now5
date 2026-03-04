@@ -2,11 +2,11 @@
 // Deep Link Router — normalizes deep link URLs and navigates safely
 // ============================================================================
 
-/** Whitelisted route patterns (regex). Order matters — first match wins. */
+/** Whitelisted route patterns (regex). */
 const ALLOWED_ROUTES: RegExp[] = [
-  /^\/booking\/[a-f0-9-]{36}$/,     // /booking/:uuid
-  /^\/bookings\/[a-f0-9-]{36}$/,    // /bookings/:uuid (alias)
-  /^\/bookings$/,                    // /bookings list
+  /^\/booking\/[A-Za-z0-9_-]+$/,    // /booking/:id (canonical)
+  /^\/booking$/,                     // /booking list
+  /^\/bookings$/,                    // alias kept
   /^\/home$/,
   /^\/wallet$/,
   /^\/support$/,
@@ -19,12 +19,8 @@ const KNOWN_HOSTS = ['app.didisnow.com', 'didisnow.com'];
 
 /**
  * Normalise any deep link input into an internal path like "/booking/abc-123"
- * Accepts:
- *   - "/booking/abc"
- *   - "https://app.didisnow.com/booking/abc"
- *   - "didinow://booking/abc"
- *   - { deep_link: "/booking/abc" }  (extracts string first)
- * Returns null if input is invalid or route not whitelisted.
+ * Accepts strings, URLs, custom schemes, or objects with deep_link/link/url keys.
+ * Returns null if invalid or not whitelisted.
  */
 export function normalizeDeepLink(input: unknown): string | null {
   let raw: string | null = null;
@@ -70,11 +66,11 @@ export function normalizeDeepLink(input: unknown): string | null {
   // Strip query / hash
   path = path.split('?')[0].split('#')[0];
 
+  // Canonical mapping: /bookings/:id  →  /booking/:id (singular)
+  path = path.replace(/^\/bookings\//, '/booking/');
+
   // Security: only allow whitelisted routes
   if (!ALLOWED_ROUTES.some(re => re.test(path))) return null;
-
-  // Alias: /bookings/:id  →  /bookings  (the bookings page handles the id via state)
-  // We keep the path as-is; the app routes must handle it.
 
   return path;
 }
