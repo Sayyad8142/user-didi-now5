@@ -111,6 +111,8 @@ export function usePushNotifications({ userId }: UsePushNotificationsOptions) {
     try {
       if (!userId) return;
 
+      const { PushNotifications } = await import("@capacitor/push-notifications");
+
       // 1. Check permission
       let permStatus = await PushNotifications.checkPermissions();
 
