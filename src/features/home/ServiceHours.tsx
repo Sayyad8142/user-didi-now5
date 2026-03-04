@@ -1,5 +1,6 @@
 import React from 'react';
 import { Clock } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
 import { isOpenNow, getOpenStatusText, getServiceHoursText } from './time';
 
 interface ServiceHoursProps {
@@ -10,14 +11,21 @@ export function ServiceHours({ serviceType }: ServiceHoursProps) {
   const isOpen = isOpenNow(serviceType);
   
   return (
-    <div className="flex items-center justify-between rounded-xl bg-muted/60 px-4 py-2.5">
-      <div className="flex items-center gap-2">
-        <Clock className="w-4 h-4 text-primary" />
-        <span className="text-sm font-medium text-foreground">{getServiceHoursText(serviceType)}</span>
-      </div>
-      <span className={`text-xs font-semibold ${isOpen ? 'text-green-600' : 'text-muted-foreground'}`}>
-        {isOpen ? '● Open now' : getOpenStatusText(serviceType)}
-      </span>
-    </div>
+    <Card className="shadow-card border-pink-100 bg-gradient-to-r from-pink-50 to-pink-100">
+      <CardContent className="p-4 flex items-center gap-4">
+        <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+          <Clock className="w-6 h-6 text-primary" />
+        </div>
+        <div className="flex-1">
+          <h3 className="font-semibold text-foreground">Service Hours</h3>
+          <p className="text-sm font-medium text-primary">{getServiceHoursText(serviceType)}</p>
+          {!isOpen && (
+            <p className="text-xs text-muted-foreground mt-1">
+              {getOpenStatusText(serviceType)}
+            </p>
+          )}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
