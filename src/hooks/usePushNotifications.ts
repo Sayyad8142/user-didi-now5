@@ -1,6 +1,5 @@
 // src/hooks/usePushNotifications.ts
 import { useEffect, useCallback, useState } from "react";
-import { PushNotifications } from "@capacitor/push-notifications";
 import { Capacitor } from "@capacitor/core";
 import { supabase } from "@/integrations/supabase/client";
 import { getFirebaseIdToken, getFcmToken, onForegroundMessage, showForegroundNotification } from "@/lib/firebase";
@@ -111,6 +110,8 @@ export function usePushNotifications({ userId }: UsePushNotificationsOptions) {
   const registerNativePush = useCallback(async () => {
     try {
       if (!userId) return;
+
+      const { PushNotifications } = await import("@capacitor/push-notifications");
 
       // 1. Check permission
       let permStatus = await PushNotifications.checkPermissions();
