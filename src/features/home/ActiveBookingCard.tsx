@@ -652,33 +652,31 @@ const ActiveBookingCard = memo(() => {
           </div>
         )}
 
-        {/* Support button */}
+        {/* Support buttons - side by side */}
         {(activeBooking.status === 'pending' || activeBooking.status === 'assigned') && (
-          <Button 
-            onClick={() => openExternalUrl("tel:+918008180018")}
-            className="w-full h-10 bg-gradient-to-r from-[#ff007a] to-[#e6006a] hover:from-[#e6006a] hover:to-[#cc005f] text-white font-semibold rounded-lg shadow-sm"
-          >
-            <PhoneCall className="h-4 w-4 mr-2" />
-            Need Help? Call Support
-          </Button>
-        )}
-
-        {/* Chat Support button */}
-        {(activeBooking.status === 'pending' || activeBooking.status === 'assigned') && (
-          <Button 
-            onClick={() => {
-              markMessagesAsSeen();
-              navigate('/chat');
-            }}
-            variant="outline"
-            className="w-full h-10 border-[#ff007a] text-[#ff007a] hover:bg-[#ff007a] hover:text-white font-semibold rounded-lg shadow-sm relative"
-          >
-            <MessageCircle className="h-4 w-4 mr-2" />
-            Chat Support
-            {hasUnseenMessages && (
-              <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse" />
-            )}
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              onClick={() => openExternalUrl("tel:+918008180018")}
+              className="flex-1 h-10 bg-gradient-to-r from-[#ff007a] to-[#e6006a] hover:from-[#e6006a] hover:to-[#cc005f] text-white font-semibold rounded-lg shadow-sm text-xs"
+            >
+              <PhoneCall className="h-4 w-4 mr-1.5" />
+              Call Support
+            </Button>
+            <Button 
+              onClick={() => {
+                markMessagesAsSeen();
+                navigate('/chat');
+              }}
+              variant="outline"
+              className="flex-1 h-10 border-[#ff007a] text-[#ff007a] hover:bg-[#ff007a] hover:text-white font-semibold rounded-lg shadow-sm text-xs relative"
+            >
+              <MessageCircle className="h-4 w-4 mr-1.5" />
+              Chat Support
+              {hasUnseenMessages && (
+                <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse" />
+              )}
+            </Button>
+          </div>
         )}
 
       </div>
