@@ -89,7 +89,7 @@ serve(async (req) => {
 
     // Auto-generate deep_link for booking-related notifications
     if (!stringData.deep_link && stringData.booking_id) {
-      stringData.deep_link = `/bookings/${stringData.booking_id}`;
+      stringData.deep_link = `/booking/${stringData.booking_id}`;
     }
 
     // Send to all tokens
