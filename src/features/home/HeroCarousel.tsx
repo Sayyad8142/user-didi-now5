@@ -3,8 +3,6 @@ import { Carousel, CarouselContent, CarouselItem } from '@/components/ui/carouse
 import Autoplay from 'embla-carousel-autoplay';
 import bannerMaid1 from '@/assets/banner-maid-1.webp';
 import bannerInstantMaid from '@/assets/banner-instant-maid-service.webp';
-import bannerMaidCleaning from '@/assets/banner-maid-cleaning.webp';
-import bannerDishWashing from '@/assets/banner-dish-washing.webp';
 
 const carouselImages = [
   {
@@ -14,14 +12,6 @@ const carouselImages = [
   {
     url: bannerMaid1,
     alt: "Professional cleaning service - Modern kitchen cleaning"
-  },
-  {
-    url: bannerMaidCleaning,
-    alt: "Professional floor cleaning service - Maid mopping marble floors in modern apartment"
-  },
-  {
-    url: bannerDishWashing,
-    alt: "Dish washing service - Professional utensil cleaning in modern kitchen"
   },
 ];
 
