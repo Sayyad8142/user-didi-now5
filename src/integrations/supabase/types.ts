@@ -3403,20 +3403,35 @@ export type Database = {
           worker_id: string
         }[]
       }
-      get_favorite_workers: {
-        Args: { p_community: string; p_service: string }
-        Returns: {
-          completed_bookings_count: number
-          full_name: string
-          is_online: boolean
-          last_booking_at: string
-          last_seen_at: string
-          photo_url: string
-          rating_avg: number
-          rating_count: number
-          worker_id: string
-        }[]
-      }
+      get_favorite_workers:
+        | {
+            Args: { p_community: string; p_service: string }
+            Returns: {
+              completed_bookings_count: number
+              full_name: string
+              is_online: boolean
+              last_booking_at: string
+              last_seen_at: string
+              photo_url: string
+              rating_avg: number
+              rating_count: number
+              worker_id: string
+            }[]
+          }
+        | {
+            Args: { p_community: string; p_service: string; p_user_id?: string }
+            Returns: {
+              completed_bookings_count: number
+              full_name: string
+              is_online: boolean
+              last_booking_at: string
+              last_seen_at: string
+              photo_url: string
+              rating_avg: number
+              rating_count: number
+              worker_id: string
+            }[]
+          }
       get_hourly_supply_demand: {
         Args: {
           p_booking_type?: string
