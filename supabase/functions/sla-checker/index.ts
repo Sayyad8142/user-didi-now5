@@ -46,6 +46,7 @@ serve(async (req) => {
       JSON.stringify({ 
         success: true, 
         processed_count: processedCount,
+        stale_cancelled_count: staleCancelledCount,
         timestamp: new Date().toISOString()
       }),
       { 
