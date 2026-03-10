@@ -3245,6 +3245,7 @@ export type Database = {
           message: string
         }[]
       }
+      auto_cancel_stale_instant_bookings: { Args: never; Returns: number }
       auto_complete_assigned: { Args: never; Returns: undefined }
       auto_handle_overdue_bookings: { Args: never; Returns: number }
       auto_heal_stale_worker_busy: {
