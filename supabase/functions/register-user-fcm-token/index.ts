@@ -4,7 +4,7 @@
 // - Client sends Firebase ID token in Authorization header
 // - Function verifies token signature via Google's JWKS
 // - Maps firebase uid -> profiles.id
-// - Upserts into public.user_fcm_tokens using service role
+// - Upserts into public.fcm_tokens using service role
 // ============================================================================
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -99,15 +99,12 @@ async function verifyFirebaseIdToken(idToken: string) {
 
   const nowSec = Math.floor(Date.now() / 1000);
 
-  // Validate issuer format (must be securetoken.google.com/<project>)
   if (!payload.iss || !payload.iss.startsWith("https://securetoken.google.com/")) {
     throw new Error("JWT iss invalid");
   }
 
-  // Extract project ID from issuer
   const projectId = payload.iss.replace("https://securetoken.google.com/", "");
 
-  // Validate aud matches the project from iss
   if (payload.aud !== projectId) throw new Error("JWT aud/iss mismatch");
 
   if (!payload.exp || payload.exp <= nowSec) throw new Error("JWT expired");
@@ -182,24 +179,34 @@ serve(async (req) => {
       token_preview: `${fcmToken.slice(0, 12)}...`,
     });
 
+    // First, remove any existing rows with this token (may belong to another user after reinstall)
+    await supabase
+      .from("fcm_tokens")
+      .delete()
+      .eq("token", fcmToken)
+      .neq("user_id", profile.id);
+
+    // Upsert: one token per user (replace old token)
     const { error: upsertError } = await supabase
-      .from("user_fcm_tokens")
+      .from("fcm_tokens")
       .upsert(
         {
           user_id: profile.id,
           token: fcmToken,
-          device_info: deviceInfo,
+          updated_at: new Date().toISOString(),
         },
-        { onConflict: "token" },
+        { onConflict: "user_id" },
       );
 
     if (upsertError) {
-      console.error("❌ user_fcm_tokens upsert failed:", upsertError);
+      console.error("❌ fcm_tokens upsert failed:", upsertError);
       return new Response(
         JSON.stringify({ ok: false, error: upsertError.message }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
+
+    console.log("✅ FCM token registered for user:", profile.id);
 
     return new Response(
       JSON.stringify({ ok: true }),
