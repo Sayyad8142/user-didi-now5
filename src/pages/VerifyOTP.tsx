@@ -29,16 +29,6 @@ interface LocationState {
   redirectTo?: string;
 }
 
-function isAdminPhone(phone?: string | null) {
-  const env = import.meta.env.VITE_ADMIN_PHONES ?? "";
-  const target = normalizePhone(phone ?? "");
-  if (!target) return false;
-  return env
-    .split(",")
-    .map(s => normalizePhone(s.trim()))
-    .filter(Boolean)
-    .includes(target);
-}
 
 export default function VerifyOTP() {
   const navigate = useNavigate();
