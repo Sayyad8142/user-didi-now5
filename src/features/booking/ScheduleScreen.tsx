@@ -33,6 +33,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { PaymentChoiceSheet } from '@/components/PaymentChoiceSheet';
 
 // Check if time slot is between 3PM (15:00) and 7PM (19:00)
 const isLimitedAvailabilitySlot = (time: string): boolean => {
@@ -68,6 +69,7 @@ export function ScheduleScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [price, setPrice] = useState<number | null>(null);
   const [showAvailabilityWarning, setShowAvailabilityWarning] = useState(false);
+  const [paymentChoiceOpen, setPaymentChoiceOpen] = useState(false);
 
   // Dynamic slot surge pricing
   const { getSurge } = useSlotSurge(profile?.community_id, service_type || 'maid');
@@ -135,65 +137,26 @@ export function ScheduleScreen() {
     }
   };
 
-  const handleConfirmSchedule = async () => {
-    if (!selectedDate || !selectedTime || !profile || !user || !service_type || !price) {
-      return;
-    }
-    if (service_type !== 'bathroom_cleaning' && !flatSize) return;
-    if (service_type === 'bathroom_cleaning' && !bathroomCount) return;
+  // Build booking data for scheduled booking
+  const buildScheduledBookingData = () => {
+    if (!selectedDate || !selectedTime || !profile || !service_type || !price) return null;
 
-    setSubmitting(true);
-    try {
-      await loadRazorpayScript();
+    const scheduledDate = format(selectedDate, 'yyyy-MM-dd');
+    const timeMatch = selectedTime.match(/^(\d{1,2}):(\d{2})$/);
+    if (!timeMatch) return null;
+    const hours = timeMatch[1].padStart(2, '0');
+    const minutes = timeMatch[2];
+    const scheduledTimeFmt = `${hours}:${minutes}:00`;
+    const surcharge = getSurge(selectedTime);
+    const finalPrice = price + surcharge;
 
-      // Format date as YYYY-MM-DD for PostgreSQL DATE column
-      const scheduledDate = format(selectedDate, 'yyyy-MM-dd');
-      
-      const timeMatch = selectedTime.match(/^(\d{1,2}):(\d{2})$/);
-      if (!timeMatch) {
-        console.error('❌ Invalid time format:', selectedTime);
-        toast({
-          title: "Invalid Time",
-          description: "Please select a valid time slot.",
-          variant: "destructive"
-        });
-        setSubmitting(false);
-        return;
-      }
-      const hours = timeMatch[1].padStart(2, '0');
-      const minutes = timeMatch[2];
-      const scheduledTime = `${hours}:${minutes}:00`;
-
-      console.log('📅 Scheduled booking details:', {
-        selectedDate: selectedDate.toISOString(),
-        scheduledDate,
-        selectedTime,
-        scheduledTime,
-        serviceType: service_type,
-        community: profile.community,
-        price
-      });
-
-      if (service_type !== 'bathroom_cleaning' && !profile.flat_id) {
-        toast({
-          title: "Flat Details Missing",
-          description: "Please update your flat details in Account Settings before booking.",
-          variant: "destructive"
-        });
-        navigate('/profile/settings');
-        setSubmitting(false);
-        return;
-      }
-
-      const surcharge = getSurge(selectedTime);
-      const finalPrice = price + surcharge;
-
-      const bookingData = {
+    return {
+      data: {
         user_id: profile.id,
         service_type,
         booking_type: 'scheduled',
         scheduled_date: scheduledDate,
-        scheduled_time: scheduledTime,
+        scheduled_time: scheduledTimeFmt,
         notes: null,
         status: 'pending',
         payment_status: 'pending',
@@ -217,17 +180,44 @@ export function ScheduleScreen() {
         cust_phone: profile.phone,
         community: profile.community,
         flat_no: profile.flat_no
-      };
+      },
+      finalPrice,
+      surcharge,
+    };
+  };
 
-      console.log('📤 Creating scheduled booking (pre-payment):', bookingData);
+  const handleShowPaymentChoice = () => {
+    if (!selectedDate || !selectedTime || !profile || !user || !service_type || !price) return;
+    if (service_type !== 'bathroom_cleaning' && !flatSize) return;
+    if (service_type === 'bathroom_cleaning' && !bathroomCount) return;
 
-      const { data, error } = await supabase
-        .from('bookings')
-        .insert([bookingData])
-        .select();
+    const timeMatch = selectedTime.match(/^(\d{1,2}):(\d{2})$/);
+    if (!timeMatch) {
+      toast({ title: "Invalid Time", description: "Please select a valid time slot.", variant: "destructive" });
+      return;
+    }
 
+    if (service_type !== 'bathroom_cleaning' && !profile.flat_id) {
+      toast({ title: "Flat Details Missing", description: "Please update your flat details in Account Settings before booking.", variant: "destructive" });
+      navigate('/profile/settings');
+      return;
+    }
+
+    setPaymentChoiceOpen(true);
+  };
+
+  const handlePayNowSchedule = async () => {
+    setPaymentChoiceOpen(false);
+
+    const built = buildScheduledBookingData();
+    if (!built || !profile || !user) return;
+
+    setSubmitting(true);
+    try {
+      await loadRazorpayScript();
+
+      const { data, error } = await supabase.from('bookings').insert([built.data]).select();
       if (error) {
-        console.error('❌ Scheduled booking error:', error);
         const isFlatError = error.message?.includes('flat details');
         const isSlotError = error.message?.includes('Slot unavailable') || error.message?.includes('Not enough workers');
         toast({
@@ -246,44 +236,65 @@ export function ScheduleScreen() {
       const newBookingId = data?.[0]?.id;
       if (!newBookingId) throw new Error("Booking created but no ID returned");
 
-      // Initiate payment (wallet first, then Razorpay for remainder)
       try {
-        await payWithWalletThenRazorpay(newBookingId, profile.id, data[0].price_inr || finalPrice);
-        console.log('✅ Payment successful for scheduled booking:', newBookingId);
-        toast({
-          title: "Payment successful!",
-          description: "Your booking has been scheduled successfully. Worker will be assigned 15 minutes before scheduled time."
-        });
+        await payWithWalletThenRazorpay(newBookingId, profile.id, data[0].price_inr || built.finalPrice);
+        toast({ title: "Payment successful!", description: "Your booking has been scheduled successfully. Worker will be assigned 15 minutes before scheduled time." });
         navigate('/home');
       } catch (payErr: any) {
-        console.warn('⚠️ Payment cancelled/failed:', payErr.message);
-        await supabase.from('bookings').update({
-          status: 'cancelled',
-          cancel_reason: 'Payment not completed',
-          cancel_source: 'user',
-          cancelled_at: new Date().toISOString(),
-        }).eq('id', newBookingId);
-        toast({
-          title: "Payment not completed",
-          description: payErr.message === "Payment cancelled by user"
-            ? "Booking cancelled. You can try again."
-            : `Payment failed: ${payErr.message}`,
-          variant: "destructive"
-        });
+        await supabase.from('bookings').update({ status: 'cancelled', cancel_reason: 'Payment not completed', cancel_source: 'user', cancelled_at: new Date().toISOString() }).eq('id', newBookingId);
+        toast({ title: "Payment not completed", description: payErr.message === "Payment cancelled by user" ? "Booking cancelled. You can try again." : `Payment failed: ${payErr.message}`, variant: "destructive" });
       }
     } catch (err: any) {
-      console.error('Booking error:', err);
       const isNetworkError = err?.message?.includes('Load failed') || err?.message?.includes('Failed to fetch') || err?.message?.includes('NetworkError');
-      toast({
-        title: "Booking Failed",
-        description: isNetworkError
-          ? "Network error – please check your internet connection and try again."
-          : `Error: ${err?.message || 'Please try again.'}`,
-        variant: "destructive"
-      });
+      toast({ title: "Booking Failed", description: isNetworkError ? "Network error – please check your internet connection and try again." : `Error: ${err?.message || 'Please try again.'}`, variant: "destructive" });
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handlePayAfterServiceSchedule = async () => {
+    setPaymentChoiceOpen(false);
+
+    const built = buildScheduledBookingData();
+    if (!built || !profile || !user) return;
+
+    setSubmitting(true);
+    try {
+      const bookingData = {
+        ...built.data,
+        payment_status: 'pay_after_service',
+        payment_method: 'pay_after_service',
+      };
+
+      const { data, error } = await supabase.from('bookings').insert([bookingData]).select();
+      if (error) {
+        const isFlatError = error.message?.includes('flat details');
+        const isSlotError = error.message?.includes('Slot unavailable') || error.message?.includes('Not enough workers');
+        toast({
+          title: isSlotError ? "Slot unavailable" : "Booking Failed",
+          description: isFlatError
+            ? "Please update your flat details in Account Settings before booking."
+            : isSlotError
+            ? "No workers are available at this time. Please choose another time slot."
+            : `Error: ${error.message || 'Please try again.'}`,
+          variant: "destructive"
+        });
+        if (isFlatError) navigate('/profile/settings');
+        return;
+      }
+
+      toast({ title: "Booking Scheduled! ✅", description: "Your service is booked. Pay after the service is done." });
+      navigate('/home');
+    } catch (err: any) {
+      toast({ title: "Booking Failed", description: `Error: ${err?.message || 'Please try again.'}`, variant: "destructive" });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const getScheduleTotalPrice = (): number => {
+    if (!price) return 0;
+    return price + (selectedTime ? getSurge(selectedTime) : 0);
   };
 
   if (!user || !service_type || !isValidServiceType(service_type)) {
@@ -480,7 +491,7 @@ export function ScheduleScreen() {
         {/* Confirm Schedule Button */}
         <div className="mt-4">
           <Button
-            onClick={handleConfirmSchedule}
+            onClick={handleShowPaymentChoice}
             disabled={!canConfirm}
             className="w-full h-12 rounded-full bg-gradient-to-r from-[#ff007a] to-[#d9006a] text-white font-semibold text-sm disabled:opacity-50"
           >
@@ -494,6 +505,16 @@ export function ScheduleScreen() {
             )}
           </Button>
         </div>
+
+        {/* Payment Choice Sheet */}
+        <PaymentChoiceSheet
+          open={paymentChoiceOpen}
+          onOpenChange={setPaymentChoiceOpen}
+          price={getScheduleTotalPrice()}
+          onPayAfterService={handlePayAfterServiceSchedule}
+          onPayNow={handlePayNowSchedule}
+          submitting={submitting}
+        />
 
         {/* Limited Availability Warning Dialog */}
         <AlertDialog open={showAvailabilityWarning} onOpenChange={setShowAvailabilityWarning}>
