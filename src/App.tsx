@@ -17,7 +17,7 @@ import { BottomTabs } from "@/components/BottomTabs";
 import { useBackButton } from "@/hooks/useBackButton";
 import { useAppWarmup } from "@/hooks/useAppWarmup";
 import AuthGate from "@/auth/AuthGate";
-import { IncomingCallHandler } from "@/components/IncomingCallHandler";
+
 import { PushNotificationProvider } from "@/components/PushNotificationProvider";
 import { initSupabase } from "@/integrations/supabase/client";
 import { usePushDeepLink } from "@/hooks/usePushDeepLink";
