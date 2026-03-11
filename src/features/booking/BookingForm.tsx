@@ -1186,6 +1186,16 @@ export function BookingForm() {
             handleSchedule();
           }}
         />
+
+        {/* Payment Choice Sheet */}
+        <PaymentChoiceSheet
+          open={paymentChoiceOpen}
+          onOpenChange={setPaymentChoiceOpen}
+          price={getInstantPrice()}
+          onPayAfterService={handlePayAfterService}
+          onPayNow={handlePayNowFromSheet}
+          submitting={submitting}
+        />
       </div>
     </div>;
 }
