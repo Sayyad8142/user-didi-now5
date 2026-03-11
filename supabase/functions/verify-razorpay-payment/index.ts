@@ -105,6 +105,13 @@ serve(async (req) => {
 
     if (!isValid) {
       console.error("❌ Razorpay signature verification failed");
+      // Mark any matching intent as failed
+      await supabase
+        .from("payment_intents")
+        .update({ status: "failed", updated_at: new Date().toISOString() })
+        .eq("razorpay_order_id", razorpay_order_id)
+        .eq("user_id", profile.id)
+        .eq("status", "pending");
       return new Response(JSON.stringify({ error: "Payment verification failed" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -151,10 +158,15 @@ serve(async (req) => {
         });
       }
 
-      // Mark intent as completed
+      // Mark intent as completed with payment details
       await supabase
         .from("payment_intents")
-        .update({ status: "completed" })
+        .update({
+          status: "completed",
+          razorpay_payment_id,
+          verified_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
         .eq("id", intent.id);
 
       console.log(`✅ Booking ${newBooking.id} created from intent after payment verification`);

@@ -1685,8 +1685,11 @@ export type Database = {
           expires_at: string
           id: string
           razorpay_order_id: string | null
+          razorpay_payment_id: string | null
           status: string
+          updated_at: string
           user_id: string
+          verified_at: string | null
         }
         Insert: {
           amount_inr: number
@@ -1695,8 +1698,11 @@ export type Database = {
           expires_at?: string
           id?: string
           razorpay_order_id?: string | null
+          razorpay_payment_id?: string | null
           status?: string
+          updated_at?: string
           user_id: string
+          verified_at?: string | null
         }
         Update: {
           amount_inr?: number
@@ -1705,8 +1711,11 @@ export type Database = {
           expires_at?: string
           id?: string
           razorpay_order_id?: string | null
+          razorpay_payment_id?: string | null
           status?: string
+          updated_at?: string
           user_id?: string
+          verified_at?: string | null
         }
         Relationships: []
       }

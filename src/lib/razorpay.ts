@@ -90,8 +90,18 @@ export async function initiateIntentPayment(
         resolve(response);
       },
       modal: {
-        ondismiss: () => {
+        ondismiss: async () => {
           console.log("⚠️ [Razorpay] Modal dismissed by user");
+          // Mark intent as cancelled
+          try {
+            const tkn = await getFirebaseIdToken();
+            await supabase.functions.invoke("update-payment-intent-status", {
+              body: { razorpay_order_id: orderData.order_id, status: "cancelled" },
+              headers: { "x-firebase-token": tkn || "" },
+            });
+          } catch (e) {
+            console.warn("[Razorpay] Failed to mark intent cancelled:", e);
+          }
           reject(new Error("Payment cancelled by user"));
         },
       },
@@ -99,8 +109,17 @@ export async function initiateIntentPayment(
 
     try {
       const rzp = new window.Razorpay(options);
-      rzp.on("payment.failed", (response: any) => {
+      rzp.on("payment.failed", async (response: any) => {
         console.error("❌ [Razorpay] payment.failed:", response.error);
+        try {
+          const tkn = await getFirebaseIdToken();
+          await supabase.functions.invoke("update-payment-intent-status", {
+            body: { razorpay_order_id: orderData.order_id, status: "failed" },
+            headers: { "x-firebase-token": tkn || "" },
+          });
+        } catch (e) {
+          console.warn("[Razorpay] Failed to mark intent failed:", e);
+        }
         reject(new Error(response.error?.description || "Payment failed"));
       });
       rzp.open();
