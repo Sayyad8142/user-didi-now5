@@ -204,13 +204,18 @@ export default function VerifyOTP() {
         return;
       }
 
-      console.log('✅ Firebase auth successful:', result.user?.uid);
+      const firebaseUser = result.user ?? getCurrentUser();
+      if (!firebaseUser) {
+        throw new Error('Firebase user not available after OTP verification');
+      }
+
+      console.log('✅ Firebase auth successful:', firebaseUser.uid);
 
       // IMPORTANT: if user previously used Guest/Demo mode, clear it now so UI doesn't stay "Guest"
       clearDemoSession();
 
       // Ensure profile exists in Supabase
-      const profile = await ensureFirebaseProfile(result.user!.uid, phone);
+      const profile = await ensureFirebaseProfile(firebaseUser.uid, phone);
       if (state?.mode === 'signup' && state.signupData && profile) {
         console.log('📝 Updating profile with signup data');
 
