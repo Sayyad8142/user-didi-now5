@@ -3404,6 +3404,7 @@ export type Database = {
       cleanup_old_presence_snapshots: { Args: never; Returns: number }
       cleanup_old_support_chats: { Args: never; Returns: undefined }
       cleanup_old_worker_busy_logs: { Args: never; Returns: undefined }
+      cleanup_payment_intents: { Args: never; Returns: undefined }
       cleanup_stale_worker_busy_flags: {
         Args: never
         Returns: {
