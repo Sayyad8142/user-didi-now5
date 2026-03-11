@@ -46,21 +46,6 @@ const ChatScreen = lazy(() => import("./features/chat/ChatScreen").then(m => ({ 
 const TelegramSetup = lazy(() => import("./pages/TelegramSetup"));
 const TestTelegram = lazy(() => import("./pages/TestTelegram"));
 
-// Lazy load admin pages
-const AdminGate = lazy(() => import("./features/admin/AdminGate").then(m => ({ default: m.AdminGate })));
-const AdminLayout = lazy(() => import("./routes/admin/AdminLayout"));
-const AdminCommunities = lazy(() => import("./routes/admin/AdminCommunities"));
-const AdminUsers = lazy(() => import("./routes/admin/AdminUsers"));
-const AdminPricing = lazy(() => import("./routes/admin/AdminPricing"));
-const AdminSettings = lazy(() => import("./routes/admin/AdminSettings"));
-const AdminDailyBookings = lazy(() => import("./routes/admin/AdminDailyBookings"));
-const AdminLogin = lazy(() => import("./routes/auth/AdminLogin"));
-const AdminVerify = lazy(() => import("./routes/auth/AdminVerify"));
-const AdminChat = lazy(() => import("./routes/admin/AdminChat"));
-const AdminFeedback = lazy(() => import("./routes/admin/AdminFeedback"));
-const AdminCompletedBookings = lazy(() => import("./routes/admin/AdminCompletedBookings"));
-const AdminWorkers = lazy(() => import("./routes/admin/AdminWorkers"));
-const AdminBookings = lazy(() => import("./routes/admin/AdminBookings"));
 
 // Lazy load legal and profile pages
 const LegalCenter = lazy(() => import("./routes/LegalCenter"));
