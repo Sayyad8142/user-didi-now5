@@ -33,6 +33,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { PaymentChoiceSheet } from '@/components/PaymentChoiceSheet';
 
 // Check if time slot is between 3PM (15:00) and 7PM (19:00)
 const isLimitedAvailabilitySlot = (time: string): boolean => {
