@@ -157,6 +157,87 @@ export function InstantCheckoutScreen() {
     }
   };
 
+  const handlePayAfterService = async () => {
+    if (!profile || !service_type || !user) return;
+    setPaymentChoiceOpen(false);
+
+    if (profile.community) {
+      const available = await checkInstantBookingAvailability(profile.community);
+      if (!available) {
+        setSupplyModalOpen(true);
+        return;
+      }
+    }
+
+    if (!profile.community || profile.community === 'other') {
+      toast({ title: "Profile Incomplete", description: "Please complete your profile with community information before booking.", variant: "destructive" });
+      navigate('/profile/settings');
+      return;
+    }
+
+    if (service_type !== 'bathroom_cleaning' && !profile.flat_id) {
+      toast({ title: "Flat Details Missing", description: "Please update your flat details in Account Settings before booking.", variant: "destructive" });
+      navigate('/profile/settings');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const maidTasks = tasks ? tasks.split(',') : null;
+      const bookingData: Record<string, unknown> = {
+        user_id: profile.id,
+        service_type,
+        booking_type: 'instant',
+        scheduled_date: null,
+        scheduled_time: null,
+        notes: null,
+        status: 'pending',
+        payment_status: 'pay_after_service',
+        payment_method: 'pay_after_service',
+        flat_size: service_type === 'bathroom_cleaning' ? null : autoFlatSize,
+        price_inr: price,
+        family_count: null,
+        food_pref: null,
+        cook_cuisine_pref: null,
+        cook_gender_pref: null,
+        maid_tasks: service_type === 'maid' ? maidTasks : null,
+        dish_intensity: service_type === 'maid' && maidTasks?.includes('dish_washing') ? dishIntensity : null,
+        dish_intensity_extra_inr: service_type === 'maid' && maidTasks?.includes('dish_washing') && dishExtra ? Number(dishExtra) : null,
+        bathroom_count: service_type === 'bathroom_cleaning' && bathroomCount ? Number(bathroomCount) : null,
+        has_glass_partition: service_type === 'bathroom_cleaning' ? hasGlass : null,
+        glass_partition_fee: service_type === 'bathroom_cleaning' && hasGlass && bathroomCount ? 30 * Number(bathroomCount) : null,
+        cust_name: /^\+?\d{7,15}$/.test(profile.full_name.trim()) ? 'User ' + profile.phone.slice(-4) : profile.full_name,
+        cust_phone: profile.phone,
+        community: profile.community,
+        flat_no: profile.flat_no,
+        preferred_worker_id: selectedWorker?.worker_id || null,
+      };
+
+      const { data, error } = await supabase.from('bookings').insert([bookingData as any]).select();
+      if (error) {
+        toast({ title: "Booking Failed", description: `Error: ${error.message || 'Please try again.'}`, variant: "destructive" });
+        return;
+      }
+
+      sessionStorage.removeItem(`preferred_worker_${service_type}`);
+      toast({ title: "Booking Created! ✅", description: "Your service is booked. Pay after the service is done." });
+      navigate('/home');
+    } catch (err: any) {
+      toast({ title: "Booking Failed", description: `Error: ${err?.message || 'Please try again.'}`, variant: "destructive" });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleShowPaymentChoice = () => {
+    setPaymentChoiceOpen(true);
+  };
+
+  const handlePayNowFromSheet = () => {
+    setPaymentChoiceOpen(false);
+    handleBookNow();
+  };
+
   const serviceName = service_type ? prettyServiceName(service_type) : 'Service';
 
   return (
