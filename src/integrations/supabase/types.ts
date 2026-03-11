@@ -3375,6 +3375,10 @@ export type Database = {
         Args: { p_booking_id: string; p_reason?: string }
         Returns: undefined
       }
+      debit_wallet_for_booking: {
+        Args: { p_amount: number; p_booking_id: string }
+        Returns: undefined
+      }
       delete_my_data: { Args: never; Returns: undefined }
       delete_worker_cascade: {
         Args: { p_worker_id: string }
