@@ -211,18 +211,58 @@ export const sendOtp = async (phoneNumber: string): Promise<{ success: boolean; 
 
 // Verify OTP code
 export const verifyOtp = async (code: string): Promise<{ success: boolean; user?: User; error?: string }> => {
-  if (!confirmationResult) {
-    return { success: false, error: 'No OTP request found. Please request OTP first.' };
-  }
-
   try {
     console.log('🔐 Verifying OTP...');
+
+    if (isNativePlatform() && nativeVerificationId) {
+      if (nativeVerificationId === 'auto-verified') {
+        // Already auto-verified, get current user from web SDK
+        const authInstance = getFirebaseAuth();
+        const user = authInstance?.currentUser ?? null;
+        nativeVerificationId = null;
+        return { success: true, user: user ?? undefined };
+      }
+
+      // Use native confirmVerificationCode then sync to web SDK
+      const result = await FirebaseAuthentication.confirmVerificationCode({
+        verificationId: nativeVerificationId,
+        verificationCode: code,
+      });
+      nativeVerificationId = null;
+
+      // Now sign in web SDK with the credential so onAuthStateChanged fires
+      const authInstance = getFirebaseAuth();
+      if (authInstance) {
+        const credential = PhoneAuthProvider.credential(
+          result?.verificationId || nativeVerificationId || '',
+          code
+        );
+        try {
+          const userCred = await signInWithCredential(authInstance, credential);
+          console.log('✅ Native OTP verified & web SDK signed in');
+          return { success: true, user: userCred.user };
+        } catch {
+          // The native SDK may have already signed in; check currentUser
+          const currentUser = authInstance.currentUser;
+          if (currentUser) {
+            console.log('✅ Native OTP verified (user already signed in)');
+            return { success: true, user: currentUser };
+          }
+        }
+      }
+
+      console.log('✅ Native OTP verified');
+      return { success: true };
+    }
+
+    // Web flow
+    if (!confirmationResult) {
+      return { success: false, error: 'No OTP request found. Please request OTP first.' };
+    }
+
     const result = await confirmationResult.confirm(code);
     console.log('✅ OTP verified successfully');
-    
-    // Clear confirmation result after successful verification
     confirmationResult = null;
-    
     return { success: true, user: result.user };
   } catch (error: any) {
     console.error('❌ Verify OTP error:', error);
