@@ -297,38 +297,6 @@ export function BookingCard({
     if (error) throw error;
   };
 
-  const handleInitiateCall = async () => {
-    try {
-      toast.loading('Connecting call...', { id: 'initiating-call' });
-      
-      const { data, error } = await supabase.functions.invoke('create-rtc-call', {
-        body: { booking_id: row.id },
-      });
-
-      toast.dismiss('initiating-call');
-
-      if (error) throw error;
-
-      if (data?.success) {
-        navigate('/call', {
-          state: {
-            rtcCallId: data.rtc_call_id,
-            roomId: data.room_id,
-            roomUrl: data.room_url,
-            token: data.caller_token,
-            callerName: row.worker_name || 'Worker',
-            initialState: 'dialing',
-          },
-        });
-      } else {
-        throw new Error(data?.error || 'Failed to initiate call');
-      }
-    } catch (error) {
-      console.error('Error initiating call:', error);
-      toast.dismiss('initiating-call');
-      toast.error('Could not start call. Please try again.');
-    }
-  };
 
   // Display rating stars
   const avgRating = workerStats?.avg_rating ?? 0;
