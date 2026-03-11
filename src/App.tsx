@@ -70,7 +70,7 @@ const TermsScreen = lazy(() => import("./features/legal/TermsScreen").then(m => 
 const AccountSettings = lazy(() => import("./routes/profile/AccountSettings"));
 const BookingDetail = lazy(() => import("./pages/BookingDetail"));
 const SupportScreen = lazy(() => import("./routes/support/SupportScreen"));
-const CallPage = lazy(() => import("./pages/CallPage"));
+
 const Diagnostics = lazy(() => import("./pages/Diagnostics"));
 
 // Loading component with pink background
