@@ -491,7 +491,7 @@ export function ScheduleScreen() {
         {/* Confirm Schedule Button */}
         <div className="mt-4">
           <Button
-            onClick={handleConfirmSchedule}
+            onClick={handleShowPaymentChoice}
             disabled={!canConfirm}
             className="w-full h-12 rounded-full bg-gradient-to-r from-[#ff007a] to-[#d9006a] text-white font-semibold text-sm disabled:opacity-50"
           >
@@ -505,6 +505,16 @@ export function ScheduleScreen() {
             )}
           </Button>
         </div>
+
+        {/* Payment Choice Sheet */}
+        <PaymentChoiceSheet
+          open={paymentChoiceOpen}
+          onOpenChange={setPaymentChoiceOpen}
+          price={getScheduleTotalPrice()}
+          onPayAfterService={handlePayAfterServiceSchedule}
+          onPayNow={handlePayNowSchedule}
+          submitting={submitting}
+        />
 
         {/* Limited Availability Warning Dialog */}
         <AlertDialog open={showAvailabilityWarning} onOpenChange={setShowAvailabilityWarning}>
