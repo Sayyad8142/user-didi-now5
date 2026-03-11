@@ -105,6 +105,13 @@ serve(async (req) => {
 
     if (!isValid) {
       console.error("❌ Razorpay signature verification failed");
+      // Mark any matching intent as failed
+      await supabase
+        .from("payment_intents")
+        .update({ status: "failed", updated_at: new Date().toISOString() })
+        .eq("razorpay_order_id", razorpay_order_id)
+        .eq("user_id", profile.id)
+        .eq("status", "pending");
       return new Response(JSON.stringify({ error: "Payment verification failed" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
