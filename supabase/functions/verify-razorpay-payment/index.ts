@@ -57,7 +57,7 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // ✅ Securely verify Firebase ID token (RS256 signature + claims)
+    // Verify Firebase token
     let firebaseUid: string;
     try {
       const decoded = await verifyFirebaseToken(firebaseToken);
@@ -85,16 +85,97 @@ serve(async (req) => {
       });
     }
 
-    const { booking_id, razorpay_order_id, razorpay_payment_id, razorpay_signature } = await req.json();
+    const body = await req.json();
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, booking_id } = body;
 
-    if (!booking_id || !razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
-      return new Response(JSON.stringify({ error: "Missing required fields" }), {
+    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+      return new Response(JSON.stringify({ error: "Missing required payment fields" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Verify booking exists and belongs to user
+    // Verify Razorpay signature first (common to both flows)
+    const isValid = await verifyRazorpaySignature(
+      razorpay_order_id,
+      razorpay_payment_id,
+      razorpay_signature,
+      razorpayKeySecret
+    );
+
+    if (!isValid) {
+      console.error("❌ Razorpay signature verification failed");
+      return new Response(JSON.stringify({ error: "Payment verification failed" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    console.log("✅ Razorpay signature verified for order:", razorpay_order_id);
+
+    // ========== Check if this is an intent-based flow ==========
+    const { data: intent } = await supabase
+      .from("payment_intents")
+      .select("*")
+      .eq("razorpay_order_id", razorpay_order_id)
+      .eq("user_id", profile.id)
+      .eq("status", "pending")
+      .maybeSingle();
+
+    if (intent) {
+      // ========== FLOW A: Intent-based — create booking now ==========
+      console.log("📦 Intent-based verification, creating booking from intent:", intent.id);
+
+      const bd = intent.booking_data as Record<string, unknown>;
+
+      // Create the real booking row with payment already confirmed
+      const { data: newBooking, error: insertError } = await supabase
+        .from("bookings")
+        .insert({
+          ...bd,
+          razorpay_order_id,
+          razorpay_payment_id,
+          razorpay_signature,
+          payment_status: "paid",
+          payment_method: "razorpay",
+          paid_confirmed_at: new Date().toISOString(),
+        })
+        .select("id")
+        .single();
+
+      if (insertError) {
+        console.error("❌ Failed to create booking from intent:", insertError);
+        return new Response(JSON.stringify({ error: "Failed to create booking: " + insertError.message }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Mark intent as completed
+      await supabase
+        .from("payment_intents")
+        .update({ status: "completed" })
+        .eq("id", intent.id);
+
+      console.log(`✅ Booking ${newBooking.id} created from intent after payment verification`);
+
+      return new Response(
+        JSON.stringify({ success: true, booking_id: newBooking.id, payment_id: razorpay_payment_id, flow: "intent" }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    // ========== FLOW B: Legacy booking-based flow ==========
+    if (!booking_id) {
+      return new Response(JSON.stringify({ error: "No matching payment intent or booking_id" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const { data: booking, error: bookingError } = await supabase
       .from("bookings")
       .select("id, user_id, razorpay_order_id, payment_status")
@@ -130,28 +211,7 @@ serve(async (req) => {
       });
     }
 
-    // Verify Razorpay signature
-    const isValid = await verifyRazorpaySignature(
-      razorpay_order_id,
-      razorpay_payment_id,
-      razorpay_signature,
-      razorpayKeySecret
-    );
-
-    if (!isValid) {
-      console.error("❌ Razorpay signature verification failed for booking:", booking_id);
-      await supabase
-        .from("bookings")
-        .update({ payment_status: "failed" })
-        .eq("id", booking_id);
-
-      return new Response(JSON.stringify({ error: "Payment verification failed" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // ✅ Payment verified — update booking
+    // Update booking with payment info
     const { error: updateError } = await supabase
       .from("bookings")
       .update({
@@ -174,7 +234,7 @@ serve(async (req) => {
     console.log(`✅ Payment verified for booking ${booking_id}, payment: ${razorpay_payment_id}`);
 
     return new Response(
-      JSON.stringify({ success: true, booking_id, payment_id: razorpay_payment_id }),
+      JSON.stringify({ success: true, booking_id, payment_id: razorpay_payment_id, flow: "booking" }),
       {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
