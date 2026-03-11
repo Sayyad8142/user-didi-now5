@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { initiateRazorpayPayment, loadRazorpayScript } from '@/lib/razorpay';
+import { loadRazorpayScript } from '@/lib/razorpay';
+import { payWithWalletThenRazorpay } from '@/lib/walletPayment';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, MapPin, Home, Clock, Calendar, AlertCircle, Check, Zap, ChevronRight, Star, X, Ruler, ChevronDown } from 'lucide-react';
 import dishesLightImg from '@/assets/dishes-light.webp';
@@ -465,9 +466,9 @@ export function BookingForm() {
 
       console.log('✅ Booking created, initiating payment:', newBookingId);
 
-      // Initiate Razorpay payment
+      // Initiate payment (wallet first, then Razorpay for remainder)
       try {
-        await initiateRazorpayPayment(newBookingId);
+        await payWithWalletThenRazorpay(newBookingId, profile.id, data[0].price_inr || price);
         console.log('✅ Payment successful for booking:', newBookingId);
         toast({
           title: "Payment successful!",

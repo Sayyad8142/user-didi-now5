@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { initiateRazorpayPayment, loadRazorpayScript } from '@/lib/razorpay';
+import { loadRazorpayScript } from '@/lib/razorpay';
+import { payWithWalletThenRazorpay } from '@/lib/walletPayment';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Home, MapPin, Wallet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -245,9 +246,9 @@ export function ScheduleScreen() {
       const newBookingId = data?.[0]?.id;
       if (!newBookingId) throw new Error("Booking created but no ID returned");
 
-      // Initiate Razorpay payment
+      // Initiate payment (wallet first, then Razorpay for remainder)
       try {
-        await initiateRazorpayPayment(newBookingId);
+        await payWithWalletThenRazorpay(newBookingId, profile.id, data[0].price_inr || finalPrice);
         console.log('✅ Payment successful for scheduled booking:', newBookingId);
         toast({
           title: "Payment successful!",

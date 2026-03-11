@@ -7,7 +7,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { initiateRazorpayPayment, loadRazorpayScript } from '@/lib/razorpay';
+import { loadRazorpayScript } from '@/lib/razorpay';
+import { payWithWalletThenRazorpay } from '@/lib/walletPayment';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { cn } from '@/lib/utils';
@@ -153,9 +154,9 @@ export function InstantCheckoutScreen() {
       const newBookingId = data?.[0]?.id;
       if (!newBookingId) throw new Error("Booking created but no ID returned");
 
-      // Initiate Razorpay payment
+      // Initiate payment (wallet first, then Razorpay for remainder)
       try {
-        await initiateRazorpayPayment(newBookingId);
+        await payWithWalletThenRazorpay(newBookingId, profile.id, data[0].price_inr || price);
         sessionStorage.removeItem(`preferred_worker_${service_type}`);
         toast({
           title: "Payment successful!",

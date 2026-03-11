@@ -12,6 +12,7 @@ import { openExternalUrl } from '@/lib/nativeOpen';
 import { useToast } from '@/hooks/use-toast';
 import { validateName } from '@/lib/name-validation';
 import { AppVersionDisplay } from '@/components/AppVersionDisplay';
+import { WalletCard } from '@/components/WalletCard';
 import { useCommunities } from '@/hooks/useCommunities';
 import { useBuildings } from '@/hooks/useBuildings';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -186,8 +187,8 @@ export default function Profile() {
       </header>
       <section className="flex-1 gradient-bg pb-24">
         <div className="max-w-md mx-auto px-4 py-8 space-y-6 bg-slate-50">
-        {/* Header Section with Avatar */}
-        
+        {/* Wallet Balance */}
+        <WalletCard />
 
         {/* Personal Information Card */}
         <div className="bg-white rounded-3xl shadow-lg border border-gray-100 overflow-hidden">

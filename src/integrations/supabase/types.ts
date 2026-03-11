@@ -2433,6 +2433,32 @@ export type Database = {
         }
         Relationships: []
       }
+      user_wallets: {
+        Row: {
+          balance_inr: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          balance_inr?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          balance_inr?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_wallets_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       users: {
         Row: {
           created_at: string | null
@@ -2462,6 +2488,51 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      wallet_transactions: {
+        Row: {
+          amount_inr: number
+          booking_id: string | null
+          created_at: string
+          id: string
+          reason: string | null
+          type: string
+          user_id: string
+        }
+        Insert: {
+          amount_inr: number
+          booking_id?: string | null
+          created_at?: string
+          id?: string
+          reason?: string | null
+          type: string
+          user_id: string
+        }
+        Update: {
+          amount_inr?: number
+          booking_id?: string | null
+          created_at?: string
+          id?: string
+          reason?: string | null
+          type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wallet_transactions_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wallet_transactions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       web_push_subscriptions: {
         Row: {
@@ -3300,6 +3371,14 @@ export type Database = {
         }[]
       }
       create_admin_email_user: { Args: never; Returns: undefined }
+      credit_wallet_on_cancel: {
+        Args: { p_booking_id: string; p_reason?: string }
+        Returns: undefined
+      }
+      debit_wallet_for_booking: {
+        Args: { p_amount: number; p_booking_id: string }
+        Returns: undefined
+      }
       delete_my_data: { Args: never; Returns: undefined }
       delete_worker_cascade: {
         Args: { p_worker_id: string }
