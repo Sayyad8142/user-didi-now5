@@ -115,15 +115,35 @@ export const setupRecaptcha = (containerId: string = 'recaptcha-container'): Rec
   }
 };
 
+// Check if running on native platform
+const isNativePlatform = (): boolean => Capacitor.isNativePlatform();
+
+// Native verification ID storage for Capacitor flow
+let nativeVerificationId: string | null = null;
+
 // Send OTP to phone number
 export const sendOtp = async (phoneNumber: string): Promise<{ success: boolean; error?: string }> => {
-  const authInstance = getFirebaseAuth();
-  if (!authInstance) {
-    return { success: false, error: 'Firebase Auth not initialized' };
-  }
-
   try {
-    // Setup reCAPTCHA if not already done
+    console.log('📱 Sending OTP to:', phoneNumber);
+
+    if (isNativePlatform()) {
+      // Native flow: uses native Firebase SDK, no reCAPTCHA needed
+      console.log('📱 Using native Firebase Auth for OTP');
+      const result = await FirebaseAuthentication.signInWithPhoneNumber({ phoneNumber });
+      nativeVerificationId = result.verificationId ?? null;
+      if (!nativeVerificationId) {
+        return { success: false, error: 'Failed to get verification ID from native SDK' };
+      }
+      console.log('✅ Native OTP sent successfully');
+      return { success: true };
+    }
+
+    // Web flow: uses reCAPTCHA
+    const authInstance = getFirebaseAuth();
+    if (!authInstance) {
+      return { success: false, error: 'Firebase Auth not initialized' };
+    }
+
     if (!recaptchaVerifier) {
       const verifier = setupRecaptcha();
       if (!verifier) {
@@ -131,30 +151,25 @@ export const sendOtp = async (phoneNumber: string): Promise<{ success: boolean; 
       }
     }
 
-    console.log('📱 Sending OTP to:', phoneNumber);
     confirmationResult = await signInWithPhoneNumber(authInstance, phoneNumber, recaptchaVerifier!);
     console.log('✅ OTP sent successfully');
-    
     return { success: true };
   } catch (error: any) {
     console.error('❌ Send OTP error:', error);
-    
-    // Reset reCAPTCHA on error
-    if (recaptchaVerifier) {
-      try {
-        recaptchaVerifier.clear();
-      } catch {}
+
+    // Reset reCAPTCHA on error (web only)
+    if (!isNativePlatform() && recaptchaVerifier) {
+      try { recaptchaVerifier.clear(); } catch {}
       recaptchaVerifier = null;
     }
 
-    // Parse Firebase errors
     let errorMessage = 'Failed to send OTP';
     if (error.code === 'auth/invalid-phone-number') {
       errorMessage = 'Invalid phone number format';
     } else if (error.code === 'auth/too-many-requests') {
       errorMessage = 'Too many attempts. Please try again later.';
-    } else if (error.code === 'auth/captcha-check-failed') {
-      errorMessage = 'reCAPTCHA verification failed. Please try again.';
+    } else if (error.code === 'auth/captcha-check-failed' || error.code === 'auth/invalid-app-credential') {
+      errorMessage = 'Verification failed. Please try again.';
     } else if (error.message) {
       errorMessage = error.message;
     }
