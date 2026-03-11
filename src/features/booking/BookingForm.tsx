@@ -395,28 +395,62 @@ export function BookingForm() {
     }
   };
 
-  const handleInstantClick = () => {
+  const handleInstantClick = async () => {
     if (!profile || !service_type) return;
 
-    // Build query parameters for ScheduleScreen
+    // Server-side supply check before showing payment choice
+    if (profile.community) {
+      const available = await checkInstantBookingAvailability(profile.community);
+      if (!available) {
+        refetchSupply();
+        setSupplyModalOpen(true);
+        return;
+      }
+    }
+
+    if (service_type === 'maid') {
+      if (!selectedFlatSize || selectedTasks.length === 0) {
+        toast({ title: "Cannot book yet", description: !selectedFlatSize ? "Flat size not available. Update flat details." : "Select at least one task.", variant: "destructive" });
+        return;
+      }
+      if (selectedTasks.includes('dish_washing') && !dishIntensity) {
+        setDishError(true);
+        setDishHighlight(true);
+        dishSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        setTimeout(() => setDishHighlight(false), 2500);
+        toast({ title: "Select dish washing workload", description: "Please choose Light, Medium, or Heavy.", variant: "destructive" });
+        return;
+      }
+    } else if (service_type !== 'bathroom_cleaning') {
+      if (!selectedFlatSize) return;
+      const price = pricingMap[selectedFlatSize];
+      if (!price) {
+        toast({ title: "Error", description: "Price not available for selected flat size.", variant: "destructive" });
+        return;
+      }
+    }
+
+    // Show payment choice sheet
+    setPaymentChoiceOpen(true);
+  };
+
+  const handlePayNowFromSheet = () => {
+    setPaymentChoiceOpen(false);
+    handleBookNow();
+  };
+
+  const handleSchedule = () => {
+    if (!profile || !service_type) return;
+
     const params = new URLSearchParams();
 
     if (service_type === 'maid') {
       if (!selectedFlatSize || selectedTasks.length === 0) {
-        toast({
-          title: "Please complete maid booking details",
-          description: "Select flat size and at least one task before scheduling.",
-          variant: "destructive"
-        });
+        toast({ title: "Please complete maid booking details", description: "Select flat size and at least one task before scheduling.", variant: "destructive" });
         return;
       }
-      // Validate dish intensity selection if dish washing is selected
       if (selectedTasks.includes('dish_washing') && !dishIntensity) {
-        toast({
-          title: "Select dish washing workload",
-          description: "Please choose Light, Medium, or Heavy for dish washing.",
-          variant: "destructive"
-        });
+        toast({ title: "Select dish washing workload", description: "Please choose Light, Medium, or Heavy for dish washing.", variant: "destructive" });
         return;
       }
       params.set('flat', selectedFlatSize);
@@ -429,11 +463,7 @@ export function BookingForm() {
       if (!selectedFlatSize) return;
       const price = pricingMap[selectedFlatSize];
       if (!price) {
-        toast({
-          title: "Error",
-          description: "Price not available for selected flat size.",
-          variant: "destructive"
-        });
+        toast({ title: "Error", description: "Price not available for selected flat size.", variant: "destructive" });
         return;
       }
       params.set('flat', selectedFlatSize);
