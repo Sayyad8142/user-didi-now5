@@ -961,28 +961,7 @@ export function BookingForm() {
               <div className="flex flex-col gap-0">
               {/* Instant Card — books immediately */}
               <button
-                onClick={() => {
-                  // If supply is full, show modal instead of booking
-                  if (isSupplyFull) {
-                    setSupplyModalOpen(true);
-                    return;
-                  }
-                  if (service_type === 'maid') {
-                    if (!selectedFlatSize || selectedTasks.length === 0) {
-                      toast({ title: "Cannot book yet", description: !selectedFlatSize ? "Flat size not available. Update flat details." : "Select at least one task.", variant: "destructive" });
-                      return;
-                    }
-                    if (selectedTasks.includes('dish_washing') && !dishIntensity) {
-                      setDishError(true);
-                      setDishHighlight(true);
-                      dishSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                      setTimeout(() => setDishHighlight(false), 2500);
-                      toast({ title: "Select dish washing workload", description: "Please choose Light, Medium, or Heavy.", variant: "destructive" });
-                      return;
-                    }
-                  }
-                  handleBookNow();
-                }}
+                onClick={handleInstantClick}
                 disabled={!canBook || submitting}
                 className={cn(
                   "relative flex flex-col items-start gap-3 p-4 rounded-2xl border-2 shadow-sm transition-all duration-200 text-left",
