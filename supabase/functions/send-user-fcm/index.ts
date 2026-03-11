@@ -1,6 +1,6 @@
 // ============================================================================
 // User FCM Notifications - Send push to users by user_id
-// Uses user_fcm_tokens table (not fcm_tokens)
+// Uses fcm_tokens table (unified token storage)
 // ============================================================================
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -50,19 +50,18 @@ serve(async (req) => {
     console.log(`   Title: ${title}`);
     console.log(`   Body: ${messageBody}`);
 
-    // Create Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Get user's FCM tokens from user_fcm_tokens table
+    // Query unified fcm_tokens table
     const { data: tokens, error: tokenError } = await supabase
-      .from('user_fcm_tokens')
+      .from('fcm_tokens')
       .select('token, user_id')
       .in('user_id', userIds);
 
     if (tokenError) {
-      console.error('❌ Error fetching tokens from user_fcm_tokens:', tokenError);
+      console.error('❌ Error fetching tokens from fcm_tokens:', tokenError);
       return new Response(
         JSON.stringify({ ok: false, error: 'Failed to fetch tokens' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -117,14 +116,14 @@ serve(async (req) => {
         if (errorMsg.includes('NOT_FOUND') || errorMsg.includes('UNREGISTERED')) {
           console.log(`🗑️ Removing invalid token for user ${user_id}`);
           await supabase
-            .from('user_fcm_tokens')
+            .from('fcm_tokens')
             .delete()
             .eq('token', token);
         }
       }
     }
 
-    // Log notification attempt if notification_logs table exists
+    // Log notification attempt
     try {
       await supabase
         .from('notification_logs')
@@ -134,8 +133,7 @@ serve(async (req) => {
           sent_at: new Date().toISOString(),
         });
     } catch (logError) {
-      // notification_logs table may not exist, ignore error
-      console.log('Note: Could not log to notification_logs (table may not exist)');
+      console.log('Note: Could not log to notification_logs');
     }
 
     console.log(`📊 Result: ${sent} sent, ${failed} failed out of ${tokens.length} total`);
