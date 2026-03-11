@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { getFirebaseIdToken } from "@/lib/firebase";
+import { shouldUseNativeRazorpay, RazorpayNative } from "@/lib/razorpayNative";
 
 declare global {
   interface Window {
@@ -9,8 +10,11 @@ declare global {
 
 let scriptLoaded = false;
 
-/** Load the Razorpay checkout.js script */
+/** Load the Razorpay checkout.js script (web only) */
 export function loadRazorpayScript(): Promise<void> {
+  // On native Android we use the SDK — no script needed
+  if (shouldUseNativeRazorpay()) return Promise.resolve();
+
   if (scriptLoaded && window.Razorpay) return Promise.resolve();
   return new Promise((resolve, reject) => {
     if (document.getElementById("razorpay-script")) {
@@ -37,10 +41,130 @@ interface RazorpayPaymentResult {
   razorpay_signature: string;
 }
 
+/* ------------------------------------------------------------------ */
+/*  Helper: mark intent as cancelled / failed                         */
+/* ------------------------------------------------------------------ */
+async function markIntentStatus(orderId: string, status: "cancelled" | "failed") {
+  try {
+    const tkn = await getFirebaseIdToken();
+    await supabase.functions.invoke("update-payment-intent-status", {
+      body: { razorpay_order_id: orderId, status },
+      headers: { "x-firebase-token": tkn || "" },
+    });
+  } catch (e) {
+    console.warn(`[Razorpay] Failed to mark intent ${status}:`, e);
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/*  Native Android payment via Razorpay SDK                           */
+/* ------------------------------------------------------------------ */
+async function nativePay(orderData: any): Promise<RazorpayPaymentResult> {
+  console.log("📱 [Razorpay] Using native Android SDK for UPI intent support");
+
+  const result = await RazorpayNative.pay({
+    key: orderData.key_id,
+    order_id: orderData.order_id,
+    amount: orderData.amount, // paise
+    currency: orderData.currency || "INR",
+    name: "Didi Now",
+    description: "Service Booking Payment",
+    prefill_email: orderData.prefill?.email || "",
+    prefill_phone: orderData.prefill?.contact || orderData.prefill?.phone || "",
+    prefill_name: orderData.prefill?.name || "",
+    theme_color: "#6366f1",
+  });
+
+  if (result.status === "success") {
+    return {
+      razorpay_order_id: result.razorpay_order_id!,
+      razorpay_payment_id: result.razorpay_payment_id!,
+      razorpay_signature: result.razorpay_signature!,
+    };
+  }
+
+  if (result.status === "cancelled") {
+    throw new Error("Payment cancelled by user");
+  }
+
+  // failed
+  throw new Error(result.error_description || "Payment failed");
+}
+
+/* ------------------------------------------------------------------ */
+/*  Web payment via checkout.js                                       */
+/* ------------------------------------------------------------------ */
+function webPay(orderData: any): Promise<RazorpayPaymentResult> {
+  return new Promise<RazorpayPaymentResult>((resolve, reject) => {
+    const options: any = {
+      key: orderData.key_id,
+      amount: orderData.amount,
+      currency: orderData.currency,
+      name: "Didi Now",
+      description: "Service Booking Payment",
+      order_id: orderData.order_id,
+      prefill: orderData.prefill || {},
+      theme: { color: "#6366f1" },
+      handler: (response: RazorpayPaymentResult) => {
+        console.log("✅ [Razorpay] Payment completed by user");
+        resolve(response);
+      },
+      modal: {
+        ondismiss: () => {
+          console.log("⚠️ [Razorpay] Modal dismissed by user");
+          reject(new Error("Payment cancelled by user"));
+        },
+      },
+      // UPI intent config for mobile web (helps on Chrome/Safari)
+      config: {
+        display: {
+          blocks: {
+            upi_apps: {
+              name: "Pay using UPI App",
+              instruments: [
+                { method: "upi", flows: ["intent", "collect", "qr"] },
+              ],
+            },
+          },
+          sequence: ["block.upi_apps"],
+          preferences: { show_default_blocks: true },
+        },
+      },
+    };
+
+    try {
+      const rzp = new window.Razorpay(options);
+      rzp.on("payment.failed", (response: any) => {
+        console.error("❌ [Razorpay] payment.failed:", response.error);
+        reject(new Error(response.error?.description || "Payment failed"));
+      });
+      rzp.open();
+      console.log("✅ [Razorpay] Checkout modal opened");
+    } catch (err) {
+      console.error("❌ [Razorpay] Failed to open checkout:", err);
+      reject(err);
+    }
+  });
+}
+
+/* ------------------------------------------------------------------ */
+/*  Platform-aware payment runner                                     */
+/* ------------------------------------------------------------------ */
+async function platformPay(orderData: any): Promise<RazorpayPaymentResult> {
+  if (shouldUseNativeRazorpay()) {
+    return nativePay(orderData);
+  }
+  return webPay(orderData);
+}
+
+/* ================================================================== */
+/*  PUBLIC API                                                        */
+/* ================================================================== */
+
 /**
  * Intent-based Razorpay flow (for instant bookings):
  * 1. Create order via edge function (no booking row needed)
- * 2. Open Razorpay checkout
+ * 2. Open Razorpay checkout (native SDK on Android, checkout.js on web)
  * 3. Verify payment — booking is created server-side on success
  * Returns the new booking ID.
  */
@@ -74,61 +198,16 @@ export async function initiateIntentPayment(
 
   console.log("✅ [Razorpay] Intent order created:", orderData.order_id);
 
-  // 2. Open Razorpay Checkout
-  const paymentResult = await new Promise<RazorpayPaymentResult>((resolve, reject) => {
-    const options = {
-      key: orderData.key_id,
-      amount: orderData.amount,
-      currency: orderData.currency,
-      name: "Didi Now",
-      description: "Service Booking Payment",
-      order_id: orderData.order_id,
-      prefill: orderData.prefill || {},
-      theme: { color: "#6366f1" },
-      handler: (response: RazorpayPaymentResult) => {
-        console.log("✅ [Razorpay] Payment completed by user");
-        resolve(response);
-      },
-      modal: {
-        ondismiss: async () => {
-          console.log("⚠️ [Razorpay] Modal dismissed by user");
-          // Mark intent as cancelled
-          try {
-            const tkn = await getFirebaseIdToken();
-            await supabase.functions.invoke("update-payment-intent-status", {
-              body: { razorpay_order_id: orderData.order_id, status: "cancelled" },
-              headers: { "x-firebase-token": tkn || "" },
-            });
-          } catch (e) {
-            console.warn("[Razorpay] Failed to mark intent cancelled:", e);
-          }
-          reject(new Error("Payment cancelled by user"));
-        },
-      },
-    };
-
-    try {
-      const rzp = new window.Razorpay(options);
-      rzp.on("payment.failed", async (response: any) => {
-        console.error("❌ [Razorpay] payment.failed:", response.error);
-        try {
-          const tkn = await getFirebaseIdToken();
-          await supabase.functions.invoke("update-payment-intent-status", {
-            body: { razorpay_order_id: orderData.order_id, status: "failed" },
-            headers: { "x-firebase-token": tkn || "" },
-          });
-        } catch (e) {
-          console.warn("[Razorpay] Failed to mark intent failed:", e);
-        }
-        reject(new Error(response.error?.description || "Payment failed"));
-      });
-      rzp.open();
-      console.log("✅ [Razorpay] Checkout modal opened");
-    } catch (err) {
-      console.error("❌ [Razorpay] Failed to open checkout:", err);
-      reject(err);
-    }
-  });
+  // 2. Open Razorpay (native or web)
+  let paymentResult: RazorpayPaymentResult;
+  try {
+    paymentResult = await platformPay(orderData);
+  } catch (err: any) {
+    // Mark intent cancelled/failed
+    const isCancelled = err?.message?.toLowerCase().includes("cancelled");
+    await markIntentStatus(orderData.order_id, isCancelled ? "cancelled" : "failed");
+    throw err;
+  }
 
   // 3. Verify payment — this also creates the booking server-side
   console.log("🔍 [Razorpay] Verifying intent payment...");
@@ -157,7 +236,7 @@ export async function initiateIntentPayment(
 /**
  * Legacy Razorpay flow (for scheduled bookings with existing booking row):
  * 1. Create order via edge function
- * 2. Open Razorpay checkout
+ * 2. Open Razorpay checkout (native SDK on Android, checkout.js on web)
  * 3. Verify payment via edge function
  */
 export async function initiateRazorpayPayment(bookingId: string): Promise<string> {
@@ -183,37 +262,8 @@ export async function initiateRazorpayPayment(bookingId: string): Promise<string
     throw new Error(orderData?.error || orderError?.message || "Failed to create payment order");
   }
 
-  // 2. Open Razorpay Checkout
-  const paymentResult = await new Promise<RazorpayPaymentResult>((resolve, reject) => {
-    const options = {
-      key: orderData.key_id,
-      amount: orderData.amount,
-      currency: orderData.currency,
-      name: "Didi Now",
-      description: "Service Booking Payment",
-      order_id: orderData.order_id,
-      prefill: orderData.prefill || {},
-      theme: { color: "#6366f1" },
-      handler: (response: RazorpayPaymentResult) => {
-        resolve(response);
-      },
-      modal: {
-        ondismiss: () => {
-          reject(new Error("Payment cancelled by user"));
-        },
-      },
-    };
-
-    try {
-      const rzp = new window.Razorpay(options);
-      rzp.on("payment.failed", (response: any) => {
-        reject(new Error(response.error?.description || "Payment failed"));
-      });
-      rzp.open();
-    } catch (err) {
-      reject(err);
-    }
-  });
+  // 2. Open Razorpay (native or web)
+  const paymentResult = await platformPay(orderData);
 
   // 3. Verify payment
   const freshToken = await getFirebaseIdToken();
