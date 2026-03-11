@@ -8,7 +8,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { loadRazorpayScript } from '@/lib/razorpay';
-import { payWithWalletThenRazorpay } from '@/lib/walletPayment';
+import { payIntentWithWalletThenRazorpay } from '@/lib/walletPayment';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { cn } from '@/lib/utils';
