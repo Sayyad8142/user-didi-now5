@@ -1,12 +1,13 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { verifyFirebaseToken } from "../_shared/verifyFirebaseToken.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-firebase-token, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-async function verifySignature(
+async function verifyRazorpaySignature(
   orderId: string,
   paymentId: string,
   signature: string,
@@ -34,7 +35,6 @@ serve(async (req) => {
   }
 
   try {
-    // Get Firebase token from custom header
     const firebaseToken = req.headers.get("x-firebase-token");
     if (!firebaseToken) {
       console.error("Missing x-firebase-token header");
@@ -57,15 +57,14 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Decode Firebase token to get uid
+    // ✅ Securely verify Firebase ID token (RS256 signature + claims)
     let firebaseUid: string;
     try {
-      const parts = firebaseToken.split(".");
-      const payload = JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")));
-      firebaseUid = payload.sub || payload.user_id;
-      if (!firebaseUid) throw new Error("No uid in token");
+      const decoded = await verifyFirebaseToken(firebaseToken);
+      firebaseUid = decoded.uid;
+      console.log("✅ Firebase token verified for uid:", firebaseUid);
     } catch (e) {
-      console.error("Invalid Firebase token:", e);
+      console.error("❌ Firebase token verification failed:", e.message);
       return new Response(JSON.stringify({ error: "Invalid auth token" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -116,7 +115,6 @@ serve(async (req) => {
       });
     }
 
-    // Verify order ID matches
     if (booking.razorpay_order_id !== razorpay_order_id) {
       console.error("Order ID mismatch:", { expected: booking.razorpay_order_id, got: razorpay_order_id });
       return new Response(JSON.stringify({ error: "Order ID mismatch" }), {
@@ -125,7 +123,6 @@ serve(async (req) => {
       });
     }
 
-    // Already paid
     if (booking.payment_status === "paid") {
       return new Response(JSON.stringify({ success: true, message: "Already verified" }), {
         status: 200,
@@ -134,7 +131,7 @@ serve(async (req) => {
     }
 
     // Verify Razorpay signature
-    const isValid = await verifySignature(
+    const isValid = await verifyRazorpaySignature(
       razorpay_order_id,
       razorpay_payment_id,
       razorpay_signature,
