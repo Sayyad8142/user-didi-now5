@@ -246,9 +246,9 @@ export function ScheduleScreen() {
       const newBookingId = data?.[0]?.id;
       if (!newBookingId) throw new Error("Booking created but no ID returned");
 
-      // Initiate Razorpay payment
+      // Initiate payment (wallet first, then Razorpay for remainder)
       try {
-        await initiateRazorpayPayment(newBookingId);
+        await payWithWalletThenRazorpay(newBookingId, profile.id, data[0].price_inr || finalPrice);
         console.log('✅ Payment successful for scheduled booking:', newBookingId);
         toast({
           title: "Payment successful!",

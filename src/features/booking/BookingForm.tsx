@@ -466,9 +466,9 @@ export function BookingForm() {
 
       console.log('✅ Booking created, initiating payment:', newBookingId);
 
-      // Initiate Razorpay payment
+      // Initiate payment (wallet first, then Razorpay for remainder)
       try {
-        await initiateRazorpayPayment(newBookingId);
+        await payWithWalletThenRazorpay(newBookingId, profile.id, data[0].price_inr || price);
         console.log('✅ Payment successful for booking:', newBookingId);
         toast({
           title: "Payment successful!",

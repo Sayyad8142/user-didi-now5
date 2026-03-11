@@ -154,9 +154,9 @@ export function InstantCheckoutScreen() {
       const newBookingId = data?.[0]?.id;
       if (!newBookingId) throw new Error("Booking created but no ID returned");
 
-      // Initiate Razorpay payment
+      // Initiate payment (wallet first, then Razorpay for remainder)
       try {
-        await initiateRazorpayPayment(newBookingId);
+        await payWithWalletThenRazorpay(newBookingId, profile.id, data[0].price_inr || price);
         sessionStorage.removeItem(`preferred_worker_${service_type}`);
         toast({
           title: "Payment successful!",
