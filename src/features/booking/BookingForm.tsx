@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { initiateRazorpayPayment, loadRazorpayScript } from '@/lib/razorpay';
+import { loadRazorpayScript } from '@/lib/razorpay';
+import { payWithWalletThenRazorpay } from '@/lib/walletPayment';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, MapPin, Home, Clock, Calendar, AlertCircle, Check, Zap, ChevronRight, Star, X, Ruler, ChevronDown } from 'lucide-react';
 import dishesLightImg from '@/assets/dishes-light.webp';
