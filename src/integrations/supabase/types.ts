@@ -86,29 +86,41 @@ export type Database = {
       app_config: {
         Row: {
           created_at: string | null
+          force_update: boolean
           id: string
+          latest_version_name: string
           min_user_version_code: number
           min_user_version_name: string
           min_worker_version_code: number
           play_store_url_user: string
+          soft_update_message: string
+          update_title: string
           user_update_message: string
         }
         Insert: {
           created_at?: string | null
+          force_update?: boolean
           id?: string
+          latest_version_name?: string
           min_user_version_code?: number
           min_user_version_name?: string
           min_worker_version_code?: number
           play_store_url_user?: string
+          soft_update_message?: string
+          update_title?: string
           user_update_message?: string
         }
         Update: {
           created_at?: string | null
+          force_update?: boolean
           id?: string
+          latest_version_name?: string
           min_user_version_code?: number
           min_user_version_name?: string
           min_worker_version_code?: number
           play_store_url_user?: string
+          soft_update_message?: string
+          update_title?: string
           user_update_message?: string
         }
         Relationships: []
