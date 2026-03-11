@@ -1,7 +1,5 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { PortalStore } from '@/lib/portal';
-import { isAdminPhone } from '@/features/auth/isAdmin';
 import { onFirebaseAuthStateChanged } from '@/lib/firebase';
 import { isDemoMode, getDemoSession } from '@/lib/demo';
 
@@ -18,11 +16,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
   }, [ready]);
 
   useEffect(() => {
-    // If we're on an auth entry route but the user is already logged in,
-    // redirect away once Firebase finishes hydrating the persisted session.
-    // This prevents getting "stuck" on /auth due to a transient null auth state
-    // during cold start.
-    const authEntryRoutes = ['/auth', '/auth/verify', '/admin-login', '/admin-verify'];
+    const authEntryRoutes = ['/auth', '/auth/verify'];
     if (authEntryRoutes.some(r => location.pathname.startsWith(r))) {
       setReady(true);
 
@@ -39,11 +33,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
       const unsubscribe = onFirebaseAuthStateChanged((user) => {
         if (cancelled) return;
         if (!user) return;
-
-        const isAdmin = isAdminPhone(user.phoneNumber);
-        const lastPortal = PortalStore.get();
-        const dest = isAdmin && lastPortal === 'admin' ? '/admin' : '/home';
-        nav(dest, { replace: true });
+        nav('/home', { replace: true });
       });
 
       return () => {
@@ -52,7 +42,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
       };
     }
 
-    // Allow legal/public routes immediately - no auth check needed
+    // Allow legal/public routes immediately
     const publicRoutes = ['/legal', '/legal/privacy', '/legal/terms'];
     if (publicRoutes.some(r => location.pathname.startsWith(r))) {
       setReady(true);
@@ -75,9 +65,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
       }
     }
 
-    // Root path: ALWAYS wait for Firebase auth state to be determined
-    // This fixes the race condition where getCurrentUser() returns null on cold start
-    // because Firebase hasn't loaded persisted session yet
+    // Root path: wait for Firebase auth state
     let cancelled = false;
 
     const unsubscribe = onFirebaseAuthStateChanged((user) => {
@@ -89,12 +77,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      // Quick admin check using phone
-      const isAdmin = isAdminPhone(user.phoneNumber);
-      const lastPortal = PortalStore.get();
-      const dest = isAdmin && lastPortal === 'admin' ? '/admin' : '/home';
-      
-      nav(dest, { replace: true });
+      nav('/home', { replace: true });
       setReady(true);
     });
 
