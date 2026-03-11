@@ -12,6 +12,7 @@ import { openExternalUrl } from '@/lib/nativeOpen';
 import { useToast } from '@/hooks/use-toast';
 import { validateName } from '@/lib/name-validation';
 import { AppVersionDisplay } from '@/components/AppVersionDisplay';
+import { WalletCard } from '@/components/WalletCard';
 import { useCommunities } from '@/hooks/useCommunities';
 import { useBuildings } from '@/hooks/useBuildings';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
