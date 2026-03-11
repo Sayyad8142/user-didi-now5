@@ -230,24 +230,28 @@ export const verifyOtp = async (code: string): Promise<{ success: boolean; user?
       });
       nativeVerificationId = null;
 
-      // Now sign in web SDK with the credential so onAuthStateChanged fires
+      // The native confirmVerificationCode signs the user in natively.
+      // We need to sync to the web SDK. Get a fresh ID token from native and use it.
+      // On Capacitor, the native Firebase SDK and web SDK share auth state 
+      // when using the same google-services.json / GoogleService-Info.plist.
+      // Just wait a moment for auth state to sync.
       const authInstance = getFirebaseAuth();
       if (authInstance) {
-        const credential = PhoneAuthProvider.credential(
-          result?.verificationId || nativeVerificationId || '',
-          code
-        );
-        try {
-          const userCred = await signInWithCredential(authInstance, credential);
-          console.log('✅ Native OTP verified & web SDK signed in');
-          return { success: true, user: userCred.user };
-        } catch {
-          // The native SDK may have already signed in; check currentUser
-          const currentUser = authInstance.currentUser;
-          if (currentUser) {
-            console.log('✅ Native OTP verified (user already signed in)');
-            return { success: true, user: currentUser };
+        // Wait for onAuthStateChanged to fire with the signed-in user
+        const user = await new Promise<User | null>((resolve) => {
+          if (authInstance.currentUser) {
+            resolve(authInstance.currentUser);
+            return;
           }
+          const unsub = onAuthStateChanged(authInstance, (u) => {
+            unsub();
+            resolve(u);
+          });
+          setTimeout(() => { unsub(); resolve(null); }, 5000);
+        });
+        if (user) {
+          console.log('✅ Native OTP verified & web SDK synced');
+          return { success: true, user };
         }
       }
 
