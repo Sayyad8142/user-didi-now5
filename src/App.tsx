@@ -19,7 +19,7 @@ import { useBackButton } from "@/hooks/useBackButton";
 import { useAppWarmup } from "@/hooks/useAppWarmup";
 import AuthGate from "@/auth/AuthGate";
 
-import { PushNotificationProvider } from "@/components/PushNotificationProvider";
+
 import { initSupabase } from "@/integrations/supabase/client";
 import { usePushDeepLink } from "@/hooks/usePushDeepLink";
 import { normalizeDeepLink, navigateDeepLink } from "@/lib/deepLink";
