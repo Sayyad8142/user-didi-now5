@@ -12,7 +12,7 @@ import { CleaningLoader } from '@/components/ui/cleaning-loader';
 import { normalizePhone } from '@/features/profile/ensureProfile';
 import { isDemoCredentials, setDemoSession, clearDemoSession } from '@/lib/demo';
 import { useProfile } from '@/contexts/ProfileContext';
-import { verifyOtp, sendOtp, getCurrentUser, setupRecaptcha } from '@/lib/firebase';
+import { verifyOtp, sendOtp, getCurrentUser } from '@/lib/firebase';
 
 interface LocationState {
   phone: string;
@@ -204,13 +204,18 @@ export default function VerifyOTP() {
         return;
       }
 
-      console.log('✅ Firebase auth successful:', result.user?.uid);
+      const firebaseUser = result.user ?? getCurrentUser();
+      if (!firebaseUser) {
+        throw new Error('Firebase user not available after OTP verification');
+      }
+
+      console.log('✅ Firebase auth successful:', firebaseUser.uid);
 
       // IMPORTANT: if user previously used Guest/Demo mode, clear it now so UI doesn't stay "Guest"
       clearDemoSession();
 
       // Ensure profile exists in Supabase
-      const profile = await ensureFirebaseProfile(result.user!.uid, phone);
+      const profile = await ensureFirebaseProfile(firebaseUser.uid, phone);
       if (state?.mode === 'signup' && state.signupData && profile) {
         console.log('📝 Updating profile with signup data');
 
@@ -303,12 +308,6 @@ export default function VerifyOTP() {
     setError('');
 
     try {
-      // Setup reCAPTCHA again for resend
-      setupRecaptcha('recaptcha-container-verify');
-      
-      // Small delay for reCAPTCHA setup
-      await new Promise(resolve => setTimeout(resolve, 300));
-      
       const result = await sendOtp(phone);
 
       if (!result.success) {

@@ -85,6 +85,22 @@ export const getFirebaseAuth = (): Auth | null => {
 
 // Setup invisible reCAPTCHA verifier
 export const setupRecaptcha = (containerId: string = 'recaptcha-container'): RecaptchaVerifier | null => {
+  const native = Capacitor.isNativePlatform();
+  const platform = Capacitor.getPlatform();
+  const useNativePhoneAuth = native && (platform === 'android' || platform === 'ios');
+
+  console.log('[Auth] setupRecaptcha called', {
+    containerId,
+    native,
+    platform,
+    useNativePhoneAuth,
+  });
+
+  if (useNativePhoneAuth) {
+    console.log('[Auth] Skipping reCAPTCHA setup on native runtime');
+    return null;
+  }
+
   const authInstance = getFirebaseAuth();
   if (!authInstance) {
     console.error('❌ Auth not available for reCAPTCHA');
@@ -92,7 +108,6 @@ export const setupRecaptcha = (containerId: string = 'recaptcha-container'): Rec
   }
 
   try {
-    // Clear existing verifier
     if (recaptchaVerifier) {
       recaptchaVerifier.clear();
       recaptchaVerifier = null;
@@ -116,80 +131,105 @@ export const setupRecaptcha = (containerId: string = 'recaptcha-container'): Rec
 };
 
 // Check if running on native platform
-const isNativePlatform = (): boolean => Capacitor.isNativePlatform();
+const getPhoneAuthRuntime = () => {
+  const native = Capacitor.isNativePlatform();
+  const platform = Capacitor.getPlatform();
+
+  return {
+    native,
+    platform,
+    useNativePhoneAuth: native && (platform === 'android' || platform === 'ios'),
+  };
+};
 
 // Native verification ID storage for Capacitor flow
 let nativeVerificationId: string | null = null;
 
 // Send OTP to phone number
 export const sendOtp = async (phoneNumber: string): Promise<{ success: boolean; error?: string }> => {
+  const runtime = getPhoneAuthRuntime();
+
   try {
     console.log('📱 Sending OTP to:', phoneNumber);
+    console.log('[Auth] Capacitor.isNativePlatform()', runtime.native);
+    console.log('[Auth] Capacitor.getPlatform()', runtime.platform);
 
-    if (isNativePlatform()) {
-      // Native flow: uses native Firebase SDK, no reCAPTCHA needed
-      console.log('📱 Using native Firebase Auth for OTP');
-      
-      // Listen for verificationId via event
+    if (runtime.useNativePhoneAuth) {
+      console.log('USING NATIVE PHONE AUTH');
+      nativeVerificationId = null;
+      await FirebaseAuthentication.removeAllListeners();
+
       const verificationIdPromise = new Promise<string>((resolve, reject) => {
-        const timeout = setTimeout(() => reject(new Error('OTP send timed out')), 30000);
-        FirebaseAuthentication.addListener('phoneCodeSent', (event) => {
+        const timeout = setTimeout(() => {
+          reject(new Error('Native OTP send timed out'));
+        }, 30000);
+
+        const cleanup = async () => {
           clearTimeout(timeout);
+          await FirebaseAuthentication.removeAllListeners();
+        };
+
+        FirebaseAuthentication.addListener('phoneCodeSent', async (event) => {
+          console.log('[Auth] Native phoneCodeSent event received');
+          nativeVerificationId = event.verificationId;
+          await cleanup();
           resolve(event.verificationId);
         });
-        // Handle auto-verification on Android (instant verify)
-        FirebaseAuthentication.addListener('phoneVerificationCompleted', async (event) => {
-          clearTimeout(timeout);
-          // Auto-verified — the credential is applied natively, sign in with web SDK
-          const authInstance = getFirebaseAuth();
-          if (authInstance && event.verificationCode) {
-            // We need a verificationId to create a credential; use nativeVerificationId if available
-            // On auto-verify, the native SDK signs in automatically — just resolve
-          }
+
+        FirebaseAuthentication.addListener('phoneVerificationCompleted', async () => {
+          console.log('[Auth] Native phoneVerificationCompleted event received');
+          nativeVerificationId = 'auto-verified';
+          await cleanup();
           resolve('auto-verified');
+        });
+
+        FirebaseAuthentication.addListener('phoneVerificationFailed', async (event: any) => {
+          console.error('[Auth] Native phoneVerificationFailed event received:', event);
+          nativeVerificationId = null;
+          await cleanup();
+          reject(new Error(event?.message || event?.code || 'Native phone verification failed'));
         });
       });
 
       await FirebaseAuthentication.signInWithPhoneNumber({ phoneNumber });
-      nativeVerificationId = await verificationIdPromise;
-      
-      // Clean up listeners
-      await FirebaseAuthentication.removeAllListeners();
-      
-      if (nativeVerificationId === 'auto-verified') {
-        // Phone was auto-verified, user is already signed in
+      const verificationId = await verificationIdPromise;
+
+      if (verificationId === 'auto-verified') {
         console.log('✅ Phone auto-verified');
         return { success: true };
       }
-      
-      if (!nativeVerificationId) {
+
+      if (!verificationId) {
         return { success: false, error: 'Failed to get verification ID' };
       }
+
       console.log('✅ Native OTP sent successfully');
       return { success: true };
     }
 
-    // Web flow: uses reCAPTCHA
+    console.log('USING WEB PHONE AUTH');
+
     const authInstance = getFirebaseAuth();
     if (!authInstance) {
       return { success: false, error: 'Firebase Auth not initialized' };
     }
 
     if (!recaptchaVerifier) {
+      console.log('[Auth] Creating reCAPTCHA verifier for web phone auth');
       const verifier = setupRecaptcha();
       if (!verifier) {
         return { success: false, error: 'Failed to setup reCAPTCHA' };
       }
     }
 
+    console.log('[Auth] Calling signInWithPhoneNumber via Firebase Web SDK');
     confirmationResult = await signInWithPhoneNumber(authInstance, phoneNumber, recaptchaVerifier!);
     console.log('✅ OTP sent successfully');
     return { success: true };
   } catch (error: any) {
     console.error('❌ Send OTP error:', error);
 
-    // Reset reCAPTCHA on error (web only)
-    if (!isNativePlatform() && recaptchaVerifier) {
+    if (!runtime.useNativePhoneAuth && recaptchaVerifier) {
       try { recaptchaVerifier.clear(); } catch {}
       recaptchaVerifier = null;
     }
