@@ -69,7 +69,7 @@ export function BookingCard({
   const navigate = useNavigate();
   const { profile } = useProfile();
   const { hasUnseenMessages, markMessagesAsSeen } = useUnseenMessages();
-  const { incomingCall, clearIncomingCall } = useIncomingRtcPush();
+  
   const [assignedWorker, setAssignedWorker] = useState<any>(null);
   const [loadingWorker, setLoadingWorker] = useState(true);
   const [row, setRow] = useState(booking);
