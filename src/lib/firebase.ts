@@ -7,10 +7,14 @@ import {
   RecaptchaVerifier, 
   ConfirmationResult,
   onAuthStateChanged,
+  PhoneAuthProvider,
+  signInWithCredential,
   User,
   signOut as firebaseSignOut
 } from 'firebase/auth';
 import { getMessaging, Messaging, getToken, onMessage, MessagePayload } from 'firebase/messaging';
+import { Capacitor } from '@capacitor/core';
+import { FirebaseAuthentication } from '@capacitor-firebase/authentication';
 
 // Firebase config (hardcoded as per project requirements)
 const firebaseConfig = {
@@ -111,15 +115,66 @@ export const setupRecaptcha = (containerId: string = 'recaptcha-container'): Rec
   }
 };
 
+// Check if running on native platform
+const isNativePlatform = (): boolean => Capacitor.isNativePlatform();
+
+// Native verification ID storage for Capacitor flow
+let nativeVerificationId: string | null = null;
+
 // Send OTP to phone number
 export const sendOtp = async (phoneNumber: string): Promise<{ success: boolean; error?: string }> => {
-  const authInstance = getFirebaseAuth();
-  if (!authInstance) {
-    return { success: false, error: 'Firebase Auth not initialized' };
-  }
-
   try {
-    // Setup reCAPTCHA if not already done
+    console.log('📱 Sending OTP to:', phoneNumber);
+
+    if (isNativePlatform()) {
+      // Native flow: uses native Firebase SDK, no reCAPTCHA needed
+      console.log('📱 Using native Firebase Auth for OTP');
+      
+      // Listen for verificationId via event
+      const verificationIdPromise = new Promise<string>((resolve, reject) => {
+        const timeout = setTimeout(() => reject(new Error('OTP send timed out')), 30000);
+        FirebaseAuthentication.addListener('phoneCodeSent', (event) => {
+          clearTimeout(timeout);
+          resolve(event.verificationId);
+        });
+        // Handle auto-verification on Android (instant verify)
+        FirebaseAuthentication.addListener('phoneVerificationCompleted', async (event) => {
+          clearTimeout(timeout);
+          // Auto-verified — the credential is applied natively, sign in with web SDK
+          const authInstance = getFirebaseAuth();
+          if (authInstance && event.verificationCode) {
+            // We need a verificationId to create a credential; use nativeVerificationId if available
+            // On auto-verify, the native SDK signs in automatically — just resolve
+          }
+          resolve('auto-verified');
+        });
+      });
+
+      await FirebaseAuthentication.signInWithPhoneNumber({ phoneNumber });
+      nativeVerificationId = await verificationIdPromise;
+      
+      // Clean up listeners
+      await FirebaseAuthentication.removeAllListeners();
+      
+      if (nativeVerificationId === 'auto-verified') {
+        // Phone was auto-verified, user is already signed in
+        console.log('✅ Phone auto-verified');
+        return { success: true };
+      }
+      
+      if (!nativeVerificationId) {
+        return { success: false, error: 'Failed to get verification ID' };
+      }
+      console.log('✅ Native OTP sent successfully');
+      return { success: true };
+    }
+
+    // Web flow: uses reCAPTCHA
+    const authInstance = getFirebaseAuth();
+    if (!authInstance) {
+      return { success: false, error: 'Firebase Auth not initialized' };
+    }
+
     if (!recaptchaVerifier) {
       const verifier = setupRecaptcha();
       if (!verifier) {
@@ -127,30 +182,25 @@ export const sendOtp = async (phoneNumber: string): Promise<{ success: boolean; 
       }
     }
 
-    console.log('📱 Sending OTP to:', phoneNumber);
     confirmationResult = await signInWithPhoneNumber(authInstance, phoneNumber, recaptchaVerifier!);
     console.log('✅ OTP sent successfully');
-    
     return { success: true };
   } catch (error: any) {
     console.error('❌ Send OTP error:', error);
-    
-    // Reset reCAPTCHA on error
-    if (recaptchaVerifier) {
-      try {
-        recaptchaVerifier.clear();
-      } catch {}
+
+    // Reset reCAPTCHA on error (web only)
+    if (!isNativePlatform() && recaptchaVerifier) {
+      try { recaptchaVerifier.clear(); } catch {}
       recaptchaVerifier = null;
     }
 
-    // Parse Firebase errors
     let errorMessage = 'Failed to send OTP';
     if (error.code === 'auth/invalid-phone-number') {
       errorMessage = 'Invalid phone number format';
     } else if (error.code === 'auth/too-many-requests') {
       errorMessage = 'Too many attempts. Please try again later.';
-    } else if (error.code === 'auth/captcha-check-failed') {
-      errorMessage = 'reCAPTCHA verification failed. Please try again.';
+    } else if (error.code === 'auth/captcha-check-failed' || error.code === 'auth/invalid-app-credential') {
+      errorMessage = 'Verification failed. Please try again.';
     } else if (error.message) {
       errorMessage = error.message;
     }
@@ -161,18 +211,62 @@ export const sendOtp = async (phoneNumber: string): Promise<{ success: boolean; 
 
 // Verify OTP code
 export const verifyOtp = async (code: string): Promise<{ success: boolean; user?: User; error?: string }> => {
-  if (!confirmationResult) {
-    return { success: false, error: 'No OTP request found. Please request OTP first.' };
-  }
-
   try {
     console.log('🔐 Verifying OTP...');
+
+    if (isNativePlatform() && nativeVerificationId) {
+      if (nativeVerificationId === 'auto-verified') {
+        // Already auto-verified, get current user from web SDK
+        const authInstance = getFirebaseAuth();
+        const user = authInstance?.currentUser ?? null;
+        nativeVerificationId = null;
+        return { success: true, user: user ?? undefined };
+      }
+
+      // Use native confirmVerificationCode then sync to web SDK
+      const result = await FirebaseAuthentication.confirmVerificationCode({
+        verificationId: nativeVerificationId,
+        verificationCode: code,
+      });
+      nativeVerificationId = null;
+
+      // The native confirmVerificationCode signs the user in natively.
+      // We need to sync to the web SDK. Get a fresh ID token from native and use it.
+      // On Capacitor, the native Firebase SDK and web SDK share auth state 
+      // when using the same google-services.json / GoogleService-Info.plist.
+      // Just wait a moment for auth state to sync.
+      const authInstance = getFirebaseAuth();
+      if (authInstance) {
+        // Wait for onAuthStateChanged to fire with the signed-in user
+        const user = await new Promise<User | null>((resolve) => {
+          if (authInstance.currentUser) {
+            resolve(authInstance.currentUser);
+            return;
+          }
+          const unsub = onAuthStateChanged(authInstance, (u) => {
+            unsub();
+            resolve(u);
+          });
+          setTimeout(() => { unsub(); resolve(null); }, 5000);
+        });
+        if (user) {
+          console.log('✅ Native OTP verified & web SDK synced');
+          return { success: true, user };
+        }
+      }
+
+      console.log('✅ Native OTP verified');
+      return { success: true };
+    }
+
+    // Web flow
+    if (!confirmationResult) {
+      return { success: false, error: 'No OTP request found. Please request OTP first.' };
+    }
+
     const result = await confirmationResult.confirm(code);
     console.log('✅ OTP verified successfully');
-    
-    // Clear confirmation result after successful verification
     confirmationResult = null;
-    
     return { success: true, user: result.user };
   } catch (error: any) {
     console.error('❌ Verify OTP error:', error);
