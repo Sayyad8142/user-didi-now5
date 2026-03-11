@@ -1677,6 +1677,39 @@ export type Database = {
         }
         Relationships: []
       }
+      payment_intents: {
+        Row: {
+          amount_inr: number
+          booking_data: Json
+          created_at: string
+          expires_at: string
+          id: string
+          razorpay_order_id: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          amount_inr: number
+          booking_data: Json
+          created_at?: string
+          expires_at?: string
+          id?: string
+          razorpay_order_id?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          amount_inr?: number
+          booking_data?: Json
+          created_at?: string
+          expires_at?: string
+          id?: string
+          razorpay_order_id?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       pricing: {
         Row: {
           active: boolean
