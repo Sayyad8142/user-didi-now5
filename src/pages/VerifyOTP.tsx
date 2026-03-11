@@ -26,7 +26,6 @@ interface LocationState {
     flatId: string;
     flatNo: string;
   } | null;
-  adminLogin?: boolean;
   redirectTo?: string;
 }
 
