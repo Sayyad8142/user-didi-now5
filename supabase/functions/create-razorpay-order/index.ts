@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-firebase-token, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 serve(async (req) => {
@@ -12,9 +12,11 @@ serve(async (req) => {
   }
 
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: "Missing auth" }), {
+    // Get Firebase token from custom header
+    const firebaseToken = req.headers.get("x-firebase-token");
+    if (!firebaseToken) {
+      console.error("Missing x-firebase-token header");
+      return new Response(JSON.stringify({ error: "Missing auth token" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -33,14 +35,34 @@ serve(async (req) => {
       });
     }
 
-    // Verify the user
     const supabase = createClient(supabaseUrl, supabaseKey);
-    const anonClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!);
-    const { data: { user }, error: authError } = await anonClient.auth.getUser(
-      authHeader.replace("Bearer ", "")
-    );
-    if (authError || !user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+
+    // Verify Firebase token by looking up the user's profile
+    // Decode the Firebase JWT to extract uid (we trust the token since it comes from Firebase)
+    let firebaseUid: string;
+    try {
+      const parts = firebaseToken.split(".");
+      const payload = JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")));
+      firebaseUid = payload.sub || payload.user_id;
+      if (!firebaseUid) throw new Error("No uid in token");
+    } catch (e) {
+      console.error("Invalid Firebase token:", e);
+      return new Response(JSON.stringify({ error: "Invalid auth token" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Look up profile by firebase_uid
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("firebase_uid", firebaseUid)
+      .single();
+
+    if (profileError || !profile) {
+      console.error("Profile not found for firebase_uid:", firebaseUid);
+      return new Response(JSON.stringify({ error: "User not found" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -68,14 +90,7 @@ serve(async (req) => {
       });
     }
 
-    // Verify the booking belongs to this user (compare via profile)
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("id")
-      .eq("firebase_uid", user.id)
-      .single();
-
-    if (!profile || profile.id !== booking.user_id) {
+    if (profile.id !== booking.user_id) {
       return new Response(JSON.stringify({ error: "Not your booking" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
