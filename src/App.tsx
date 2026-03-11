@@ -243,10 +243,7 @@ const App = () => {
       <Toaster />
       <Sonner />
       <AuthGate>
-        <PushNotificationProvider>
-          <AppContent />
-          
-        </PushNotificationProvider>
+        <AppContent />
       </AuthGate>
     </TooltipProvider>
   );
