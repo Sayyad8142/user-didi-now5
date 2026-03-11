@@ -262,7 +262,7 @@ const App = () => {
       <AuthGate>
         <PushNotificationProvider>
           <AppContent />
-          <IncomingCallHandler />
+          
         </PushNotificationProvider>
       </AuthGate>
     </TooltipProvider>

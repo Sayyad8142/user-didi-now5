@@ -23,10 +23,6 @@ import ChatSheet from '@/features/chat/ChatSheet';
 import { LoadingWorkerBadge } from '@/components/LoadingWorkerBadge';
 import { WorkerRatingsModal } from './WorkerRatingsModal';
 import { useUnseenMessages } from '@/hooks/useUnseenMessages';
-import { CallHistory } from '@/components/calling/CallHistory';
-import { IncomingCallScreen } from '@/components/calling/IncomingCallScreen';
-import { useIncomingRtcPush } from '@/hooks/useIncomingRtcPush';
-import { useProfile } from '@/contexts/ProfileContext';
 
 interface Booking {
   id: string;
