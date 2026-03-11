@@ -140,7 +140,7 @@ const AppContent = () => {
         <Route path="/profile/account" element={<ProtectedRoute><ProtectedLayout><AccountSettings /></ProtectedLayout></ProtectedRoute>} />
         <Route path="/support" element={<ProtectedRoute><ProtectedLayout><SupportScreen /></ProtectedLayout></ProtectedRoute>} />
         <Route path="/chat" element={<ProtectedRoute><ChatScreen /></ProtectedRoute>} />
-        <Route path="/call" element={<ProtectedRoute><CallPage /></ProtectedRoute>} />
+        
         <Route path="/faqs" element={<ProtectedRoute><ProtectedLayout><FAQs /></ProtectedLayout></ProtectedRoute>} />
         <Route path="/book/:service_type" element={<ProtectedRoute><ProtectedLayout><BookingForm /></ProtectedLayout></ProtectedRoute>} />
         <Route path="/book/:service_type/instant" element={<ProtectedRoute><ProtectedLayout><InstantCheckoutScreen /></ProtectedLayout></ProtectedRoute>} />
