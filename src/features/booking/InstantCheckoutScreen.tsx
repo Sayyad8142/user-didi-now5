@@ -17,6 +17,7 @@ import { useFlatSize } from '@/hooks/useFlatSize';
 import { useFavoriteWorkers, type FavoriteWorker } from '@/hooks/useFavoriteWorkers';
 import { checkInstantBookingAvailability } from '@/hooks/useSupplyCheck';
 import { SupplyFullModal } from '@/components/SupplyFullModal';
+import { PaymentChoiceSheet } from '@/components/PaymentChoiceSheet';
 
 export function InstantCheckoutScreen() {
   const navigate = useNavigate();
