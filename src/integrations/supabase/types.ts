@@ -496,6 +496,9 @@ export type Database = {
           prealert_sent: boolean
           preferred_worker_id: string | null
           price_inr: number | null
+          razorpay_order_id: string | null
+          razorpay_payment_id: string | null
+          razorpay_signature: string | null
           reach_confirmed_at: string | null
           reach_confirmed_by: string | null
           reach_status: string | null
@@ -569,6 +572,9 @@ export type Database = {
           prealert_sent?: boolean
           preferred_worker_id?: string | null
           price_inr?: number | null
+          razorpay_order_id?: string | null
+          razorpay_payment_id?: string | null
+          razorpay_signature?: string | null
           reach_confirmed_at?: string | null
           reach_confirmed_by?: string | null
           reach_status?: string | null
@@ -642,6 +648,9 @@ export type Database = {
           prealert_sent?: boolean
           preferred_worker_id?: string | null
           price_inr?: number | null
+          razorpay_order_id?: string | null
+          razorpay_payment_id?: string | null
+          razorpay_signature?: string | null
           reach_confirmed_at?: string | null
           reach_confirmed_by?: string | null
           reach_status?: string | null
@@ -3214,6 +3223,9 @@ export type Database = {
               prealert_sent: boolean
               preferred_worker_id: string | null
               price_inr: number | null
+              razorpay_order_id: string | null
+              razorpay_payment_id: string | null
+              razorpay_signature: string | null
               reach_confirmed_at: string | null
               reach_confirmed_by: string | null
               reach_status: string | null
@@ -4102,6 +4114,9 @@ export type Database = {
           prealert_sent: boolean
           preferred_worker_id: string | null
           price_inr: number | null
+          razorpay_order_id: string | null
+          razorpay_payment_id: string | null
+          razorpay_signature: string | null
           reach_confirmed_at: string | null
           reach_confirmed_by: string | null
           reach_status: string | null
