@@ -539,10 +539,6 @@ export function BookingCard({
           )}
         </div>
 
-        {/* Call History - show for assigned and active bookings */}
-        {['assigned', 'accepted', 'on_the_way', 'started', 'completed'].includes(row.status) && (
-          <CallHistory bookingId={row.id} />
-        )}
       </div>
 
       <ChatSheet
