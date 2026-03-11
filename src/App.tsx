@@ -6,6 +6,7 @@ import { useState, useEffect, useCallback, Suspense, lazy } from "react";
 import { UpdateBanner } from "@/components/UpdateBanner";
 import { UpdateRequiredScreen } from "@/components/UpdateRequiredScreen";
 import { NativeUpdateRequiredScreen } from "@/components/NativeUpdateRequiredScreen";
+import { SoftUpdateModal } from "@/components/SoftUpdateModal";
 import { OfflineScreen } from "@/components/OfflineScreen";
 import { NetworkBlockedScreen } from "@/components/NetworkBlockedScreen";
 import { useWebVersion } from "@/hooks/useWebVersion";
