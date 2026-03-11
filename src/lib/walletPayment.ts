@@ -35,14 +35,15 @@ export async function payIntentWithWalletThenRazorpay(
     try {
       console.log('💰 [Wallet] Full wallet payment for intent:', totalPrice);
       // Create booking directly with wallet payment
+      const insertRow = {
+        ...bookingData,
+        payment_status: 'wallet_paid',
+        payment_method: 'wallet',
+        paid_confirmed_at: new Date().toISOString(),
+      } as any;
       const { data: newBooking, error: insertError } = await supabase
         .from('bookings')
-        .insert({
-          ...bookingData,
-          payment_status: 'wallet_paid',
-          payment_method: 'wallet',
-          paid_confirmed_at: new Date().toISOString(),
-        })
+        .insert([insertRow])
         .select('id')
         .single();
 
