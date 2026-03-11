@@ -186,8 +186,8 @@ const App = () => {
     return <PageLoader />;
   }
 
-  // Native version too old — block entire app
-  if (nativeGate.blocked) {
+  // Native force update — block entire app
+  if (nativeGate.status === 'force_update') {
     return (
       <NativeUpdateRequiredScreen
         message={nativeGate.message}
@@ -220,7 +220,7 @@ const App = () => {
     );
   }
 
-  // Hard/force update: block entire UI
+  // Hard/force update: block entire UI (web)
   if (updateAvailable && updateMode === 'block') {
     return <UpdateRequiredScreen onRefresh={handleRefresh} />;
   }
@@ -229,6 +229,16 @@ const App = () => {
     <TooltipProvider>
       {updateAvailable && updateMode === 'soft' && (
         <UpdateBanner onRefresh={handleRefresh} onDismiss={dismissUpdate} />
+      )}
+      {nativeGate.status === 'soft_update' && (
+        <SoftUpdateModal
+          title={nativeGate.title}
+          message={nativeGate.message}
+          storeUrl={nativeGate.storeUrl}
+          currentVersion={nativeGate.currentVersion}
+          latestVersion={nativeGate.latestVersion}
+          onDismiss={nativeGate.dismissSoftUpdate}
+        />
       )}
       <Toaster />
       <Sonner />
