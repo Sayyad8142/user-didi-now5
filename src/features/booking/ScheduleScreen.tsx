@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { initiateRazorpayPayment, loadRazorpayScript } from '@/lib/razorpay';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Home, MapPin, Wallet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -142,11 +143,11 @@ export function ScheduleScreen() {
 
     setSubmitting(true);
     try {
+      await loadRazorpayScript();
+
       // Format date as YYYY-MM-DD for PostgreSQL DATE column
       const scheduledDate = format(selectedDate, 'yyyy-MM-dd');
       
-      // Format time as HH:MM:SS for PostgreSQL TIME column
-      // Ensure we have proper HH:MM format first, then add seconds
       const timeMatch = selectedTime.match(/^(\d{1,2}):(\d{2})$/);
       if (!timeMatch) {
         console.error('❌ Invalid time format:', selectedTime);
@@ -172,7 +173,6 @@ export function ScheduleScreen() {
         price
       });
 
-      // Validate flat details are linked (required by DB trigger)
       if (service_type !== 'bathroom_cleaning' && !profile.flat_id) {
         toast({
           title: "Flat Details Missing",
@@ -184,7 +184,6 @@ export function ScheduleScreen() {
         return;
       }
 
-      // Calculate surge from dynamic slot_surge_pricing
       const surcharge = getSurge(selectedTime);
       const finalPrice = price + surcharge;
 
@@ -196,6 +195,7 @@ export function ScheduleScreen() {
         scheduled_time: scheduledTime,
         notes: null,
         status: 'pending',
+        payment_status: 'pending',
         flat_size: service_type === 'bathroom_cleaning' ? null : flatSize,
         family_count: null,
         food_pref: null,
@@ -218,7 +218,7 @@ export function ScheduleScreen() {
         flat_no: profile.flat_no
       };
 
-      console.log('📤 Sending scheduled booking to database:', bookingData);
+      console.log('📤 Creating scheduled booking (pre-payment):', bookingData);
 
       const { data, error } = await supabase
         .from('bookings')
@@ -242,14 +242,34 @@ export function ScheduleScreen() {
         return;
       }
 
-      console.log('✅ Scheduled booking created successfully:', data);
+      const newBookingId = data?.[0]?.id;
+      if (!newBookingId) throw new Error("Booking created but no ID returned");
 
-      toast({
-        title: "Schedule confirmed!",
-        description: "Your booking has been scheduled successfully. Worker will be assigned 15 minutes before scheduled time."
-      });
-
-      navigate('/home');
+      // Initiate Razorpay payment
+      try {
+        await initiateRazorpayPayment(newBookingId);
+        console.log('✅ Payment successful for scheduled booking:', newBookingId);
+        toast({
+          title: "Payment successful!",
+          description: "Your booking has been scheduled successfully. Worker will be assigned 15 minutes before scheduled time."
+        });
+        navigate('/home');
+      } catch (payErr: any) {
+        console.warn('⚠️ Payment cancelled/failed:', payErr.message);
+        await supabase.from('bookings').update({
+          status: 'cancelled',
+          cancel_reason: 'Payment not completed',
+          cancel_source: 'user',
+          cancelled_at: new Date().toISOString(),
+        }).eq('id', newBookingId);
+        toast({
+          title: "Payment not completed",
+          description: payErr.message === "Payment cancelled by user"
+            ? "Booking cancelled. You can try again."
+            : `Payment failed: ${payErr.message}`,
+          variant: "destructive"
+        });
+      }
     } catch (err: any) {
       console.error('Booking error:', err);
       const isNetworkError = err?.message?.includes('Load failed') || err?.message?.includes('Failed to fetch') || err?.message?.includes('NetworkError');
