@@ -29,6 +29,7 @@ export function InstantCheckoutScreen() {
   const [search, setSearch] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [supplyModalOpen, setSupplyModalOpen] = useState(false);
+  const [paymentChoiceOpen, setPaymentChoiceOpen] = useState(false);
 
   const { flatSize: autoFlatSize } = useFlatSize();
 
