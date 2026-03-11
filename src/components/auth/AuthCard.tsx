@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -18,7 +18,7 @@ import { useBuildings } from '@/hooks/useBuildings';
 import { useFlats } from '@/hooks/useFlats';
 import { isDemoCredentials, setDemoSession, setGuestSession, clearDemoSession } from '@/lib/demo';
 import { FlatSearchInput } from './FlatSearchInput';
-import { sendOtp, setupRecaptcha, signOut as firebaseSignOut } from '@/lib/firebase';
+import { sendOtp, signOut as firebaseSignOut } from '@/lib/firebase';
 
 export function AuthCard() {
   const navigate = useNavigate();
