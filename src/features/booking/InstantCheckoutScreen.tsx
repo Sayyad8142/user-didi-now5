@@ -454,7 +454,7 @@ export function InstantCheckoutScreen() {
         <div className="max-w-md mx-auto px-4 pointer-events-auto">
           <div className="mb-[76px] pb-safe">
             <Button
-              onClick={handleBookNow}
+              onClick={handleShowPaymentChoice}
               disabled={submitting || !selectedWorker}
               className="w-full h-12 rounded-2xl text-base font-bold shadow-lg"
               size="lg"
@@ -480,6 +480,16 @@ export function InstantCheckoutScreen() {
           setSupplyModalOpen(false);
           navigate(`/book/${service_type}/schedule`);
         }}
+      />
+
+      {/* Payment Choice Sheet */}
+      <PaymentChoiceSheet
+        open={paymentChoiceOpen}
+        onOpenChange={setPaymentChoiceOpen}
+        price={price}
+        onPayAfterService={handlePayAfterService}
+        onPayNow={handlePayNowFromSheet}
+        submitting={submitting}
       />
     </div>
   );
