@@ -125,14 +125,19 @@ export default function Profile() {
     try {
       const { signOut: firebaseSignOut } = await import('@/lib/firebase');
       const { clearDemoSession } = await import('@/lib/demo');
+      const { unregisterFcmToken } = await import('@/hooks/usePushNotifications');
       
-      // Clear all auth states
+      // 1. Unregister FCM token from backend BEFORE signing out
+      console.log('[Logout] Unregistering FCM token...');
+      await unregisterFcmToken();
+      
+      // 2. Clear demo/guest state
       clearDemoSession();
       
-      // Sign out from Firebase (primary auth)
+      // 3. Sign out from Firebase (primary auth)
       await firebaseSignOut();
       
-      // Sign out from Supabase (secondary, just in case)
+      // 4. Sign out from Supabase (secondary, just in case)
       await supabase.auth.signOut();
       
       toast({
