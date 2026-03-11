@@ -129,17 +129,6 @@ const AppContent = () => {
         <Route path="/book/:service_type/instant" element={<ProtectedRoute><ProtectedLayout><InstantCheckoutScreen /></ProtectedLayout></ProtectedRoute>} />
         {/* select-worker route removed — merged into /instant */}
         <Route path="/book/:service_type/schedule" element={<ProtectedRoute><ProtectedLayout><ScheduleScreen /></ProtectedLayout></ProtectedRoute>} />
-        <Route path="/admin" element={<AdminGate><AdminLayout /></AdminGate>} />
-        <Route path="/admin/communities" element={<AdminGate><AdminCommunities /></AdminGate>} />
-        <Route path="/admin/users" element={<AdminGate><AdminUsers /></AdminGate>} />
-        <Route path="/admin/pricing" element={<AdminGate><AdminPricing /></AdminGate>} />
-        <Route path="/admin/settings" element={<AdminGate><AdminSettings /></AdminGate>} />
-        <Route path="/admin/daily-bookings" element={<AdminGate><AdminDailyBookings /></AdminGate>} />
-        <Route path="/admin/feedback" element={<AdminGate><AdminFeedback /></AdminGate>} />
-        <Route path="/admin/completed-bookings" element={<AdminGate><AdminCompletedBookings /></AdminGate>} />
-        <Route path="/admin/workers" element={<AdminGate><AdminWorkers /></AdminGate>} />
-        <Route path="/admin/chat" element={<AdminGate><AdminChat /></AdminGate>} />
-        <Route path="/admin/bookings" element={<AdminGate><AdminBookings /></AdminGate>} />
         <Route path="/telegram-setup" element={<TelegramSetup />} />
         <Route path="/test-telegram" element={<Suspense fallback={<PageLoader />}><TestTelegram /></Suspense>} />
         <Route path="/diagnostics" element={<Diagnostics />} />
