@@ -158,10 +158,15 @@ serve(async (req) => {
         });
       }
 
-      // Mark intent as completed
+      // Mark intent as completed with payment details
       await supabase
         .from("payment_intents")
-        .update({ status: "completed" })
+        .update({
+          status: "completed",
+          razorpay_payment_id,
+          verified_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
         .eq("id", intent.id);
 
       console.log(`✅ Booking ${newBooking.id} created from intent after payment verification`);
