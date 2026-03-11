@@ -129,10 +129,41 @@ export const sendOtp = async (phoneNumber: string): Promise<{ success: boolean; 
     if (isNativePlatform()) {
       // Native flow: uses native Firebase SDK, no reCAPTCHA needed
       console.log('📱 Using native Firebase Auth for OTP');
-      const result = await FirebaseAuthentication.signInWithPhoneNumber({ phoneNumber });
-      nativeVerificationId = result.verificationId ?? null;
+      
+      // Listen for verificationId via event
+      const verificationIdPromise = new Promise<string>((resolve, reject) => {
+        const timeout = setTimeout(() => reject(new Error('OTP send timed out')), 30000);
+        FirebaseAuthentication.addListener('phoneCodeSent', (event) => {
+          clearTimeout(timeout);
+          resolve(event.verificationId);
+        });
+        // Handle auto-verification on Android (instant verify)
+        FirebaseAuthentication.addListener('phoneVerificationCompleted', async (event) => {
+          clearTimeout(timeout);
+          // Auto-verified, sign in with the web SDK credential
+          const authInstance = getFirebaseAuth();
+          if (authInstance && event.verificationId && event.verificationCode) {
+            const credential = PhoneAuthProvider.credential(event.verificationId, event.verificationCode);
+            await signInWithCredential(authInstance, credential);
+          }
+          resolve('auto-verified');
+        });
+      });
+
+      await FirebaseAuthentication.signInWithPhoneNumber({ phoneNumber });
+      nativeVerificationId = await verificationIdPromise;
+      
+      // Clean up listeners
+      await FirebaseAuthentication.removeAllListeners();
+      
+      if (nativeVerificationId === 'auto-verified') {
+        // Phone was auto-verified, user is already signed in
+        console.log('✅ Phone auto-verified');
+        return { success: true };
+      }
+      
       if (!nativeVerificationId) {
-        return { success: false, error: 'Failed to get verification ID from native SDK' };
+        return { success: false, error: 'Failed to get verification ID' };
       }
       console.log('✅ Native OTP sent successfully');
       return { success: true };
