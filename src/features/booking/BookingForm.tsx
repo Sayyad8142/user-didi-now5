@@ -79,6 +79,7 @@ export function BookingForm() {
   // Supply protection: max 3 pending instant bookings per community
   const { isSupplyFull, refetch: refetchSupply } = useSupplyCheck(profile?.community);
   const [supplyModalOpen, setSupplyModalOpen] = useState(false);
+  const [paymentChoiceOpen, setPaymentChoiceOpen] = useState(false);
 
   // Combined instant disabled state
   const instantBlocked = instantDisabled || isSupplyFull;
