@@ -25,6 +25,7 @@ import { isGuestMode } from '@/lib/demo';
 import { useInstantBookingAvailability } from '@/hooks/useInstantBookingAvailability';
 import { useSupplyCheck, checkInstantBookingAvailability } from '@/hooks/useSupplyCheck';
 import { SupplyFullModal } from '@/components/SupplyFullModal';
+import { PaymentChoiceSheet } from '@/components/PaymentChoiceSheet';
 import { type DishIntensity } from './DishIntensitySheet';
 import { useDishIntensityPricing } from '@/hooks/useDishIntensityPricing';
 import { useFlatSize } from '@/hooks/useFlatSize';
@@ -78,6 +79,7 @@ export function BookingForm() {
   // Supply protection: max 3 pending instant bookings per community
   const { isSupplyFull, refetch: refetchSupply } = useSupplyCheck(profile?.community);
   const [supplyModalOpen, setSupplyModalOpen] = useState(false);
+  const [paymentChoiceOpen, setPaymentChoiceOpen] = useState(false);
 
   // Combined instant disabled state
   const instantBlocked = instantDisabled || isSupplyFull;
@@ -313,28 +315,142 @@ export function BookingForm() {
       await createBooking('instant', null, null, price);
     }
   };
+
+  // Get current price for instant booking
+  const getInstantPrice = (): number => {
+    if (service_type === 'maid') return totalPrice;
+    if (service_type === 'bathroom_cleaning') return bathroomTotalPrice;
+    if (selectedFlatSize) return pricingMap[selectedFlatSize] || 0;
+    return 0;
+  };
+
+  const handlePayAfterService = async () => {
+    if (!profile || !service_type) return;
+    setPaymentChoiceOpen(false);
+
+    const price = getInstantPrice();
+    if (!price) return;
+
+    if (service_type !== 'bathroom_cleaning' && !selectedFlatSize) return;
+
+    if (!profile.community || profile.community === 'other') {
+      toast({ title: "Profile Incomplete", description: "Please complete your profile with community information before booking.", variant: "destructive" });
+      navigate('/profile/settings');
+      return;
+    }
+
+    if (service_type !== 'bathroom_cleaning' && !profile.flat_id) {
+      toast({ title: "Flat Details Missing", description: "Please update your flat details in Account Settings before booking.", variant: "destructive" });
+      navigate('/profile/settings');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const bookingData: Record<string, unknown> = {
+        user_id: profile.id,
+        service_type,
+        booking_type: 'instant',
+        scheduled_date: null,
+        scheduled_time: null,
+        notes: null,
+        status: 'pending',
+        payment_status: 'pay_after_service',
+        payment_method: 'pay_after_service',
+        flat_size: service_type === 'bathroom_cleaning' ? null : selectedFlatSize,
+        price_inr: price,
+        family_count: null,
+        food_pref: null,
+        cook_cuisine_pref: null,
+        cook_gender_pref: null,
+        maid_tasks: service_type === 'maid' ? selectedTasks : null,
+        dish_intensity: service_type === 'maid' && selectedTasks.includes('dish_washing') ? dishIntensity : null,
+        dish_intensity_extra_inr: service_type === 'maid' && selectedTasks.includes('dish_washing') ? dishIntensityExtra : null,
+        bathroom_count: service_type === 'bathroom_cleaning' ? bathroomCount : null,
+        has_glass_partition: service_type === 'bathroom_cleaning' ? hasGlassPartition : null,
+        glass_partition_fee: service_type === 'bathroom_cleaning' ? glassPartitionFee : null,
+        cust_name: /^\+?\d{7,15}$/.test(profile.full_name.trim()) ? 'User ' + profile.phone.slice(-4) : profile.full_name,
+        cust_phone: profile.phone,
+        community: profile.community,
+        flat_no: profile.flat_no,
+        preferred_worker_id: null
+      };
+
+      const { data, error } = await supabase.from('bookings').insert([bookingData as any]).select();
+      if (error) {
+        if (error.message?.includes('SUPPLY_FULL')) { refetchSupply(); setSupplyModalOpen(true); return; }
+        const isFlatError = error.message?.includes('flat details');
+        toast({ title: "Booking Failed", description: isFlatError ? "Please update your flat details in Account Settings before booking." : `Error: ${error.message || 'Please try again.'}`, variant: "destructive" });
+        if (isFlatError) navigate('/profile/settings');
+        return;
+      }
+
+      toast({ title: "Booking Created! ✅", description: "Your service is booked. Pay after the service is done." });
+      clearPreferredWorker();
+      navigate('/home');
+    } catch (err: any) {
+      toast({ title: "Booking Failed", description: `Error: ${err?.message || 'Please try again.'}`, variant: "destructive" });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleInstantClick = async () => {
+    if (!profile || !service_type) return;
+
+    // Server-side supply check before showing payment choice
+    if (profile.community) {
+      const available = await checkInstantBookingAvailability(profile.community);
+      if (!available) {
+        refetchSupply();
+        setSupplyModalOpen(true);
+        return;
+      }
+    }
+
+    if (service_type === 'maid') {
+      if (!selectedFlatSize || selectedTasks.length === 0) {
+        toast({ title: "Cannot book yet", description: !selectedFlatSize ? "Flat size not available. Update flat details." : "Select at least one task.", variant: "destructive" });
+        return;
+      }
+      if (selectedTasks.includes('dish_washing') && !dishIntensity) {
+        setDishError(true);
+        setDishHighlight(true);
+        dishSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        setTimeout(() => setDishHighlight(false), 2500);
+        toast({ title: "Select dish washing workload", description: "Please choose Light, Medium, or Heavy.", variant: "destructive" });
+        return;
+      }
+    } else if (service_type !== 'bathroom_cleaning') {
+      if (!selectedFlatSize) return;
+      const price = pricingMap[selectedFlatSize];
+      if (!price) {
+        toast({ title: "Error", description: "Price not available for selected flat size.", variant: "destructive" });
+        return;
+      }
+    }
+
+    // Show payment choice sheet
+    setPaymentChoiceOpen(true);
+  };
+
+  const handlePayNowFromSheet = () => {
+    setPaymentChoiceOpen(false);
+    handleBookNow();
+  };
+
   const handleSchedule = () => {
     if (!profile || !service_type) return;
 
-    // Build query parameters for ScheduleScreen
     const params = new URLSearchParams();
 
     if (service_type === 'maid') {
       if (!selectedFlatSize || selectedTasks.length === 0) {
-        toast({
-          title: "Please complete maid booking details",
-          description: "Select flat size and at least one task before scheduling.",
-          variant: "destructive"
-        });
+        toast({ title: "Please complete maid booking details", description: "Select flat size and at least one task before scheduling.", variant: "destructive" });
         return;
       }
-      // Validate dish intensity selection if dish washing is selected
       if (selectedTasks.includes('dish_washing') && !dishIntensity) {
-        toast({
-          title: "Select dish washing workload",
-          description: "Please choose Light, Medium, or Heavy for dish washing.",
-          variant: "destructive"
-        });
+        toast({ title: "Select dish washing workload", description: "Please choose Light, Medium, or Heavy for dish washing.", variant: "destructive" });
         return;
       }
       params.set('flat', selectedFlatSize);
@@ -347,11 +463,7 @@ export function BookingForm() {
       if (!selectedFlatSize) return;
       const price = pricingMap[selectedFlatSize];
       if (!price) {
-        toast({
-          title: "Error",
-          description: "Price not available for selected flat size.",
-          variant: "destructive"
-        });
+        toast({ title: "Error", description: "Price not available for selected flat size.", variant: "destructive" });
         return;
       }
       params.set('flat', selectedFlatSize);
@@ -849,28 +961,7 @@ export function BookingForm() {
               <div className="flex flex-col gap-0">
               {/* Instant Card — books immediately */}
               <button
-                onClick={() => {
-                  // If supply is full, show modal instead of booking
-                  if (isSupplyFull) {
-                    setSupplyModalOpen(true);
-                    return;
-                  }
-                  if (service_type === 'maid') {
-                    if (!selectedFlatSize || selectedTasks.length === 0) {
-                      toast({ title: "Cannot book yet", description: !selectedFlatSize ? "Flat size not available. Update flat details." : "Select at least one task.", variant: "destructive" });
-                      return;
-                    }
-                    if (selectedTasks.includes('dish_washing') && !dishIntensity) {
-                      setDishError(true);
-                      setDishHighlight(true);
-                      dishSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                      setTimeout(() => setDishHighlight(false), 2500);
-                      toast({ title: "Select dish washing workload", description: "Please choose Light, Medium, or Heavy.", variant: "destructive" });
-                      return;
-                    }
-                  }
-                  handleBookNow();
-                }}
+                onClick={handleInstantClick}
                 disabled={!canBook || submitting}
                 className={cn(
                   "relative flex flex-col items-start gap-3 p-4 rounded-2xl border-2 shadow-sm transition-all duration-200 text-left",
@@ -1094,6 +1185,16 @@ export function BookingForm() {
             setSupplyModalOpen(false);
             handleSchedule();
           }}
+        />
+
+        {/* Payment Choice Sheet */}
+        <PaymentChoiceSheet
+          open={paymentChoiceOpen}
+          onOpenChange={setPaymentChoiceOpen}
+          price={getInstantPrice()}
+          onPayAfterService={handlePayAfterService}
+          onPayNow={handlePayNowFromSheet}
+          submitting={submitting}
         />
       </div>
     </div>;
