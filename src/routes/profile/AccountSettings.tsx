@@ -61,9 +61,7 @@ export default function AccountSettings() {
       }
 
       // 3) sign out and redirect
-      const { PortalStore } = await import('@/lib/portal');
       await supabase.auth.signOut();
-      PortalStore.clear();
       navigate("/auth?deleted=1");
     } catch (e: any) {
       console.error('Account deletion error:', e);

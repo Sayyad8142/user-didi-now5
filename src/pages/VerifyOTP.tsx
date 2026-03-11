@@ -276,26 +276,12 @@ export default function VerifyOTP() {
         });
       }
 
-      // Set portal based on where user is going
-      const { PortalStore } = await import('@/lib/portal');
-      
       if (redirectTo) {
-        if (redirectTo.includes('/admin')) {
-          PortalStore.set('admin');
-        } else {
-          PortalStore.set('user');
-        }
         navigate(redirectTo, { replace: true });
         return;
       }
 
-      if (isAdminPhone(profile?.phone) || adminIntent) {
-        PortalStore.set('admin');
-        navigate("/admin", { replace: true });
-      } else {
-        PortalStore.set('user');
-        navigate("/home", { replace: true });
-      }
+      navigate("/home", { replace: true });
     } catch (error: any) {
       console.error('Verify OTP error:', error);
       const errorMsg = error.message ?? "Verification failed";

@@ -123,12 +123,10 @@ export default function Profile() {
   };
   const handleSignOut = async () => {
     try {
-      const { PortalStore } = await import('@/lib/portal');
       const { signOut: firebaseSignOut } = await import('@/lib/firebase');
       const { clearDemoSession } = await import('@/lib/demo');
       
       // Clear all auth states
-      PortalStore.clear();
       clearDemoSession();
       
       // Sign out from Firebase (primary auth)
