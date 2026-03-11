@@ -17,7 +17,7 @@ import { BottomTabs } from "@/components/BottomTabs";
 import { useBackButton } from "@/hooks/useBackButton";
 import { useAppWarmup } from "@/hooks/useAppWarmup";
 import AuthGate from "@/auth/AuthGate";
-import { IncomingCallHandler } from "@/components/IncomingCallHandler";
+
 import { PushNotificationProvider } from "@/components/PushNotificationProvider";
 import { initSupabase } from "@/integrations/supabase/client";
 import { usePushDeepLink } from "@/hooks/usePushDeepLink";
@@ -70,7 +70,7 @@ const TermsScreen = lazy(() => import("./features/legal/TermsScreen").then(m => 
 const AccountSettings = lazy(() => import("./routes/profile/AccountSettings"));
 const BookingDetail = lazy(() => import("./pages/BookingDetail"));
 const SupportScreen = lazy(() => import("./routes/support/SupportScreen"));
-const CallPage = lazy(() => import("./pages/CallPage"));
+
 const Diagnostics = lazy(() => import("./pages/Diagnostics"));
 
 // Loading component with pink background
@@ -140,7 +140,7 @@ const AppContent = () => {
         <Route path="/profile/account" element={<ProtectedRoute><ProtectedLayout><AccountSettings /></ProtectedLayout></ProtectedRoute>} />
         <Route path="/support" element={<ProtectedRoute><ProtectedLayout><SupportScreen /></ProtectedLayout></ProtectedRoute>} />
         <Route path="/chat" element={<ProtectedRoute><ChatScreen /></ProtectedRoute>} />
-        <Route path="/call" element={<ProtectedRoute><CallPage /></ProtectedRoute>} />
+        
         <Route path="/faqs" element={<ProtectedRoute><ProtectedLayout><FAQs /></ProtectedLayout></ProtectedRoute>} />
         <Route path="/book/:service_type" element={<ProtectedRoute><ProtectedLayout><BookingForm /></ProtectedLayout></ProtectedRoute>} />
         <Route path="/book/:service_type/instant" element={<ProtectedRoute><ProtectedLayout><InstantCheckoutScreen /></ProtectedLayout></ProtectedRoute>} />
@@ -262,7 +262,7 @@ const App = () => {
       <AuthGate>
         <PushNotificationProvider>
           <AppContent />
-          <IncomingCallHandler />
+          
         </PushNotificationProvider>
       </AuthGate>
     </TooltipProvider>

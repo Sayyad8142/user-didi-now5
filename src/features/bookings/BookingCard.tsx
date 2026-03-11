@@ -23,11 +23,7 @@ import ChatSheet from '@/features/chat/ChatSheet';
 import { LoadingWorkerBadge } from '@/components/LoadingWorkerBadge';
 import { WorkerRatingsModal } from './WorkerRatingsModal';
 import { useUnseenMessages } from '@/hooks/useUnseenMessages';
-import { CallHistory } from '@/components/calling/CallHistory';
-import { IncomingCallScreen } from '@/components/calling/IncomingCallScreen';
-import { useIncomingRtcPush } from '@/hooks/useIncomingRtcPush';
 import { useProfile } from '@/contexts/ProfileContext';
-
 interface Booking {
   id: string;
   service_type: string;
@@ -73,7 +69,7 @@ export function BookingCard({
   const navigate = useNavigate();
   const { profile } = useProfile();
   const { hasUnseenMessages, markMessagesAsSeen } = useUnseenMessages();
-  const { incomingCall, clearIncomingCall } = useIncomingRtcPush();
+  
   const [assignedWorker, setAssignedWorker] = useState<any>(null);
   const [loadingWorker, setLoadingWorker] = useState(true);
   const [row, setRow] = useState(booking);
@@ -301,38 +297,6 @@ export function BookingCard({
     if (error) throw error;
   };
 
-  const handleInitiateCall = async () => {
-    try {
-      toast.loading('Connecting call...', { id: 'initiating-call' });
-      
-      const { data, error } = await supabase.functions.invoke('create-rtc-call', {
-        body: { booking_id: row.id },
-      });
-
-      toast.dismiss('initiating-call');
-
-      if (error) throw error;
-
-      if (data?.success) {
-        navigate('/call', {
-          state: {
-            rtcCallId: data.rtc_call_id,
-            roomId: data.room_id,
-            roomUrl: data.room_url,
-            token: data.caller_token,
-            callerName: row.worker_name || 'Worker',
-            initialState: 'dialing',
-          },
-        });
-      } else {
-        throw new Error(data?.error || 'Failed to initiate call');
-      }
-    } catch (error) {
-      console.error('Error initiating call:', error);
-      toast.dismiss('initiating-call');
-      toast.error('Could not start call. Please try again.');
-    }
-  };
 
   // Display rating stars
   const avgRating = workerStats?.avg_rating ?? 0;
@@ -533,19 +497,6 @@ export function BookingCard({
             />
           )}
 
-          {/* VoIP Call Button - show for assigned/accepted/on_the_way/started bookings */}
-          {['assigned', 'accepted', 'on_the_way', 'started'].includes(row.status) && row.worker_id && (
-            <div className="space-y-2">
-              <Button 
-                onClick={handleInitiateCall}
-                disabled
-                className="w-full h-10 bg-gray-300 text-gray-500 font-semibold rounded-lg opacity-50 cursor-not-allowed"
-              >
-                <PhoneCall className="h-4 w-4 mr-2" />
-                Call to worker (coming soon)
-              </Button>
-            </div>
-          )}
 
           {/* Support button */}
           {(row.status === 'pending' || row.status === 'assigned') && (
@@ -588,10 +539,6 @@ export function BookingCard({
           )}
         </div>
 
-        {/* Call History - show for assigned and active bookings */}
-        {['assigned', 'accepted', 'on_the_way', 'started', 'completed'].includes(row.status) && (
-          <CallHistory bookingId={row.id} />
-        )}
       </div>
 
       <ChatSheet
@@ -623,14 +570,6 @@ export function BookingCard({
         />
       )}
 
-      {/* Incoming Call Modal */}
-      {incomingCall && incomingCall.booking_id === row.id && (
-        <IncomingCallScreen
-          rtcCallId={incomingCall.rtc_call_id}
-          callerName={incomingCall.caller_name || 'Someone'}
-          onDismiss={clearIncomingCall}
-        />
-      )}
 
       {/* Change Worker Confirmation Sheet */}
       <Sheet open={showChangeWorkerSheet} onOpenChange={setShowChangeWorkerSheet}>
