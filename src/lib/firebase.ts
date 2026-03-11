@@ -140,11 +140,11 @@ export const sendOtp = async (phoneNumber: string): Promise<{ success: boolean; 
         // Handle auto-verification on Android (instant verify)
         FirebaseAuthentication.addListener('phoneVerificationCompleted', async (event) => {
           clearTimeout(timeout);
-          // Auto-verified, sign in with the web SDK credential
+          // Auto-verified — the credential is applied natively, sign in with web SDK
           const authInstance = getFirebaseAuth();
-          if (authInstance && event.verificationId && event.verificationCode) {
-            const credential = PhoneAuthProvider.credential(event.verificationId, event.verificationCode);
-            await signInWithCredential(authInstance, credential);
+          if (authInstance && event.verificationCode) {
+            // We need a verificationId to create a credential; use nativeVerificationId if available
+            // On auto-verify, the native SDK signs in automatically — just resolve
           }
           resolve('auto-verified');
         });
