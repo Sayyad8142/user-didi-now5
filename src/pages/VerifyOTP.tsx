@@ -39,8 +39,7 @@ export default function VerifyOTP() {
   const state = location.state as LocationState;
   
   const phone = state?.phone || "";
-  const adminIntent = state?.adminLogin || false;
-  const redirectTo = state?.redirectTo || (adminIntent ? "/admin" : "/home");
+  const redirectTo = state?.redirectTo || "/home";
   
   // Redirect if no state
   useEffect(() => {
