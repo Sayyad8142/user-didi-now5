@@ -26,20 +26,9 @@ interface LocationState {
     flatId: string;
     flatNo: string;
   } | null;
-  adminLogin?: boolean;
   redirectTo?: string;
 }
 
-function isAdminPhone(phone?: string | null) {
-  const env = import.meta.env.VITE_ADMIN_PHONES ?? "";
-  const target = normalizePhone(phone ?? "");
-  if (!target) return false;
-  return env
-    .split(",")
-    .map(s => normalizePhone(s.trim()))
-    .filter(Boolean)
-    .includes(target);
-}
 
 export default function VerifyOTP() {
   const navigate = useNavigate();
@@ -50,8 +39,7 @@ export default function VerifyOTP() {
   const state = location.state as LocationState;
   
   const phone = state?.phone || "";
-  const adminIntent = state?.adminLogin || false;
-  const redirectTo = state?.redirectTo || (adminIntent ? "/admin" : "/home");
+  const redirectTo = state?.redirectTo || "/home";
   
   // Redirect if no state
   useEffect(() => {
@@ -288,26 +276,12 @@ export default function VerifyOTP() {
         });
       }
 
-      // Set portal based on where user is going
-      const { PortalStore } = await import('@/lib/portal');
-      
       if (redirectTo) {
-        if (redirectTo.includes('/admin')) {
-          PortalStore.set('admin');
-        } else {
-          PortalStore.set('user');
-        }
         navigate(redirectTo, { replace: true });
         return;
       }
 
-      if (isAdminPhone(profile?.phone) || adminIntent) {
-        PortalStore.set('admin');
-        navigate("/admin", { replace: true });
-      } else {
-        PortalStore.set('user');
-        navigate("/home", { replace: true });
-      }
+      navigate("/home", { replace: true });
     } catch (error: any) {
       console.error('Verify OTP error:', error);
       const errorMsg = error.message ?? "Verification failed";

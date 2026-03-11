@@ -46,21 +46,6 @@ const ChatScreen = lazy(() => import("./features/chat/ChatScreen").then(m => ({ 
 const TelegramSetup = lazy(() => import("./pages/TelegramSetup"));
 const TestTelegram = lazy(() => import("./pages/TestTelegram"));
 
-// Lazy load admin pages
-const AdminGate = lazy(() => import("./features/admin/AdminGate").then(m => ({ default: m.AdminGate })));
-const AdminLayout = lazy(() => import("./routes/admin/AdminLayout"));
-const AdminCommunities = lazy(() => import("./routes/admin/AdminCommunities"));
-const AdminUsers = lazy(() => import("./routes/admin/AdminUsers"));
-const AdminPricing = lazy(() => import("./routes/admin/AdminPricing"));
-const AdminSettings = lazy(() => import("./routes/admin/AdminSettings"));
-const AdminDailyBookings = lazy(() => import("./routes/admin/AdminDailyBookings"));
-const AdminLogin = lazy(() => import("./routes/auth/AdminLogin"));
-const AdminVerify = lazy(() => import("./routes/auth/AdminVerify"));
-const AdminChat = lazy(() => import("./routes/admin/AdminChat"));
-const AdminFeedback = lazy(() => import("./routes/admin/AdminFeedback"));
-const AdminCompletedBookings = lazy(() => import("./routes/admin/AdminCompletedBookings"));
-const AdminWorkers = lazy(() => import("./routes/admin/AdminWorkers"));
-const AdminBookings = lazy(() => import("./routes/admin/AdminBookings"));
 
 // Lazy load legal and profile pages
 const LegalCenter = lazy(() => import("./routes/LegalCenter"));
@@ -127,8 +112,6 @@ const AppContent = () => {
         <Route path="/" element={<Index />} />
         <Route path="/auth" element={<Auth />} />
         <Route path="/auth/verify" element={<VerifyOTP />} />
-        <Route path="/admin-login" element={<AdminLogin />} />
-        <Route path="/admin-verify" element={<AdminVerify />} />
         <Route path="/legal" element={<LegalCenter />} />
         <Route path="/legal/privacy" element={<PrivacyPolicyScreen />} />
         <Route path="/legal/privacy-pdf" element={<PrivacyPolicy />} />
@@ -146,17 +129,6 @@ const AppContent = () => {
         <Route path="/book/:service_type/instant" element={<ProtectedRoute><ProtectedLayout><InstantCheckoutScreen /></ProtectedLayout></ProtectedRoute>} />
         {/* select-worker route removed — merged into /instant */}
         <Route path="/book/:service_type/schedule" element={<ProtectedRoute><ProtectedLayout><ScheduleScreen /></ProtectedLayout></ProtectedRoute>} />
-        <Route path="/admin" element={<AdminGate><AdminLayout /></AdminGate>} />
-        <Route path="/admin/communities" element={<AdminGate><AdminCommunities /></AdminGate>} />
-        <Route path="/admin/users" element={<AdminGate><AdminUsers /></AdminGate>} />
-        <Route path="/admin/pricing" element={<AdminGate><AdminPricing /></AdminGate>} />
-        <Route path="/admin/settings" element={<AdminGate><AdminSettings /></AdminGate>} />
-        <Route path="/admin/daily-bookings" element={<AdminGate><AdminDailyBookings /></AdminGate>} />
-        <Route path="/admin/feedback" element={<AdminGate><AdminFeedback /></AdminGate>} />
-        <Route path="/admin/completed-bookings" element={<AdminGate><AdminCompletedBookings /></AdminGate>} />
-        <Route path="/admin/workers" element={<AdminGate><AdminWorkers /></AdminGate>} />
-        <Route path="/admin/chat" element={<AdminGate><AdminChat /></AdminGate>} />
-        <Route path="/admin/bookings" element={<AdminGate><AdminBookings /></AdminGate>} />
         <Route path="/telegram-setup" element={<TelegramSetup />} />
         <Route path="/test-telegram" element={<Suspense fallback={<PageLoader />}><TestTelegram /></Suspense>} />
         <Route path="/diagnostics" element={<Diagnostics />} />
