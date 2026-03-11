@@ -85,6 +85,22 @@ export const getFirebaseAuth = (): Auth | null => {
 
 // Setup invisible reCAPTCHA verifier
 export const setupRecaptcha = (containerId: string = 'recaptcha-container'): RecaptchaVerifier | null => {
+  const native = Capacitor.isNativePlatform();
+  const platform = Capacitor.getPlatform();
+  const useNativePhoneAuth = native && (platform === 'android' || platform === 'ios');
+
+  console.log('[Auth] setupRecaptcha called', {
+    containerId,
+    native,
+    platform,
+    useNativePhoneAuth,
+  });
+
+  if (useNativePhoneAuth) {
+    console.log('[Auth] Skipping reCAPTCHA setup on native runtime');
+    return null;
+  }
+
   const authInstance = getFirebaseAuth();
   if (!authInstance) {
     console.error('❌ Auth not available for reCAPTCHA');
@@ -92,7 +108,6 @@ export const setupRecaptcha = (containerId: string = 'recaptcha-container'): Rec
   }
 
   try {
-    // Clear existing verifier
     if (recaptchaVerifier) {
       recaptchaVerifier.clear();
       recaptchaVerifier = null;
