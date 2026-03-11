@@ -400,6 +400,9 @@ export function BookingForm() {
 
     setSubmitting(true);
     try {
+      // Preload Razorpay SDK
+      await loadRazorpayScript();
+
       const bookingData = {
         user_id: profile.id,
         service_type,
@@ -408,6 +411,7 @@ export function BookingForm() {
         scheduled_time: scheduledTime,
         notes: null,
         status: 'pending',
+        payment_status: 'pending',
         flat_size: service_type === 'bathroom_cleaning' ? null : selectedFlatSize,
         price_inr: price,
         family_count: null,
@@ -427,7 +431,7 @@ export function BookingForm() {
         preferred_worker_id: null
       } as any;
 
-      console.log('📤 Sending booking data to database:', bookingData);
+      console.log('📤 Creating booking (pre-payment):', bookingData);
 
       const { data, error } = await supabase.from('bookings').insert([bookingData]).select();
 
@@ -439,7 +443,6 @@ export function BookingForm() {
           hint: error.hint,
           code: error.code
         });
-        // Handle SUPPLY_FULL from DB trigger
         if (error.message?.includes('SUPPLY_FULL')) {
           refetchSupply();
           setSupplyModalOpen(true);
@@ -457,15 +460,39 @@ export function BookingForm() {
         return;
       }
 
-      console.log('✅ Booking created successfully:', data);
+      const newBookingId = data?.[0]?.id;
+      if (!newBookingId) throw new Error("Booking created but no ID returned");
 
-      toast({
-        title: "Booking received!",
-        description: bookingType === 'instant' ? "Service will arrive in 10 minutes." : "Your booking has been scheduled successfully."
-      });
-      setScheduleSheetOpen(false);
-      clearPreferredWorker();
-      navigate('/home');
+      console.log('✅ Booking created, initiating payment:', newBookingId);
+
+      // Initiate Razorpay payment
+      try {
+        await initiateRazorpayPayment(newBookingId);
+        console.log('✅ Payment successful for booking:', newBookingId);
+        toast({
+          title: "Payment successful!",
+          description: bookingType === 'instant' ? "Service will arrive in 10 minutes." : "Your booking has been scheduled successfully."
+        });
+        setScheduleSheetOpen(false);
+        clearPreferredWorker();
+        navigate('/home');
+      } catch (payErr: any) {
+        console.warn('⚠️ Payment cancelled/failed:', payErr.message);
+        // Cancel the booking if payment was not completed
+        await supabase.from('bookings').update({
+          status: 'cancelled',
+          cancel_reason: 'Payment not completed',
+          cancel_source: 'user',
+          cancelled_at: new Date().toISOString(),
+        }).eq('id', newBookingId);
+        toast({
+          title: "Payment not completed",
+          description: payErr.message === "Payment cancelled by user"
+            ? "Booking cancelled. You can try again."
+            : `Payment failed: ${payErr.message}`,
+          variant: "destructive"
+        });
+      }
     } catch (err: any) {
       console.error('❌ Booking error:', err);
       const isNetworkError = err?.message?.includes('Load failed') || err?.message?.includes('Failed to fetch') || err?.message?.includes('NetworkError');

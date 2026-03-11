@@ -99,6 +99,8 @@ export function InstantCheckoutScreen() {
 
     setSubmitting(true);
     try {
+      await loadRazorpayScript();
+
       const maidTasks = tasks ? tasks.split(',') : null;
       const bookingData = {
         user_id: profile.id,
@@ -108,6 +110,7 @@ export function InstantCheckoutScreen() {
         scheduled_time: null,
         notes: null,
         status: 'pending',
+        payment_status: 'pending',
         flat_size: service_type === 'bathroom_cleaning' ? null : autoFlatSize,
         price_inr: price,
         family_count: null,
@@ -131,7 +134,6 @@ export function InstantCheckoutScreen() {
 
       if (error) {
         console.error('❌ Booking error:', error);
-        // Handle SUPPLY_FULL from DB trigger
         if (error.message?.includes('SUPPLY_FULL')) {
           setSupplyModalOpen(true);
           return;
@@ -148,13 +150,34 @@ export function InstantCheckoutScreen() {
         return;
       }
 
-      sessionStorage.removeItem(`preferred_worker_${service_type}`);
+      const newBookingId = data?.[0]?.id;
+      if (!newBookingId) throw new Error("Booking created but no ID returned");
 
-      toast({
-        title: "Booking received!",
-        description: "Service will arrive in 10 minutes."
-      });
-      navigate('/home');
+      // Initiate Razorpay payment
+      try {
+        await initiateRazorpayPayment(newBookingId);
+        sessionStorage.removeItem(`preferred_worker_${service_type}`);
+        toast({
+          title: "Payment successful!",
+          description: "Service will arrive in 10 minutes."
+        });
+        navigate('/home');
+      } catch (payErr: any) {
+        console.warn('⚠️ Payment cancelled/failed:', payErr.message);
+        await supabase.from('bookings').update({
+          status: 'cancelled',
+          cancel_reason: 'Payment not completed',
+          cancel_source: 'user',
+          cancelled_at: new Date().toISOString(),
+        }).eq('id', newBookingId);
+        toast({
+          title: "Payment not completed",
+          description: payErr.message === "Payment cancelled by user"
+            ? "Booking cancelled. You can try again."
+            : `Payment failed: ${payErr.message}`,
+          variant: "destructive"
+        });
+      }
     } catch (err: any) {
       console.error('❌ Booking error:', err);
       const isNetworkError = err?.message?.includes('Load failed') || err?.message?.includes('Failed to fetch') || err?.message?.includes('NetworkError');
