@@ -497,19 +497,6 @@ export function BookingCard({
             />
           )}
 
-          {/* VoIP Call Button - show for assigned/accepted/on_the_way/started bookings */}
-          {['assigned', 'accepted', 'on_the_way', 'started'].includes(row.status) && row.worker_id && (
-            <div className="space-y-2">
-              <Button 
-                onClick={handleInitiateCall}
-                disabled
-                className="w-full h-10 bg-gray-300 text-gray-500 font-semibold rounded-lg opacity-50 cursor-not-allowed"
-              >
-                <PhoneCall className="h-4 w-4 mr-2" />
-                Call to worker (coming soon)
-              </Button>
-            </div>
-          )}
 
           {/* Support button */}
           {(row.status === 'pending' || row.status === 'assigned') && (
