@@ -64,7 +64,6 @@ createRoot(rootElement).render(
             <ProfileProvider>
               <PushNotificationProvider>
                 <App />
-                <Toaster />
               </PushNotificationProvider>
             </ProfileProvider>
           </AuthProvider>
