@@ -570,14 +570,6 @@ export function BookingCard({
         />
       )}
 
-      {/* Incoming Call Modal */}
-      {incomingCall && incomingCall.booking_id === row.id && (
-        <IncomingCallScreen
-          rtcCallId={incomingCall.rtc_call_id}
-          callerName={incomingCall.caller_name || 'Someone'}
-          onDismiss={clearIncomingCall}
-        />
-      )}
 
       {/* Change Worker Confirmation Sheet */}
       <Sheet open={showChangeWorkerSheet} onOpenChange={setShowChangeWorkerSheet}>
