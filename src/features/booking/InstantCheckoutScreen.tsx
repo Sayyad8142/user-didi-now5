@@ -7,6 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { initiateRazorpayPayment, loadRazorpayScript } from '@/lib/razorpay';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { cn } from '@/lib/utils';
