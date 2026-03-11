@@ -23,7 +23,7 @@ import ChatSheet from '@/features/chat/ChatSheet';
 import { LoadingWorkerBadge } from '@/components/LoadingWorkerBadge';
 import { WorkerRatingsModal } from './WorkerRatingsModal';
 import { useUnseenMessages } from '@/hooks/useUnseenMessages';
-
+import { useProfile } from '@/contexts/ProfileContext';
 interface Booking {
   id: string;
   service_type: string;
