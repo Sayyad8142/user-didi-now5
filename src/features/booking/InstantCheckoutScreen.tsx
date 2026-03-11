@@ -8,7 +8,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { loadRazorpayScript } from '@/lib/razorpay';
-import { payWithWalletThenRazorpay } from '@/lib/walletPayment';
+import { payIntentWithWalletThenRazorpay } from '@/lib/walletPayment';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { cn } from '@/lib/utils';
@@ -103,7 +103,7 @@ export function InstantCheckoutScreen() {
       await loadRazorpayScript();
 
       const maidTasks = tasks ? tasks.split(',') : null;
-      const bookingData = {
+      const bookingData: Record<string, unknown> = {
         user_id: profile.id,
         service_type,
         booking_type: 'instant',
@@ -129,64 +129,25 @@ export function InstantCheckoutScreen() {
         community: profile.community,
         flat_no: profile.flat_no,
         preferred_worker_id: selectedWorker?.worker_id || null,
-      } as any;
+      };
 
-      const { data, error } = await supabase.from('bookings').insert([bookingData]).select();
+      // Intent-based flow: pay first, booking created server-side after payment
+      const newBookingId = await payIntentWithWalletThenRazorpay(bookingData, profile.id, price);
 
-      if (error) {
-        console.error('❌ Booking error:', error);
-        if (error.message?.includes('SUPPLY_FULL')) {
-          setSupplyModalOpen(true);
-          return;
-        }
-        const isFlatError = error.message?.includes('flat details');
-        toast({
-          title: "Booking Failed",
-          description: isFlatError
-            ? "Please update your flat details in Account Settings before booking."
-            : `Error: ${error.message || 'Please try again.'}`,
-          variant: "destructive"
-        });
-        if (isFlatError) navigate('/profile/settings');
-        return;
-      }
-
-      const newBookingId = data?.[0]?.id;
-      if (!newBookingId) throw new Error("Booking created but no ID returned");
-
-      // Initiate payment (wallet first, then Razorpay for remainder)
-      try {
-        await payWithWalletThenRazorpay(newBookingId, profile.id, data[0].price_inr || price);
-        sessionStorage.removeItem(`preferred_worker_${service_type}`);
-        toast({
-          title: "Payment successful!",
-          description: "Service will arrive in 10 minutes."
-        });
-        navigate('/home');
-      } catch (payErr: any) {
-        console.warn('⚠️ Payment cancelled/failed:', payErr.message);
-        await supabase.from('bookings').update({
-          status: 'cancelled',
-          cancel_reason: 'Payment not completed',
-          cancel_source: 'user',
-          cancelled_at: new Date().toISOString(),
-        }).eq('id', newBookingId);
-        toast({
-          title: "Payment not completed",
-          description: payErr.message === "Payment cancelled by user"
-            ? "Booking cancelled. You can try again."
-            : `Payment failed: ${payErr.message}`,
-          variant: "destructive"
-        });
-      }
-    } catch (err: any) {
-      console.error('❌ Booking error:', err);
-      const isNetworkError = err?.message?.includes('Load failed') || err?.message?.includes('Failed to fetch') || err?.message?.includes('NetworkError');
+      sessionStorage.removeItem(`preferred_worker_${service_type}`);
       toast({
-        title: "Booking Failed",
-        description: isNetworkError
-          ? "Network error – please check your internet connection and try again."
-          : `Error: ${err?.message || 'Please try again.'}`,
+        title: "Payment successful!",
+        description: "Service will arrive in 10 minutes."
+      });
+      navigate('/home');
+    } catch (payErr: any) {
+      console.warn('⚠️ Payment cancelled/failed:', payErr.message);
+      // No booking was created, so nothing to cancel
+      toast({
+        title: "Payment not completed",
+        description: payErr.message === "Payment cancelled by user"
+          ? "You can try again anytime."
+          : `Payment failed: ${payErr.message}`,
         variant: "destructive"
       });
     } finally {

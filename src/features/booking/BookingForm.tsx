@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { loadRazorpayScript } from '@/lib/razorpay';
-import { payWithWalletThenRazorpay } from '@/lib/walletPayment';
+import { payIntentWithWalletThenRazorpay, payWithWalletThenRazorpay } from '@/lib/walletPayment';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, MapPin, Home, Clock, Calendar, AlertCircle, Check, Zap, ChevronRight, Star, X, Ruler, ChevronDown } from 'lucide-react';
 import dishesLightImg from '@/assets/dishes-light.webp';
@@ -363,48 +363,23 @@ export function BookingForm() {
   const createBooking = async (bookingType: 'instant' | 'scheduled', scheduledDate: string | null, scheduledTime: string | null, price: number) => {
     if (service_type !== 'bathroom_cleaning' && !selectedFlatSize) return;
 
-    // Validate community before booking
     if (!profile.community || profile.community === 'other') {
-      console.error('❌ Invalid community in profile:', profile.community);
-      toast({
-        title: "Profile Incomplete",
-        description: "Please complete your profile with community information before booking.",
-        variant: "destructive"
-      });
+      toast({ title: "Profile Incomplete", description: "Please complete your profile with community information before booking.", variant: "destructive" });
       navigate('/profile/settings');
       return;
     }
 
-    // Validate flat details are linked (required by DB trigger)
     if (service_type !== 'bathroom_cleaning' && !profile.flat_id) {
-      console.error('❌ Missing flat_id in profile:', profile);
-      toast({
-        title: "Flat Details Missing",
-        description: "Please update your flat details in Account Settings before booking.",
-        variant: "destructive"
-      });
+      toast({ title: "Flat Details Missing", description: "Please update your flat details in Account Settings before booking.", variant: "destructive" });
       navigate('/profile/settings');
       return;
     }
-
-    console.log('📝 Creating booking:', {
-      serviceType: service_type,
-      bookingType,
-      community: profile.community,
-      flatNo: profile.flat_no,
-      userId: user.id,
-      price,
-      scheduledDate,
-      scheduledTime,
-      timestamp: new Date().toISOString()
-    });
 
     setSubmitting(true);
     try {
-      // Preload Razorpay SDK
       await loadRazorpayScript();
 
-      const bookingData = {
+      const bookingData: Record<string, unknown> = {
         user_id: profile.id,
         service_type,
         booking_type: bookingType,
@@ -430,78 +405,46 @@ export function BookingForm() {
         community: profile.community,
         flat_no: profile.flat_no,
         preferred_worker_id: null
-      } as any;
+      };
 
-      console.log('📤 Creating booking (pre-payment):', bookingData);
-
-      const { data, error } = await supabase.from('bookings').insert([bookingData]).select();
-
-      if (error) {
-        console.error('❌ Booking error:', {
-          error,
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-          code: error.code
-        });
-        if (error.message?.includes('SUPPLY_FULL')) {
-          refetchSupply();
-          setSupplyModalOpen(true);
-          return;
-        }
-        const isFlatError = error.message?.includes('flat details');
-        toast({
-          title: "Booking Failed",
-          description: isFlatError ?
-          "Please update your flat details in Account Settings before booking." :
-          `Error: ${error.message || 'Please try again.'}`,
-          variant: "destructive"
-        });
-        if (isFlatError) navigate('/profile/settings');
-        return;
-      }
-
-      const newBookingId = data?.[0]?.id;
-      if (!newBookingId) throw new Error("Booking created but no ID returned");
-
-      console.log('✅ Booking created, initiating payment:', newBookingId);
-
-      // Initiate payment (wallet first, then Razorpay for remainder)
-      try {
-        await payWithWalletThenRazorpay(newBookingId, profile.id, data[0].price_inr || price);
-        console.log('✅ Payment successful for booking:', newBookingId);
-        toast({
-          title: "Payment successful!",
-          description: bookingType === 'instant' ? "Service will arrive in 10 minutes." : "Your booking has been scheduled successfully."
-        });
+      if (bookingType === 'instant') {
+        // INSTANT: Pay first, booking created server-side after payment
+        console.log('🚀 Intent-based instant booking flow');
+        const newBookingId = await payIntentWithWalletThenRazorpay(bookingData, profile.id, price);
+        toast({ title: "Payment successful!", description: "Service will arrive in 10 minutes." });
         setScheduleSheetOpen(false);
         clearPreferredWorker();
         navigate('/home');
-      } catch (payErr: any) {
-        console.warn('⚠️ Payment cancelled/failed:', payErr.message);
-        // Cancel the booking if payment was not completed
-        await supabase.from('bookings').update({
-          status: 'cancelled',
-          cancel_reason: 'Payment not completed',
-          cancel_source: 'user',
-          cancelled_at: new Date().toISOString(),
-        }).eq('id', newBookingId);
-        toast({
-          title: "Payment not completed",
-          description: payErr.message === "Payment cancelled by user"
-            ? "Booking cancelled. You can try again."
-            : `Payment failed: ${payErr.message}`,
-          variant: "destructive"
-        });
+      } else {
+        // SCHEDULED: Create booking first, then pay
+        const { data, error } = await supabase.from('bookings').insert([bookingData as any]).select();
+        if (error) {
+          if (error.message?.includes('SUPPLY_FULL')) { refetchSupply(); setSupplyModalOpen(true); return; }
+          const isFlatError = error.message?.includes('flat details');
+          toast({ title: "Booking Failed", description: isFlatError ? "Please update your flat details in Account Settings before booking." : `Error: ${error.message || 'Please try again.'}`, variant: "destructive" });
+          if (isFlatError) navigate('/profile/settings');
+          return;
+        }
+        const newBookingId = data?.[0]?.id;
+        if (!newBookingId) throw new Error("Booking created but no ID returned");
+
+        try {
+          await payWithWalletThenRazorpay(newBookingId, profile.id, data[0].price_inr || price);
+          toast({ title: "Payment successful!", description: "Your booking has been scheduled successfully." });
+          setScheduleSheetOpen(false);
+          clearPreferredWorker();
+          navigate('/home');
+        } catch (payErr: any) {
+          await supabase.from('bookings').update({ status: 'cancelled', cancel_reason: 'Payment not completed', cancel_source: 'user', cancelled_at: new Date().toISOString() }).eq('id', newBookingId);
+          toast({ title: "Payment not completed", description: payErr.message === "Payment cancelled by user" ? "Booking cancelled. You can try again." : `Payment failed: ${payErr.message}`, variant: "destructive" });
+        }
       }
     } catch (err: any) {
-      console.error('❌ Booking error:', err);
+      const isPaymentCancel = err?.message === "Payment cancelled by user";
       const isNetworkError = err?.message?.includes('Load failed') || err?.message?.includes('Failed to fetch') || err?.message?.includes('NetworkError');
       toast({
-        title: "Booking Failed",
-        description: isNetworkError ?
-        "Network error – please check your internet connection and try again." :
-        `Error: ${err?.message || 'Please try again.'}`,
+        title: isPaymentCancel ? "Payment not completed" : "Booking Failed",
+        description: isPaymentCancel ? "You can try again anytime." : isNetworkError ? "Network error – please check your internet connection and try again." : `Error: ${err?.message || 'Please try again.'}`,
         variant: "destructive"
       });
     } finally {

@@ -38,46 +38,43 @@ interface RazorpayPaymentResult {
 }
 
 /**
- * Full Razorpay checkout flow:
- * 1. Create order via edge function
+ * Intent-based Razorpay flow (for instant bookings):
+ * 1. Create order via edge function (no booking row needed)
  * 2. Open Razorpay checkout
- * 3. Verify payment via edge function
+ * 3. Verify payment — booking is created server-side on success
+ * Returns the new booking ID.
  */
-export async function initiateRazorpayPayment(bookingId: string): Promise<string> {
-  console.log("🚀 [Razorpay] Starting payment flow for booking:", bookingId);
+export async function initiateIntentPayment(
+  bookingData: Record<string, unknown>,
+  amount: number
+): Promise<string> {
+  console.log("🚀 [Razorpay] Starting intent payment flow, amount:", amount);
 
   await loadRazorpayScript();
 
-  // Get Firebase token
-  console.log("🔑 [Razorpay] Getting Firebase token...");
   const firebaseToken = await getFirebaseIdToken();
   if (!firebaseToken) {
-    console.error("❌ [Razorpay] No Firebase token — user not authenticated");
     throw new Error("Not authenticated - no Firebase token");
   }
-  console.log("✅ [Razorpay] Firebase token obtained, length:", firebaseToken.length);
 
-  // 1. Create Razorpay order
-  console.log("📦 [Razorpay] Calling create-razorpay-order...");
+  // 1. Create Razorpay order with booking data
+  console.log("📦 [Razorpay] Creating intent-based order...");
   const { data: orderData, error: orderError } = await supabase.functions.invoke(
     "create-razorpay-order",
     {
-      body: { booking_id: bookingId },
+      body: { booking_data: bookingData, amount },
       headers: { "x-firebase-token": firebaseToken },
     }
   );
 
-  console.log("📦 [Razorpay] create-razorpay-order response:", { orderData, orderError });
-
   if (orderError || !orderData?.order_id) {
-    console.error("❌ [Razorpay] Order creation failed:", orderError, orderData);
+    console.error("❌ [Razorpay] Intent order creation failed:", orderError, orderData);
     throw new Error(orderData?.error || orderError?.message || "Failed to create payment order");
   }
 
-  console.log("✅ [Razorpay] Order created:", orderData.order_id, "amount:", orderData.amount);
+  console.log("✅ [Razorpay] Intent order created:", orderData.order_id);
 
   // 2. Open Razorpay Checkout
-  console.log("🪟 [Razorpay] Opening checkout modal...");
   const paymentResult = await new Promise<RazorpayPaymentResult>((resolve, reject) => {
     const options = {
       key: orderData.key_id,
@@ -89,7 +86,7 @@ export async function initiateRazorpayPayment(bookingId: string): Promise<string
       prefill: orderData.prefill || {},
       theme: { color: "#6366f1" },
       handler: (response: RazorpayPaymentResult) => {
-        console.log("✅ [Razorpay] Payment handler called — user completed payment");
+        console.log("✅ [Razorpay] Payment completed by user");
         resolve(response);
       },
       modal: {
@@ -103,19 +100,103 @@ export async function initiateRazorpayPayment(bookingId: string): Promise<string
     try {
       const rzp = new window.Razorpay(options);
       rzp.on("payment.failed", (response: any) => {
-        console.error("❌ [Razorpay] payment.failed event:", response.error);
+        console.error("❌ [Razorpay] payment.failed:", response.error);
         reject(new Error(response.error?.description || "Payment failed"));
       });
       rzp.open();
-      console.log("✅ [Razorpay] Checkout modal opened successfully");
+      console.log("✅ [Razorpay] Checkout modal opened");
     } catch (err) {
       console.error("❌ [Razorpay] Failed to open checkout:", err);
       reject(err);
     }
   });
 
+  // 3. Verify payment — this also creates the booking server-side
+  console.log("🔍 [Razorpay] Verifying intent payment...");
+  const freshToken = await getFirebaseIdToken();
+  const { data: verifyData, error: verifyError } = await supabase.functions.invoke(
+    "verify-razorpay-payment",
+    {
+      body: {
+        razorpay_order_id: paymentResult.razorpay_order_id,
+        razorpay_payment_id: paymentResult.razorpay_payment_id,
+        razorpay_signature: paymentResult.razorpay_signature,
+      },
+      headers: { "x-firebase-token": freshToken || firebaseToken },
+    }
+  );
+
+  if (verifyError || !verifyData?.success) {
+    console.error("❌ [Razorpay] Intent verification failed:", verifyError, verifyData);
+    throw new Error(verifyData?.error || verifyError?.message || "Payment verification failed");
+  }
+
+  console.log("✅ [Razorpay] Intent payment verified, booking created:", verifyData.booking_id);
+  return verifyData.booking_id;
+}
+
+/**
+ * Legacy Razorpay flow (for scheduled bookings with existing booking row):
+ * 1. Create order via edge function
+ * 2. Open Razorpay checkout
+ * 3. Verify payment via edge function
+ */
+export async function initiateRazorpayPayment(bookingId: string): Promise<string> {
+  console.log("🚀 [Razorpay] Starting booking-based payment flow for:", bookingId);
+
+  await loadRazorpayScript();
+
+  const firebaseToken = await getFirebaseIdToken();
+  if (!firebaseToken) {
+    throw new Error("Not authenticated - no Firebase token");
+  }
+
+  // 1. Create Razorpay order
+  const { data: orderData, error: orderError } = await supabase.functions.invoke(
+    "create-razorpay-order",
+    {
+      body: { booking_id: bookingId },
+      headers: { "x-firebase-token": firebaseToken },
+    }
+  );
+
+  if (orderError || !orderData?.order_id) {
+    throw new Error(orderData?.error || orderError?.message || "Failed to create payment order");
+  }
+
+  // 2. Open Razorpay Checkout
+  const paymentResult = await new Promise<RazorpayPaymentResult>((resolve, reject) => {
+    const options = {
+      key: orderData.key_id,
+      amount: orderData.amount,
+      currency: orderData.currency,
+      name: "Didi Now",
+      description: "Service Booking Payment",
+      order_id: orderData.order_id,
+      prefill: orderData.prefill || {},
+      theme: { color: "#6366f1" },
+      handler: (response: RazorpayPaymentResult) => {
+        resolve(response);
+      },
+      modal: {
+        ondismiss: () => {
+          reject(new Error("Payment cancelled by user"));
+        },
+      },
+    };
+
+    try {
+      const rzp = new window.Razorpay(options);
+      rzp.on("payment.failed", (response: any) => {
+        reject(new Error(response.error?.description || "Payment failed"));
+      });
+      rzp.open();
+    } catch (err) {
+      reject(err);
+    }
+  });
+
   // 3. Verify payment
-  console.log("🔍 [Razorpay] Verifying payment...", paymentResult);
   const freshToken = await getFirebaseIdToken();
   const { data: verifyData, error: verifyError } = await supabase.functions.invoke(
     "verify-razorpay-payment",
@@ -130,13 +211,9 @@ export async function initiateRazorpayPayment(bookingId: string): Promise<string
     }
   );
 
-  console.log("🔍 [Razorpay] verify-razorpay-payment response:", { verifyData, verifyError });
-
   if (verifyError || !verifyData?.success) {
-    console.error("❌ [Razorpay] Verification failed:", verifyError, verifyData);
     throw new Error(verifyData?.error || verifyError?.message || "Payment verification failed");
   }
 
-  console.log("✅ [Razorpay] Payment verified successfully for booking:", bookingId);
   return bookingId;
 }
