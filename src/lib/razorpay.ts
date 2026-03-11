@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { getFirebaseIdToken } from "@/lib/firebase";
 
 declare global {
   interface Window {
@@ -45,20 +46,31 @@ interface RazorpayPaymentResult {
 export async function initiateRazorpayPayment(bookingId: string): Promise<string> {
   await loadRazorpayScript();
 
-  const session = (await supabase.auth.getSession()).data.session;
-  if (!session) throw new Error("Not authenticated");
+  // Use Firebase token (this app uses Firebase auth, not Supabase auth)
+  console.log("🔑 [Razorpay] Getting Firebase token...");
+  const firebaseToken = await getFirebaseIdToken();
+  if (!firebaseToken) throw new Error("Not authenticated - no Firebase token");
+  console.log("✅ [Razorpay] Firebase token obtained");
 
   // 1. Create Razorpay order
+  console.log("📦 [Razorpay] Creating order for booking:", bookingId);
   const { data: orderData, error: orderError } = await supabase.functions.invoke(
     "create-razorpay-order",
-    { body: { booking_id: bookingId } }
+    {
+      body: { booking_id: bookingId },
+      headers: { "x-firebase-token": firebaseToken },
+    }
   );
 
   if (orderError || !orderData?.order_id) {
+    console.error("❌ [Razorpay] Order creation failed:", orderError, orderData);
     throw new Error(orderData?.error || orderError?.message || "Failed to create payment order");
   }
 
+  console.log("✅ [Razorpay] Order created:", orderData.order_id);
+
   // 2. Open Razorpay Checkout
+  console.log("🚀 [Razorpay] Opening checkout modal...");
   const paymentResult = await new Promise<RazorpayPaymentResult>((resolve, reject) => {
     const options = {
       key: orderData.key_id,
@@ -88,6 +100,8 @@ export async function initiateRazorpayPayment(bookingId: string): Promise<string
   });
 
   // 3. Verify payment
+  console.log("🔍 [Razorpay] Verifying payment...");
+  const freshToken = await getFirebaseIdToken();
   const { data: verifyData, error: verifyError } = await supabase.functions.invoke(
     "verify-razorpay-payment",
     {
@@ -97,12 +111,15 @@ export async function initiateRazorpayPayment(bookingId: string): Promise<string
         razorpay_payment_id: paymentResult.razorpay_payment_id,
         razorpay_signature: paymentResult.razorpay_signature,
       },
+      headers: { "x-firebase-token": freshToken || firebaseToken },
     }
   );
 
   if (verifyError || !verifyData?.success) {
+    console.error("❌ [Razorpay] Verification failed:", verifyError, verifyData);
     throw new Error(verifyData?.error || verifyError?.message || "Payment verification failed");
   }
 
+  console.log("✅ [Razorpay] Payment verified successfully");
   return bookingId;
 }

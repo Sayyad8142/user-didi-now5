@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-firebase-token, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 async function verifySignature(
@@ -34,9 +34,11 @@ serve(async (req) => {
   }
 
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: "Missing auth" }), {
+    // Get Firebase token from custom header
+    const firebaseToken = req.headers.get("x-firebase-token");
+    if (!firebaseToken) {
+      console.error("Missing x-firebase-token header");
+      return new Response(JSON.stringify({ error: "Missing auth token" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -53,13 +55,32 @@ serve(async (req) => {
       });
     }
 
-    // Verify user
-    const anonClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!);
-    const { data: { user }, error: authError } = await anonClient.auth.getUser(
-      authHeader.replace("Bearer ", "")
-    );
-    if (authError || !user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // Decode Firebase token to get uid
+    let firebaseUid: string;
+    try {
+      const parts = firebaseToken.split(".");
+      const payload = JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")));
+      firebaseUid = payload.sub || payload.user_id;
+      if (!firebaseUid) throw new Error("No uid in token");
+    } catch (e) {
+      console.error("Invalid Firebase token:", e);
+      return new Response(JSON.stringify({ error: "Invalid auth token" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Look up profile
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("firebase_uid", firebaseUid)
+      .single();
+
+    if (!profile) {
+      return new Response(JSON.stringify({ error: "User not found" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -73,8 +94,6 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-
-    const supabase = createClient(supabaseUrl, supabaseKey);
 
     // Verify booking exists and belongs to user
     const { data: booking, error: bookingError } = await supabase
@@ -90,14 +109,7 @@ serve(async (req) => {
       });
     }
 
-    // Verify ownership
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("id")
-      .eq("firebase_uid", user.id)
-      .single();
-
-    if (!profile || profile.id !== booking.user_id) {
+    if (profile.id !== booking.user_id) {
       return new Response(JSON.stringify({ error: "Not your booking" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
