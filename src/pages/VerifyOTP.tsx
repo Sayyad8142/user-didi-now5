@@ -308,12 +308,6 @@ export default function VerifyOTP() {
     setError('');
 
     try {
-      // Setup reCAPTCHA again for resend
-      setupRecaptcha('recaptcha-container-verify');
-      
-      // Small delay for reCAPTCHA setup
-      await new Promise(resolve => setTimeout(resolve, 300));
-      
       const result = await sendOtp(phone);
 
       if (!result.success) {

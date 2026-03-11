@@ -60,15 +60,6 @@ export function AuthCard() {
   // Validation errors
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Setup reCAPTCHA on mount
-  useEffect(() => {
-    // Small delay to ensure container is rendered
-    const timer = setTimeout(() => {
-      setupRecaptcha('recaptcha-container');
-    }, 500);
-    return () => clearTimeout(timer);
-  }, []);
-
   const validateSignIn = () => {
     const newErrors: Record<string, string> = {};
     if (!signInPhone) {
