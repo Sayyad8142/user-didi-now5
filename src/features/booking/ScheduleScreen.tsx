@@ -175,7 +175,9 @@ export function ScheduleScreen() {
           : null,
         price_inr: finalPrice,
         surcharge_amount: surcharge,
-        surcharge_reason: surcharge > 0 ? 'slot_surge' : null,
+        surcharge_reason: surcharge !== 0 ? 'slot_surge' : null,
+        slot_surge_amount: surcharge,
+        slot_surge_time: surcharge !== 0 ? scheduledTimeFmt : null,
         cust_name: /^\+?\d{7,15}$/.test(profile.full_name.trim()) ? 'User ' + profile.phone.slice(-4) : profile.full_name,
         cust_phone: profile.phone,
         community: profile.community,
@@ -449,6 +451,13 @@ export function ScheduleScreen() {
                             +₹{slotSurge}
                           </span>
                         )}
+                        {slotSurge < 0 && (
+                          <span className={`text-[10px] font-semibold mt-0.5 ${
+                            isSelected ? 'text-primary' : 'text-green-600'
+                          }`}>
+                            ₹{Math.abs(slotSurge)} OFF
+                          </span>
+                        )}
                       </Button>
                     );
                   })}
@@ -474,6 +483,13 @@ export function ScheduleScreen() {
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-orange-600">Slot surge</span>
                   <span className="text-xs font-semibold text-orange-600">+₹{getSurge(selectedTime)}</span>
+                </div>
+              )}
+
+              {selectedTime && getSurge(selectedTime) < 0 && (
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-green-600">Slot discount</span>
+                  <span className="text-xs font-semibold text-green-600">-₹{Math.abs(getSurge(selectedTime))}</span>
                 </div>
               )}
 
