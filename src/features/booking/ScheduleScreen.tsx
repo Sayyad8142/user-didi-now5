@@ -449,6 +449,13 @@ export function ScheduleScreen() {
                             +₹{slotSurge}
                           </span>
                         )}
+                        {slotSurge < 0 && (
+                          <span className={`text-[10px] font-semibold mt-0.5 ${
+                            isSelected ? 'text-primary' : 'text-green-600'
+                          }`}>
+                            ₹{Math.abs(slotSurge)} OFF
+                          </span>
+                        )}
                       </Button>
                     );
                   })}
