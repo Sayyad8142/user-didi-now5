@@ -254,7 +254,7 @@ export const verifyOtp = async (code: string): Promise<{ success: boolean; user?
   try {
     console.log('🔐 Verifying OTP...');
 
-    if (isNativePlatform() && nativeVerificationId) {
+    if (Capacitor.isNativePlatform() && nativeVerificationId) {
       if (nativeVerificationId === 'auto-verified') {
         // Already auto-verified, get current user from web SDK
         const authInstance = getFirebaseAuth();
