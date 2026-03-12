@@ -484,6 +484,13 @@ export function ScheduleScreen() {
                 </div>
               )}
 
+              {selectedTime && getSurge(selectedTime) < 0 && (
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-green-600">Slot discount</span>
+                  <span className="text-xs font-semibold text-green-600">-₹{Math.abs(getSurge(selectedTime))}</span>
+                </div>
+              )}
+
 
               <div className="border-t border-primary/20 pt-1.5 flex items-center justify-between">
                 <span className="text-sm font-semibold text-foreground">Total</span>
