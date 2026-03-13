@@ -3,9 +3,6 @@ import { loadRazorpayScript } from '@/lib/razorpay';
 import { payIntentWithWalletThenRazorpay, payWithWalletThenRazorpay } from '@/lib/walletPayment';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, MapPin, Home, Clock, Calendar, AlertCircle, Check, Zap, ChevronRight, Star, X, Ruler, ChevronDown } from 'lucide-react';
-import dishesLightImg from '@/assets/dishes-light.webp';
-import dishesMediumImg from '@/assets/dishes-medium.webp';
-import dishesHeavyImg from '@/assets/dishes-heavy.webp';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -871,8 +868,8 @@ export function BookingForm() {
                 value: p.intensity as DishIntensity, 
                 label: p.label, 
                 extra: p.extra_inr, 
-                desc: p.description, 
-                img: p.intensity === 'light' ? dishesLightImg : p.intensity === 'medium' ? dishesMediumImg : dishesHeavyImg 
+                desc: p.description,
+                emoji: p.intensity === 'light' ? '🍽️' : p.intensity === 'medium' ? '🍳' : '🥘',
               };
                 const active = dishIntensity === opt.value;
                 return (
@@ -880,19 +877,18 @@ export function BookingForm() {
                     key={opt.value}
                     type="button"
                     onClick={() => setDishIntensity(opt.value)}
-                    style={{ animationDelay: `${i * 150}ms` }}
                     className={cn(
                       "relative rounded-2xl overflow-hidden text-left transition-all duration-200",
                       active ?
                       "ring-2 ring-primary shadow-md shadow-primary/10 scale-[1.02]" :
-                      "ring-1 ring-border shadow-sm hover:shadow-md animate-scale-in"
+                      "ring-1 ring-border shadow-sm hover:shadow-md"
                     )}>
 
-                          <div className="relative h-20 overflow-hidden bg-muted">
-                            <img src={opt.img} alt={opt.label} width={120} height={80} loading="eager" decoding="async" fetchPriority="high" className="w-full h-full object-cover" />
-                            {active &&
-                      <div className="absolute inset-0 bg-primary/20" />
-                      }
+                          <div className={cn(
+                            "flex items-center justify-center h-20",
+                            active ? "bg-primary/10" : "bg-muted"
+                          )}>
+                            <span className="text-3xl">{opt.emoji}</span>
                           </div>
                           <div className={cn(
                       "p-2 transition-colors",
@@ -905,7 +901,7 @@ export function BookingForm() {
                         )}>{opt.label}</p>
                                <p className={cn(
                           "text-[10px] font-bold",
-                          opt.extra > 0 ? "text-orange-500" : "text-muted-foreground"
+                          opt.extra > 0 ? "text-destructive" : "text-muted-foreground"
                         )}>
                                  {opt.extra > 0 ? `+₹${opt.extra}` : '₹0'}
                                </p>
