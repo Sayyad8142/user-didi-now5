@@ -14,7 +14,16 @@ import {
 } from 'firebase/auth';
 import { getMessaging, Messaging, getToken, onMessage, MessagePayload } from 'firebase/messaging';
 import { Capacitor } from '@capacitor/core';
-import { FirebaseAuthentication } from '@capacitor-firebase/authentication';
+
+// Lazy-loaded native plugin — only available on Android
+let _nativeAuth: typeof import('@capacitor-firebase/authentication').FirebaseAuthentication | null = null;
+const getNativeAuth = async () => {
+  if (!_nativeAuth) {
+    const mod = await import('@capacitor-firebase/authentication');
+    _nativeAuth = mod.FirebaseAuthentication;
+  }
+  return _nativeAuth;
+};
 
 // Firebase config (hardcoded as per project requirements)
 const firebaseConfig = {
