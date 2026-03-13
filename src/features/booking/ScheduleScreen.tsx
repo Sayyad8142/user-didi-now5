@@ -253,37 +253,24 @@ export function ScheduleScreen() {
     try {
       await loadRazorpayScript();
 
-      const { data, error } = await supabase.from('bookings').insert([built.data]).select();
-      if (error) {
-        const isFlatError = error.message?.includes('flat details');
-        const isSlotError = error.message?.includes('Slot unavailable') || error.message?.includes('Not enough workers');
-        toast({
-          title: isSlotError ? "Slot unavailable" : "Booking Failed",
-          description: isFlatError
-            ? "Please update your flat details in Account Settings before booking."
-            : isSlotError
-            ? "No workers are available at this time. Please choose another time slot."
-            : `Error: ${error.message || 'Please try again.'}`,
-          variant: "destructive"
-        });
-        if (isFlatError) navigate('/profile/settings');
-        return;
-      }
+      // Use intent-based flow: no booking created until payment succeeds
+      const bookingId = await payIntentWithWalletThenRazorpay(
+        built.data as Record<string, unknown>,
+        profile.id,
+        built.finalPrice
+      );
 
-      const newBookingId = data?.[0]?.id;
-      if (!newBookingId) throw new Error("Booking created but no ID returned");
-
-      try {
-        await payWithWalletThenRazorpay(newBookingId, profile.id, data[0].price_inr || built.finalPrice);
-        toast({ title: "Payment successful!", description: "Your booking has been scheduled successfully. Worker will be assigned 15 minutes before scheduled time." });
-        navigate('/home');
-      } catch (payErr: any) {
-        await supabase.from('bookings').update({ status: 'cancelled', cancel_reason: 'Payment not completed', cancel_source: 'user', cancelled_at: new Date().toISOString() }).eq('id', newBookingId);
-        toast({ title: "Payment not completed", description: payErr.message === "Payment cancelled by user" ? "Booking cancelled. You can try again." : `Payment failed: ${payErr.message}`, variant: "destructive" });
-      }
+      toast({ title: "Payment successful!", description: "Your booking has been scheduled successfully. Worker will be assigned 15 minutes before scheduled time." });
+      navigate('/home');
     } catch (err: any) {
+      const isCancelled = err?.message?.includes('Payment cancelled') || err?.message?.includes('cancelled by user');
       const isNetworkError = err?.message?.includes('Load failed') || err?.message?.includes('Failed to fetch') || err?.message?.includes('NetworkError');
-      toast({ title: "Booking Failed", description: isNetworkError ? "Network error – please check your internet connection and try again." : `Error: ${err?.message || 'Please try again.'}`, variant: "destructive" });
+      
+      if (isCancelled) {
+        toast({ title: "Payment cancelled", description: "No booking was created. You can try again.", variant: "destructive" });
+      } else {
+        toast({ title: "Payment Failed", description: isNetworkError ? "Network error – please check your internet connection and try again." : `Error: ${err?.message || 'Please try again.'}`, variant: "destructive" });
+      }
     } finally {
       setSubmitting(false);
     }
