@@ -14,7 +14,16 @@ import {
 } from 'firebase/auth';
 import { getMessaging, Messaging, getToken, onMessage, MessagePayload } from 'firebase/messaging';
 import { Capacitor } from '@capacitor/core';
-import { FirebaseAuthentication } from '@capacitor-firebase/authentication';
+
+// Lazy-loaded native plugin — only available on Android
+let _nativeAuth: typeof import('@capacitor-firebase/authentication').FirebaseAuthentication | null = null;
+const getNativeAuth = async () => {
+  if (!_nativeAuth) {
+    const mod = await import('@capacitor-firebase/authentication');
+    _nativeAuth = mod.FirebaseAuthentication;
+  }
+  return _nativeAuth;
+};
 
 // Firebase config (hardcoded as per project requirements)
 const firebaseConfig = {
@@ -87,7 +96,7 @@ export const getFirebaseAuth = (): Auth | null => {
 export const setupRecaptcha = (containerId: string = 'recaptcha-container'): RecaptchaVerifier | null => {
   const native = Capacitor.isNativePlatform();
   const platform = Capacitor.getPlatform();
-  const useNativePhoneAuth = native && (platform === 'android' || platform === 'ios');
+  const useNativePhoneAuth = native && platform === 'android';
 
   console.log('[Auth] setupRecaptcha called', {
     containerId,
@@ -138,7 +147,7 @@ const getPhoneAuthRuntime = () => {
   return {
     native,
     platform,
-    useNativePhoneAuth: native && (platform === 'android' || platform === 'ios'),
+    useNativePhoneAuth: native && platform === 'android',
   };
 };
 
@@ -157,7 +166,8 @@ export const sendOtp = async (phoneNumber: string): Promise<{ success: boolean; 
     if (runtime.useNativePhoneAuth) {
       console.log('USING NATIVE PHONE AUTH');
       nativeVerificationId = null;
-      await FirebaseAuthentication.removeAllListeners();
+      const NativeAuth = await getNativeAuth();
+      await NativeAuth.removeAllListeners();
 
       const verificationIdPromise = new Promise<string>((resolve, reject) => {
         const timeout = setTimeout(() => {
@@ -166,24 +176,24 @@ export const sendOtp = async (phoneNumber: string): Promise<{ success: boolean; 
 
         const cleanup = async () => {
           clearTimeout(timeout);
-          await FirebaseAuthentication.removeAllListeners();
+          await NativeAuth.removeAllListeners();
         };
 
-        FirebaseAuthentication.addListener('phoneCodeSent', async (event) => {
+        NativeAuth.addListener('phoneCodeSent', async (event) => {
           console.log('[Auth] Native phoneCodeSent event received');
           nativeVerificationId = event.verificationId;
           await cleanup();
           resolve(event.verificationId);
         });
 
-        FirebaseAuthentication.addListener('phoneVerificationCompleted', async () => {
+        NativeAuth.addListener('phoneVerificationCompleted', async () => {
           console.log('[Auth] Native phoneVerificationCompleted event received');
           nativeVerificationId = 'auto-verified';
           await cleanup();
           resolve('auto-verified');
         });
 
-        FirebaseAuthentication.addListener('phoneVerificationFailed', async (event: any) => {
+        NativeAuth.addListener('phoneVerificationFailed', async (event: any) => {
           console.error('[Auth] Native phoneVerificationFailed event received:', event);
           nativeVerificationId = null;
           await cleanup();
@@ -191,7 +201,7 @@ export const sendOtp = async (phoneNumber: string): Promise<{ success: boolean; 
         });
       });
 
-      await FirebaseAuthentication.signInWithPhoneNumber({ phoneNumber });
+      await NativeAuth.signInWithPhoneNumber({ phoneNumber });
       const verificationId = await verificationIdPromise;
 
       if (verificationId === 'auto-verified') {
@@ -264,7 +274,8 @@ export const verifyOtp = async (code: string): Promise<{ success: boolean; user?
       }
 
       // Use native confirmVerificationCode then sync to web SDK
-      const result = await FirebaseAuthentication.confirmVerificationCode({
+      const NativeAuth = await getNativeAuth();
+      const result = await NativeAuth.confirmVerificationCode({
         verificationId: nativeVerificationId,
         verificationCode: code,
       });
