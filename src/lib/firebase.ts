@@ -96,7 +96,7 @@ export const getFirebaseAuth = (): Auth | null => {
 export const setupRecaptcha = (containerId: string = 'recaptcha-container'): RecaptchaVerifier | null => {
   const native = Capacitor.isNativePlatform();
   const platform = Capacitor.getPlatform();
-  const useNativePhoneAuth = native && (platform === 'android' || platform === 'ios');
+  const useNativePhoneAuth = native && platform === 'android';
 
   console.log('[Auth] setupRecaptcha called', {
     containerId,
