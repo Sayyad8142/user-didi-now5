@@ -1,1 +1,53 @@
-project_id = "wvuuyrovdfydubmvsfxl"
+project_id = "paywwbuqycovjopryele"
+
+[functions]
+[functions.admin-upload-worker-photo]
+verify_jwt = true
+
+[functions.new-booking-telegram]
+verify_jwt = false
+
+[functions.scheduled-dispatch]
+verify_jwt = false
+
+[functions.check-scheduled-bookings]
+verify_jwt = false
+
+[functions.create-rtc-call]
+verify_jwt = true
+
+[functions.accept-rtc-call]
+verify_jwt = true
+
+[functions.end-rtc-call]
+verify_jwt = true
+
+[functions.send-worker-fcm]
+verify_jwt = false
+
+[functions.test-fcm-v1]
+verify_jwt = false
+
+[functions.send-user-fcm]
+verify_jwt = false
+
+[functions.register-user-fcm-token]
+verify_jwt = false
+
+[functions.support-chat]
+verify_jwt = false
+
+[functions.send-admin-fcm]
+verify_jwt = false
+
+[functions.send-telegram-alert]
+verify_jwt = false
+
+[functions.create-razorpay-order]
+verify_jwt = false
+
+[functions.verify-razorpay-payment]
+verify_jwt = false
+
+[functions.update-payment-intent-status]
+verify_jwt = false
