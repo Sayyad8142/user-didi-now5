@@ -888,10 +888,10 @@ export function BookingForm() {
                     )}>
 
                           <div className={cn(
-                            "flex items-center justify-center h-20",
+                            "flex items-center justify-center h-20 overflow-hidden",
                             active ? "bg-primary/10" : "bg-muted"
                           )}>
-                            <span className="text-3xl">{opt.emoji}</span>
+                            <img src={opt.img} alt={opt.label} className="h-full w-full object-cover" loading="eager" decoding="async" />
                           </div>
                           <div className={cn(
                       "p-2 transition-colors",
