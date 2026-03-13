@@ -869,7 +869,7 @@ export function BookingForm() {
                 label: p.label, 
                 extra: p.extra_inr, 
                 desc: p.description,
-                emoji: p.intensity === 'light' ? '🍽️' : p.intensity === 'medium' ? '🍳' : '🥘',
+                emoji: p.intensity === 'light' ? '🍽️' : p.intensity === 'medium' ? '🍽️🥣🥤' : '🍽️🍲🥣🥤🍳',
               };
                 const active = dishIntensity === opt.value;
                 return (
