@@ -117,6 +117,39 @@ export function ScheduleScreen() {
     setInitialSegmentSet(true);
   }, [selectedDate]);
 
+  // Fetch slot availability from RPC
+  const fetchSlotAvailability = useCallback(async () => {
+    if (!profile?.community || !service_type || !selectedDate) return;
+    setLoadingSlots(true);
+    try {
+      const dateStr = format(selectedDate, 'yyyy-MM-dd');
+      const { data, error } = await supabase.rpc('get_scheduled_slot_availability', {
+        p_community: profile.community,
+        p_service_type: service_type,
+        p_date: dateStr,
+      });
+      if (error) {
+        console.error('Slot availability error:', error);
+        setSlotAvailability({});
+      } else {
+        const map: Record<string, number> = {};
+        (data as { slot_time: string; worker_count: number }[] || []).forEach(
+          (s) => (map[s.slot_time] = s.worker_count)
+        );
+        setSlotAvailability(map);
+      }
+    } catch (err) {
+      console.error('Slot availability fetch failed:', err);
+      setSlotAvailability({});
+    } finally {
+      setLoadingSlots(false);
+    }
+  }, [profile?.community, service_type, selectedDate]);
+
+  useEffect(() => {
+    fetchSlotAvailability();
+  }, [fetchSlotAvailability]);
+
   useEffect(() => {
     if (priceParam) {
       setPrice(parseInt(priceParam));
