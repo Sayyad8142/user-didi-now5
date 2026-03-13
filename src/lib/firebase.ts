@@ -164,57 +164,64 @@ export const sendOtp = async (phoneNumber: string): Promise<{ success: boolean; 
     console.log('[Auth] Capacitor.getPlatform()', runtime.platform);
 
     if (runtime.useNativePhoneAuth) {
-      console.log('USING NATIVE PHONE AUTH');
+      console.log('USING NATIVE PHONE AUTH — attempting native flow first');
       nativeVerificationId = null;
-      const NativeAuth = await getNativeAuth();
-      await NativeAuth.removeAllListeners();
 
-      const verificationIdPromise = new Promise<string>((resolve, reject) => {
-        const timeout = setTimeout(() => {
-          reject(new Error('Native OTP send timed out'));
-        }, 30000);
+      try {
+        const NativeAuth = await getNativeAuth();
+        await NativeAuth.removeAllListeners();
 
-        const cleanup = async () => {
-          clearTimeout(timeout);
-          await NativeAuth.removeAllListeners();
-        };
+        const verificationIdPromise = new Promise<string>((resolve, reject) => {
+          const timeout = setTimeout(() => {
+            reject(new Error('Native OTP send timed out'));
+          }, 30000);
 
-        NativeAuth.addListener('phoneCodeSent', async (event) => {
-          console.log('[Auth] Native phoneCodeSent event received');
-          nativeVerificationId = event.verificationId;
-          await cleanup();
-          resolve(event.verificationId);
+          const cleanup = async () => {
+            clearTimeout(timeout);
+            await NativeAuth.removeAllListeners();
+          };
+
+          NativeAuth.addListener('phoneCodeSent', async (event) => {
+            console.log('[Auth] Native phoneCodeSent event received');
+            nativeVerificationId = event.verificationId;
+            await cleanup();
+            resolve(event.verificationId);
+          });
+
+          NativeAuth.addListener('phoneVerificationCompleted', async () => {
+            console.log('[Auth] Native phoneVerificationCompleted event received');
+            nativeVerificationId = 'auto-verified';
+            await cleanup();
+            resolve('auto-verified');
+          });
+
+          NativeAuth.addListener('phoneVerificationFailed', async (event: any) => {
+            console.error('[Auth] Native phoneVerificationFailed event received:', JSON.stringify(event));
+            nativeVerificationId = null;
+            await cleanup();
+            reject(new Error(event?.message || event?.code || 'Native phone verification failed'));
+          });
         });
 
-        NativeAuth.addListener('phoneVerificationCompleted', async () => {
-          console.log('[Auth] Native phoneVerificationCompleted event received');
-          nativeVerificationId = 'auto-verified';
-          await cleanup();
-          resolve('auto-verified');
-        });
+        await NativeAuth.signInWithPhoneNumber({ phoneNumber });
+        const verificationId = await verificationIdPromise;
 
-        NativeAuth.addListener('phoneVerificationFailed', async (event: any) => {
-          console.error('[Auth] Native phoneVerificationFailed event received:', event);
-          nativeVerificationId = null;
-          await cleanup();
-          reject(new Error(event?.message || event?.code || 'Native phone verification failed'));
-        });
-      });
+        if (verificationId === 'auto-verified') {
+          console.log('✅ Phone auto-verified');
+          return { success: true };
+        }
 
-      await NativeAuth.signInWithPhoneNumber({ phoneNumber });
-      const verificationId = await verificationIdPromise;
+        if (!verificationId) {
+          return { success: false, error: 'Failed to get verification ID' };
+        }
 
-      if (verificationId === 'auto-verified') {
-        console.log('✅ Phone auto-verified');
+        console.log('✅ Native OTP sent successfully');
         return { success: true };
+      } catch (nativeError: any) {
+        console.warn('⚠️ Native phone auth failed, falling back to web flow:', nativeError?.message || nativeError);
+        // Reset state and fall through to web flow
+        nativeVerificationId = null;
       }
-
-      if (!verificationId) {
-        return { success: false, error: 'Failed to get verification ID' };
-      }
-
-      console.log('✅ Native OTP sent successfully');
-      return { success: true };
     }
 
     console.log('USING WEB PHONE AUTH');
