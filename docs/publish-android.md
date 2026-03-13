@@ -2,7 +2,7 @@
 
 ## Prerequisites
 - Android Studio installed
-- Java 17+ (required for Gradle)
+- **JDK 21** selected as Gradle JDK in Android Studio
 - Google Play Console account
 
 ## Local Build Commands
@@ -13,15 +13,14 @@ npm install
 npm run build
 ```
 
-### 2. Generate Android assets (first time only)
+### 2. Sync native Android project
 ```bash
-npx capacitor-assets generate --android
+npx cap sync android
 ```
 
-### 3. Sync and open Android Studio
+### 3. Open Android Studio
 ```bash
-npm run android:prep
-npm run android:open
+npx cap open android
 ```
 
 ### 4. Create signing keystore (first time only)
@@ -30,19 +29,21 @@ In Android Studio:
 2. Create new keystore: `android/my-release-key.jks`
 3. Copy `android/signing.properties.example` to `android/signing.properties`
 4. Fill in your actual keystore details
-5. **DO NOT COMMIT** signing.properties or .jks files
+5. **DO NOT COMMIT** `signing.properties` or `.jks` files
 
 ### 5. Build AAB for Play Store
-```bash
-npm run android:aab
-```
+Use Android Studio (**Build > Generate Signed Bundle/APK**) or Gradle task `bundleRelease`.
 Output: `android/app/build/outputs/bundle/release/app-release.aab`
 
 ### 6. Build APK for testing (optional)
-```bash
-npm run android:apk
-```
+Use Android Studio (**Build > Generate Signed Bundle/APK**) or Gradle task `assembleRelease`.
 Output: `android/app/build/outputs/apk/release/app-release.apk`
+
+## Files that should stay local-only
+- `android/local.properties`
+- `android/.idea/*`
+- `android/signing.properties`
+- `android/*.jks`
 
 ## Play Console Checklist
 
