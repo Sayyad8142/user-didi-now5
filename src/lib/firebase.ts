@@ -93,15 +93,20 @@ export const getFirebaseAuth = (): Auth | null => {
 };
 
 // Setup invisible reCAPTCHA verifier
-export const setupRecaptcha = (containerId: string = 'recaptcha-container'): RecaptchaVerifier | null => {
+export const setupRecaptcha = (
+  containerId: string = 'recaptcha-container',
+  options?: { forceWeb?: boolean }
+): RecaptchaVerifier | null => {
   const native = Capacitor.isNativePlatform();
   const platform = Capacitor.getPlatform();
-  const useNativePhoneAuth = native && platform === 'android';
+  const forceWeb = options?.forceWeb ?? false;
+  const useNativePhoneAuth = native && platform === 'android' && !forceWeb;
 
   console.log('[Auth] setupRecaptcha called', {
     containerId,
     native,
     platform,
+    forceWeb,
     useNativePhoneAuth,
   });
 
@@ -157,6 +162,8 @@ let nativeVerificationId: string | null = null;
 // Send OTP to phone number
 export const sendOtp = async (phoneNumber: string): Promise<{ success: boolean; error?: string }> => {
   const runtime = getPhoneAuthRuntime();
+  let attemptedWebFlow = false;
+  let forceWebFallback = false;
 
   try {
     console.log('📱 Sending OTP to:', phoneNumber);
@@ -219,8 +226,8 @@ export const sendOtp = async (phoneNumber: string): Promise<{ success: boolean; 
         return { success: true };
       } catch (nativeError: any) {
         console.warn('⚠️ Native phone auth failed, falling back to web flow:', nativeError?.message || nativeError);
-        // Reset state and fall through to web flow
         nativeVerificationId = null;
+        forceWebFallback = true;
       }
     }
 
@@ -232,13 +239,14 @@ export const sendOtp = async (phoneNumber: string): Promise<{ success: boolean; 
     }
 
     if (!recaptchaVerifier) {
-      console.log('[Auth] Creating reCAPTCHA verifier for web phone auth');
-      const verifier = setupRecaptcha();
+      console.log('[Auth] Creating reCAPTCHA verifier for web phone auth', { forceWebFallback });
+      const verifier = setupRecaptcha('recaptcha-container', { forceWeb: forceWebFallback });
       if (!verifier) {
         return { success: false, error: 'Failed to setup reCAPTCHA' };
       }
     }
 
+    attemptedWebFlow = true;
     console.log('[Auth] Calling signInWithPhoneNumber via Firebase Web SDK');
     confirmationResult = await signInWithPhoneNumber(authInstance, phoneNumber, recaptchaVerifier!);
     console.log('✅ OTP sent successfully');
@@ -246,7 +254,7 @@ export const sendOtp = async (phoneNumber: string): Promise<{ success: boolean; 
   } catch (error: any) {
     console.error('❌ Send OTP error:', error);
 
-    if (!runtime.useNativePhoneAuth && recaptchaVerifier) {
+    if (attemptedWebFlow && recaptchaVerifier) {
       try { recaptchaVerifier.clear(); } catch {}
       recaptchaVerifier = null;
     }
