@@ -77,27 +77,24 @@ Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-trick
 
 ## Build Android (Play Store)
 
-Before building, ensure you have Android Studio installed and `.env.production` configured with production Supabase credentials.
+Before building, ensure you have Android Studio installed, use **Gradle JDK 21** in Android Studio, and `.env.production` configured with production Supabase credentials.
 
 ```bash
 # 1) Install deps and build web
 npm install
 npm run build
 
-# 2) Generate Android assets (first time)
-npx capacitor-assets generate --android
+# 2) Sync native Android project
+npx cap sync android
 
-# 3) Sync & open Android Studio
-npm run android:prep
-npm run android:open
+# 3) Open Android Studio
+npx cap open android
 
-# 4) Create signing keystore (first time in Android Studio: Build > Generate Signed Bundle/APK…)
-#    Save android/signing.properties (copy from signing.properties.example) – DO NOT COMMIT
-
-# 5) Make AAB for Play Store
-npm run android:aab
-# Output: android/app/build/outputs/bundle/release/app-release.aab
+# 4) Build signed APK/AAB in Android Studio
+#    (Build > Generate Signed Bundle/APK)
 ```
+
+> Never commit machine-specific Android files like `android/local.properties` or `android/.idea/*`.
 
 ### Play Console Checklist
 - [ ] App icon (512×512) ready
