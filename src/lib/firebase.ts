@@ -274,7 +274,8 @@ export const verifyOtp = async (code: string): Promise<{ success: boolean; user?
       }
 
       // Use native confirmVerificationCode then sync to web SDK
-      const result = await FirebaseAuthentication.confirmVerificationCode({
+      const NativeAuth = await getNativeAuth();
+      const result = await NativeAuth.confirmVerificationCode({
         verificationId: nativeVerificationId,
         verificationCode: code,
       });
