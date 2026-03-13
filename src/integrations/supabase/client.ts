@@ -47,6 +47,17 @@ export const supabase: SupabaseClient = new Proxy({} as SupabaseClient, {
   },
 });
 
+/** Get the current resolved backend URL */
+export function getCurrentBackendUrl(): string {
+  return getResolvedUrl() || FALLBACK_URL;
+}
+
+/** Switch backend to a specific URL */
+export async function switchBackend(url: string): Promise<void> {
+  _inner = buildClient(url);
+  try { localStorage.setItem('DIDI_BACKEND_URL', url); } catch {}
+}
+
 /** Helper: retry a supabase call once after re-resolving the backend */
 export async function withRetry<T>(fn: () => Promise<T>): Promise<T> {
   try {
