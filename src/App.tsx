@@ -159,6 +159,10 @@ const App = () => {
       setNetworkBlocked(true);
     } finally {
       setResolving(false);
+      // Remove HTML splash so blocking screens (network, maintenance, update) are visible
+      if (typeof window !== 'undefined' && (window as any).hideSplash) {
+        (window as any).hideSplash();
+      }
     }
   }, []);
 
