@@ -159,10 +159,6 @@ const App = () => {
       setNetworkBlocked(true);
     } finally {
       setResolving(false);
-      // Remove HTML splash so blocking screens (network, maintenance, update) are visible
-      if (typeof window !== 'undefined' && (window as any).hideSplash) {
-        (window as any).hideSplash();
-      }
     }
   }, []);
 
@@ -185,14 +181,8 @@ const App = () => {
     return <OfflineScreen onRetry={() => setIsOnline(navigator.onLine)} />;
   }
 
-  // Keep loader only while boot checks are still meaningful.
-  // If backend is blocked, show NetworkBlockedScreen immediately (don't wait on maintenance poll).
-  const shouldShowBootLoader =
-    resolving ||
-    nativeGate.checking ||
-    (maintenance.checking && !networkBlocked);
-
-  if (shouldShowBootLoader) {
+  // Show loader while resolving backend or checking native version or maintenance
+  if (resolving || nativeGate.checking || maintenance.checking) {
     return <PageLoader />;
   }
 
@@ -208,17 +198,7 @@ const App = () => {
     );
   }
 
-  if (networkBlocked) {
-    return (
-      <NetworkBlockedScreen
-        onRetry={() => {
-          resolveBackend();
-        }}
-      />
-    );
-  }
-
-  // Maintenance mode
+  // Maintenance mode — block before network/update checks
   if (maintenance.isMaintenance) {
     return (
       <MaintenanceScreen
@@ -226,6 +206,16 @@ const App = () => {
         message={maintenance.message}
         ctaLabel={maintenance.ctaLabel}
         onRetry={maintenance.recheck}
+      />
+    );
+  }
+
+  if (networkBlocked) {
+    return (
+      <NetworkBlockedScreen
+        onRetry={() => {
+          resolveBackend();
+        }}
       />
     );
   }

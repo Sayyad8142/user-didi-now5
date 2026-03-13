@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { loadRazorpayScript } from '@/lib/razorpay';
 import { payWithWalletThenRazorpay } from '@/lib/walletPayment';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
@@ -70,8 +70,6 @@ export function ScheduleScreen() {
   const [price, setPrice] = useState<number | null>(null);
   const [showAvailabilityWarning, setShowAvailabilityWarning] = useState(false);
   const [paymentChoiceOpen, setPaymentChoiceOpen] = useState(false);
-  const [slotAvailability, setSlotAvailability] = useState<Record<string, number>>({});
-  const [loadingSlots, setLoadingSlots] = useState(false);
 
   // Dynamic slot surge pricing
   const { getSurge } = useSlotSurge(profile?.community_id, service_type || 'maid');
@@ -116,39 +114,6 @@ export function ScheduleScreen() {
     }
     setInitialSegmentSet(true);
   }, [selectedDate]);
-
-  // Fetch slot availability from RPC
-  const fetchSlotAvailability = useCallback(async () => {
-    if (!profile?.community || !service_type || !selectedDate) return;
-    setLoadingSlots(true);
-    try {
-      const dateStr = format(selectedDate, 'yyyy-MM-dd');
-      const { data, error } = await supabase.rpc('get_scheduled_slot_availability', {
-        p_community: profile.community,
-        p_service_type: service_type,
-        p_date: dateStr,
-      });
-      if (error) {
-        console.error('Slot availability error:', error);
-        setSlotAvailability({});
-      } else {
-        const map: Record<string, number> = {};
-        (data as { slot_time: string; worker_count: number }[] || []).forEach(
-          (s) => (map[s.slot_time] = s.worker_count)
-        );
-        setSlotAvailability(map);
-      }
-    } catch (err) {
-      console.error('Slot availability fetch failed:', err);
-      setSlotAvailability({});
-    } finally {
-      setLoadingSlots(false);
-    }
-  }, [profile?.community, service_type, selectedDate]);
-
-  useEffect(() => {
-    fetchSlotAvailability();
-  }, [fetchSlotAvailability]);
 
   useEffect(() => {
     if (priceParam) {
@@ -210,9 +175,7 @@ export function ScheduleScreen() {
           : null,
         price_inr: finalPrice,
         surcharge_amount: surcharge,
-        surcharge_reason: surcharge !== 0 ? 'slot_surge' : null,
-        slot_surge_amount: surcharge,
-        slot_surge_time: surcharge !== 0 ? scheduledTimeFmt : null,
+        surcharge_reason: surcharge > 0 ? 'slot_surge' : null,
         cust_name: /^\+?\d{7,15}$/.test(profile.full_name.trim()) ? 'User ' + profile.phone.slice(-4) : profile.full_name,
         cust_phone: profile.phone,
         community: profile.community,
@@ -458,17 +421,12 @@ export function ScheduleScreen() {
                     const isPast = isPastToday(slot, selectedDate);
                     const isSelected = selectedTime === slot;
                     const slotSurge = getSurge(slot);
-                    // Check worker availability: slot_time from RPC is "HH:MM:SS", normalize
-                    const slotKey24 = slot.length === 5 ? slot + ':00' : slot;
-                    const workerCount = slotAvailability[slotKey24] ?? slotAvailability[slot] ?? undefined;
-                    const isUnavailable = !loadingSlots && workerCount !== undefined && workerCount < 1;
-                    const isDisabled = isPast || isUnavailable;
                     
                     return (
                       <Button
                         key={slot}
                         variant="outline"
-                        disabled={isDisabled}
+                        disabled={isPast}
                         onClick={() => {
                           setSelectedTime(slot);
                           if (isLimitedAvailabilitySlot(slot)) {
@@ -478,27 +436,17 @@ export function ScheduleScreen() {
                         className={`relative rounded-xl border-2 h-auto min-h-[3rem] px-2 text-xs flex flex-col items-center justify-center py-1.5 ${
                           isSelected
                             ? 'border-primary bg-primary/10 text-primary'
-                            : isDisabled
-                            ? 'border-gray-200 text-gray-400 bg-gray-50 opacity-50'
+                            : isPast
+                            ? 'border-gray-200 text-gray-400 bg-gray-50'
                             : 'border-gray-200 bg-white text-foreground hover:border-primary/50'
                         }`}
                       >
                         <span className="font-medium">{toDisplay12h(slot)}</span>
-                        {isUnavailable && (
-                          <span className="text-[9px] text-gray-400 mt-0.5">Unavailable</span>
-                        )}
-                        {!isUnavailable && slotSurge > 0 && (
+                        {slotSurge > 0 && (
                           <span className={`text-[10px] font-semibold mt-0.5 ${
                             isSelected ? 'text-primary' : 'text-orange-500'
                           }`}>
                             +₹{slotSurge}
-                          </span>
-                        )}
-                        {!isUnavailable && slotSurge < 0 && (
-                          <span className={`text-[10px] font-semibold mt-0.5 ${
-                            isSelected ? 'text-primary' : 'text-green-600'
-                          }`}>
-                            ₹{Math.abs(slotSurge)} OFF
                           </span>
                         )}
                       </Button>
@@ -526,13 +474,6 @@ export function ScheduleScreen() {
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-orange-600">Slot surge</span>
                   <span className="text-xs font-semibold text-orange-600">+₹{getSurge(selectedTime)}</span>
-                </div>
-              )}
-
-              {selectedTime && getSurge(selectedTime) < 0 && (
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-green-600">Slot discount</span>
-                  <span className="text-xs font-semibold text-green-600">-₹{Math.abs(getSurge(selectedTime))}</span>
                 </div>
               )}
 

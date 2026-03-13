@@ -13,27 +13,6 @@ import "./index.css";
 // @ts-ignore - injected by Vite define
 console.info("[App] Build ID:", typeof __APP_BUILD_ID__ !== "undefined" ? __APP_BUILD_ID__ : "dev");
 
-const hideHtmlSplash = () => {
-  const splash = document.getElementById('app-splash');
-  if (!splash) return;
-  splash.style.opacity = '0';
-  splash.style.transition = 'opacity 0.3s ease-out';
-  window.setTimeout(() => splash.remove(), 320);
-};
-
-// Expose hideSplash from app code (do not rely only on inline script execution)
-if (typeof window !== 'undefined') {
-  (window as any).hideSplash = hideHtmlSplash;
-
-  // Safety net: never leave users stuck on splash forever
-  window.setTimeout(() => {
-    if (document.getElementById('app-splash')) {
-      console.warn('[Splash] Fallback auto-hide triggered');
-      hideHtmlSplash();
-    }
-  }, 12000);
-}
-
 // Hide native splash screen once WebView content is painted
 // Keep native splash visible until HTML splash is rendered
 (async () => {

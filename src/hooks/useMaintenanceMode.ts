@@ -55,12 +55,6 @@ export function useMaintenanceMode(): MaintenanceState {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const check = useCallback(async () => {
-    // Fail-open timeout so startup never hangs on a slow/blocked network.
-    const timeoutId = window.setTimeout(() => {
-      log('check timeout, fail-open');
-      setState(s => ({ ...s, checking: false, isMaintenance: false }));
-    }, 8000);
-
     try {
       const { data, error } = await supabase
         .from('ops_settings')
@@ -112,8 +106,6 @@ export function useMaintenanceMode(): MaintenanceState {
     } catch (err) {
       log('error, fail-open', err);
       setState(s => ({ ...s, checking: false, isMaintenance: false }));
-    } finally {
-      window.clearTimeout(timeoutId);
     }
   }, []);
 
