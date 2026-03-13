@@ -192,8 +192,8 @@ export const sendOtp = async (phoneNumber: string): Promise<{ success: boolean; 
   } catch (error: any) {
     console.error('❌ Send OTP error:', error);
 
-    // Reset reCAPTCHA on error (web only)
-    if (!isNativePlatform() && recaptchaVerifier) {
+    // Reset reCAPTCHA on error when web verifier exists
+    if (recaptchaVerifier) {
       try { recaptchaVerifier.clear(); } catch {}
       recaptchaVerifier = null;
     }
