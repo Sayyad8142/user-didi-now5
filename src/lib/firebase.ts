@@ -166,7 +166,8 @@ export const sendOtp = async (phoneNumber: string): Promise<{ success: boolean; 
     if (runtime.useNativePhoneAuth) {
       console.log('USING NATIVE PHONE AUTH');
       nativeVerificationId = null;
-      await FirebaseAuthentication.removeAllListeners();
+      const NativeAuth = await getNativeAuth();
+      await NativeAuth.removeAllListeners();
 
       const verificationIdPromise = new Promise<string>((resolve, reject) => {
         const timeout = setTimeout(() => {
@@ -175,24 +176,24 @@ export const sendOtp = async (phoneNumber: string): Promise<{ success: boolean; 
 
         const cleanup = async () => {
           clearTimeout(timeout);
-          await FirebaseAuthentication.removeAllListeners();
+          await NativeAuth.removeAllListeners();
         };
 
-        FirebaseAuthentication.addListener('phoneCodeSent', async (event) => {
+        NativeAuth.addListener('phoneCodeSent', async (event) => {
           console.log('[Auth] Native phoneCodeSent event received');
           nativeVerificationId = event.verificationId;
           await cleanup();
           resolve(event.verificationId);
         });
 
-        FirebaseAuthentication.addListener('phoneVerificationCompleted', async () => {
+        NativeAuth.addListener('phoneVerificationCompleted', async () => {
           console.log('[Auth] Native phoneVerificationCompleted event received');
           nativeVerificationId = 'auto-verified';
           await cleanup();
           resolve('auto-verified');
         });
 
-        FirebaseAuthentication.addListener('phoneVerificationFailed', async (event: any) => {
+        NativeAuth.addListener('phoneVerificationFailed', async (event: any) => {
           console.error('[Auth] Native phoneVerificationFailed event received:', event);
           nativeVerificationId = null;
           await cleanup();
@@ -200,7 +201,7 @@ export const sendOtp = async (phoneNumber: string): Promise<{ success: boolean; 
         });
       });
 
-      await FirebaseAuthentication.signInWithPhoneNumber({ phoneNumber });
+      await NativeAuth.signInWithPhoneNumber({ phoneNumber });
       const verificationId = await verificationIdPromise;
 
       if (verificationId === 'auto-verified') {
