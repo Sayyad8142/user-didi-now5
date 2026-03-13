@@ -61,9 +61,6 @@ dependencies {
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoVersion"
     implementation project(':capacitor-cordova-android-plugins')
-
-    // Razorpay Android SDK — enables native UPI intent flow
-    implementation 'com.razorpay:checkout:1.6.40'
 }
 
 apply from: 'capacitor.build.gradle'

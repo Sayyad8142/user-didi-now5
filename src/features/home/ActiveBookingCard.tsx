@@ -644,7 +644,7 @@ const ActiveBookingCard = memo(() => {
         {activeBooking.booking_type === 'scheduled' && (activeBooking.status === 'pending' || activeBooking.status === 'assigned') && (
           <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
             <p className="text-xs text-blue-800">
-              For scheduled bookings, we will assign worker 10 mins before scheduled time, don't worry
+              For scheduled bookings, we will assign worker 15 mins before scheduled time, don't worry
             </p>
           </div>
         )}

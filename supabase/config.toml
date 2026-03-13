@@ -42,12 +42,3 @@ verify_jwt = false
 
 [functions.send-telegram-alert]
 verify_jwt = false
-
-[functions.create-razorpay-order]
-verify_jwt = false
-
-[functions.verify-razorpay-payment]
-verify_jwt = false
-
-[functions.update-payment-intent-status]
-verify_jwt = false

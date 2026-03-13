@@ -47,33 +47,10 @@ export default function CancelAction({ booking, onCancel }: CancelActionProps) {
           throw error;
         }
       } else {
-        // Credit wallet if booking was paid
-        const isPaid = booking.payment_status === 'paid' || 
-                       booking.payment_status === 'wallet_paid' || 
-                       booking.payment_status === 'partial_wallet';
-        if (isPaid) {
-          try {
-            await (supabase.rpc as any)('credit_wallet_on_cancel', {
-              p_booking_id: booking.id,
-              p_reason: `Cancelled: ${reason}`,
-            });
-            toast({
-              title: "Booking cancelled",
-              description: `₹${booking.price_inr || 0} has been added to your wallet.`,
-            });
-          } catch (walletErr) {
-            console.error('Wallet credit failed:', walletErr);
-            toast({
-              title: "Booking cancelled",
-              description: "Your booking has been cancelled. Refund will be processed shortly.",
-            });
-          }
-        } else {
-          toast({
-            title: "Booking cancelled successfully",
-            description: "Your booking has been cancelled.",
-          });
-        }
+        toast({
+          title: "Booking cancelled successfully",
+          description: "Your booking has been cancelled.",
+        });
         onCancel?.();
       }
     } catch (error: any) {
