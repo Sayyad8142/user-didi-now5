@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { loadRazorpayScript } from '@/lib/razorpay';
-import { payWithWalletThenRazorpay } from '@/lib/walletPayment';
+import { payIntentWithWalletThenRazorpay } from '@/lib/walletPayment';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Home, MapPin, Wallet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
