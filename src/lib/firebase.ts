@@ -147,7 +147,7 @@ const getPhoneAuthRuntime = () => {
   return {
     native,
     platform,
-    useNativePhoneAuth: native && (platform === 'android' || platform === 'ios'),
+    useNativePhoneAuth: native && platform === 'android',
   };
 };
 
