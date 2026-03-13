@@ -52,10 +52,18 @@ export function getCurrentBackendUrl(): string {
   return getResolvedUrl() || FALLBACK_URL;
 }
 
-/** Switch backend to a specific URL */
-export async function switchBackend(url: string): Promise<void> {
-  _inner = buildClient(url);
-  try { localStorage.setItem('DIDI_BACKEND_URL', url); } catch {}
+/** Switch backend — re-resolve and rebuild client. Returns true if successful. */
+export async function switchBackend(url?: string): Promise<boolean> {
+  if (url) {
+    _inner = buildClient(url);
+    try { localStorage.setItem('DIDI_BACKEND_URL', url); } catch {}
+    return true;
+  }
+  clearResolvedUrl();
+  const resolved = await resolveBackendUrl();
+  if (!resolved) return false;
+  _inner = buildClient(resolved);
+  return true;
 }
 
 /** Helper: retry a supabase call once after re-resolving the backend */
