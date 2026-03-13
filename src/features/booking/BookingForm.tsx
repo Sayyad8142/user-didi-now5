@@ -1,4 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import dishLightImg from '@/assets/dishes-light.png';
+import dishMediumImg from '@/assets/dishes-medium.png';
+import dishHeavyImg from '@/assets/dishes-heavy.png';
 import { loadRazorpayScript } from '@/lib/razorpay';
 import { payIntentWithWalletThenRazorpay, payWithWalletThenRazorpay } from '@/lib/walletPayment';
 import { useParams, useNavigate } from 'react-router-dom';
