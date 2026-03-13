@@ -70,6 +70,8 @@ export function ScheduleScreen() {
   const [price, setPrice] = useState<number | null>(null);
   const [showAvailabilityWarning, setShowAvailabilityWarning] = useState(false);
   const [paymentChoiceOpen, setPaymentChoiceOpen] = useState(false);
+  const [slotAvailability, setSlotAvailability] = useState<Record<string, number>>({});
+  const [loadingSlots, setLoadingSlots] = useState(false);
 
   // Dynamic slot surge pricing
   const { getSurge } = useSlotSurge(profile?.community_id, service_type || 'maid');
