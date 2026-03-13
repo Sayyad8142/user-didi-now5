@@ -218,7 +218,7 @@ export const verifyOtp = async (code: string): Promise<{ success: boolean; user?
   try {
     console.log('🔐 Verifying OTP...');
 
-    if (isNativePlatform() && nativeVerificationId) {
+    if (isAndroidNative() && nativeVerificationId) {
       if (nativeVerificationId === 'auto-verified') {
         // Already auto-verified, get current user from web SDK
         const authInstance = getFirebaseAuth();
@@ -228,20 +228,15 @@ export const verifyOtp = async (code: string): Promise<{ success: boolean; user?
       }
 
       // Use native confirmVerificationCode then sync to web SDK
+      const { FirebaseAuthentication } = await import('@capacitor-firebase/authentication');
       const result = await FirebaseAuthentication.confirmVerificationCode({
         verificationId: nativeVerificationId,
         verificationCode: code,
       });
       nativeVerificationId = null;
 
-      // The native confirmVerificationCode signs the user in natively.
-      // We need to sync to the web SDK. Get a fresh ID token from native and use it.
-      // On Capacitor, the native Firebase SDK and web SDK share auth state 
-      // when using the same google-services.json / GoogleService-Info.plist.
-      // Just wait a moment for auth state to sync.
       const authInstance = getFirebaseAuth();
       if (authInstance) {
-        // Wait for onAuthStateChanged to fire with the signed-in user
         const user = await new Promise<User | null>((resolve) => {
           if (authInstance.currentUser) {
             resolve(authInstance.currentUser);
