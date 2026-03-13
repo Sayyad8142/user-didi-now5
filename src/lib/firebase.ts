@@ -14,7 +14,6 @@ import {
 } from 'firebase/auth';
 import { getMessaging, Messaging, getToken, onMessage, MessagePayload } from 'firebase/messaging';
 import { Capacitor } from '@capacitor/core';
-import { FirebaseAuthentication } from '@capacitor-firebase/authentication';
 
 // Firebase config (hardcoded as per project requirements)
 const firebaseConfig = {
@@ -115,8 +114,8 @@ export const setupRecaptcha = (containerId: string = 'recaptcha-container'): Rec
   }
 };
 
-// Check if running on native platform
-const isNativePlatform = (): boolean => Capacitor.isNativePlatform();
+// Check if running on Android native platform (iOS uses web SDK flow)
+const isAndroidNative = (): boolean => Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android';
 
 // Native verification ID storage for Capacitor flow
 let nativeVerificationId: string | null = null;
@@ -126,47 +125,52 @@ export const sendOtp = async (phoneNumber: string): Promise<{ success: boolean; 
   try {
     console.log('📱 Sending OTP to:', phoneNumber);
 
-    if (isNativePlatform()) {
-      // Native flow: uses native Firebase SDK, no reCAPTCHA needed
-      console.log('📱 Using native Firebase Auth for OTP');
+    if (isAndroidNative()) {
+      // Android native flow: uses native Firebase SDK, no reCAPTCHA needed
+      console.log('📱 Using native Firebase Auth for OTP (Android)');
       
-      // Listen for verificationId via event
-      const verificationIdPromise = new Promise<string>((resolve, reject) => {
-        const timeout = setTimeout(() => reject(new Error('OTP send timed out')), 30000);
-        FirebaseAuthentication.addListener('phoneCodeSent', (event) => {
-          clearTimeout(timeout);
-          resolve(event.verificationId);
+      try {
+        const { FirebaseAuthentication } = await import('@capacitor-firebase/authentication');
+        
+        // Listen for verificationId via event
+        const verificationIdPromise = new Promise<string>((resolve, reject) => {
+          const timeout = setTimeout(() => {
+            FirebaseAuthentication.removeAllListeners();
+            reject(new Error('OTP send timed out'));
+          }, 30000);
+          FirebaseAuthentication.addListener('phoneCodeSent', (event) => {
+            clearTimeout(timeout);
+            resolve(event.verificationId);
+          });
+          FirebaseAuthentication.addListener('phoneVerificationCompleted', async (event) => {
+            clearTimeout(timeout);
+            resolve('auto-verified');
+          });
+          FirebaseAuthentication.addListener('phoneVerificationFailed', (event) => {
+            clearTimeout(timeout);
+            reject(new Error(event.message || 'Phone verification failed'));
+          });
         });
-        // Handle auto-verification on Android (instant verify)
-        FirebaseAuthentication.addListener('phoneVerificationCompleted', async (event) => {
-          clearTimeout(timeout);
-          // Auto-verified — the credential is applied natively, sign in with web SDK
-          const authInstance = getFirebaseAuth();
-          if (authInstance && event.verificationCode) {
-            // We need a verificationId to create a credential; use nativeVerificationId if available
-            // On auto-verify, the native SDK signs in automatically — just resolve
-          }
-          resolve('auto-verified');
-        });
-      });
 
-      await FirebaseAuthentication.signInWithPhoneNumber({ phoneNumber });
-      nativeVerificationId = await verificationIdPromise;
-      
-      // Clean up listeners
-      await FirebaseAuthentication.removeAllListeners();
-      
-      if (nativeVerificationId === 'auto-verified') {
-        // Phone was auto-verified, user is already signed in
-        console.log('✅ Phone auto-verified');
+        await FirebaseAuthentication.signInWithPhoneNumber({ phoneNumber });
+        nativeVerificationId = await verificationIdPromise;
+        
+        await FirebaseAuthentication.removeAllListeners();
+        
+        if (nativeVerificationId === 'auto-verified') {
+          console.log('✅ Phone auto-verified');
+          return { success: true };
+        }
+        
+        if (!nativeVerificationId) {
+          return { success: false, error: 'Failed to get verification ID' };
+        }
+        console.log('✅ Native OTP sent successfully');
         return { success: true };
+      } catch (nativeError: any) {
+        console.warn('⚠️ Native OTP failed, falling back to web flow:', nativeError.message);
+        // Fall through to web flow below
       }
-      
-      if (!nativeVerificationId) {
-        return { success: false, error: 'Failed to get verification ID' };
-      }
-      console.log('✅ Native OTP sent successfully');
-      return { success: true };
     }
 
     // Web flow: uses reCAPTCHA
@@ -214,7 +218,7 @@ export const verifyOtp = async (code: string): Promise<{ success: boolean; user?
   try {
     console.log('🔐 Verifying OTP...');
 
-    if (isNativePlatform() && nativeVerificationId) {
+    if (isAndroidNative() && nativeVerificationId) {
       if (nativeVerificationId === 'auto-verified') {
         // Already auto-verified, get current user from web SDK
         const authInstance = getFirebaseAuth();
@@ -224,20 +228,15 @@ export const verifyOtp = async (code: string): Promise<{ success: boolean; user?
       }
 
       // Use native confirmVerificationCode then sync to web SDK
+      const { FirebaseAuthentication } = await import('@capacitor-firebase/authentication');
       const result = await FirebaseAuthentication.confirmVerificationCode({
         verificationId: nativeVerificationId,
         verificationCode: code,
       });
       nativeVerificationId = null;
 
-      // The native confirmVerificationCode signs the user in natively.
-      // We need to sync to the web SDK. Get a fresh ID token from native and use it.
-      // On Capacitor, the native Firebase SDK and web SDK share auth state 
-      // when using the same google-services.json / GoogleService-Info.plist.
-      // Just wait a moment for auth state to sync.
       const authInstance = getFirebaseAuth();
       if (authInstance) {
-        // Wait for onAuthStateChanged to fire with the signed-in user
         const user = await new Promise<User | null>((resolve) => {
           if (authInstance.currentUser) {
             resolve(authInstance.currentUser);
