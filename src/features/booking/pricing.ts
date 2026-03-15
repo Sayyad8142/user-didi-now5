@@ -75,5 +75,5 @@ export const getPricingMap = async (
   }
 };
 
-export const FLAT_SIZES = ['2BHK', '2.5BHK', '3BHK', '3.5BHK', '4BHK'] as const;
+export const FLAT_SIZES = ['2BHK', '2.5BHK', '3BHK', '3.5BHK', '4BHK', '4BHK_PREMIUM'] as const;
 export type FlatSize = typeof FLAT_SIZES[number];
