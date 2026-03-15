@@ -8,8 +8,8 @@
 const STORAGE_KEY = "DIDI_BACKEND_URL";
 const TIMEOUT_MS = 3000;
 
+// Always use the external project's anon key (not the Lovable Cloud key from env)
 const ANON_KEY =
-  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBheXd3YnVxeWNvdmpvcHJ5ZWxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUxNjkyNjksImV4cCI6MjA3MDc0NTI2OX0.js1MaTBkjuGlaDfQjrZpZ9_G8Jy9ygNAB8KpNDiQg8o";
 
 /** Ordered list of backend candidates */
