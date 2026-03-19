@@ -489,6 +489,9 @@ const ActiveBookingCard = memo(() => {
             <h3 className="font-semibold text-sm">
               {prettyServiceName(activeBooking.service_type)}
             </h3>
+            {activeBooking.price_inr != null && (
+              <p className="text-xs font-semibold text-green-700">₹{activeBooking.price_inr}</p>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-2">
