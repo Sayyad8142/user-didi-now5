@@ -218,8 +218,6 @@ export function ScheduleScreen() {
         cust_phone: profile.phone,
         community: profile.community,
         flat_no: profile.flat_no,
-        payment_status: 'unpaid',
-        payment_amount_inr: finalPrice,
       };
 
       console.log('📤 Sending scheduled booking to database:', bookingData);

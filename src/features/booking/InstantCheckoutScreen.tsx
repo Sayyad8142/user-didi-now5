@@ -128,8 +128,6 @@ export function InstantCheckoutScreen() {
         community: profile.community,
         flat_no: profile.flat_no,
         preferred_worker_id: selectedWorker?.worker_id || null,
-        payment_status: 'unpaid',
-        payment_amount_inr: price,
       } as any;
 
       const { data, error } = await supabase.from('bookings').insert([bookingData]).select();
