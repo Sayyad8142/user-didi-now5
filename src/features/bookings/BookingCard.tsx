@@ -305,8 +305,21 @@ export function BookingCard({
     if (error) throw error;
   };
 
+  const handleRetryPayment = async () => {
+    if (retryingPayment) return;
+    setRetryingPayment(true);
+    try {
+      await executePaymentFlow(row.id, () => {});
+      toast.success('Payment successful! Your booking is confirmed.');
+    } catch (err: any) {
+      if (err.message !== 'Payment cancelled by user') {
+        toast.error(err.message || 'Payment failed. Please try again.');
+      }
+    } finally {
+      setRetryingPayment(false);
+    }
+  };
 
-  // Display rating stars
   const avgRating = workerStats?.avg_rating ?? 0;
   const ratingsCount = workerStats?.ratings_count ?? 0;
   const stars = Math.round(avgRating);
