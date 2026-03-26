@@ -504,8 +504,16 @@ export function ScheduleScreen() {
           </div>
         )}
 
-        {/* Confirm Schedule Button */}
-        <div className="mt-4">
+        {/* Payment Method + Confirm */}
+        <div className="mt-4 space-y-3">
+          <div className="bg-card rounded-2xl border border-border p-3">
+            <p className="text-[11px] font-semibold text-muted-foreground mb-2">Payment method</p>
+            <PaymentMethodSelector
+              selected={paymentMethod}
+              onChange={setPaymentMethod}
+              disabled={submitting}
+            />
+          </div>
           <Button
             onClick={handleConfirmSchedule}
             disabled={!canConfirm}
@@ -522,7 +530,9 @@ export function ScheduleScreen() {
                 </span>
               </div>
             ) : (
-              `Pay & Confirm Schedule${price ? ` · ₹${price + (selectedTime ? getSurge(selectedTime) : 0)}` : ''}`
+              paymentMethod === 'pay_after_service'
+                ? `Confirm Schedule${price ? ` · ₹${price + (selectedTime ? getSurge(selectedTime) : 0)}` : ''}`
+                : `Pay & Confirm Schedule${price ? ` · ₹${price + (selectedTime ? getSurge(selectedTime) : 0)}` : ''}`
             )}
           </Button>
         </div>
