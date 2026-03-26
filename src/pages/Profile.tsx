@@ -17,6 +17,7 @@ import { useBuildings } from '@/hooks/useBuildings';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useFlats } from '@/hooks/useFlats';
 import { useFlatSize } from '@/hooks/useFlatSize';
+import { useWalletBalance } from '@/hooks/useWallet';
 
 export default function Profile() {
   const { profile, loading, refresh } = useProfile();
