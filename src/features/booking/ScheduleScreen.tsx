@@ -265,19 +265,24 @@ export function ScheduleScreen() {
         navigate('/bookings');
       } catch (payErr: any) {
         console.error('❌ Payment error:', payErr);
+        
+        // Delete the unpaid booking so it doesn't linger
+        console.log('🗑️ Deleting unpaid booking:', newBookingId);
+        await supabase.from('bookings').delete().eq('id', newBookingId);
+        
         if (payErr.message === 'Payment cancelled by user') {
           toast({
             title: "Payment cancelled",
-            description: "Your booking is saved. You can retry payment from the Bookings screen.",
+            description: "No booking was created. You can try again anytime.",
           });
         } else {
           toast({
             title: "Payment Failed",
-            description: payErr.message || 'Payment could not be completed. Try again from Bookings.',
+            description: payErr.message || 'Payment could not be completed. Please try again.',
             variant: "destructive"
           });
         }
-        navigate('/bookings');
+        // Stay on current page so user can retry immediately
       }
     } catch (err: any) {
       console.error('Booking error:', err);
