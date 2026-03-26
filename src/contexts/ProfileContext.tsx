@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { getDemoSession, isDemoMode, clearDemoSession } from "@/lib/demo";
@@ -45,11 +45,11 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchProfile = useCallback(async (): Promise<Profile | null> => {
     try {
       // IMPORTANT: If we have a real Firebase user, always clear demo/guest mode first
-      // This ensures we don't show stale guest data after login
       if (firebaseUser) {
         clearDemoSession();
       }
@@ -98,8 +98,6 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
       }
 
       // No profile found - retry a few times before creating
-      // This handles the race condition during signup where the profile
-      // is being created by VerifyOTP concurrently
       console.log('📝 No profile found for:', user.id, '- retrying...');
       
       for (let attempt = 0; attempt < 5; attempt++) {
@@ -135,7 +133,6 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
         .single();
 
       if (createErr) {
-        // Could be a unique constraint violation if profile was created concurrently
         if (createErr.code === '23505') {
           const { data: finalData } = await supabase
             .from("profiles")
@@ -168,20 +165,59 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
     }
   }, [user?.id, user?.phone, firebaseUser]);
 
+  // Primary effect: fetch when auth state changes
   useEffect(() => {
-    fetchProfile();
+    fetchProfile().then((result) => {
+      // If user is authenticated but profile fetch returned null (backend not ready yet),
+      // schedule a retry after a short delay
+      if (user?.id && !result) {
+        console.log('🔄 Profile: scheduling retry (backend may not be ready)');
+        retryTimerRef.current = setTimeout(() => {
+          fetchProfile();
+        }, 2000);
+      }
+    });
+
+    return () => {
+      if (retryTimerRef.current) {
+        clearTimeout(retryTimerRef.current);
+        retryTimerRef.current = null;
+      }
+    };
   }, [fetchProfile]);
 
-  // Also listen for demo mode changes
+  // Re-fetch when app resumes from background (handles both native + web)
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible' && user?.id) {
+        console.log('🔄 Profile: app resumed, refreshing');
+        fetchProfile();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, [fetchProfile, user?.id]);
+
+  // Listen for demo mode changes
   useEffect(() => {
     const handleDemoModeChange = () => {
-      // Re-fetch profile when demo mode changes
       fetchProfile();
     };
-    
     window.addEventListener('demo-mode-changed', handleDemoModeChange);
     return () => window.removeEventListener('demo-mode-changed', handleDemoModeChange);
   }, [fetchProfile]);
+
+  // Listen for backend-ready event (fired after initSupabase completes)
+  useEffect(() => {
+    const handleBackendReady = () => {
+      if (user?.id && !profile) {
+        console.log('🔄 Profile: backend ready, fetching now');
+        fetchProfile();
+      }
+    };
+    window.addEventListener('supabase-ready', handleBackendReady);
+    return () => window.removeEventListener('supabase-ready', handleBackendReady);
+  }, [fetchProfile, user?.id, profile]);
 
   const refresh = async () => fetchProfile();
 
