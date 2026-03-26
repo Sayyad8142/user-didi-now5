@@ -18,7 +18,7 @@ import { useBuildings } from '@/hooks/useBuildings';
 import { useFlats } from '@/hooks/useFlats';
 import { isDemoCredentials, setDemoSession, setGuestSession, clearDemoSession } from '@/lib/demo';
 import { FlatSearchInput } from './FlatSearchInput';
-import { sendOtp, setupRecaptcha, signOut as firebaseSignOut, isNativePlatform, isAndroid } from '@/lib/firebase';
+import { sendOtp, setupRecaptcha, signOut as firebaseSignOut, isNativePlatform, isWeb } from '@/lib/firebase';
 
 export function AuthCard() {
   const navigate = useNavigate();
@@ -60,10 +60,14 @@ export function AuthCard() {
   // Validation errors
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Setup reCAPTCHA on mount (skip only on Android which uses native OTP; iOS needs web fallback)
+  // Setup reCAPTCHA on mount — WEB ONLY (never on native Android/iOS)
   useEffect(() => {
-    if (isAndroid()) return;
+    if (!isWeb()) {
+      console.log('ℹ️ AuthCard: skipping reCAPTCHA on native platform');
+      return;
+    }
     const timer = setTimeout(() => {
+      console.log('🌐 AuthCard: initializing reCAPTCHA for web');
       setupRecaptcha('recaptcha-container');
     }, 500);
     return () => clearTimeout(timer);
@@ -425,8 +429,8 @@ export function AuthCard() {
           Explore services before signing up
         </p>
 
-        {/* Invisible reCAPTCHA container (needed for web and iOS fallback) */}
-        {!isAndroid() && <div id="recaptcha-container"></div>}
+        {/* Invisible reCAPTCHA container — WEB ONLY */}
+        {isWeb() && <div id="recaptcha-container"></div>}
       </CardContent>
     </Card>
   );

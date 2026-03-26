@@ -49,6 +49,7 @@ export const isFirebaseConfigured = (): boolean => {
 export const isNativePlatform = (): boolean => Capacitor.isNativePlatform();
 export const isAndroid = (): boolean => Capacitor.getPlatform() === 'android';
 export const isIOS = (): boolean => Capacitor.getPlatform() === 'ios';
+export const isWeb = (): boolean => !Capacitor.isNativePlatform();
 
 // Initialize Firebase (lazy, singleton)
 export const getFirebaseApp = (): FirebaseApp | null => {
@@ -232,11 +233,10 @@ async function verifyOtpNative(code: string): Promise<{ success: boolean; user?:
 
 // ─── Web Firebase Auth (reCAPTCHA) ───────────────────────────────────
 
-// Setup invisible reCAPTCHA verifier (web only)
+// Setup invisible reCAPTCHA verifier (web only — callers must gate on isWeb())
 export const setupRecaptcha = (containerId: string = 'recaptcha-container'): RecaptchaVerifier | null => {
-  // Skip on native platforms
   if (isNativePlatform()) {
-    console.log('ℹ️ Skipping reCAPTCHA setup on native platform');
+    console.log('ℹ️ Skipping reCAPTCHA setup — native platform detected');
     return null;
   }
 
@@ -248,8 +248,14 @@ export const setupRecaptcha = (containerId: string = 'recaptcha-container'): Rec
 
   try {
     if (recaptchaVerifier) {
-      recaptchaVerifier.clear();
+      try { recaptchaVerifier.clear(); } catch {}
       recaptchaVerifier = null;
+    }
+
+    const container = document.getElementById(containerId);
+    if (!container) {
+      console.error('❌ reCAPTCHA container element not found:', containerId);
+      return null;
     }
 
     recaptchaVerifier = new RecaptchaVerifier(authInstance, containerId, {
@@ -262,6 +268,7 @@ export const setupRecaptcha = (containerId: string = 'recaptcha-container'): Rec
       }
     });
 
+    console.log('✅ reCAPTCHA verifier created');
     return recaptchaVerifier;
   } catch (error) {
     console.error('❌ reCAPTCHA setup error:', error);
@@ -347,58 +354,46 @@ function verifyOtpWeb(code: string): Promise<{ success: boolean; user?: User; er
 
 // ─── Unified public API ──────────────────────────────────────────────
 
-// Check if native Firebase plugin is actually available
-async function isNativePluginAvailable(): Promise<boolean> {
-  if (!isNativePlatform()) return false;
-  try {
-    const { FirebaseAuthentication } = await import('@capacitor-firebase/authentication');
-    // Quick probe — if the plugin isn't registered this will throw
-    await FirebaseAuthentication.getCurrentUser();
-    return true;
-  } catch {
-    console.warn('⚠️ Native FirebaseAuthentication plugin not available, falling back to web');
-    return false;
-  }
-}
+// ─── Unified public API ──────────────────────────────────────────────
+// Platform routing: native (Android/iOS) → native plugin, web → reCAPTCHA
 
-// Send OTP — automatically picks native vs web, with fallback
+// Send OTP — routes by platform
 export const sendOtp = async (phoneNumber: string): Promise<{ success: boolean; error?: string }> => {
-  if (isNativePlatform() && isAndroid()) {
-    // Android: always use native (plugin is guaranteed)
-    console.log('📱 Using native OTP flow (Android)');
-    return sendOtpNative(phoneNumber);
-  }
+  const platform = Capacitor.getPlatform();
+  console.log(`📲 sendOtp called — platform: ${platform}, native: ${isNativePlatform()}, phone: ${phoneNumber}`);
 
-  if (isNativePlatform() && isIOS()) {
-    // iOS: try native, fall back to web if plugin missing
-    const pluginReady = await isNativePluginAvailable();
-    if (pluginReady) {
-      console.log('📱 Using native OTP flow (iOS)');
-      return sendOtpNative(phoneNumber);
+  if (isNativePlatform()) {
+    // Both Android and iOS use native Capacitor Firebase plugin
+    console.log(`📱 Using NATIVE OTP flow (${platform})`);
+    try {
+      return await sendOtpNative(phoneNumber);
+    } catch (error: any) {
+      console.error(`❌ Native sendOtp failed on ${platform}:`, error);
+      return {
+        success: false,
+        error: `Phone verification is not available. Please ensure the app is up to date and try again.`,
+      };
     }
-    console.log('🌐 iOS native plugin unavailable, using web OTP flow');
-  } else {
-    console.log('🌐 Using web OTP flow');
   }
 
+  // Web / PWA
+  console.log('🌐 Using WEB OTP flow (reCAPTCHA)');
   return sendOtpWeb(phoneNumber);
 };
 
-// Verify OTP — automatically picks native vs web, with fallback
+// Verify OTP — routes by platform
 export const verifyOtp = async (code: string): Promise<{ success: boolean; user?: User; nativeUser?: NativeAuthUser; error?: string }> => {
-  if (isNativePlatform() && isAndroid()) {
+  const platform = Capacitor.getPlatform();
+  console.log(`🔐 verifyOtp called — platform: ${platform}, native: ${isNativePlatform()}, hasNativeVerificationId: ${!!nativeVerificationId}`);
+
+  if (isNativePlatform()) {
+    // Native: always verify via native plugin
+    console.log(`📱 Using NATIVE verify flow (${platform})`);
     return verifyOtpNative(code);
   }
 
-  if (isNativePlatform() && isIOS()) {
-    // If we used native send, nativeVerificationId will be set
-    if (nativeVerificationId) {
-      return verifyOtpNative(code);
-    }
-    // Otherwise we fell back to web send, so verify via web
-    return verifyOtpWeb(code);
-  }
-
+  // Web
+  console.log('🌐 Using WEB verify flow');
   return verifyOtpWeb(code);
 };
 
