@@ -56,6 +56,7 @@ const TermsScreen = lazy(() => import("./features/legal/TermsScreen").then(m => 
 const AccountSettings = lazy(() => import("./routes/profile/AccountSettings"));
 const BookingDetail = lazy(() => import("./pages/BookingDetail"));
 const SupportScreen = lazy(() => import("./routes/support/SupportScreen"));
+const Wallet = lazy(() => import("./pages/Wallet"));
 
 const Diagnostics = lazy(() => import("./pages/Diagnostics"));
 
