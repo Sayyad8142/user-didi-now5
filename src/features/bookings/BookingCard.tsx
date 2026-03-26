@@ -7,7 +7,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { prettyServiceName } from '@/features/booking/utils';
 import { formatDateTime } from '@/features/bookings/dt';
 import { format } from 'date-fns';
-import { PhoneCall, Sparkles, ChefHat, ShowerHead, Clock, User, MapPin, Timer, CreditCard, Star, MessageCircle, RefreshCw } from 'lucide-react';
+import { PhoneCall, Sparkles, ChefHat, ShowerHead, Clock, User, MapPin, Timer, CreditCard, Star, MessageCircle, RefreshCw, Shield, Wallet, KeyRound } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { supabase } from '@/integrations/supabase/client';
 import AssigningProgress from '@/features/bookings/AssigningProgress';
@@ -47,6 +47,12 @@ interface Booking {
   pay_enabled_at?: string | null;
   cancel_source?: string | null;
   cancel_reason?: string | null;
+  completion_otp?: string | null;
+  otp_verified_at?: string | null;
+  payment_status?: string | null;
+  wallet_refund_status?: string | null;
+  wallet_refund_amount?: number | null;
+  wallet_refund_reason?: string | null;
 }
 interface BookingCardProps {
   booking: Booking;
@@ -440,7 +446,48 @@ export function BookingCard({
           </div>
         )}
 
-        {/* Status content */}
+        {/* Completion OTP - show for paid active bookings */}
+        {row.completion_otp && row.payment_status === 'paid' && !row.otp_verified_at && row.status !== 'cancelled' && (
+          <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+            <div className="flex items-center gap-2 mb-1">
+              <KeyRound className="h-4 w-4 text-amber-600" />
+              <p className="text-xs font-semibold text-amber-800 uppercase tracking-wide">Completion OTP</p>
+            </div>
+            <p className="text-3xl font-bold text-amber-900 tracking-[0.3em] text-center my-1">
+              {row.completion_otp}
+            </p>
+            <p className="text-[11px] text-amber-700 text-center flex items-center justify-center gap-1">
+              <Shield className="h-3 w-3" />
+              Share this OTP only after the work is fully completed
+            </p>
+          </div>
+        )}
+
+        {/* Payment status - unpaid booking */}
+        {row.payment_status === 'unpaid' && row.status !== 'cancelled' && (
+          <div className="p-2 bg-orange-50 border border-orange-200 rounded-lg flex items-center gap-2">
+            <CreditCard className="h-4 w-4 text-orange-600" />
+            <p className="text-xs font-medium text-orange-800 flex-1">Payment pending</p>
+          </div>
+        )}
+
+        {/* Wallet refund banner */}
+        {row.wallet_refund_status === 'credited' && row.wallet_refund_amount && (
+          <div className="p-2 bg-emerald-50 border border-emerald-200 rounded-lg flex items-center gap-2">
+            <Wallet className="h-4 w-4 text-emerald-600" />
+            <div className="flex-1">
+              <p className="text-xs font-semibold text-emerald-800">₹{row.wallet_refund_amount} added to wallet</p>
+              <p className="text-[10px] text-emerald-600">
+                {row.wallet_refund_reason === 'no_worker_found' 
+                  ? 'Refund: No worker available'
+                  : row.wallet_refund_reason === 'user_cancelled_before_completion'
+                  ? 'Refund: Booking cancelled'
+                  : `Refund: ${row.wallet_refund_reason || 'Booking cancelled'}`}
+              </p>
+            </div>
+          </div>
+        )}
+
         {row.status === "pending" && (
           <div className="bg-amber-50 border border-amber-100 rounded-lg p-3">
             <AssigningProgress booking={row} />

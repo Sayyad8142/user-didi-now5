@@ -15,6 +15,7 @@ import { useFlatSize } from '@/hooks/useFlatSize';
 import { useFavoriteWorkers, type FavoriteWorker } from '@/hooks/useFavoriteWorkers';
 import { checkInstantBookingAvailability } from '@/hooks/useSupplyCheck';
 import { SupplyFullModal } from '@/components/SupplyFullModal';
+import { executePaymentFlow, type PaymentFlowStatus } from '@/lib/paymentService';
 
 export function InstantCheckoutScreen() {
   const navigate = useNavigate();
@@ -26,6 +27,7 @@ export function InstantCheckoutScreen() {
   const [search, setSearch] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [supplyModalOpen, setSupplyModalOpen] = useState(false);
+  const [paymentStatus, setPaymentStatus] = useState<PaymentFlowStatus | null>(null);
 
   const { flatSize: autoFlatSize } = useFlatSize();
 
@@ -97,7 +99,9 @@ export function InstantCheckoutScreen() {
     }
 
     setSubmitting(true);
+    setPaymentStatus(null);
     try {
+      // Step 1: Create booking in pending/unpaid state
       const maidTasks = tasks ? tasks.split(',') : null;
       const bookingData = {
         user_id: profile.id,
@@ -124,13 +128,14 @@ export function InstantCheckoutScreen() {
         community: profile.community,
         flat_no: profile.flat_no,
         preferred_worker_id: selectedWorker?.worker_id || null,
+        payment_status: 'unpaid',
+        payment_amount_inr: price,
       } as any;
 
       const { data, error } = await supabase.from('bookings').insert([bookingData]).select();
 
       if (error) {
         console.error('❌ Booking error:', error);
-        // Handle SUPPLY_FULL from DB trigger
         if (error.message?.includes('SUPPLY_FULL')) {
           setSupplyModalOpen(true);
           return;
@@ -147,13 +152,42 @@ export function InstantCheckoutScreen() {
         return;
       }
 
-      sessionStorage.removeItem(`preferred_worker_${service_type}`);
+      const newBookingId = data?.[0]?.id;
+      if (!newBookingId) {
+        toast({ title: "Booking Failed", description: "No booking ID returned.", variant: "destructive" });
+        return;
+      }
 
-      toast({
-        title: "Booking received!",
-        description: "Service will arrive in 10 minutes."
-      });
-      navigate('/home');
+      // Step 2: Execute payment flow (create order → checkout → verify)
+      try {
+        await executePaymentFlow(newBookingId, (status) => {
+          setPaymentStatus(status);
+        });
+
+        sessionStorage.removeItem(`preferred_worker_${service_type}`);
+        toast({
+          title: "Payment successful!",
+          description: "Your booking is confirmed. Worker will arrive in ~10 minutes."
+        });
+        navigate('/bookings');
+      } catch (payErr: any) {
+        console.error('❌ Payment error:', payErr);
+        
+        if (payErr.message === 'Payment cancelled by user') {
+          toast({
+            title: "Payment cancelled",
+            description: "Your booking is saved. You can retry payment from the Bookings screen.",
+          });
+          navigate('/bookings');
+        } else {
+          toast({
+            title: "Payment Failed",
+            description: payErr.message || 'Payment could not be completed. Try again from Bookings.',
+            variant: "destructive"
+          });
+          navigate('/bookings');
+        }
+      }
     } catch (err: any) {
       console.error('❌ Booking error:', err);
       const isNetworkError = err?.message?.includes('Load failed') || err?.message?.includes('Failed to fetch') || err?.message?.includes('NetworkError');
@@ -166,6 +200,7 @@ export function InstantCheckoutScreen() {
       });
     } finally {
       setSubmitting(false);
+      setPaymentStatus(null);
     }
   };
 
@@ -386,16 +421,24 @@ export function InstantCheckoutScreen() {
           <div className="mb-[76px] pb-safe">
             <Button
               onClick={handleBookNow}
-              disabled={submitting || !selectedWorker}
+              disabled={submitting}
               className="w-full h-12 rounded-2xl text-base font-bold shadow-lg"
               size="lg"
             >
               {submitting ? (
-                <div className="w-5 h-5 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
+                <div className="flex items-center gap-2">
+                  <div className="w-5 h-5 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
+                  <span>
+                    {paymentStatus === 'creating_order' && 'Creating order...'}
+                    {paymentStatus === 'opening_checkout' && 'Opening payment...'}
+                    {paymentStatus === 'verifying_payment' && 'Verifying payment...'}
+                    {(!paymentStatus || paymentStatus === 'payment_success') && 'Processing...'}
+                  </span>
+                </div>
               ) : (
                 <>
                   <Zap className="w-5 h-5 mr-2" />
-                  Book Now{price ? ` · ₹${price}` : ''}
+                  Pay & Book Now{price ? ` · ₹${price}` : ''}
                 </>
               )}
             </Button>

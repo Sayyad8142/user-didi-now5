@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { executePaymentFlow, type PaymentFlowStatus } from '@/lib/paymentService';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useProfile } from '@/contexts/ProfileContext';
 import { prettyServiceName, isValidServiceType, getPricingMap } from './pricing';
@@ -65,6 +66,7 @@ export function ScheduleScreen() {
   const [initialSegmentSet, setInitialSegmentSet] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [price, setPrice] = useState<number | null>(null);
+  const [paymentStatus, setPaymentStatus] = useState<PaymentFlowStatus | null>(null);
   const [showAvailabilityWarning, setShowAvailabilityWarning] = useState(false);
 
   // Dynamic slot surge pricing
@@ -215,7 +217,9 @@ export function ScheduleScreen() {
         cust_name: /^\+?\d{7,15}$/.test(profile.full_name.trim()) ? 'User ' + profile.phone.slice(-4) : profile.full_name,
         cust_phone: profile.phone,
         community: profile.community,
-        flat_no: profile.flat_no
+        flat_no: profile.flat_no,
+        payment_status: 'unpaid',
+        payment_amount_inr: finalPrice,
       };
 
       console.log('📤 Sending scheduled booking to database:', bookingData);
@@ -244,12 +248,39 @@ export function ScheduleScreen() {
 
       console.log('✅ Scheduled booking created successfully:', data);
 
-      toast({
-        title: "Schedule confirmed!",
-        description: "Your booking has been scheduled successfully. Worker will be assigned 15 minutes before scheduled time."
-      });
+      const newBookingId = data?.[0]?.id;
+      if (!newBookingId) {
+        toast({ title: "Booking Failed", description: "No booking ID returned.", variant: "destructive" });
+        return;
+      }
 
-      navigate('/home');
+      // Execute payment flow
+      try {
+        await executePaymentFlow(newBookingId, (status) => {
+          setPaymentStatus(status);
+        });
+
+        toast({
+          title: "Payment successful!",
+          description: "Your booking has been scheduled and paid. Worker will be assigned before the scheduled time."
+        });
+        navigate('/bookings');
+      } catch (payErr: any) {
+        console.error('❌ Payment error:', payErr);
+        if (payErr.message === 'Payment cancelled by user') {
+          toast({
+            title: "Payment cancelled",
+            description: "Your booking is saved. You can retry payment from the Bookings screen.",
+          });
+        } else {
+          toast({
+            title: "Payment Failed",
+            description: payErr.message || 'Payment could not be completed. Try again from Bookings.',
+            variant: "destructive"
+          });
+        }
+        navigate('/bookings');
+      }
     } catch (err: any) {
       console.error('Booking error:', err);
       const isNetworkError = err?.message?.includes('Load failed') || err?.message?.includes('Failed to fetch') || err?.message?.includes('NetworkError');
@@ -262,6 +293,7 @@ export function ScheduleScreen() {
       });
     } finally {
       setSubmitting(false);
+      setPaymentStatus(null);
     }
   };
 
@@ -466,10 +498,15 @@ export function ScheduleScreen() {
             {submitting ? (
               <div className="flex items-center gap-2">
                 <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                <span>Confirming...</span>
+                <span>
+                  {paymentStatus === 'creating_order' && 'Creating order...'}
+                  {paymentStatus === 'opening_checkout' && 'Opening payment...'}
+                  {paymentStatus === 'verifying_payment' && 'Verifying payment...'}
+                  {(!paymentStatus || paymentStatus === 'payment_success') && 'Processing...'}
+                </span>
               </div>
             ) : (
-            'Confirm Schedule'
+              `Pay & Confirm Schedule${price ? ` · ₹${price + (selectedTime ? getSurge(selectedTime) : 0)}` : ''}`
             )}
           </Button>
         </div>
