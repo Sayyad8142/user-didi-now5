@@ -8,10 +8,10 @@ import {
   ConfirmationResult,
   onAuthStateChanged,
   User,
-  signOut as firebaseSignOut,
-  signInWithCredential,
-  PhoneAuthProvider
+  signOut as firebaseSignOut
 } from 'firebase/auth';
+import { getMessaging, Messaging, getToken, onMessage, MessagePayload } from 'firebase/messaging';
+import { Capacitor } from '@capacitor/core';
 import { getMessaging, Messaging, getToken, onMessage, MessagePayload } from 'firebase/messaging';
 import { Capacitor } from '@capacitor/core';
 
