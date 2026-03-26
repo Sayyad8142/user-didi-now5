@@ -36,11 +36,15 @@ export default function VerifyOTP() {
   const location = useLocation();
   const { toast } = useToast();
   const { refresh: refreshProfile } = useProfile();
+  const { user: authUser } = useAuth();
   
   const state = location.state as LocationState;
   
   const phone = state?.phone || "";
   const redirectTo = state?.redirectTo || "/home";
+
+  // Track pending redirect after successful OTP verification
+  const [pendingRedirect, setPendingRedirect] = useState<string | null>(null);
   
   // Redirect if no state
   useEffect(() => {
@@ -48,6 +52,28 @@ export default function VerifyOTP() {
       navigate('/auth');
     }
   }, [phone, navigate]);
+
+  // Wait for AuthProvider to pick up the authenticated user, then navigate
+  useEffect(() => {
+    if (pendingRedirect && authUser) {
+      console.log('✅ VerifyOTP: AuthProvider has user, navigating to', pendingRedirect);
+      navigate(pendingRedirect, { replace: true });
+      setPendingRedirect(null);
+    }
+  }, [pendingRedirect, authUser, navigate]);
+
+  // Safety timeout: if AuthProvider doesn't update within 5s, force navigate
+  const timeoutRef = useRef<ReturnType<typeof setTimeout>>();
+  useEffect(() => {
+    if (pendingRedirect && !authUser) {
+      timeoutRef.current = setTimeout(() => {
+        console.warn('⚠️ VerifyOTP: AuthProvider did not update in 5s, force navigating');
+        navigate(pendingRedirect, { replace: true });
+        setPendingRedirect(null);
+      }, 5000);
+      return () => clearTimeout(timeoutRef.current);
+    }
+  }, [pendingRedirect, authUser, navigate]);
 
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
