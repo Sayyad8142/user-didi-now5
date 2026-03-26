@@ -8,6 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { executePaymentFlow, type PaymentFlowStatus } from '@/lib/paymentService';
+import { PaymentMethodSelector, type PaymentMethod } from '@/components/PaymentMethodSelector';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useProfile } from '@/contexts/ProfileContext';
 import { prettyServiceName, isValidServiceType, getPricingMap } from './pricing';
@@ -68,6 +69,7 @@ export function ScheduleScreen() {
   const [price, setPrice] = useState<number | null>(null);
   const [paymentStatus, setPaymentStatus] = useState<PaymentFlowStatus | null>(null);
   const [showAvailabilityWarning, setShowAvailabilityWarning] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('pay_now');
 
   // Dynamic slot surge pricing
   const { getSurge } = useSlotSurge(profile?.community_id, service_type || 'maid');
@@ -218,6 +220,8 @@ export function ScheduleScreen() {
         cust_phone: profile.phone,
         community: profile.community,
         flat_no: profile.flat_no,
+        payment_method: paymentMethod === 'pay_after_service' ? 'pay_after_service' : null,
+        payment_status: paymentMethod === 'pay_after_service' ? 'pay_after_service' : 'pending',
       };
 
       console.log('📤 Sending scheduled booking to database:', bookingData);
@@ -252,7 +256,17 @@ export function ScheduleScreen() {
         return;
       }
 
-      // Execute payment flow
+      // Pay After Service: skip payment, go straight to bookings
+      if (paymentMethod === 'pay_after_service') {
+        toast({
+          title: "Booking scheduled!",
+          description: "Worker will be assigned before the scheduled time. Pay after service is done."
+        });
+        navigate('/bookings');
+        return;
+      }
+
+      // Pay Now: Execute payment flow
       try {
         await executePaymentFlow(newBookingId, (status) => {
           setPaymentStatus(status);
@@ -282,7 +296,6 @@ export function ScheduleScreen() {
             variant: "destructive"
           });
         }
-        // Stay on current page so user can retry immediately
       }
     } catch (err: any) {
       console.error('Booking error:', err);
@@ -491,8 +504,16 @@ export function ScheduleScreen() {
           </div>
         )}
 
-        {/* Confirm Schedule Button */}
-        <div className="mt-4">
+        {/* Payment Method + Confirm */}
+        <div className="mt-4 space-y-3">
+          <div className="bg-card rounded-2xl border border-border p-3">
+            <p className="text-[11px] font-semibold text-muted-foreground mb-2">Payment method</p>
+            <PaymentMethodSelector
+              selected={paymentMethod}
+              onChange={setPaymentMethod}
+              disabled={submitting}
+            />
+          </div>
           <Button
             onClick={handleConfirmSchedule}
             disabled={!canConfirm}
@@ -509,7 +530,9 @@ export function ScheduleScreen() {
                 </span>
               </div>
             ) : (
-              `Pay & Confirm Schedule${price ? ` · ₹${price + (selectedTime ? getSurge(selectedTime) : 0)}` : ''}`
+              paymentMethod === 'pay_after_service'
+                ? `Confirm Schedule${price ? ` · ₹${price + (selectedTime ? getSurge(selectedTime) : 0)}` : ''}`
+                : `Pay & Confirm Schedule${price ? ` · ₹${price + (selectedTime ? getSurge(selectedTime) : 0)}` : ''}`
             )}
           </Button>
         </div>
