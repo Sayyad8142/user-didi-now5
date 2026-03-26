@@ -347,21 +347,58 @@ function verifyOtpWeb(code: string): Promise<{ success: boolean; user?: User; er
 
 // ─── Unified public API ──────────────────────────────────────────────
 
-// Send OTP — automatically picks native vs web
+// Check if native Firebase plugin is actually available
+async function isNativePluginAvailable(): Promise<boolean> {
+  if (!isNativePlatform()) return false;
+  try {
+    const { FirebaseAuthentication } = await import('@capacitor-firebase/authentication');
+    // Quick probe — if the plugin isn't registered this will throw
+    await FirebaseAuthentication.getCurrentUser();
+    return true;
+  } catch {
+    console.warn('⚠️ Native FirebaseAuthentication plugin not available, falling back to web');
+    return false;
+  }
+}
+
+// Send OTP — automatically picks native vs web, with fallback
 export const sendOtp = async (phoneNumber: string): Promise<{ success: boolean; error?: string }> => {
-  if (isNativePlatform()) {
-    console.log('📱 Using native OTP flow');
+  if (isNativePlatform() && isAndroid()) {
+    // Android: always use native (plugin is guaranteed)
+    console.log('📱 Using native OTP flow (Android)');
     return sendOtpNative(phoneNumber);
   }
-  console.log('🌐 Using web OTP flow');
+
+  if (isNativePlatform() && isIOS()) {
+    // iOS: try native, fall back to web if plugin missing
+    const pluginReady = await isNativePluginAvailable();
+    if (pluginReady) {
+      console.log('📱 Using native OTP flow (iOS)');
+      return sendOtpNative(phoneNumber);
+    }
+    console.log('🌐 iOS native plugin unavailable, using web OTP flow');
+  } else {
+    console.log('🌐 Using web OTP flow');
+  }
+
   return sendOtpWeb(phoneNumber);
 };
 
-// Verify OTP — automatically picks native vs web
+// Verify OTP — automatically picks native vs web, with fallback
 export const verifyOtp = async (code: string): Promise<{ success: boolean; user?: User; nativeUser?: NativeAuthUser; error?: string }> => {
-  if (isNativePlatform()) {
+  if (isNativePlatform() && isAndroid()) {
     return verifyOtpNative(code);
   }
+
+  if (isNativePlatform() && isIOS()) {
+    // If we used native send, nativeVerificationId will be set
+    if (nativeVerificationId) {
+      return verifyOtpNative(code);
+    }
+    // Otherwise we fell back to web send, so verify via web
+    return verifyOtpWeb(code);
+  }
+
   return verifyOtpWeb(code);
 };
 
