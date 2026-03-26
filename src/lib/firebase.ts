@@ -233,13 +233,8 @@ async function verifyOtpNative(code: string): Promise<{ success: boolean; user?:
 
 // ─── Web Firebase Auth (reCAPTCHA) ───────────────────────────────────
 
-// Setup invisible reCAPTCHA verifier (web only — callers must gate on isWeb())
+// Setup invisible reCAPTCHA verifier — works on ALL platforms (web + Capacitor webview)
 export const setupRecaptcha = (containerId: string = 'recaptcha-container'): RecaptchaVerifier | null => {
-  if (isNativePlatform()) {
-    console.log('ℹ️ Skipping reCAPTCHA setup — native platform detected');
-    return null;
-  }
-
   const authInstance = getFirebaseAuth();
   if (!authInstance) {
     console.error('❌ Auth not available for reCAPTCHA');
