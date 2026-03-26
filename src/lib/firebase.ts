@@ -49,6 +49,7 @@ export const isFirebaseConfigured = (): boolean => {
 export const isNativePlatform = (): boolean => Capacitor.isNativePlatform();
 export const isAndroid = (): boolean => Capacitor.getPlatform() === 'android';
 export const isIOS = (): boolean => Capacitor.getPlatform() === 'ios';
+export const isWeb = (): boolean => !Capacitor.isNativePlatform();
 
 // Initialize Firebase (lazy, singleton)
 export const getFirebaseApp = (): FirebaseApp | null => {
