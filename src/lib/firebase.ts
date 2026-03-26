@@ -138,9 +138,7 @@ async function sendOtpNative(phoneNumber: string): Promise<{ success: boolean; e
 
     console.log('📱 Native: sending OTP to', phoneNumber);
 
-    // Create a promise that resolves when phoneCodeSent or phoneVerificationFailed fires
     const resultPromise = new Promise<{ success: boolean; error?: string }>((resolve) => {
-      // Timeout after 30 seconds
       const timeout = setTimeout(() => {
         nativePhoneCodeSentResolver = null;
         nativeVerificationFailedResolver = null;
@@ -159,16 +157,23 @@ async function sendOtpNative(phoneNumber: string): Promise<{ success: boolean; e
       };
     });
 
-    // Trigger the native phone auth
     await FirebaseAuthentication.signInWithPhoneNumber({ phoneNumber });
 
     return await resultPromise;
   } catch (error: any) {
     console.error('❌ Native sendOtp error:', error);
     
-    // If native fails, fall back to web SDK
-    console.log('⚠️ Native auth failed, falling back to web SDK...');
-    return sendOtpWeb(phoneNumber);
+    let errorMessage = 'Failed to send OTP';
+    const msg = error?.message || error?.code || '';
+    if (msg.includes('invalid-phone-number')) {
+      errorMessage = 'Invalid phone number format';
+    } else if (msg.includes('too-many-requests')) {
+      errorMessage = 'Too many attempts. Please try again later.';
+    } else if (msg) {
+      errorMessage = msg;
+    }
+    
+    return { success: false, error: errorMessage };
   }
 }
 
