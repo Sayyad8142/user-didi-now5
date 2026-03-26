@@ -478,11 +478,32 @@ export function BookingCard({
           </div>
         )}
 
-        {/* Payment status - unpaid booking */}
-        {row.payment_status === 'unpaid' && row.status !== 'cancelled' && (
-          <div className="p-2 bg-orange-50 border border-orange-200 rounded-lg flex items-center gap-2">
-            <CreditCard className="h-4 w-4 text-orange-600" />
-            <p className="text-xs font-medium text-orange-800 flex-1">Payment pending</p>
+        {/* Payment status - unpaid/failed booking with retry button */}
+        {(row.payment_status === 'unpaid' || row.payment_status === 'failed' || row.payment_status === 'order_created') && row.status !== 'cancelled' && (
+          <div className="p-3 bg-orange-50 border border-orange-200 rounded-lg space-y-2">
+            <div className="flex items-center gap-2">
+              <CreditCard className="h-4 w-4 text-orange-600" />
+              <p className="text-xs font-medium text-orange-800 flex-1">
+                {row.payment_status === 'failed' ? 'Payment failed' : 'Payment pending'}
+              </p>
+            </div>
+            <Button
+              onClick={handleRetryPayment}
+              disabled={retryingPayment}
+              className="w-full h-9 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-semibold rounded-lg text-xs"
+            >
+              {retryingPayment ? (
+                <div className="flex items-center gap-2">
+                  <div className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                  <span>Processing...</span>
+                </div>
+              ) : (
+                <>
+                  <CreditCard className="h-3.5 w-3.5 mr-1.5" />
+                  Retry Payment · ₹{row.price_inr || 0}
+                </>
+              )}
+            </Button>
           </div>
         )}
 
