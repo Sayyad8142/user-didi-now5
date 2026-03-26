@@ -60,10 +60,14 @@ export function AuthCard() {
   // Validation errors
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Setup reCAPTCHA on mount (skip only on Android which uses native OTP; iOS needs web fallback)
+  // Setup reCAPTCHA on mount — WEB ONLY (never on native Android/iOS)
   useEffect(() => {
-    if (isAndroid()) return;
+    if (!isWeb()) {
+      console.log('ℹ️ AuthCard: skipping reCAPTCHA on native platform');
+      return;
+    }
     const timer = setTimeout(() => {
+      console.log('🌐 AuthCard: initializing reCAPTCHA for web');
       setupRecaptcha('recaptcha-container');
     }, 500);
     return () => clearTimeout(timer);
