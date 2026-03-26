@@ -220,6 +220,8 @@ export function ScheduleScreen() {
         cust_phone: profile.phone,
         community: profile.community,
         flat_no: profile.flat_no,
+        payment_method: paymentMethod === 'pay_after_service' ? 'pay_after_service' : null,
+        payment_status: paymentMethod === 'pay_after_service' ? 'pay_after_service' : 'pending',
       };
 
       console.log('📤 Sending scheduled booking to database:', bookingData);
