@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,7 @@ import { CleaningLoader } from '@/components/ui/cleaning-loader';
 import { normalizePhone } from '@/features/profile/ensureProfile';
 import { isDemoCredentials, setDemoSession, clearDemoSession } from '@/lib/demo';
 import { useProfile } from '@/contexts/ProfileContext';
+import { useAuth } from '@/components/auth/AuthProvider';
 import { verifyOtp, sendOtp, getCurrentUser, setupRecaptcha, isNativePlatform, isWeb } from '@/lib/firebase';
 
 interface LocationState {
