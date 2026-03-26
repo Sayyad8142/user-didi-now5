@@ -318,11 +318,9 @@ export default function VerifyOTP() {
     setError('');
 
     try {
-      // Only setup reCAPTCHA on web (never on native)
-      if (isWeb()) {
-        setupRecaptcha('recaptcha-container-verify');
-        await new Promise(resolve => setTimeout(resolve, 300));
-      }
+      // Setup reCAPTCHA for resend — works on all platforms
+      setupRecaptcha('recaptcha-container-verify');
+      await new Promise(resolve => setTimeout(resolve, 300));
       
       const result = await sendOtp(phone);
 
