@@ -8,6 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { executePaymentFlow, type PaymentFlowStatus } from '@/lib/paymentService';
+import { PaymentMethodSelector, type PaymentMethod } from '@/components/PaymentMethodSelector';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useProfile } from '@/contexts/ProfileContext';
 import { prettyServiceName, isValidServiceType, getPricingMap } from './pricing';
