@@ -155,6 +155,10 @@ const App = () => {
     try {
       const ok = await initSupabase();
       setNetworkBlocked(!ok);
+      if (ok) {
+        // Signal to ProfileProvider and other listeners that backend is ready
+        window.dispatchEvent(new Event('supabase-ready'));
+      }
     } catch {
       setNetworkBlocked(true);
     } finally {
