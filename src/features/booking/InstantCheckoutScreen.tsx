@@ -16,6 +16,7 @@ import { useFavoriteWorkers, type FavoriteWorker } from '@/hooks/useFavoriteWork
 import { checkInstantBookingAvailability } from '@/hooks/useSupplyCheck';
 import { SupplyFullModal } from '@/components/SupplyFullModal';
 import { executePaymentFlow, type PaymentFlowStatus } from '@/lib/paymentService';
+import { PaymentMethodSelector, type PaymentMethod } from '@/components/PaymentMethodSelector';
 
 export function InstantCheckoutScreen() {
   const navigate = useNavigate();
