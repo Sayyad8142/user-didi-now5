@@ -238,6 +238,7 @@ const App = () => {
           storeUrl={nativeGate.storeUrl}
           currentVersion={nativeGate.currentVersion}
           latestVersion={nativeGate.latestVersion}
+          releaseNotes={nativeGate.releaseNotes}
           onDismiss={nativeGate.dismissSoftUpdate}
         />
       )}
