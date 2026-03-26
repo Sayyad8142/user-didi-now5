@@ -204,13 +204,23 @@ export default function VerifyOTP() {
         return;
       }
 
-      console.log('✅ Firebase auth successful:', result.user?.uid);
+      // Get the user uid — native returns nativeUser, web returns user
+      const uid = result.user?.uid || result.nativeUser?.uid;
+      const userPhone = result.user?.phoneNumber || result.nativeUser?.phoneNumber || phone;
+
+      console.log('✅ Firebase auth successful:', uid);
+
+      if (!uid) {
+        setError('Authentication failed. Please try again.');
+        setLoading(false);
+        return;
+      }
 
       // IMPORTANT: if user previously used Guest/Demo mode, clear it now so UI doesn't stay "Guest"
       clearDemoSession();
 
       // Ensure profile exists in Supabase
-      const profile = await ensureFirebaseProfile(result.user!.uid, phone);
+      const profile = await ensureFirebaseProfile(uid, userPhone);
       if (state?.mode === 'signup' && state.signupData && profile) {
         console.log('📝 Updating profile with signup data');
 
