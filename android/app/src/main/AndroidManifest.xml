@@ -85,4 +85,38 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- Vibration for notifications -->
     <uses-permission android:name="android.permission.VIBRATE" />
+
+    <!--
+      Android 11+ package visibility: declare URL schemes the app needs
+      to query via AppLauncher.canOpenUrl() / Intent resolution.
+    -->
+    <queries>
+        <!-- UPI payment apps -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="upi" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="gpay" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="phonepe" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="paytm" />
+        </intent>
+        <!-- Generic https for browser/deep links -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
+        <!-- Tel links -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="tel" />
+        </intent>
+    </queries>
 </manifest>
