@@ -35,6 +35,12 @@ interface Booking {
   pay_enabled_at?: string | null;
   cancel_source?: string | null;
   cancel_reason?: string | null;
+  completion_otp?: string | null;
+  otp_verified_at?: string | null;
+  payment_status?: string | null;
+  wallet_refund_status?: string | null;
+  wallet_refund_amount?: number | null;
+  wallet_refund_reason?: string | null;
 }
 
 // Using React Query for caching & SWR; local cache removed
