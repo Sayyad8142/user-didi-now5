@@ -14,7 +14,69 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      app_config: {
+        Row: {
+          created_at: string
+          force_update: boolean
+          id: string
+          ios_store_url: string | null
+          latest_version_name: string
+          maintenance_cta_label: string
+          maintenance_message: string
+          maintenance_mode: boolean
+          maintenance_title: string
+          min_user_version_code: number
+          min_user_version_name: string
+          play_store_url_user: string | null
+          release_notes: string | null
+          soft_update_enabled: boolean
+          soft_update_message: string
+          update_title: string
+          updated_at: string
+          user_update_message: string
+        }
+        Insert: {
+          created_at?: string
+          force_update?: boolean
+          id?: string
+          ios_store_url?: string | null
+          latest_version_name?: string
+          maintenance_cta_label?: string
+          maintenance_message?: string
+          maintenance_mode?: boolean
+          maintenance_title?: string
+          min_user_version_code?: number
+          min_user_version_name?: string
+          play_store_url_user?: string | null
+          release_notes?: string | null
+          soft_update_enabled?: boolean
+          soft_update_message?: string
+          update_title?: string
+          updated_at?: string
+          user_update_message?: string
+        }
+        Update: {
+          created_at?: string
+          force_update?: boolean
+          id?: string
+          ios_store_url?: string | null
+          latest_version_name?: string
+          maintenance_cta_label?: string
+          maintenance_message?: string
+          maintenance_mode?: boolean
+          maintenance_title?: string
+          min_user_version_code?: number
+          min_user_version_name?: string
+          play_store_url_user?: string | null
+          release_notes?: string | null
+          soft_update_enabled?: boolean
+          soft_update_message?: string
+          update_title?: string
+          updated_at?: string
+          user_update_message?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
