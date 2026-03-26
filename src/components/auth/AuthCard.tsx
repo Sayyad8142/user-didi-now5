@@ -60,9 +60,9 @@ export function AuthCard() {
   // Validation errors
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Setup reCAPTCHA on mount
+  // Setup reCAPTCHA on mount (web only — native uses native OTP)
   useEffect(() => {
-    // Small delay to ensure container is rendered
+    if (isNativePlatform()) return;
     const timer = setTimeout(() => {
       setupRecaptcha('recaptcha-container');
     }, 500);
