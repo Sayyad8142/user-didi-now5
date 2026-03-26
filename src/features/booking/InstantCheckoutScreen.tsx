@@ -99,7 +99,9 @@ export function InstantCheckoutScreen() {
     }
 
     setSubmitting(true);
+    setPaymentStatus(null);
     try {
+      // Step 1: Create booking in pending/unpaid state
       const maidTasks = tasks ? tasks.split(',') : null;
       const bookingData = {
         user_id: profile.id,
@@ -126,13 +128,14 @@ export function InstantCheckoutScreen() {
         community: profile.community,
         flat_no: profile.flat_no,
         preferred_worker_id: selectedWorker?.worker_id || null,
+        payment_status: 'unpaid',
+        payment_amount_inr: price,
       } as any;
 
       const { data, error } = await supabase.from('bookings').insert([bookingData]).select();
 
       if (error) {
         console.error('❌ Booking error:', error);
-        // Handle SUPPLY_FULL from DB trigger
         if (error.message?.includes('SUPPLY_FULL')) {
           setSupplyModalOpen(true);
           return;
@@ -149,13 +152,42 @@ export function InstantCheckoutScreen() {
         return;
       }
 
-      sessionStorage.removeItem(`preferred_worker_${service_type}`);
+      const newBookingId = data?.[0]?.id;
+      if (!newBookingId) {
+        toast({ title: "Booking Failed", description: "No booking ID returned.", variant: "destructive" });
+        return;
+      }
 
-      toast({
-        title: "Booking received!",
-        description: "Service will arrive in 10 minutes."
-      });
-      navigate('/home');
+      // Step 2: Execute payment flow (create order → checkout → verify)
+      try {
+        await executePaymentFlow(newBookingId, (status) => {
+          setPaymentStatus(status);
+        });
+
+        sessionStorage.removeItem(`preferred_worker_${service_type}`);
+        toast({
+          title: "Payment successful!",
+          description: "Your booking is confirmed. Worker will arrive in ~10 minutes."
+        });
+        navigate('/bookings');
+      } catch (payErr: any) {
+        console.error('❌ Payment error:', payErr);
+        
+        if (payErr.message === 'Payment cancelled by user') {
+          toast({
+            title: "Payment cancelled",
+            description: "Your booking is saved. You can retry payment from the Bookings screen.",
+          });
+          navigate('/bookings');
+        } else {
+          toast({
+            title: "Payment Failed",
+            description: payErr.message || 'Payment could not be completed. Try again from Bookings.',
+            variant: "destructive"
+          });
+          navigate('/bookings');
+        }
+      }
     } catch (err: any) {
       console.error('❌ Booking error:', err);
       const isNetworkError = err?.message?.includes('Load failed') || err?.message?.includes('Failed to fetch') || err?.message?.includes('NetworkError');
@@ -168,6 +200,7 @@ export function InstantCheckoutScreen() {
       });
     } finally {
       setSubmitting(false);
+      setPaymentStatus(null);
     }
   };
 
