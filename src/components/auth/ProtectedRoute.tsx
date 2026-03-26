@@ -27,10 +27,10 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   }
 
   // Guest/Demo users are allowed through protected areas.
-  // This prevents a redirect loop while AuthProvider hydrates from localStorage.
   // Treat a present Firebase user as authenticated even if our derived `user`
   // hasn't hydrated yet (prevents sporadic /auth redirects during transitions).
   if (!user && !firebaseUser && !isDemoMode()) {
+    console.log('🚫 ProtectedRoute: no user/firebaseUser, redirecting to /auth from', location.pathname);
     return <Navigate to="/auth" state={{ from: location }} replace />;
   }
 

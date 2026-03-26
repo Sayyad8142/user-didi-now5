@@ -2,8 +2,18 @@ import { AuthCard } from '@/components/auth/AuthCard';
 import { Button } from '@/components/ui/button';
 import { Phone } from 'lucide-react';
 import { openExternalUrl } from '@/lib/nativeOpen';
+import { useAuth } from '@/components/auth/AuthProvider';
+import { Navigate } from 'react-router-dom';
 
 export default function Auth() {
+  const { user, firebaseUser, loading } = useAuth();
+
+  // If user is already authenticated, redirect away from auth
+  if (!loading && (user || firebaseUser)) {
+    console.log('🔄 Auth page: user already authenticated, redirecting to /home');
+    return <Navigate to="/home" replace />;
+  }
+
   return (
     <div className="min-h-screen relative flex flex-col items-center justify-center p-4 overflow-hidden bg-gradient-to-br from-pink-50 via-white to-rose-50">
       {/* Decorative background elements */}
