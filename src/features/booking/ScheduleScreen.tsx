@@ -217,7 +217,9 @@ export function ScheduleScreen() {
         cust_name: /^\+?\d{7,15}$/.test(profile.full_name.trim()) ? 'User ' + profile.phone.slice(-4) : profile.full_name,
         cust_phone: profile.phone,
         community: profile.community,
-        flat_no: profile.flat_no
+        flat_no: profile.flat_no,
+        payment_status: 'unpaid',
+        payment_amount_inr: finalPrice,
       };
 
       console.log('📤 Sending scheduled booking to database:', bookingData);
@@ -246,12 +248,39 @@ export function ScheduleScreen() {
 
       console.log('✅ Scheduled booking created successfully:', data);
 
-      toast({
-        title: "Schedule confirmed!",
-        description: "Your booking has been scheduled successfully. Worker will be assigned 15 minutes before scheduled time."
-      });
+      const newBookingId = data?.[0]?.id;
+      if (!newBookingId) {
+        toast({ title: "Booking Failed", description: "No booking ID returned.", variant: "destructive" });
+        return;
+      }
 
-      navigate('/home');
+      // Execute payment flow
+      try {
+        await executePaymentFlow(newBookingId, (status) => {
+          setPaymentStatus(status);
+        });
+
+        toast({
+          title: "Payment successful!",
+          description: "Your booking has been scheduled and paid. Worker will be assigned before the scheduled time."
+        });
+        navigate('/bookings');
+      } catch (payErr: any) {
+        console.error('❌ Payment error:', payErr);
+        if (payErr.message === 'Payment cancelled by user') {
+          toast({
+            title: "Payment cancelled",
+            description: "Your booking is saved. You can retry payment from the Bookings screen.",
+          });
+        } else {
+          toast({
+            title: "Payment Failed",
+            description: payErr.message || 'Payment could not be completed. Try again from Bookings.',
+            variant: "destructive"
+          });
+        }
+        navigate('/bookings');
+      }
     } catch (err: any) {
       console.error('Booking error:', err);
       const isNetworkError = err?.message?.includes('Load failed') || err?.message?.includes('Failed to fetch') || err?.message?.includes('NetworkError');
@@ -264,6 +293,7 @@ export function ScheduleScreen() {
       });
     } finally {
       setSubmitting(false);
+      setPaymentStatus(null);
     }
   };
 
