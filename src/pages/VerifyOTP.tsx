@@ -219,6 +219,11 @@ export default function VerifyOTP() {
       // IMPORTANT: if user previously used Guest/Demo mode, clear it now so UI doesn't stay "Guest"
       clearDemoSession();
 
+      // Notify AuthProvider of native auth change so it picks up the new user
+      if (isNativePlatform()) {
+        window.dispatchEvent(new Event('native-auth-changed'));
+      }
+
       // Ensure profile exists in Supabase
       const profile = await ensureFirebaseProfile(uid, userPhone);
       if (state?.mode === 'signup' && state.signupData && profile) {
