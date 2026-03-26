@@ -6,6 +6,7 @@ import { toast } from "@/hooks/use-toast";
 import { getCurrentBackendUrl, switchBackend } from "@/integrations/supabase/client";
 import { testAllCandidates, BACKEND_CANDIDATES, type BackendTestResult } from "@/lib/backendResolver";
 import { supabase } from "@/integrations/supabase/client";
+import { getAppPlatform, isNativeApp } from "@/utils/platform";
 
 // @ts-ignore - injected by Vite define
 const BUILD_ID = typeof __APP_BUILD_ID__ !== "undefined" ? __APP_BUILD_ID__ : "dev";
