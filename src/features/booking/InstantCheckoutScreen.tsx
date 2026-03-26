@@ -130,6 +130,8 @@ export function InstantCheckoutScreen() {
         community: profile.community,
         flat_no: profile.flat_no,
         preferred_worker_id: selectedWorker?.worker_id || null,
+        payment_method: paymentMethod === 'pay_after_service' ? 'pay_after_service' : null,
+        payment_status: paymentMethod === 'pay_after_service' ? 'pay_after_service' : 'pending',
       } as any;
 
       const { data, error } = await supabase.from('bookings').insert([bookingData]).select();
