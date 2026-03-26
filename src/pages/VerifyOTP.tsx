@@ -12,7 +12,7 @@ import { CleaningLoader } from '@/components/ui/cleaning-loader';
 import { normalizePhone } from '@/features/profile/ensureProfile';
 import { isDemoCredentials, setDemoSession, clearDemoSession } from '@/lib/demo';
 import { useProfile } from '@/contexts/ProfileContext';
-import { verifyOtp, sendOtp, getCurrentUser, setupRecaptcha } from '@/lib/firebase';
+import { verifyOtp, sendOtp, getCurrentUser, setupRecaptcha, isNativePlatform } from '@/lib/firebase';
 
 interface LocationState {
   phone: string;
