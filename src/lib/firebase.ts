@@ -233,11 +233,10 @@ async function verifyOtpNative(code: string): Promise<{ success: boolean; user?:
 
 // ─── Web Firebase Auth (reCAPTCHA) ───────────────────────────────────
 
-// Setup invisible reCAPTCHA verifier (web only)
+// Setup invisible reCAPTCHA verifier (web only — callers must gate on isWeb())
 export const setupRecaptcha = (containerId: string = 'recaptcha-container'): RecaptchaVerifier | null => {
-  // Skip on native platforms
   if (isNativePlatform()) {
-    console.log('ℹ️ Skipping reCAPTCHA setup on native platform');
+    console.log('ℹ️ Skipping reCAPTCHA setup — native platform detected');
     return null;
   }
 
@@ -249,8 +248,14 @@ export const setupRecaptcha = (containerId: string = 'recaptcha-container'): Rec
 
   try {
     if (recaptchaVerifier) {
-      recaptchaVerifier.clear();
+      try { recaptchaVerifier.clear(); } catch {}
       recaptchaVerifier = null;
+    }
+
+    const container = document.getElementById(containerId);
+    if (!container) {
+      console.error('❌ reCAPTCHA container element not found:', containerId);
+      return null;
     }
 
     recaptchaVerifier = new RecaptchaVerifier(authInstance, containerId, {
@@ -263,6 +268,7 @@ export const setupRecaptcha = (containerId: string = 'recaptcha-container'): Rec
       }
     });
 
+    console.log('✅ reCAPTCHA verifier created');
     return recaptchaVerifier;
   } catch (error) {
     console.error('❌ reCAPTCHA setup error:', error);
