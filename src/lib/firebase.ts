@@ -175,8 +175,8 @@ async function sendOtpNative(phoneNumber: string): Promise<{ success: boolean; e
   }
 }
 
-// Native user info returned after OTP verification
-interface NativeAuthUser {
+// Native user info — used across auth layer
+export interface NativeAuthUser {
   uid: string;
   phoneNumber: string | null;
 }
