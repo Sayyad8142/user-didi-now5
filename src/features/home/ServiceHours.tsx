@@ -12,7 +12,7 @@ export function ServiceHours({ serviceType }: ServiceHoursProps) {
   
   return (
     <Card className="shadow-card border-pink-100 bg-gradient-to-r from-pink-50 to-pink-100">
-      <CardContent className="p-4 flex items-center gap-4">
+      <CardContent className="p-4 flex items-center gap-4 bg-primary-foreground">
         <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
           <Clock className="w-6 h-6 text-primary" />
         </div>
