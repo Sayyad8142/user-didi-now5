@@ -18,7 +18,7 @@ import { useBuildings } from '@/hooks/useBuildings';
 import { useFlats } from '@/hooks/useFlats';
 import { isDemoCredentials, setDemoSession, setGuestSession, clearDemoSession } from '@/lib/demo';
 import { FlatSearchInput } from './FlatSearchInput';
-import { sendOtp, setupRecaptcha, signOut as firebaseSignOut, isNativePlatform } from '@/lib/firebase';
+import { sendOtp, setupRecaptcha, signOut as firebaseSignOut, isNativePlatform, isAndroid } from '@/lib/firebase';
 
 export function AuthCard() {
   const navigate = useNavigate();
@@ -60,9 +60,9 @@ export function AuthCard() {
   // Validation errors
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Setup reCAPTCHA on mount (web only — native uses native OTP)
+  // Setup reCAPTCHA on mount (skip only on Android which uses native OTP; iOS needs web fallback)
   useEffect(() => {
-    if (isNativePlatform()) return;
+    if (isAndroid()) return;
     const timer = setTimeout(() => {
       setupRecaptcha('recaptcha-container');
     }, 500);
@@ -425,8 +425,8 @@ export function AuthCard() {
           Explore services before signing up
         </p>
 
-        {/* Invisible reCAPTCHA container (web only) */}
-        {!isNativePlatform() && <div id="recaptcha-container"></div>}
+        {/* Invisible reCAPTCHA container (needed for web and iOS fallback) */}
+        {!isAndroid() && <div id="recaptcha-container"></div>}
       </CardContent>
     </Card>
   );
