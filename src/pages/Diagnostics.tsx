@@ -222,7 +222,7 @@ export default function Diagnostics() {
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Connectivity Tests</CardTitle>
           <p className="text-xs text-muted-foreground">
-            Build: {BUILD_ID} · SW: {hasSW ? "Yes" : "No"}
+            Build: {BUILD_ID} · SW: {hasSW ? "Yes" : "No"} · Platform: {getAppPlatform()} · {isNativeApp() ? "Native" : "Web"}
           </p>
         </CardHeader>
         <CardContent className="space-y-0">
