@@ -66,6 +66,7 @@ export function ScheduleScreen() {
   const [initialSegmentSet, setInitialSegmentSet] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [price, setPrice] = useState<number | null>(null);
+  const [paymentStatus, setPaymentStatus] = useState<PaymentFlowStatus | null>(null);
   const [showAvailabilityWarning, setShowAvailabilityWarning] = useState(false);
 
   // Dynamic slot surge pricing
