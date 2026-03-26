@@ -154,6 +154,7 @@ export default function Diagnostics() {
       `URL: ${window.location.href}`,
       `Active Backend: ${currentUrl || "unknown"}`,
       `Build ID: ${BUILD_ID}`,
+      `Platform: ${getAppPlatform()} (${isNativeApp() ? "Native" : "Web"})`,
       `User-Agent: ${navigator.userAgent}`,
       `Timestamp: ${new Date().toISOString()}`,
       `SW registered: ${hasSW ? "Yes" : "No"}`,
