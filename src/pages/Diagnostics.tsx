@@ -6,6 +6,7 @@ import { toast } from "@/hooks/use-toast";
 import { getCurrentBackendUrl, switchBackend } from "@/integrations/supabase/client";
 import { testAllCandidates, BACKEND_CANDIDATES, type BackendTestResult } from "@/lib/backendResolver";
 import { supabase } from "@/integrations/supabase/client";
+import { getAppPlatform, isNativeApp } from "@/utils/platform";
 
 // @ts-ignore - injected by Vite define
 const BUILD_ID = typeof __APP_BUILD_ID__ !== "undefined" ? __APP_BUILD_ID__ : "dev";
@@ -153,6 +154,7 @@ export default function Diagnostics() {
       `URL: ${window.location.href}`,
       `Active Backend: ${currentUrl || "unknown"}`,
       `Build ID: ${BUILD_ID}`,
+      `Platform: ${getAppPlatform()} (${isNativeApp() ? "Native" : "Web"})`,
       `User-Agent: ${navigator.userAgent}`,
       `Timestamp: ${new Date().toISOString()}`,
       `SW registered: ${hasSW ? "Yes" : "No"}`,
@@ -221,7 +223,7 @@ export default function Diagnostics() {
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Connectivity Tests</CardTitle>
           <p className="text-xs text-muted-foreground">
-            Build: {BUILD_ID} · SW: {hasSW ? "Yes" : "No"}
+            Build: {BUILD_ID} · SW: {hasSW ? "Yes" : "No"} · Platform: {getAppPlatform()} · {isNativeApp() ? "Native" : "Web"}
           </p>
         </CardHeader>
         <CardContent className="space-y-0">
