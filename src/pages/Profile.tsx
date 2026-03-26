@@ -454,8 +454,8 @@ export default function Profile() {
           </div>
         </div>
 
-        {/* Didi Now Wallet */}
-        <WalletCard />
+
+
 
         {/* Legal Links */}
         <div className="space-y-3">
