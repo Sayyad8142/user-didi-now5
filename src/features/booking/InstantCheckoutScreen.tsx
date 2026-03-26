@@ -421,16 +421,24 @@ export function InstantCheckoutScreen() {
           <div className="mb-[76px] pb-safe">
             <Button
               onClick={handleBookNow}
-              disabled={submitting || !selectedWorker}
+              disabled={submitting}
               className="w-full h-12 rounded-2xl text-base font-bold shadow-lg"
               size="lg"
             >
               {submitting ? (
-                <div className="w-5 h-5 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
+                <div className="flex items-center gap-2">
+                  <div className="w-5 h-5 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
+                  <span>
+                    {paymentStatus === 'creating_order' && 'Creating order...'}
+                    {paymentStatus === 'opening_checkout' && 'Opening payment...'}
+                    {paymentStatus === 'verifying_payment' && 'Verifying payment...'}
+                    {(!paymentStatus || paymentStatus === 'payment_success') && 'Processing...'}
+                  </span>
+                </div>
               ) : (
                 <>
                   <Zap className="w-5 h-5 mr-2" />
-                  Book Now{price ? ` · ₹${price}` : ''}
+                  Pay & Book Now{price ? ` · ₹${price}` : ''}
                 </>
               )}
             </Button>
