@@ -358,7 +358,7 @@ export const sendOtp = async (phoneNumber: string): Promise<{ success: boolean; 
 };
 
 // Verify OTP — automatically picks native vs web
-export const verifyOtp = async (code: string): Promise<{ success: boolean; user?: User; error?: string }> => {
+export const verifyOtp = async (code: string): Promise<{ success: boolean; user?: User; nativeUser?: NativeAuthUser; error?: string }> => {
   if (isNativePlatform()) {
     return verifyOtpNative(code);
   }
