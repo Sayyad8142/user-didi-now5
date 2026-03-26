@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { onFirebaseAuthStateChanged } from '@/lib/firebase';
+import { onFirebaseAuthStateChanged, getNativeCurrentUser, isNativePlatform } from '@/lib/firebase';
 import { isDemoMode, getDemoSession } from '@/lib/demo';
 
 export default function AuthGate({ children }: { children: React.ReactNode }) {
@@ -16,7 +16,9 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
   }, [ready]);
 
   useEffect(() => {
+    const native = isNativePlatform();
     const authEntryRoutes = ['/auth', '/auth/verify'];
+
     if (authEntryRoutes.some(r => location.pathname.startsWith(r))) {
       setReady(true);
 
@@ -29,6 +31,18 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
         }
       }
 
+      if (native) {
+        // Native: check native plugin for existing user
+        getNativeCurrentUser().then((nativeUser) => {
+          if (nativeUser) {
+            console.log('📱 AuthGate: native user found on auth page, redirecting');
+            nav('/home', { replace: true });
+          }
+        });
+        return;
+      }
+
+      // Web: listen for web SDK auth state
       let cancelled = false;
       const unsubscribe = onFirebaseAuthStateChanged((user) => {
         if (cancelled) return;
@@ -65,9 +79,24 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
       }
     }
 
-    // Root path: wait for Firebase auth state
-    let cancelled = false;
+    // Root path: determine auth state and redirect
+    if (native) {
+      // Native: check native plugin
+      getNativeCurrentUser().then((nativeUser) => {
+        if (nativeUser) {
+          console.log('📱 AuthGate: native user found at root, redirecting to /home');
+          nav('/home', { replace: true });
+        } else {
+          console.log('📱 AuthGate: no native user, redirecting to /auth');
+          nav('/auth', { replace: true });
+        }
+        setReady(true);
+      });
+      return;
+    }
 
+    // Web: wait for Firebase web SDK auth state
+    let cancelled = false;
     const unsubscribe = onFirebaseAuthStateChanged((user) => {
       if (cancelled) return;
 

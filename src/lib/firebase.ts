@@ -175,8 +175,8 @@ async function sendOtpNative(phoneNumber: string): Promise<{ success: boolean; e
   }
 }
 
-// Native user info returned after OTP verification
-interface NativeAuthUser {
+// Native user info — used across auth layer
+export interface NativeAuthUser {
   uid: string;
   phoneNumber: string | null;
 }
@@ -365,13 +365,31 @@ export const verifyOtp = async (code: string): Promise<{ success: boolean; user?
   return verifyOtpWeb(code);
 };
 
-// Get current Firebase user
+// Get current Firebase user (web SDK only — use getNativeCurrentUser for native)
 export const getCurrentUser = (): User | null => {
   const authInstance = getFirebaseAuth();
   return authInstance?.currentUser ?? null;
 };
 
-// Listen for auth state changes
+// Get current user from native plugin (async)
+export const getNativeCurrentUser = async (): Promise<NativeAuthUser | null> => {
+  if (!isNativePlatform()) return null;
+  try {
+    const { FirebaseAuthentication } = await import('@capacitor-firebase/authentication');
+    const result = await FirebaseAuthentication.getCurrentUser();
+    if (result.user) {
+      console.log('📱 Native getCurrentUser:', result.user.uid, result.user.phoneNumber);
+      return { uid: result.user.uid, phoneNumber: result.user.phoneNumber || null };
+    }
+    console.log('📱 Native getCurrentUser: no user');
+    return null;
+  } catch (error) {
+    console.error('❌ Native getCurrentUser error:', error);
+    return null;
+  }
+};
+
+// Listen for auth state changes (web SDK)
 export const onFirebaseAuthStateChanged = (callback: (user: User | null) => void): (() => void) => {
   const authInstance = getFirebaseAuth();
   if (!authInstance) {
@@ -382,20 +400,23 @@ export const onFirebaseAuthStateChanged = (callback: (user: User | null) => void
   return onAuthStateChanged(authInstance, callback);
 };
 
-// Sign out
+// Sign out — native-first on mobile
 export const signOut = async (): Promise<void> => {
-  const authInstance = getFirebaseAuth();
-  if (authInstance) {
-    await firebaseSignOut(authInstance);
-    console.log('✅ Signed out');
-  }
-
-  // Also sign out native plugin if on native
   if (isNativePlatform()) {
     try {
       const { FirebaseAuthentication } = await import('@capacitor-firebase/authentication');
       await FirebaseAuthentication.signOut();
-    } catch {}
+      console.log('✅ Native: signed out');
+    } catch (error) {
+      console.error('❌ Native signOut error:', error);
+    }
+  }
+
+  // Also sign out web SDK (harmless no-op if not initialized on native)
+  const authInstance = getFirebaseAuth();
+  if (authInstance) {
+    await firebaseSignOut(authInstance);
+    console.log('✅ Web SDK: signed out');
   }
 };
 
