@@ -15,9 +15,13 @@ export default function CancelAction({ booking, onCancel }: CancelActionProps) {
   const [cancelling, setCancelling] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
 
+  // Block cancellation if OTP has been verified (booking completed via OTP)
+  const isOtpVerified = !!booking.otp_verified_at;
+
   const canShow = !booking.cancelled_at && 
                   booking.status !== 'completed' && 
-                  booking.status !== 'cancelled';
+                  booking.status !== 'cancelled' &&
+                  !isOtpVerified;
 
   if (!canShow) return null;
 
@@ -37,10 +41,16 @@ export default function CancelAction({ booking, onCancel }: CancelActionProps) {
             description: "The free cancellation period for this booking has ended.",
             variant: "destructive",
           });
-        } else if (error.message.includes('already_finished')) {
+        } else if (error.message.includes('already_finished') || error.message.includes('already completed')) {
           toast({
             title: "Cannot cancel",
             description: "This booking has already been completed or cancelled.",
+            variant: "destructive",
+          });
+        } else if (error.message.includes('otp_verified') || error.message.includes('already_completed')) {
+          toast({
+            title: "Cannot cancel",
+            description: "Booking already completed, cannot cancel.",
             variant: "destructive",
           });
         } else {

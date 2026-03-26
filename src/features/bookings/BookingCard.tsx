@@ -15,6 +15,7 @@ import AutoCompleteCountdown from '@/components/AutoCompleteCountdown';
 import { useBookingRealtime } from '@/features/bookings/useBookingRealtime';
 import { PayWorkerManualSheet } from '@/components/PayWorkerManualSheet';
 import { toast } from 'sonner';
+import { executePaymentFlow, type PaymentFlowStatus } from '@/lib/paymentService';
 import { useNow } from '@/hooks/useNow';
 import CancelAction from './CancelAction';
 import { RateWorker } from './RateWorker';
@@ -93,6 +94,7 @@ export function BookingCard({
     full_name: string | null;
   } | null>(null);
   const [paymentStatus, setPaymentStatus] = useState<string>('pending');
+  const [retryingPayment, setRetryingPayment] = useState(false);
   const now = useNow(); // ticks every 30s
   
   // Subscribe to real-time updates for this specific booking
@@ -303,8 +305,21 @@ export function BookingCard({
     if (error) throw error;
   };
 
+  const handleRetryPayment = async () => {
+    if (retryingPayment) return;
+    setRetryingPayment(true);
+    try {
+      await executePaymentFlow(row.id, () => {});
+      toast.success('Payment successful! Your booking is confirmed.');
+    } catch (err: any) {
+      if (err.message !== 'Payment cancelled by user') {
+        toast.error(err.message || 'Payment failed. Please try again.');
+      }
+    } finally {
+      setRetryingPayment(false);
+    }
+  };
 
-  // Display rating stars
   const avgRating = workerStats?.avg_rating ?? 0;
   const ratingsCount = workerStats?.ratings_count ?? 0;
   const stars = Math.round(avgRating);
@@ -463,11 +478,32 @@ export function BookingCard({
           </div>
         )}
 
-        {/* Payment status - unpaid booking */}
-        {row.payment_status === 'unpaid' && row.status !== 'cancelled' && (
-          <div className="p-2 bg-orange-50 border border-orange-200 rounded-lg flex items-center gap-2">
-            <CreditCard className="h-4 w-4 text-orange-600" />
-            <p className="text-xs font-medium text-orange-800 flex-1">Payment pending</p>
+        {/* Payment status - unpaid/failed booking with retry button */}
+        {(row.payment_status === 'unpaid' || row.payment_status === 'failed' || row.payment_status === 'order_created') && row.status !== 'cancelled' && (
+          <div className="p-3 bg-orange-50 border border-orange-200 rounded-lg space-y-2">
+            <div className="flex items-center gap-2">
+              <CreditCard className="h-4 w-4 text-orange-600" />
+              <p className="text-xs font-medium text-orange-800 flex-1">
+                {row.payment_status === 'failed' ? 'Payment failed' : 'Payment pending'}
+              </p>
+            </div>
+            <Button
+              onClick={handleRetryPayment}
+              disabled={retryingPayment}
+              className="w-full h-9 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-semibold rounded-lg text-xs"
+            >
+              {retryingPayment ? (
+                <div className="flex items-center gap-2">
+                  <div className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                  <span>Processing...</span>
+                </div>
+              ) : (
+                <>
+                  <CreditCard className="h-3.5 w-3.5 mr-1.5" />
+                  Retry Payment · ₹{row.price_inr || 0}
+                </>
+              )}
+            </Button>
           </div>
         )}
 

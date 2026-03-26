@@ -84,7 +84,7 @@ ALTER TABLE public.worker_payouts ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Service role full access payouts" ON public.worker_payouts
   FOR ALL TO service_role USING (true) WITH CHECK (true);
 
--- 5. OTP pool function: generates easy-to-read 3-digit OTP
+-- 5. OTP pool function: generates easy-to-read 3-digit OTP (ONLY easy patterns)
 CREATE OR REPLACE FUNCTION public.generate_completion_otp()
 RETURNS text
 LANGUAGE plpgsql
@@ -92,12 +92,7 @@ AS $$
 DECLARE
   otp_pool text[] := ARRAY[
     '111','222','333','444','555','666','777','888','999',
-    '123','234','345','456','567','678','789',
-    '112','223','334','445','556','667','778','889',
-    '121','232','343','454','565','676','787','898',
-    '211','322','433','544','655','766','877','988',
-    '321','432','543','654','765','876','987',
-    '113','225','337','449','551','663','775','887'
+    '123','234','345','456','567','678','789'
   ];
   picked text;
 BEGIN
@@ -143,7 +138,6 @@ BEGIN
     RAISE EXCEPTION 'Booking not found';
   END IF;
 
-  -- Only refund if payment was made and OTP not verified
   IF v_booking.payment_status != 'paid' THEN
     RETURN;
   END IF;
@@ -152,23 +146,19 @@ BEGIN
     RAISE EXCEPTION 'Cannot refund after OTP verification';
   END IF;
 
-  -- Idempotency check
   IF v_booking.wallet_refund_status = 'credited' THEN
     RETURN;
   END IF;
 
-  -- Ensure wallet exists
   INSERT INTO user_wallets (user_id, balance_inr)
   VALUES (v_booking.user_id, 0)
   ON CONFLICT (user_id) DO NOTHING;
 
-  -- Credit wallet
   UPDATE user_wallets
   SET balance_inr = balance_inr + v_booking.payment_amount_inr,
       updated_at = now()
   WHERE user_id = v_booking.user_id;
 
-  -- Create transaction record
   INSERT INTO wallet_transactions (user_id, booking_id, type, amount_inr, reason, reference_type, reference_id, notes)
   VALUES (
     v_booking.user_id,
@@ -181,7 +171,6 @@ BEGIN
     'Auto refund: ' || p_reason
   );
 
-  -- Update booking wallet refund fields
   UPDATE bookings
   SET wallet_refund_status = 'credited',
       wallet_refund_amount = v_booking.payment_amount_inr,
@@ -215,5 +204,48 @@ CREATE TRIGGER trg_auto_wallet_refund_on_cancel
   FOR EACH ROW
   EXECUTE FUNCTION public.auto_wallet_refund_on_cancel();
 
--- 9. Enable realtime for wallet tables
+-- 9. Update user_cancel_booking to block cancellation after OTP verification
+CREATE OR REPLACE FUNCTION public.user_cancel_booking(
+  p_booking_id uuid,
+  p_reason text DEFAULT 'user_cancelled'
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_booking record;
+BEGIN
+  SELECT * INTO v_booking FROM bookings WHERE id = p_booking_id;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Booking not found';
+  END IF;
+
+  IF v_booking.status IN ('completed', 'cancelled') THEN
+    RAISE EXCEPTION 'already_finished: Booking already completed or cancelled';
+  END IF;
+
+  -- CRITICAL: Block cancellation after OTP verification
+  IF v_booking.otp_verified_at IS NOT NULL THEN
+    RAISE EXCEPTION 'otp_verified: Booking already completed, cannot cancel';
+  END IF;
+
+  UPDATE bookings
+  SET status = 'cancelled',
+      cancelled_at = now(),
+      cancelled_by = 'user',
+      cancellation_reason = p_reason,
+      cancel_source = 'user',
+      cancel_reason = p_reason
+  WHERE id = p_booking_id;
+
+  UPDATE assignments
+  SET status = 'cancelled'
+  WHERE booking_id = p_booking_id
+    AND status IN ('pending', 'assigned', 'accepted');
+END;
+$$;
+
+-- 10. Enable realtime for wallet tables
 ALTER PUBLICATION supabase_realtime ADD TABLE public.user_wallets;
