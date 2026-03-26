@@ -215,8 +215,8 @@ export default function Profile() {
       </header>
       <section className="flex-1 gradient-bg pb-24">
         <div className="max-w-md mx-auto px-4 py-8 space-y-6 bg-slate-50">
-        {/* Header Section with Avatar */}
-        
+        {/* Didi Now Wallet */}
+        <WalletCard />
 
         {/* Personal Information Card */}
         <div className="bg-white rounded-3xl shadow-lg border border-gray-100 overflow-hidden">
@@ -454,8 +454,8 @@ export default function Profile() {
           </div>
         </div>
 
-        {/* Didi Now Wallet */}
-        <WalletCard />
+
+
 
         {/* Legal Links */}
         <div className="space-y-3">
