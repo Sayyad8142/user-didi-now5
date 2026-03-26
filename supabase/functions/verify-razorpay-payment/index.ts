@@ -74,7 +74,7 @@ Deno.serve(async (req) => {
     // 4. Get booking
     const { data: booking, error: bookingErr } = await supabase
       .from("bookings")
-      .select("id, user_id, razorpay_order_id, payment_status, payment_amount_inr, status")
+      .select("id, user_id, razorpay_order_id, payment_status, payment_amount_inr, status, booking_type")
       .eq("id", booking_id)
       .single();
 
@@ -114,12 +114,9 @@ Deno.serve(async (req) => {
 
     if (!isValid) {
       console.error("HMAC verification failed for booking:", booking_id);
-      // Mark booking as payment failed
       await supabase
         .from("bookings")
-        .update({
-          payment_status: "failed",
-        })
+        .update({ payment_status: "failed" })
         .eq("id", booking_id);
 
       return new Response(JSON.stringify({ error: "Payment verification failed" }), {
@@ -149,6 +146,39 @@ Deno.serve(async (req) => {
     }
 
     console.log(`✅ Payment verified for booking ${booking_id}, payment: ${razorpay_payment_id}`);
+
+    // 10. TRIGGER DISPATCH — only for instant bookings (scheduled bookings dispatch on their own schedule)
+    if (booking.booking_type === "instant") {
+      console.log(`🚀 Triggering dispatch for instant booking ${booking_id}...`);
+      try {
+        // Try DB dispatch function first (preferred — atomic, uses advisory locks)
+        const { error: dispatchErr } = await supabase.rpc("dispatch_booking", {
+          p_booking_id: booking_id,
+        });
+
+        if (dispatchErr) {
+          console.error("dispatch_booking RPC failed, trying edge function fallback:", dispatchErr);
+          // Fallback: call scheduled-dispatch edge function
+          try {
+            await fetch(`${SUPABASE_URL}/functions/v1/scheduled-dispatch`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+              },
+              body: JSON.stringify({ booking_id }),
+            });
+            console.log(`✅ Dispatch triggered via edge function for ${booking_id}`);
+          } catch (fallbackErr) {
+            console.error("Edge function dispatch fallback also failed:", fallbackErr);
+          }
+        } else {
+          console.log(`✅ Dispatch triggered via RPC for ${booking_id}`);
+        }
+      } catch (dispatchCatchErr) {
+        console.error("Dispatch trigger error (non-blocking):", dispatchCatchErr);
+      }
+    }
 
     return new Response(JSON.stringify({
       success: true,
