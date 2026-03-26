@@ -56,6 +56,7 @@ const TermsScreen = lazy(() => import("./features/legal/TermsScreen").then(m => 
 const AccountSettings = lazy(() => import("./routes/profile/AccountSettings"));
 const BookingDetail = lazy(() => import("./pages/BookingDetail"));
 const SupportScreen = lazy(() => import("./routes/support/SupportScreen"));
+const Wallet = lazy(() => import("./pages/Wallet"));
 
 const Diagnostics = lazy(() => import("./pages/Diagnostics"));
 
@@ -123,6 +124,7 @@ const AppContent = () => {
         <Route path="/profile" element={<ProtectedRoute><ProtectedLayout><Profile /></ProtectedLayout></ProtectedRoute>} />
         <Route path="/profile/account" element={<ProtectedRoute><ProtectedLayout><AccountSettings /></ProtectedLayout></ProtectedRoute>} />
         <Route path="/support" element={<ProtectedRoute><ProtectedLayout><SupportScreen /></ProtectedLayout></ProtectedRoute>} />
+        <Route path="/wallet" element={<ProtectedRoute><ProtectedLayout><Wallet /></ProtectedLayout></ProtectedRoute>} />
         <Route path="/chat" element={<ProtectedRoute><ChatScreen /></ProtectedRoute>} />
         
         <Route path="/faqs" element={<ProtectedRoute><ProtectedLayout><FAQs /></ProtectedLayout></ProtectedRoute>} />

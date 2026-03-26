@@ -7,7 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useProfile } from '@/contexts/ProfileContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate, Link } from 'react-router-dom';
-import { User, Phone, Building, Home, LogOut, Settings, Shield, Edit3, Save, X, HelpCircle, Share2, Building2, Ruler } from 'lucide-react';
+import { User, Phone, Building, Home, LogOut, Settings, Shield, Edit3, Save, X, HelpCircle, Share2, Building2, Ruler, Wallet } from 'lucide-react';
 import { openExternalUrl } from '@/lib/nativeOpen';
 import { useToast } from '@/hooks/use-toast';
 import { validateName } from '@/lib/name-validation';
@@ -17,6 +17,35 @@ import { useBuildings } from '@/hooks/useBuildings';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useFlats } from '@/hooks/useFlats';
 import { useFlatSize } from '@/hooks/useFlatSize';
+import { useWalletBalance } from '@/hooks/useWallet';
+
+function WalletCard() {
+  const navigate = useNavigate();
+  const { data: wallet, isLoading } = useWalletBalance();
+  const balance = wallet?.balance_inr ?? 0;
+
+  return (
+    <button
+      onClick={() => navigate('/wallet')}
+      className="flex items-center justify-between w-full p-4 bg-gradient-to-r from-[#ff007a]/10 to-[#e6006a]/5 rounded-2xl border border-[#ff007a]/20 hover:border-[#ff007a]/40 transition-all hover:scale-[0.99] shadow-sm"
+    >
+      <div className="flex items-center gap-3">
+        <div className="h-11 w-11 bg-gradient-to-br from-[#ff007a] to-[#e6006a] rounded-xl flex items-center justify-center shadow-sm">
+          <Wallet className="w-5 h-5 text-white" />
+        </div>
+        <div className="text-left">
+          <p className="font-semibold text-gray-900 text-sm">Didi Now Wallet</p>
+          {isLoading ? (
+            <Skeleton className="h-4 w-16 mt-0.5" />
+          ) : (
+            <p className="text-xs text-gray-600">Balance: <span className="font-bold text-[#ff007a]">₹{balance}</span></p>
+          )}
+        </div>
+      </div>
+      <div className="text-gray-400 text-lg">›</div>
+    </button>
+  );
+}
 
 export default function Profile() {
   const { profile, loading, refresh } = useProfile();
@@ -424,6 +453,9 @@ export default function Profile() {
           </div>
           </div>
         </div>
+
+        {/* Didi Now Wallet */}
+        <WalletCard />
 
         {/* Legal Links */}
         <div className="space-y-3">
