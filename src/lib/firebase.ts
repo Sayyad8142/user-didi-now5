@@ -8,9 +8,7 @@ import {
   ConfirmationResult,
   onAuthStateChanged,
   User,
-  signOut as firebaseSignOut,
-  signInWithCredential,
-  PhoneAuthProvider
+  signOut as firebaseSignOut
 } from 'firebase/auth';
 import { getMessaging, Messaging, getToken, onMessage, MessagePayload } from 'firebase/messaging';
 import { Capacitor } from '@capacitor/core';
@@ -138,9 +136,7 @@ async function sendOtpNative(phoneNumber: string): Promise<{ success: boolean; e
 
     console.log('📱 Native: sending OTP to', phoneNumber);
 
-    // Create a promise that resolves when phoneCodeSent or phoneVerificationFailed fires
     const resultPromise = new Promise<{ success: boolean; error?: string }>((resolve) => {
-      // Timeout after 30 seconds
       const timeout = setTimeout(() => {
         nativePhoneCodeSentResolver = null;
         nativeVerificationFailedResolver = null;
@@ -159,20 +155,33 @@ async function sendOtpNative(phoneNumber: string): Promise<{ success: boolean; e
       };
     });
 
-    // Trigger the native phone auth
     await FirebaseAuthentication.signInWithPhoneNumber({ phoneNumber });
 
     return await resultPromise;
   } catch (error: any) {
     console.error('❌ Native sendOtp error:', error);
     
-    // If native fails, fall back to web SDK
-    console.log('⚠️ Native auth failed, falling back to web SDK...');
-    return sendOtpWeb(phoneNumber);
+    let errorMessage = 'Failed to send OTP';
+    const msg = error?.message || error?.code || '';
+    if (msg.includes('invalid-phone-number')) {
+      errorMessage = 'Invalid phone number format';
+    } else if (msg.includes('too-many-requests')) {
+      errorMessage = 'Too many attempts. Please try again later.';
+    } else if (msg) {
+      errorMessage = msg;
+    }
+    
+    return { success: false, error: errorMessage };
   }
 }
 
-async function verifyOtpNative(code: string): Promise<{ success: boolean; user?: User; error?: string }> {
+// Native user info returned after OTP verification
+interface NativeAuthUser {
+  uid: string;
+  phoneNumber: string | null;
+}
+
+async function verifyOtpNative(code: string): Promise<{ success: boolean; user?: User; nativeUser?: NativeAuthUser; error?: string }> {
   if (!nativeVerificationId) {
     return { success: false, error: 'No OTP request found. Please request OTP first.' };
   }
@@ -182,33 +191,28 @@ async function verifyOtpNative(code: string): Promise<{ success: boolean; user?:
 
     console.log('🔐 Native: verifying OTP...');
     
-    // Confirm the verification code using native plugin
-    const result = await FirebaseAuthentication.confirmVerificationCode({
+    // Confirm the verification code using ONLY the native plugin
+    await FirebaseAuthentication.confirmVerificationCode({
       verificationId: nativeVerificationId,
       verificationCode: code,
     });
 
+    nativeVerificationId = null;
     console.log('✅ Native: OTP verified');
 
-    // Now sign in on the web SDK side too so onAuthStateChanged fires
-    const authInstance = getFirebaseAuth();
-    if (authInstance) {
-      const credential = PhoneAuthProvider.credential(nativeVerificationId, code);
-      const userCredential = await signInWithCredential(authInstance, credential);
-      nativeVerificationId = null;
-      return { success: true, user: userCredential.user };
-    }
+    // Get user info from native plugin — NO web SDK signInWithCredential
+    const nativeUserResult = await FirebaseAuthentication.getCurrentUser();
+    const nativeUser: NativeAuthUser = {
+      uid: nativeUserResult.user?.uid || '',
+      phoneNumber: nativeUserResult.user?.phoneNumber || null,
+    };
 
-    nativeVerificationId = null;
-    
-    // If web auth linking fails, the native user is still authenticated
-    // Try to get the current user from the web SDK
-    const currentUser = getCurrentUser();
-    if (currentUser) {
-      return { success: true, user: currentUser };
-    }
+    console.log('✅ Native user:', nativeUser.uid, nativeUser.phoneNumber);
 
-    return { success: true };
+    // The plugin auto-syncs native auth state to web SDK,
+    // so onAuthStateChanged will fire shortly. But we return
+    // native user info immediately for profile creation.
+    return { success: true, nativeUser };
   } catch (error: any) {
     console.error('❌ Native verifyOtp error:', error);
 
@@ -354,7 +358,7 @@ export const sendOtp = async (phoneNumber: string): Promise<{ success: boolean; 
 };
 
 // Verify OTP — automatically picks native vs web
-export const verifyOtp = async (code: string): Promise<{ success: boolean; user?: User; error?: string }> => {
+export const verifyOtp = async (code: string): Promise<{ success: boolean; user?: User; nativeUser?: NativeAuthUser; error?: string }> => {
   if (isNativePlatform()) {
     return verifyOtpNative(code);
   }
@@ -397,6 +401,21 @@ export const signOut = async (): Promise<void> => {
 
 // Get Firebase ID token for Supabase
 export const getFirebaseIdToken = async (): Promise<string | null> => {
+  // On native platforms, use the native plugin to get the token
+  if (isNativePlatform()) {
+    try {
+      const { FirebaseAuthentication } = await import('@capacitor-firebase/authentication');
+      const result = await FirebaseAuthentication.getIdToken({ forceRefresh: false });
+      if (result.token) {
+        return result.token;
+      }
+    } catch (error) {
+      console.error('❌ Native getIdToken error:', error);
+    }
+    return null;
+  }
+
+  // Web: use Firebase Web SDK
   const authInstance = getFirebaseAuth();
   if (!authInstance) return null;
   
