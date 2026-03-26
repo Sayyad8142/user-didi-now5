@@ -132,7 +132,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     };
     window.addEventListener('demo-mode-changed', handleDemoModeChange as EventListener);
 
-    // ─── NATIVE platform: use native plugin as source of truth ──
+    // ─── NATIVE platform: check native plugin first, then also listen to web SDK ──
     if (native) {
       // Check native current user on startup
       getNativeCurrentUser().then((nativeUser) => {
@@ -141,33 +141,55 @@ export function AuthProvider({ children }: AuthProviderProps) {
           applyNativeUser(nativeUser);
           return;
         }
+        // No native user — check web SDK user (web OTP flow used inside Capacitor)
+        const webUser = getCurrentUser();
+        if (webUser) {
+          console.log('📱 AuthProvider: found web SDK user on native:', webUser.uid);
+          clearDemoSession();
+          setUser({ id: webUser.uid, phone: webUser.phoneNumber, email: webUser.email });
+          setFirebaseUser(webUser);
+          setSession(null); setIsGuest(false); setLoading(false);
+          return;
+        }
         // No native user — check demo/guest
         if (isDemoMode()) {
           if (applyDemoSession()) return;
         }
-        console.log('📱 AuthProvider: no native user, no demo — unauthenticated');
+        console.log('📱 AuthProvider: no native user, no web user, no demo — unauthenticated');
         setUser(null); setFirebaseUser(null); setSession(null);
         setIsGuest(false); setLoading(false);
       });
 
-      // Also poll native auth state when app resumes (handles token refresh)
+      // Listen for native auth changes (native OTP flow)
       const handleNativeAuthCheck = () => {
         getNativeCurrentUser().then((nu) => {
           if (!mounted) return;
           if (nu) {
             applyNativeUser(nu);
           } else {
-            // User signed out natively
             setUser(null); setFirebaseUser(null); setSession(null);
             setIsGuest(false); setLoading(false);
           }
         });
       };
-      // Listen for custom event dispatched after native OTP verify
       window.addEventListener('native-auth-changed', handleNativeAuthCheck);
+
+      // ALSO listen for web SDK auth state changes (web OTP flow used inside Capacitor)
+      const unsubscribeWeb = onFirebaseAuthStateChanged((fbUser) => {
+        if (!mounted) return;
+        console.log('📱 Firebase web SDK auth state changed on native:', fbUser?.uid);
+        if (fbUser) {
+          clearDemoSession();
+          setUser({ id: fbUser.uid, phone: fbUser.phoneNumber, email: fbUser.email });
+          setFirebaseUser(fbUser);
+          setSession(null); setIsGuest(false); setLoading(false);
+        }
+        // Don't clear user on null — native plugin may still have a user
+      });
 
       return () => {
         mounted = false;
+        unsubscribeWeb();
         window.removeEventListener('demo-mode-changed', handleDemoModeChange as EventListener);
         window.removeEventListener('native-auth-changed', handleNativeAuthCheck);
       };
