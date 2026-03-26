@@ -177,7 +177,13 @@ async function sendOtpNative(phoneNumber: string): Promise<{ success: boolean; e
   }
 }
 
-async function verifyOtpNative(code: string): Promise<{ success: boolean; user?: User; error?: string }> {
+// Native user info returned after OTP verification
+interface NativeAuthUser {
+  uid: string;
+  phoneNumber: string | null;
+}
+
+async function verifyOtpNative(code: string): Promise<{ success: boolean; user?: User; nativeUser?: NativeAuthUser; error?: string }> {
   if (!nativeVerificationId) {
     return { success: false, error: 'No OTP request found. Please request OTP first.' };
   }
@@ -187,33 +193,28 @@ async function verifyOtpNative(code: string): Promise<{ success: boolean; user?:
 
     console.log('🔐 Native: verifying OTP...');
     
-    // Confirm the verification code using native plugin
-    const result = await FirebaseAuthentication.confirmVerificationCode({
+    // Confirm the verification code using ONLY the native plugin
+    await FirebaseAuthentication.confirmVerificationCode({
       verificationId: nativeVerificationId,
       verificationCode: code,
     });
 
+    nativeVerificationId = null;
     console.log('✅ Native: OTP verified');
 
-    // Now sign in on the web SDK side too so onAuthStateChanged fires
-    const authInstance = getFirebaseAuth();
-    if (authInstance) {
-      const credential = PhoneAuthProvider.credential(nativeVerificationId, code);
-      const userCredential = await signInWithCredential(authInstance, credential);
-      nativeVerificationId = null;
-      return { success: true, user: userCredential.user };
-    }
+    // Get user info from native plugin — NO web SDK signInWithCredential
+    const nativeUserResult = await FirebaseAuthentication.getCurrentUser();
+    const nativeUser: NativeAuthUser = {
+      uid: nativeUserResult.user?.uid || '',
+      phoneNumber: nativeUserResult.user?.phoneNumber || null,
+    };
 
-    nativeVerificationId = null;
-    
-    // If web auth linking fails, the native user is still authenticated
-    // Try to get the current user from the web SDK
-    const currentUser = getCurrentUser();
-    if (currentUser) {
-      return { success: true, user: currentUser };
-    }
+    console.log('✅ Native user:', nativeUser.uid, nativeUser.phoneNumber);
 
-    return { success: true };
+    // The plugin auto-syncs native auth state to web SDK,
+    // so onAuthStateChanged will fire shortly. But we return
+    // native user info immediately for profile creation.
+    return { success: true, nativeUser };
   } catch (error: any) {
     console.error('❌ Native verifyOtp error:', error);
 
