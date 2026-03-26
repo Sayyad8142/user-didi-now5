@@ -319,11 +319,13 @@ export default function VerifyOTP() {
       }
 
       if (redirectTo) {
-        navigate(redirectTo, { replace: true });
+        console.log('🔄 VerifyOTP: OTP verified, waiting for AuthProvider to update before navigating to', redirectTo);
+        setPendingRedirect(redirectTo);
         return;
       }
 
-      navigate("/home", { replace: true });
+      console.log('🔄 VerifyOTP: OTP verified, waiting for AuthProvider to update before navigating to /home');
+      setPendingRedirect("/home");
     } catch (error: any) {
       console.error('Verify OTP error:', error);
       const errorMsg = error.message ?? "Verification failed";
