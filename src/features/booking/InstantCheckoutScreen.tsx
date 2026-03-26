@@ -160,7 +160,18 @@ export function InstantCheckoutScreen() {
         return;
       }
 
-      // Step 2: Execute payment flow (create order → checkout → verify)
+      // Pay After Service: skip payment, go straight to bookings
+      if (paymentMethod === 'pay_after_service') {
+        sessionStorage.removeItem(`preferred_worker_${service_type}`);
+        toast({
+          title: "Booking confirmed!",
+          description: "Worker will arrive in ~10 minutes. Pay after service is done."
+        });
+        navigate('/bookings');
+        return;
+      }
+
+      // Pay Now: Execute payment flow (create order → checkout → verify)
       try {
         await executePaymentFlow(newBookingId, (status) => {
           setPaymentStatus(status);
@@ -191,7 +202,6 @@ export function InstantCheckoutScreen() {
             variant: "destructive"
           });
         }
-        // Stay on current page so user can retry immediately
       }
     } catch (err: any) {
       console.error('❌ Booking error:', err);
