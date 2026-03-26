@@ -194,6 +194,7 @@ const App = () => {
         storeUrl={nativeGate.storeUrl}
         currentVersion={nativeGate.currentVersion}
         requiredVersion={nativeGate.requiredVersion}
+        releaseNotes={nativeGate.releaseNotes}
       />
     );
   }
