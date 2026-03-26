@@ -318,8 +318,8 @@ export default function VerifyOTP() {
     setError('');
 
     try {
-      // Only setup reCAPTCHA on web
-      if (!isNativePlatform()) {
+      // Only setup reCAPTCHA on web (never on native)
+      if (isWeb()) {
         setupRecaptcha('recaptcha-container-verify');
         await new Promise(resolve => setTimeout(resolve, 300));
       }
