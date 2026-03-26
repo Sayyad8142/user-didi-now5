@@ -13,10 +13,10 @@ export function useMyBookingsRealtime(enabled: boolean = true) {
       .on("postgres_changes",
         { event: "UPDATE", schema: "public", table: "bookings" },
         () => {
-          // Refetch any bookings lists/detail queries
           qc.invalidateQueries({ queryKey: ["bookings"] });
           qc.invalidateQueries({ queryKey: ["bookings","upcoming"] });
           qc.invalidateQueries({ queryKey: ["bookings","history"] });
+          qc.invalidateQueries({ queryKey: ["wallet"] });
         }
       )
       .subscribe();
