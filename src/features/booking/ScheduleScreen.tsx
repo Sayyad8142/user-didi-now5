@@ -498,10 +498,15 @@ export function ScheduleScreen() {
             {submitting ? (
               <div className="flex items-center gap-2">
                 <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                <span>Confirming...</span>
+                <span>
+                  {paymentStatus === 'creating_order' && 'Creating order...'}
+                  {paymentStatus === 'opening_checkout' && 'Opening payment...'}
+                  {paymentStatus === 'verifying_payment' && 'Verifying payment...'}
+                  {(!paymentStatus || paymentStatus === 'payment_success') && 'Processing...'}
+                </span>
               </div>
             ) : (
-            'Confirm Schedule'
+              `Pay & Confirm Schedule${price ? ` · ₹${price + (selectedTime ? getSurge(selectedTime) : 0)}` : ''}`
             )}
           </Button>
         </div>
