@@ -1,6 +1,7 @@
 import { Download, X, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Capacitor } from '@capacitor/core';
+import { getAppPlatform } from '@/utils/platform';
 
 interface SoftUpdateModalProps {
   title: string;
@@ -8,6 +9,7 @@ interface SoftUpdateModalProps {
   storeUrl: string;
   currentVersion: string;
   latestVersion: string;
+  releaseNotes?: string;
   onDismiss: () => void;
 }
 
@@ -17,8 +19,12 @@ export function SoftUpdateModal({
   storeUrl,
   currentVersion,
   latestVersion,
+  releaseNotes,
   onDismiss,
 }: SoftUpdateModalProps) {
+  const platform = getAppPlatform();
+  const storeName = platform === 'ios' ? 'App Store' : 'Play Store';
+
   const handleUpdate = async () => {
     if (!storeUrl) return;
     if (Capacitor.isNativePlatform()) {
@@ -62,20 +68,24 @@ export function SoftUpdateModal({
           {message}
         </p>
 
+        {releaseNotes ? (
+          <p className="text-xs text-muted-foreground/70 text-center mb-2 max-w-xs mx-auto italic">
+            {releaseNotes}
+          </p>
+        ) : null}
+
         <p className="text-xs text-muted-foreground/60 text-center mb-6">
           {currentVersion} → {latestVersion}
         </p>
 
         {/* Actions */}
         <div className="space-y-3">
-          <Button
-            onClick={handleUpdate}
-            size="lg"
-            className="w-full h-12 gap-2"
-          >
-            <Download className="h-4 w-4" />
-            Update Now
-          </Button>
+          {storeUrl ? (
+            <Button onClick={handleUpdate} size="lg" className="w-full h-12 gap-2">
+              <Download className="h-4 w-4" />
+              Update on {storeName}
+            </Button>
+          ) : null}
 
           <Button
             onClick={onDismiss}

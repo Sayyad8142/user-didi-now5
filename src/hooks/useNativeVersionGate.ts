@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { supabase } from '@/integrations/supabase/client';
 import { semverLt } from '@/lib/semver';
+import { getAppPlatform } from '@/utils/platform';
 
 const isDev = import.meta.env.DEV;
 const CACHE_KEY = 'didi_native_app_config';
@@ -19,22 +20,26 @@ interface AppConfig {
   min_user_version_name: string;
   latest_version_name: string;
   force_update: boolean;
+  soft_update_enabled: boolean;
   user_update_message: string;
   update_title: string;
   soft_update_message: string;
   play_store_url_user: string;
+  ios_store_url: string;
+  release_notes: string;
 }
 
 export interface NativeVersionGateState {
   checking: boolean;
   status: AppStatus;
-  blocked: boolean; // backwards compat
+  blocked: boolean;
   message: string;
   title: string;
   storeUrl: string;
   currentVersion: string;
   requiredVersion: string;
   latestVersion: string;
+  releaseNotes: string;
   dismissSoftUpdate: () => void;
 }
 
@@ -61,10 +66,18 @@ function dismissSoft() {
   try { localStorage.setItem(SOFT_DISMISS_KEY, String(Date.now())); } catch {}
 }
 
+/** Resolve the correct store URL based on the current platform */
+function resolveStoreUrl(config: AppConfig): string {
+  const platform = getAppPlatform();
+  if (platform === 'ios') return config.ios_store_url || '';
+  // Android or web fallback
+  return config.play_store_url_user || '';
+}
+
 async function fetchConfig(): Promise<AppConfig | null> {
   const { data, error } = await supabase
     .from('app_config')
-    .select('min_user_version_code, min_user_version_name, latest_version_name, force_update, user_update_message, update_title, soft_update_message, play_store_url_user')
+    .select('min_user_version_code, min_user_version_name, latest_version_name, force_update, soft_update_enabled, user_update_message, update_title, soft_update_message, play_store_url_user, ios_store_url, release_notes')
     .limit(1)
     .single();
 
@@ -110,8 +123,11 @@ function computeStatus(
     };
   }
 
-  // Check semver: current < latest → soft update
-  if (semverLt(currentVersionName, config.latest_version_name)) {
+  // Check semver: current < latest → soft update (only if enabled)
+  if (
+    config.soft_update_enabled &&
+    semverLt(currentVersionName, config.latest_version_name)
+  ) {
     log('newer version available:', currentVersionName, '<', config.latest_version_name);
     return {
       status: 'soft_update',
@@ -134,6 +150,7 @@ export function useNativeVersionGate(): NativeVersionGateState {
     currentVersion: '',
     requiredVersion: '',
     latestVersion: '',
+    releaseNotes: '',
     dismissSoftUpdate: () => {},
   });
 
@@ -162,7 +179,6 @@ export function useNativeVersionGate(): NativeVersionGateState {
       let config = await fetchConfig();
 
       if (!config) {
-        // Use cached config if remote fails
         config = getCachedConfig();
         if (config) {
           log('using cached config');
@@ -176,7 +192,8 @@ export function useNativeVersionGate(): NativeVersionGateState {
       }
 
       const { status, message, title } = computeStatus(currentVersionName, currentVersionCode, config);
-      log('computed status:', status);
+      const storeUrl = resolveStoreUrl(config);
+      log('computed status:', status, 'storeUrl:', storeUrl);
 
       setState(s => ({
         ...s,
@@ -185,10 +202,11 @@ export function useNativeVersionGate(): NativeVersionGateState {
         blocked: status === 'force_update',
         message,
         title,
-        storeUrl: config!.play_store_url_user || '',
+        storeUrl,
         currentVersion: currentVersionName,
         requiredVersion: config!.min_user_version_name || '',
         latestVersion: config!.latest_version_name || '',
+        releaseNotes: config!.release_notes || '',
       }));
     } catch (err) {
       log('error during check, allowing through', err);

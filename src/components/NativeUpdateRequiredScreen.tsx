@@ -1,12 +1,14 @@
 import { AlertTriangle, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Capacitor } from '@capacitor/core';
+import { getAppPlatform } from '@/utils/platform';
 
 interface NativeUpdateRequiredScreenProps {
   message: string;
   storeUrl: string;
   currentVersion: string;
   requiredVersion: string;
+  releaseNotes?: string;
 }
 
 export function NativeUpdateRequiredScreen({
@@ -14,19 +16,22 @@ export function NativeUpdateRequiredScreen({
   storeUrl,
   currentVersion,
   requiredVersion,
+  releaseNotes,
 }: NativeUpdateRequiredScreenProps) {
+  const platform = getAppPlatform();
+  const storeName = platform === 'ios' ? 'App Store' : 'Play Store';
+
   const handleOpenStore = async () => {
-    if (storeUrl) {
-      if (Capacitor.isNativePlatform()) {
-        try {
-          const { Browser } = await import('@capacitor/browser');
-          await Browser.open({ url: storeUrl });
-        } catch {
-          window.open(storeUrl, '_blank');
-        }
-      } else {
+    if (!storeUrl) return;
+    if (Capacitor.isNativePlatform()) {
+      try {
+        const { Browser } = await import('@capacitor/browser');
+        await Browser.open({ url: storeUrl });
+      } catch {
         window.open(storeUrl, '_blank');
       }
+    } else {
+      window.open(storeUrl, '_blank');
     }
   };
 
@@ -44,15 +49,25 @@ export function NativeUpdateRequiredScreen({
         {message}
       </p>
 
+      {releaseNotes ? (
+        <p className="text-xs text-muted-foreground/80 mb-4 max-w-xs italic leading-relaxed">
+          {releaseNotes}
+        </p>
+      ) : null}
+
       <p className="text-xs text-muted-foreground/70 mb-8">
         Your version: {currentVersion} · Required: {requiredVersion}+
       </p>
 
-      {storeUrl && (
+      {storeUrl ? (
         <Button onClick={handleOpenStore} size="lg" className="w-full max-w-xs h-12 gap-2">
           <Download className="h-4 w-4" />
-          Update on Play Store
+          Update on {storeName}
         </Button>
+      ) : (
+        <p className="text-xs text-muted-foreground/60">
+          Store link not available. Please update manually.
+        </p>
       )}
     </div>
   );
