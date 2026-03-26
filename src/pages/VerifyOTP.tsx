@@ -12,7 +12,7 @@ import { CleaningLoader } from '@/components/ui/cleaning-loader';
 import { normalizePhone } from '@/features/profile/ensureProfile';
 import { isDemoCredentials, setDemoSession, clearDemoSession } from '@/lib/demo';
 import { useProfile } from '@/contexts/ProfileContext';
-import { verifyOtp, sendOtp, getCurrentUser, setupRecaptcha } from '@/lib/firebase';
+import { verifyOtp, sendOtp, getCurrentUser, setupRecaptcha, isNativePlatform } from '@/lib/firebase';
 
 interface LocationState {
   phone: string;
@@ -303,11 +303,11 @@ export default function VerifyOTP() {
     setError('');
 
     try {
-      // Setup reCAPTCHA again for resend
-      setupRecaptcha('recaptcha-container-verify');
-      
-      // Small delay for reCAPTCHA setup
-      await new Promise(resolve => setTimeout(resolve, 300));
+      // Only setup reCAPTCHA on web
+      if (!isNativePlatform()) {
+        setupRecaptcha('recaptcha-container-verify');
+        await new Promise(resolve => setTimeout(resolve, 300));
+      }
       
       const result = await sendOtp(phone);
 
@@ -416,8 +416,8 @@ export default function VerifyOTP() {
               )}
             </div>
 
-            {/* Invisible reCAPTCHA container for resend */}
-            <div id="recaptcha-container-verify"></div>
+            {/* Invisible reCAPTCHA container for resend (web only) */}
+            {!isNativePlatform() && <div id="recaptcha-container-verify"></div>}
           </CardContent>
         </Card>
       </div>
