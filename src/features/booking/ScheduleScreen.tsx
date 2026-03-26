@@ -256,7 +256,17 @@ export function ScheduleScreen() {
         return;
       }
 
-      // Execute payment flow
+      // Pay After Service: skip payment, go straight to bookings
+      if (paymentMethod === 'pay_after_service') {
+        toast({
+          title: "Booking scheduled!",
+          description: "Worker will be assigned before the scheduled time. Pay after service is done."
+        });
+        navigate('/bookings');
+        return;
+      }
+
+      // Pay Now: Execute payment flow
       try {
         await executePaymentFlow(newBookingId, (status) => {
           setPaymentStatus(status);
@@ -286,7 +296,6 @@ export function ScheduleScreen() {
             variant: "destructive"
           });
         }
-        // Stay on current page so user can retry immediately
       }
     } catch (err: any) {
       console.error('Booking error:', err);
