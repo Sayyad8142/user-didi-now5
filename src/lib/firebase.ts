@@ -349,45 +349,49 @@ function verifyOtpWeb(code: string): Promise<{ success: boolean; user?: User; er
 
 // ─── Unified public API ──────────────────────────────────────────────
 
-// ─── Unified public API ──────────────────────────────────────────────
-// Platform routing: native (Android/iOS) → native plugin, web → reCAPTCHA
+// ─── Config flag ─────────────────────────────────────────────────────
+// Set to true ONLY when the native Capacitor Firebase plugin is fully
+// configured and tested on Android/iOS. When false (default), all
+// platforms — including Capacitor apps — use the web OTP flow.
+const USE_NATIVE_PHONE_AUTH = false;
 
-// Send OTP — routes by platform
+const shouldUseNative = (): boolean => USE_NATIVE_PHONE_AUTH && isNativePlatform();
+
+// ─── Unified public API ──────────────────────────────────────────────
+
+// Send OTP — defaults to web flow; native only when USE_NATIVE_PHONE_AUTH=true
 export const sendOtp = async (phoneNumber: string): Promise<{ success: boolean; error?: string }> => {
   const platform = Capacitor.getPlatform();
-  console.log(`📲 sendOtp called — platform: ${platform}, native: ${isNativePlatform()}, phone: ${phoneNumber}`);
+  console.log(`📲 sendOtp — platform: ${platform}, cap: ${isNativePlatform()}, useNative: ${shouldUseNative()}, phone: ${phoneNumber}`);
 
-  if (isNativePlatform()) {
-    // Both Android and iOS use native Capacitor Firebase plugin
-    console.log(`📱 Using NATIVE OTP flow (${platform})`);
+  if (shouldUseNative()) {
+    console.log(`📱 Attempting NATIVE OTP flow (${platform})`);
     try {
-      return await sendOtpNative(phoneNumber);
+      const result = await sendOtpNative(phoneNumber);
+      if (result.success) return result;
+      console.warn('⚠️ Native OTP failed, falling back to web flow:', result.error);
     } catch (error: any) {
-      console.error(`❌ Native sendOtp failed on ${platform}:`, error);
-      return {
-        success: false,
-        error: `Phone verification is not available. Please ensure the app is up to date and try again.`,
-      };
+      console.warn('⚠️ Native OTP threw, falling back to web flow:', error?.message);
     }
   }
 
-  // Web / PWA
+  // Web flow (default for all platforms)
   console.log('🌐 Using WEB OTP flow (reCAPTCHA)');
   return sendOtpWeb(phoneNumber);
 };
 
-// Verify OTP — routes by platform
+// Verify OTP — matches the flow used by sendOtp
 export const verifyOtp = async (code: string): Promise<{ success: boolean; user?: User; nativeUser?: NativeAuthUser; error?: string }> => {
   const platform = Capacitor.getPlatform();
-  console.log(`🔐 verifyOtp called — platform: ${platform}, native: ${isNativePlatform()}, hasNativeVerificationId: ${!!nativeVerificationId}`);
+  console.log(`🔐 verifyOtp — platform: ${platform}, cap: ${isNativePlatform()}, useNative: ${shouldUseNative()}, hasNativeId: ${!!nativeVerificationId}, hasWebCR: ${!!confirmationResult}`);
 
-  if (isNativePlatform()) {
-    // Native: always verify via native plugin
+  // If we have a native verification in progress, verify natively
+  if (shouldUseNative() && nativeVerificationId) {
     console.log(`📱 Using NATIVE verify flow (${platform})`);
     return verifyOtpNative(code);
   }
 
-  // Web
+  // Web flow (default)
   console.log('🌐 Using WEB verify flow');
   return verifyOtpWeb(code);
 };

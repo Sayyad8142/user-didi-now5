@@ -425,8 +425,8 @@ export function AuthCard() {
           Explore services before signing up
         </p>
 
-        {/* Invisible reCAPTCHA container — WEB ONLY */}
-        {isWeb() && <div id="recaptcha-container"></div>}
+        {/* Invisible reCAPTCHA container — all platforms */}
+        <div id="recaptcha-container"></div>
       </CardContent>
     </Card>
   );
