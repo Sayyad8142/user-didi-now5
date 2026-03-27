@@ -31,6 +31,7 @@ import { PaymentMethodSelector, type PaymentMethod } from '@/components/PaymentM
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription } from '@/components/ui/alert-dialog';
 import { executePaymentFlow, type PaymentFlowStatus } from '@/lib/paymentService';
 import { CreditCard, HandCoins } from 'lucide-react';
+import { useWalletBalance } from '@/hooks/useWallet';
 
 // Maid task types and constants
 type MaidTask = "floor_cleaning" | "dish_washing";
