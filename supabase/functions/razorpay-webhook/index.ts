@@ -56,6 +56,8 @@ Deno.serve(async (req) => {
   const logPrefix = "[razorpay-webhook]";
 
   try {
+    console.log("🔥 Razorpay webhook received:", new Date().toISOString());
+
     // 1. Read raw body for signature verification
     const rawBody = await req.text();
     const signature = req.headers.get("x-razorpay-signature") || "";
