@@ -315,6 +315,8 @@ export function BookingCard({
       if (err.message !== 'Payment cancelled by user') {
         toast.error(err.message || 'Payment failed. Please try again.');
       }
+      // Mark as failed so UI updates correctly
+      await supabase.from('bookings').update({ payment_status: 'failed' }).eq('id', row.id);
     } finally {
       setRetryingPayment(false);
     }
