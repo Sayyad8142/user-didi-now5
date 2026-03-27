@@ -242,11 +242,7 @@ Deno.serve(async (req) => {
       success: true,
       booking_id,
       payout_id: payoutId,
-      payout: {
-        gross: grossAmount,
-        platform_fee: platformFee,
-        net: netAmount,
-      },
+      payout: payoutRecord,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
