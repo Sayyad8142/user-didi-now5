@@ -71,6 +71,8 @@ export function ScheduleScreen() {
   const [showAvailabilityWarning, setShowAvailabilityWarning] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('pay_now');
   const [showPaymentPicker, setShowPaymentPicker] = useState(false);
+  const [unavailableSlots, setUnavailableSlots] = useState<Set<string>>(new Set());
+  const [loadingAvailability, setLoadingAvailability] = useState(false);
 
   // Dynamic slot surge pricing
   const { getSurge } = useSlotSurge(profile?.community_id, service_type || 'maid');
@@ -115,6 +117,42 @@ export function ScheduleScreen() {
     }
     setInitialSegmentSet(true);
   }, [selectedDate]);
+
+  // Fetch slot availability when date or community changes
+  useEffect(() => {
+    if (!selectedDate || !profile?.community || !service_type) {
+      setUnavailableSlots(new Set());
+      return;
+    }
+
+    let cancelled = false;
+    const fetchAvailability = async () => {
+      setLoadingAvailability(true);
+      try {
+        const dateStr = format(selectedDate, 'yyyy-MM-dd');
+        const { data, error } = await supabase.rpc('get_scheduled_slot_availability', {
+          p_community: profile.community,
+          p_service_type: service_type,
+          p_date: dateStr,
+        });
+        if (error || cancelled) return;
+        const unavailable = new Set<string>();
+        ((data as any[]) || []).forEach((row: { slot_time: string; worker_count: number }) => {
+          if (row.worker_count < 1) {
+            unavailable.add(row.slot_time);
+          }
+        });
+        setUnavailableSlots(unavailable);
+      } catch (err) {
+        console.error('Slot availability fetch failed:', err);
+      } finally {
+        if (!cancelled) setLoadingAvailability(false);
+      }
+    };
+
+    fetchAvailability();
+    return () => { cancelled = true; };
+  }, [selectedDate, profile?.community, service_type]);
 
   useEffect(() => {
     if (priceParam) {
@@ -438,12 +476,14 @@ export function ScheduleScreen() {
                     const isPast = isPastToday(slot, selectedDate);
                     const isSelected = selectedTime === slot;
                     const slotSurge = getSurge(slot);
+                    const isSlotUnavailable = unavailableSlots.has(slot);
+                    const isDisabled = isPast || isSlotUnavailable;
                     
                     return (
                       <Button
                         key={slot}
                         variant="outline"
-                        disabled={isPast}
+                        disabled={isDisabled}
                         onClick={() => {
                           setSelectedTime(slot);
                           if (isLimitedAvailabilitySlot(slot)) {
@@ -453,13 +493,16 @@ export function ScheduleScreen() {
                         className={`relative rounded-xl border-2 h-auto min-h-[3rem] px-2 text-xs flex flex-col items-center justify-center py-1.5 ${
                           isSelected
                             ? 'border-primary bg-primary/10 text-primary'
-                            : isPast
-                            ? 'border-gray-200 text-gray-400 bg-gray-50'
+                            : isDisabled
+                            ? 'border-gray-200 text-gray-400 bg-gray-50 opacity-50'
                             : 'border-gray-200 bg-white text-foreground hover:border-primary/50'
                         }`}
                       >
-                        <span className="font-medium">{toDisplay12h(slot)}</span>
-                        {slotSurge > 0 && (
+                        <span className={`font-medium ${isSlotUnavailable ? 'line-through' : ''}`}>{toDisplay12h(slot)}</span>
+                        {isSlotUnavailable && !isPast && (
+                          <span className="text-[9px] text-destructive font-normal">Unavailable</span>
+                        )}
+                        {!isSlotUnavailable && slotSurge > 0 && (
                           <span className={`text-[10px] font-semibold mt-0.5 ${
                             isSelected ? 'text-primary' : 'text-orange-500'
                           }`}>
