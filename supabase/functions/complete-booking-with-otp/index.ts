@@ -52,7 +52,7 @@ Deno.serve(async (req) => {
     // 4. Get booking
     const { data: booking, error: bookingErr } = await supabase
       .from("bookings")
-      .select("id, status, worker_id, completion_otp, otp_verified_at, payment_status, payment_amount_inr, price_inr, payment_method")
+      .select("id, status, worker_id, completion_otp, otp_verified_at, payment_status, payment_amount_inr, price_inr, payment_method, worker_collected_payment")
       .eq("id", booking_id)
       .single();
 
@@ -102,20 +102,37 @@ Deno.serve(async (req) => {
       });
     }
 
-    // 9. Calculate payout (use wallet-aware amount if available)
+    // 9. STRICT PAYMENT VALIDATION — block completion if payment not received
+    const isPayAfterService = booking.payment_method === "pay_after_service";
+
+    if (isPayAfterService) {
+      // Pay After Service: worker must have collected cash
+      if (!booking.worker_collected_payment) {
+        return new Response(JSON.stringify({
+          error: "Please collect payment from customer before completing the job.",
+        }), {
+          status: 402,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    } else {
+      // Online payment (Razorpay / wallet): must be paid
+      const paymentOk = ["paid", "settled_to_worker"].includes(booking.payment_status ?? "");
+      if (!paymentOk) {
+        console.warn(`🚫 Booking ${booking_id} blocked: payment_status=${booking.payment_status}`);
+        return new Response(JSON.stringify({
+          error: "Payment not completed. Please ask customer to complete payment.",
+        }), {
+          status: 402,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
+    // 10. Calculate payout
     const grossAmount = booking.payment_amount_inr || booking.price_inr || 0;
     const platformFee = Math.round(grossAmount * PLATFORM_FEE_PERCENT / 100);
     const netAmount = grossAmount - platformFee;
-
-    // 10. Validate payout preconditions
-    if (netAmount <= 0) {
-      console.warn(`⚠️ Booking ${booking_id} has zero/negative payout (gross=${grossAmount}), skipping payout record`);
-    }
-
-    const paymentOk = ["paid", "settled_to_worker"].includes(booking.payment_status ?? "");
-    if (!paymentOk) {
-      console.warn(`⚠️ Booking ${booking_id} payment_status=${booking.payment_status}, proceeding with completion but flagging payout`);
-    }
 
     // 11. Atomically complete booking
     const now = new Date().toISOString();
