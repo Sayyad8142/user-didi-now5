@@ -451,6 +451,7 @@ export function InstantCheckoutScreen() {
                 <div className="flex items-center gap-2">
                   <div className="w-5 h-5 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
                   <span>
+                    {paymentStatus === 'debiting_wallet' && 'Using wallet...'}
                     {paymentStatus === 'creating_order' && 'Creating order...'}
                     {paymentStatus === 'opening_checkout' && 'Opening payment...'}
                     {paymentStatus === 'verifying_payment' && 'Verifying payment...'}

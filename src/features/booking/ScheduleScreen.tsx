@@ -560,6 +560,7 @@ export function ScheduleScreen() {
               <div className="flex items-center gap-2">
                 <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
                 <span>
+                  {paymentStatus === 'debiting_wallet' && 'Using wallet...'}
                   {paymentStatus === 'creating_order' && 'Creating order...'}
                   {paymentStatus === 'opening_checkout' && 'Opening payment...'}
                   {paymentStatus === 'verifying_payment' && 'Verifying payment...'}
