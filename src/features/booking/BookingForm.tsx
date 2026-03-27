@@ -301,10 +301,7 @@ export function BookingForm() {
         });
         return;
       }
-      await createBooking('instant', null, null, totalPrice);
-    } else if (service_type === 'bathroom_cleaning') {
-      await createBooking('instant', null, null, bathroomTotalPrice);
-    } else {
+    } else if (service_type !== 'bathroom_cleaning') {
       if (!selectedFlatSize) return;
       const price = pricingMap[selectedFlatSize];
       if (!price) {
@@ -315,6 +312,25 @@ export function BookingForm() {
         });
         return;
       }
+    }
+
+    // All validations passed — show payment method picker
+    setPaymentMethod('pay_now');
+    setShowPaymentPicker(true);
+  };
+
+  const handleConfirmInstantBooking = async () => {
+    setShowPaymentPicker(false);
+    if (!profile || !service_type) return;
+
+    if (service_type === 'maid') {
+      await createBooking('instant', null, null, totalPrice);
+    } else if (service_type === 'bathroom_cleaning') {
+      await createBooking('instant', null, null, bathroomTotalPrice);
+    } else {
+      if (!selectedFlatSize) return;
+      const price = pricingMap[selectedFlatSize];
+      if (!price) return;
       await createBooking('instant', null, null, price);
     }
   };
