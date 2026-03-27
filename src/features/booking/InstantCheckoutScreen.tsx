@@ -437,15 +437,7 @@ export function InstantCheckoutScreen() {
       {/* Fixed bottom Book Now bar */}
       <div className="fixed bottom-0 inset-x-0 z-50 pointer-events-none">
         <div className="max-w-md mx-auto px-4 pointer-events-auto">
-          <div className="mb-[76px] pb-safe space-y-2">
-            <div className="bg-card/95 backdrop-blur-sm rounded-2xl border border-border/50 p-3 shadow-lg">
-              <p className="text-[11px] font-semibold text-muted-foreground mb-2">Payment method</p>
-              <PaymentMethodSelector
-                selected={paymentMethod}
-                onChange={setPaymentMethod}
-                disabled={submitting}
-              />
-            </div>
+          <div className="mb-[76px] pb-safe">
             <Button
               onClick={handleBookNow}
               disabled={submitting}
@@ -465,13 +457,35 @@ export function InstantCheckoutScreen() {
               ) : (
                 <>
                   <Zap className="w-5 h-5 mr-2" />
-                  {paymentMethod === 'pay_after_service' ? 'Book Now' : 'Pay & Book Now'}{price ? ` · ₹${price}` : ''}
+                  Book Now{price ? ` · ₹${price}` : ''}
                 </>
               )}
             </Button>
           </div>
         </div>
       </div>
+
+      {/* Payment Method Picker Dialog */}
+      <AlertDialog open={showPaymentPicker} onOpenChange={setShowPaymentPicker}>
+        <AlertDialogContent className="max-w-sm rounded-2xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-base">Choose payment method</AlertDialogTitle>
+            <AlertDialogDescription className="text-xs text-muted-foreground">
+              How would you like to pay for this booking?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <PaymentMethodSelector
+            selected={paymentMethod}
+            onChange={setPaymentMethod}
+          />
+          <AlertDialogFooter className="flex-row gap-2 mt-2">
+            <AlertDialogCancel className="flex-1 rounded-xl">Cancel</AlertDialogCancel>
+            <Button className="flex-1 rounded-xl font-bold" onClick={confirmBooking}>
+              {paymentMethod === 'pay_after_service' ? 'Confirm Booking' : `Pay ₹${price}`}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Supply Full Modal */}
       <SupplyFullModal
