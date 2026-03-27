@@ -72,6 +72,9 @@ export function BookingForm() {
   const [scheduleSheetOpen, setScheduleSheetOpen] = useState(false);
   const [priceChartOpen, setPriceChartOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [showPaymentPicker, setShowPaymentPicker] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('pay_now');
+  const [paymentStatus, setPaymentStatus] = useState<PaymentFlowStatus | null>(null);
 
   // Check instant booking availability (must be before any early returns)
   const { isAvailable: instantAvailable, isError: instantError, isLoading: instantLoading } = useInstantBookingAvailability(service_type || '');
