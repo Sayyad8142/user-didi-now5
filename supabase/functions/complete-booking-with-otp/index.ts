@@ -169,22 +169,30 @@ Deno.serve(async (req) => {
       });
     }
 
-    // 12. Create worker payout record (idempotent – skip if exists)
+    // 12. Create worker payout record (fully idempotent)
     let payoutId: string | null = null;
+    let payoutRecord = { gross: grossAmount, platform_fee: platformFee, net: netAmount };
 
     if (netAmount > 0) {
-      // Check for existing payout first (idempotency guard)
+      // Step A: check if payout already exists
       const { data: existingPayout } = await supabase
         .from("worker_payouts")
-        .select("id")
+        .select("id, booking_amount, platform_fee, payout_amount")
         .eq("booking_id", booking_id)
         .eq("worker_id", worker.id)
         .maybeSingle();
 
       if (existingPayout) {
+        // Already exists — return it, no insert
         payoutId = existingPayout.id;
+        payoutRecord = {
+          gross: existingPayout.booking_amount,
+          platform_fee: existingPayout.platform_fee,
+          net: existingPayout.payout_amount,
+        };
         console.log(`ℹ️ Payout already exists for booking ${booking_id}: ${payoutId}`);
       } else {
+        // Step B: attempt insert
         const { data: newPayout, error: payoutErr } = await supabase
           .from("worker_payouts")
           .insert({
@@ -200,12 +208,27 @@ Deno.serve(async (req) => {
           .single();
 
         if (payoutErr) {
-          // If unique constraint violation, payout was created by a concurrent request
           if (payoutErr.code === "23505") {
-            console.log(`ℹ️ Concurrent payout insert for booking ${booking_id}, already exists`);
+            // Step C: concurrent insert won the race — fetch the winner
+            const { data: raceWinner } = await supabase
+              .from("worker_payouts")
+              .select("id, booking_amount, platform_fee, payout_amount")
+              .eq("booking_id", booking_id)
+              .eq("worker_id", worker.id)
+              .maybeSingle();
+
+            if (raceWinner) {
+              payoutId = raceWinner.id;
+              payoutRecord = {
+                gross: raceWinner.booking_amount,
+                platform_fee: raceWinner.platform_fee,
+                net: raceWinner.payout_amount,
+              };
+            }
+            console.log(`ℹ️ Concurrent payout resolved for booking ${booking_id}: ${payoutId}`);
           } else {
             console.error("Failed to create payout record:", payoutErr);
-            // Don't fail the whole request – booking is already completed
+            // Don't fail — booking is already completed
           }
         } else {
           payoutId = newPayout?.id ?? null;
@@ -219,11 +242,7 @@ Deno.serve(async (req) => {
       success: true,
       booking_id,
       payout_id: payoutId,
-      payout: {
-        gross: grossAmount,
-        platform_fee: platformFee,
-        net: netAmount,
-      },
+      payout: payoutRecord,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
