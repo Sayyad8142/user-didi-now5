@@ -98,7 +98,9 @@ Deno.serve(async (req) => {
     }
 
     // 7. Server-side price validation
-    const amountInPaise = booking.price_inr! * 100;
+    // Use razorpay_paid_amount if wallet was partially used, otherwise full price
+    const chargeAmount = booking.razorpay_paid_amount ?? booking.price_inr!;
+    const amountInPaise = chargeAmount * 100;
     if (amountInPaise <= 0) {
       return new Response(JSON.stringify({ error: "Invalid booking amount" }), {
         status: 400,
