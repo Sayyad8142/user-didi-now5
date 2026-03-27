@@ -505,18 +505,10 @@ export function ScheduleScreen() {
           </div>
         )}
 
-        {/* Payment Method + Confirm */}
-        <div className="mt-4 space-y-3">
-          <div className="bg-card rounded-2xl border border-border p-3">
-            <p className="text-[11px] font-semibold text-muted-foreground mb-2">Payment method</p>
-            <PaymentMethodSelector
-              selected={paymentMethod}
-              onChange={setPaymentMethod}
-              disabled={submitting}
-            />
-          </div>
+        {/* Confirm Button */}
+        <div className="mt-4">
           <Button
-            onClick={handleConfirmSchedule}
+            onClick={() => setShowPaymentPicker(true)}
             disabled={!canConfirm}
             className="w-full h-12 rounded-full bg-gradient-to-r from-[#ff007a] to-[#d9006a] text-white font-semibold text-sm disabled:opacity-50"
           >
@@ -531,12 +523,41 @@ export function ScheduleScreen() {
                 </span>
               </div>
             ) : (
-              paymentMethod === 'pay_after_service'
-                ? `Confirm Schedule${price ? ` · ₹${price + (selectedTime ? getSurge(selectedTime) : 0)}` : ''}`
-                : `Pay & Confirm Schedule${price ? ` · ₹${price + (selectedTime ? getSurge(selectedTime) : 0)}` : ''}`
+              `Confirm Schedule${price ? ` · ₹${price + (selectedTime ? getSurge(selectedTime) : 0)}` : ''}`
             )}
           </Button>
         </div>
+
+        {/* Payment Method Popup */}
+        <AlertDialog open={showPaymentPicker} onOpenChange={setShowPaymentPicker}>
+          <AlertDialogContent className="max-w-sm rounded-2xl">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-lg font-semibold text-foreground">
+                Choose payment method
+              </AlertDialogTitle>
+              <AlertDialogDescription className="text-sm text-muted-foreground">
+                How would you like to pay for this booking?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <PaymentMethodSelector
+              selected={paymentMethod}
+              onChange={setPaymentMethod}
+              disabled={submitting}
+            />
+            <AlertDialogFooter className="mt-2">
+              <Button
+                onClick={() => {
+                  setShowPaymentPicker(false);
+                  handleConfirmSchedule();
+                }}
+                disabled={submitting}
+                className="w-full h-11 rounded-full bg-gradient-to-r from-[#ff007a] to-[#d9006a] text-white font-semibold text-sm"
+              >
+                {paymentMethod === 'pay_after_service' ? 'Confirm Booking' : 'Pay & Confirm'}
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         {/* Limited Availability Warning Dialog */}
         <AlertDialog open={showAvailabilityWarning} onOpenChange={setShowAvailabilityWarning}>
