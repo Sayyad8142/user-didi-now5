@@ -486,7 +486,7 @@ export function InstantCheckoutScreen() {
           <AlertDialogFooter className="flex-row gap-2 mt-2">
             <AlertDialogCancel className="flex-1 rounded-xl">Cancel</AlertDialogCancel>
             <Button className="flex-1 rounded-xl font-bold" onClick={confirmBooking}>
-              {paymentMethod === 'pay_after_service' ? 'Confirm Booking' : `Pay ₹${price}`}
+              {paymentMethod === 'pay_after_service' ? 'Confirm Booking' : walletBalance >= price ? `Pay ₹${price} from Wallet` : `Pay ₹${price}`}
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
