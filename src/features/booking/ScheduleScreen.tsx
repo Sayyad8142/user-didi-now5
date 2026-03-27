@@ -9,6 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { executePaymentFlow, type PaymentFlowStatus } from '@/lib/paymentService';
 import { PaymentMethodSelector, type PaymentMethod } from '@/components/PaymentMethodSelector';
+import { useWalletBalance } from '@/hooks/useWallet';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useProfile } from '@/contexts/ProfileContext';
 import { prettyServiceName, isValidServiceType, getPricingMap } from './pricing';
@@ -48,6 +49,8 @@ export function ScheduleScreen() {
   const { profile, loading: profileLoading } = useProfile();
   const { toast } = useToast();
   const { flatSize: autoFlatSize } = useFlatSize();
+  const { data: walletData } = useWalletBalance();
+  const walletBalance = walletData?.balance_inr ?? 0;
 
   const [selectedDate, setSelectedDate] = useState<Date>(() => {
     // Auto-select the first date that has available (non-past) slots
@@ -557,6 +560,7 @@ export function ScheduleScreen() {
               <div className="flex items-center gap-2">
                 <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
                 <span>
+                  {paymentStatus === 'debiting_wallet' && 'Using wallet...'}
                   {paymentStatus === 'creating_order' && 'Creating order...'}
                   {paymentStatus === 'opening_checkout' && 'Opening payment...'}
                   {paymentStatus === 'verifying_payment' && 'Verifying payment...'}
@@ -584,6 +588,8 @@ export function ScheduleScreen() {
               selected={paymentMethod}
               onChange={setPaymentMethod}
               disabled={submitting}
+              walletBalance={walletBalance}
+              bookingAmount={price ? price + (selectedTime ? getSurge(selectedTime) : 0) : 0}
             />
             <AlertDialogFooter className="mt-2">
               <Button

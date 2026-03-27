@@ -1,6 +1,12 @@
 /**
- * Payment service for Razorpay integration
+ * Payment service for Razorpay integration + Wallet-first payments
  * Handles order creation, checkout, and verification
+ * 
+ * Wallet-first flow:
+ * 1. Check wallet balance
+ * 2. If wallet >= booking amount → full wallet payment (no Razorpay)
+ * 3. If wallet > 0 but < booking amount → debit wallet, pay remainder via Razorpay
+ * 4. If wallet = 0 → normal Razorpay flow
  */
 import { supabase } from '@/integrations/supabase/client';
 import { getFirebaseIdToken } from '@/lib/firebase';
@@ -21,7 +27,18 @@ export interface PaymentResult {
   success: boolean;
   booking_id: string;
   payment_id?: string;
+  payment_method?: string;
   error?: string;
+}
+
+export interface WalletPayResult {
+  wallet_debited: number;
+  remaining_amount: number;
+  fully_paid: boolean;
+  wallet_balance: number;
+  payment_method?: string;
+  already_debited?: boolean;
+  already_paid?: boolean;
 }
 
 async function invokeWithFirebaseAuth<T>(functionName: string, body: Record<string, unknown>): Promise<T> {
@@ -38,6 +55,16 @@ async function invokeWithFirebaseAuth<T>(functionName: string, body: Record<stri
   if (error) throw new Error(error.message || `${functionName} failed`);
   if (data?.error) throw new Error(data.error);
   return data as T;
+}
+
+/**
+ * Step 0: Attempt wallet debit for booking
+ * Returns how much was debited and remaining amount
+ */
+export async function debitWalletForBooking(bookingId: string): Promise<WalletPayResult> {
+  return invokeWithFirebaseAuth<WalletPayResult>('wallet-pay', {
+    booking_id: bookingId,
+  });
 }
 
 /**
@@ -84,7 +111,6 @@ export function openRazorpayCheckout(
     },
   };
 
-  // Check if running on native Android with Razorpay plugin
   try {
     const rzp = new (window as any).Razorpay(options);
     rzp.on('payment.failed', (response: any) => {
@@ -114,7 +140,11 @@ export async function verifyRazorpayPayment(
 }
 
 /**
- * Full payment flow: create order → open checkout → verify
+ * Full wallet-first payment flow:
+ * 1. Try wallet debit first
+ * 2. If fully paid → done
+ * 3. If partial/no wallet → create Razorpay order → checkout → verify
+ * 
  * SAFETY: Never deletes bookings. On failure, booking stays for webhook reconciliation.
  */
 export async function executePaymentFlow(
@@ -123,6 +153,30 @@ export async function executePaymentFlow(
 ): Promise<PaymentResult> {
   return new Promise(async (resolve, reject) => {
     try {
+      // Step 1: Try wallet payment first
+      onStatusChange('debiting_wallet');
+      let walletResult: WalletPayResult | null = null;
+      
+      try {
+        walletResult = await debitWalletForBooking(bookingId);
+        console.log('💰 Wallet debit result:', walletResult);
+      } catch (walletErr: any) {
+        console.warn('⚠️ Wallet debit failed (proceeding with Razorpay):', walletErr.message);
+        // If wallet fails, proceed with full Razorpay
+      }
+
+      // Step 2: Check if fully paid by wallet
+      if (walletResult?.fully_paid) {
+        onStatusChange('payment_success');
+        resolve({
+          success: true,
+          booking_id: bookingId,
+          payment_method: 'wallet',
+        });
+        return;
+      }
+
+      // Step 3: Need Razorpay for remaining amount (or full amount)
       onStatusChange('creating_order');
       const order = await createRazorpayOrder(bookingId);
 
@@ -139,16 +193,19 @@ export async function executePaymentFlow(
               response.razorpay_signature
             );
             onStatusChange('payment_success');
-            resolve(result);
+            resolve({
+              ...result,
+              payment_method: walletResult && walletResult.wallet_debited > 0 ? 'wallet+razorpay' : 'razorpay',
+            });
           } catch (err: any) {
             // Verification failed but payment may have gone through
-            // Webhook will reconcile — do NOT treat as total failure
             console.warn('⚠️ Payment verify call failed, webhook will reconcile:', err.message);
-            onStatusChange('payment_success'); // Optimistic — webhook will confirm
+            onStatusChange('payment_success');
             resolve({
               success: true,
               booking_id: bookingId,
               payment_id: response.razorpay_payment_id,
+              payment_method: walletResult && walletResult.wallet_debited > 0 ? 'wallet+razorpay' : 'razorpay',
             });
           }
         },
@@ -169,6 +226,7 @@ export async function executePaymentFlow(
 }
 
 export type PaymentFlowStatus =
+  | 'debiting_wallet'
   | 'creating_order'
   | 'opening_checkout'
   | 'verifying_payment'

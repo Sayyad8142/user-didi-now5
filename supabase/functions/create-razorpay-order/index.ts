@@ -51,7 +51,7 @@ Deno.serve(async (req) => {
 
     const { data: booking, error: bookingErr } = await supabase
       .from("bookings")
-      .select("id, user_id, price_inr, payment_status, razorpay_order_id, cust_name, cust_phone, service_type")
+      .select("id, user_id, price_inr, payment_status, razorpay_order_id, cust_name, cust_phone, service_type, wallet_used_amount, razorpay_paid_amount")
       .eq("id", booking_id)
       .single();
 
@@ -80,9 +80,11 @@ Deno.serve(async (req) => {
 
     // 6. If order already exists and not yet paid, return existing order
     if (booking.razorpay_order_id && booking.payment_status === "order_created") {
+      // Use razorpay_paid_amount if set (partial wallet payment), otherwise full price
+      const existingAmount = (booking.razorpay_paid_amount ?? booking.price_inr!) * 100;
       return new Response(JSON.stringify({
         order_id: booking.razorpay_order_id,
-        amount: booking.price_inr! * 100,
+        amount: existingAmount,
         currency: "INR",
         key_id: RAZORPAY_KEY_ID,
         booking_id: booking.id,
@@ -96,7 +98,9 @@ Deno.serve(async (req) => {
     }
 
     // 7. Server-side price validation
-    const amountInPaise = booking.price_inr! * 100;
+    // Use razorpay_paid_amount if wallet was partially used, otherwise full price
+    const chargeAmount = booking.razorpay_paid_amount ?? booking.price_inr!;
+    const amountInPaise = chargeAmount * 100;
     if (amountInPaise <= 0) {
       return new Response(JSON.stringify({ error: "Invalid booking amount" }), {
         status: 400,
@@ -141,7 +145,7 @@ Deno.serve(async (req) => {
       .update({
         razorpay_order_id: rpOrder.id,
         payment_status: "order_created",
-        payment_amount_inr: booking.price_inr,
+        payment_amount_inr: chargeAmount,
       })
       .eq("id", booking.id);
 

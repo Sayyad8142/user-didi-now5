@@ -31,6 +31,7 @@ import { PaymentMethodSelector, type PaymentMethod } from '@/components/PaymentM
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription } from '@/components/ui/alert-dialog';
 import { executePaymentFlow, type PaymentFlowStatus } from '@/lib/paymentService';
 import { CreditCard, HandCoins } from 'lucide-react';
+import { useWalletBalance } from '@/hooks/useWallet';
 
 // Maid task types and constants
 type MaidTask = "floor_cleaning" | "dish_washing";
@@ -67,6 +68,8 @@ export function BookingForm() {
   // Flat size from flats table (admin-managed, not user-selectable)
   const { flatSize: autoFlatSize, loading: flatSizeLoading, error: flatSizeError } = useFlatSize();
   const selectedFlatSize = autoFlatSize as FlatSize | null;
+  const { data: walletData } = useWalletBalance();
+  const walletBalance = walletData?.balance_inr ?? 0;
   const [pricingMap, setPricingMap] = useState<PricingMap>({});
   const [loadingPricing, setLoadingPricing] = useState(true);
   const [scheduleSheetOpen, setScheduleSheetOpen] = useState(false);
@@ -1205,6 +1208,8 @@ export function BookingForm() {
               <PaymentMethodSelector
                 selected={paymentMethod}
                 onChange={setPaymentMethod}
+                walletBalance={walletBalance}
+                bookingAmount={service_type === 'maid' ? totalPrice : service_type === 'bathroom_cleaning' ? bathroomTotalPrice : (selectedFlatSize ? pricingMap[selectedFlatSize] ?? 0 : 0)}
               />
             </div>
             <div className="flex gap-2 mt-2">

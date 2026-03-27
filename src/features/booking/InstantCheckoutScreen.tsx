@@ -18,6 +18,7 @@ import { checkInstantBookingAvailability } from '@/hooks/useSupplyCheck';
 import { SupplyFullModal } from '@/components/SupplyFullModal';
 import { executePaymentFlow, type PaymentFlowStatus } from '@/lib/paymentService';
 import { PaymentMethodSelector, type PaymentMethod } from '@/components/PaymentMethodSelector';
+import { useWalletBalance } from '@/hooks/useWallet';
 
 export function InstantCheckoutScreen() {
   const navigate = useNavigate();
@@ -34,6 +35,8 @@ export function InstantCheckoutScreen() {
   const [showPaymentPicker, setShowPaymentPicker] = useState(false);
 
   const { flatSize: autoFlatSize } = useFlatSize();
+  const { data: walletData } = useWalletBalance();
+  const walletBalance = walletData?.balance_inr ?? 0;
 
   const priceParam = searchParams.get('price');
   const price = priceParam ? Number(priceParam) : 0;
@@ -448,6 +451,7 @@ export function InstantCheckoutScreen() {
                 <div className="flex items-center gap-2">
                   <div className="w-5 h-5 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
                   <span>
+                    {paymentStatus === 'debiting_wallet' && 'Using wallet...'}
                     {paymentStatus === 'creating_order' && 'Creating order...'}
                     {paymentStatus === 'opening_checkout' && 'Opening payment...'}
                     {paymentStatus === 'verifying_payment' && 'Verifying payment...'}
@@ -477,11 +481,13 @@ export function InstantCheckoutScreen() {
           <PaymentMethodSelector
             selected={paymentMethod}
             onChange={setPaymentMethod}
+            walletBalance={walletBalance}
+            bookingAmount={price}
           />
           <AlertDialogFooter className="flex-row gap-2 mt-2">
             <AlertDialogCancel className="flex-1 rounded-xl">Cancel</AlertDialogCancel>
             <Button className="flex-1 rounded-xl font-bold" onClick={confirmBooking}>
-              {paymentMethod === 'pay_after_service' ? 'Confirm Booking' : `Pay ₹${price}`}
+              {paymentMethod === 'pay_after_service' ? 'Confirm Booking' : walletBalance >= price ? `Pay ₹${price} from Wallet` : `Pay ₹${price}`}
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
