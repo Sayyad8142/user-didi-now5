@@ -35,6 +35,8 @@ export function InstantCheckoutScreen() {
   const [showPaymentPicker, setShowPaymentPicker] = useState(false);
 
   const { flatSize: autoFlatSize } = useFlatSize();
+  const { data: walletData } = useWalletBalance();
+  const walletBalance = walletData?.balance_inr ?? 0;
 
   const priceParam = searchParams.get('price');
   const price = priceParam ? Number(priceParam) : 0;
