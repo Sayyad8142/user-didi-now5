@@ -513,12 +513,14 @@ export function BookingForm() {
           navigate('/bookings');
         } catch (payErr: any) {
           console.error('❌ Payment error:', payErr);
-          await supabase.from('bookings').delete().eq('id', newBookingId);
+          // Mark as failed instead of deleting — webhook may still reconcile
+          await supabase.from('bookings').update({ payment_status: 'failed' }).eq('id', newBookingId);
           if (payErr.message === 'Payment cancelled by user') {
-            toast({ title: "Payment cancelled", description: "No booking was created. You can try again anytime." });
+            toast({ title: "Payment cancelled", description: "You can retry payment from your bookings." });
           } else {
-            toast({ title: "Payment Failed", description: payErr.message || 'Payment could not be completed.', variant: "destructive" });
+            toast({ title: "Payment Failed", description: "You can retry payment from your bookings.", variant: "destructive" });
           }
+          navigate('/bookings');
         }
         return;
       }

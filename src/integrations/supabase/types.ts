@@ -77,6 +77,51 @@ export type Database = {
         }
         Relationships: []
       }
+      orphan_payments: {
+        Row: {
+          amount_inr: number | null
+          created_at: string
+          currency: string | null
+          id: string
+          notes: string | null
+          razorpay_order_id: string | null
+          razorpay_payment_id: string
+          resolved_at: string | null
+          resolved_by: string | null
+          status: string
+          user_id: string | null
+          webhook_payload: Json | null
+        }
+        Insert: {
+          amount_inr?: number | null
+          created_at?: string
+          currency?: string | null
+          id?: string
+          notes?: string | null
+          razorpay_order_id?: string | null
+          razorpay_payment_id: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          user_id?: string | null
+          webhook_payload?: Json | null
+        }
+        Update: {
+          amount_inr?: number | null
+          created_at?: string
+          currency?: string | null
+          id?: string
+          notes?: string | null
+          razorpay_order_id?: string | null
+          razorpay_payment_id?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          user_id?: string | null
+          webhook_payload?: Json | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

@@ -51,3 +51,6 @@ verify_jwt = false
 
 [functions.complete-booking-with-otp]
 verify_jwt = false
+
+[functions.razorpay-webhook]
+verify_jwt = false
