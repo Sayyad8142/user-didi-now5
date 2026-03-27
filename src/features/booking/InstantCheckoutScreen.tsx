@@ -480,6 +480,8 @@ export function InstantCheckoutScreen() {
           <PaymentMethodSelector
             selected={paymentMethod}
             onChange={setPaymentMethod}
+            walletBalance={walletBalance}
+            bookingAmount={price}
           />
           <AlertDialogFooter className="flex-row gap-2 mt-2">
             <AlertDialogCancel className="flex-1 rounded-xl">Cancel</AlertDialogCancel>
