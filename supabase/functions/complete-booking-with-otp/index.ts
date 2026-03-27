@@ -164,7 +164,6 @@ Deno.serve(async (req) => {
         status: remaining <= 0 ? 429 : 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
-      });
     }
 
     // 9. STRICT PAYMENT VALIDATION — block completion if payment not received
