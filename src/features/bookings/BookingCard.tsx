@@ -480,13 +480,13 @@ export function BookingCard({
           </div>
         )}
 
-        {/* Payment status - unpaid/failed booking with retry button */}
-        {(row.payment_status === 'unpaid' || row.payment_status === 'failed' || row.payment_status === 'order_created') && row.status !== 'cancelled' && (
+        {/* Payment status - unpaid/failed/pending booking with retry button */}
+        {(row.payment_status === 'unpaid' || row.payment_status === 'failed' || row.payment_status === 'order_created' || row.payment_status === 'pending') && row.status !== 'cancelled' && (
           <div className="p-3 bg-orange-50 border border-orange-200 rounded-lg space-y-2">
             <div className="flex items-center gap-2">
               <CreditCard className="h-4 w-4 text-orange-600" />
               <p className="text-xs font-medium text-orange-800 flex-1">
-                {row.payment_status === 'failed' ? 'Payment failed' : 'Payment pending'}
+                {row.payment_status === 'failed' ? 'Payment failed — tap to retry' : 'Payment pending'}
               </p>
             </div>
             <Button
@@ -502,7 +502,7 @@ export function BookingCard({
               ) : (
                 <>
                   <CreditCard className="h-3.5 w-3.5 mr-1.5" />
-                  Retry Payment · ₹{row.price_inr || 0}
+                  {row.payment_status === 'failed' ? 'Retry Payment' : 'Complete Payment'} · ₹{row.price_inr || 0}
                 </>
               )}
             </Button>
