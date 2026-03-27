@@ -463,8 +463,8 @@ export function BookingCard({
           </div>
         )}
 
-        {/* Completion OTP - show for paid active bookings */}
-        {row.completion_otp && row.payment_status === 'paid' && !row.otp_verified_at && row.status !== 'cancelled' && (
+        {/* Completion OTP - show for paid or pay_after_service active bookings */}
+        {row.completion_otp && (row.payment_status === 'paid' || row.payment_status === 'pay_after_service') && !row.otp_verified_at && row.status !== 'cancelled' && (
           <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
             <div className="flex items-center gap-2 mb-1">
               <KeyRound className="h-4 w-4 text-amber-600" />
