@@ -145,7 +145,7 @@ Deno.serve(async (req) => {
       .update({
         razorpay_order_id: rpOrder.id,
         payment_status: "order_created",
-        payment_amount_inr: booking.price_inr,
+        payment_amount_inr: chargeAmount,
       })
       .eq("id", booking.id);
 
