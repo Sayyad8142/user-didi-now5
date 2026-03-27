@@ -7,6 +7,10 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 // Platform fee percentage (e.g., 20%)
 const PLATFORM_FEE_PERCENT = 20;
 
+// OTP rate limiting
+const MAX_OTP_ATTEMPTS = 5;
+const COOLDOWN_SECONDS = 10;
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
