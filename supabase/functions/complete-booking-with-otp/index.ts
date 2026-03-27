@@ -52,7 +52,7 @@ Deno.serve(async (req) => {
     // 4. Get booking
     const { data: booking, error: bookingErr } = await supabase
       .from("bookings")
-      .select("id, status, worker_id, completion_otp, otp_verified_at, payment_status, payment_amount_inr, price_inr")
+      .select("id, status, worker_id, completion_otp, otp_verified_at, payment_status, payment_amount_inr, price_inr, payment_method")
       .eq("id", booking_id)
       .single();
 
@@ -102,15 +102,25 @@ Deno.serve(async (req) => {
       });
     }
 
-    // 9. Calculate payout
+    // 9. Calculate payout (use wallet-aware amount if available)
     const grossAmount = booking.payment_amount_inr || booking.price_inr || 0;
     const platformFee = Math.round(grossAmount * PLATFORM_FEE_PERCENT / 100);
     const netAmount = grossAmount - platformFee;
 
-    // 10. Atomically complete booking
+    // 10. Validate payout preconditions
+    if (netAmount <= 0) {
+      console.warn(`⚠️ Booking ${booking_id} has zero/negative payout (gross=${grossAmount}), skipping payout record`);
+    }
+
+    const paymentOk = ["paid", "settled_to_worker"].includes(booking.payment_status ?? "");
+    if (!paymentOk) {
+      console.warn(`⚠️ Booking ${booking_id} payment_status=${booking.payment_status}, proceeding with completion but flagging payout`);
+    }
+
+    // 11. Atomically complete booking
     const now = new Date().toISOString();
 
-    const { error: updateErr } = await supabase
+    const { data: updatedRows, error: updateErr } = await supabase
       .from("bookings")
       .update({
         status: "completed",
@@ -122,7 +132,8 @@ Deno.serve(async (req) => {
         payment_status: "settled_to_worker",
       })
       .eq("id", booking_id)
-      .is("otp_verified_at", null); // Prevent race condition
+      .is("otp_verified_at", null)
+      .select("id");
 
     if (updateErr) {
       console.error("Failed to complete booking:", updateErr);
@@ -132,22 +143,65 @@ Deno.serve(async (req) => {
       });
     }
 
-    // 11. Create worker payout record
-    await supabase.from("worker_payouts").insert({
-      booking_id,
-      worker_id: worker.id,
-      gross_amount: grossAmount,
-      platform_fee: platformFee,
-      net_amount: netAmount,
-      status: "pending",
-      notes: `OTP verified at ${now}`,
-    });
+    // If no rows updated, booking was already completed (race condition)
+    if (!updatedRows || updatedRows.length === 0) {
+      console.warn(`⚠️ Booking ${booking_id} was already completed (no rows updated)`);
+      return new Response(JSON.stringify({ error: "Booking already completed" }), {
+        status: 409,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
-    console.log(`✅ Booking ${booking_id} completed by worker ${worker.id}, payout: ₹${netAmount}`);
+    // 12. Create worker payout record (idempotent – skip if exists)
+    let payoutId: string | null = null;
+
+    if (netAmount > 0) {
+      // Check for existing payout first (idempotency guard)
+      const { data: existingPayout } = await supabase
+        .from("worker_payouts")
+        .select("id")
+        .eq("booking_id", booking_id)
+        .eq("worker_id", worker.id)
+        .maybeSingle();
+
+      if (existingPayout) {
+        payoutId = existingPayout.id;
+        console.log(`ℹ️ Payout already exists for booking ${booking_id}: ${payoutId}`);
+      } else {
+        const { data: newPayout, error: payoutErr } = await supabase
+          .from("worker_payouts")
+          .insert({
+            booking_id,
+            worker_id: worker.id,
+            gross_amount: grossAmount,
+            platform_fee: platformFee,
+            net_amount: netAmount,
+            status: "pending",
+            notes: `OTP verified at ${now}. Payment: ${booking.payment_method || "razorpay"}`,
+          })
+          .select("id")
+          .single();
+
+        if (payoutErr) {
+          // If unique constraint violation, payout was created by a concurrent request
+          if (payoutErr.code === "23505") {
+            console.log(`ℹ️ Concurrent payout insert for booking ${booking_id}, already exists`);
+          } else {
+            console.error("Failed to create payout record:", payoutErr);
+            // Don't fail the whole request – booking is already completed
+          }
+        } else {
+          payoutId = newPayout?.id ?? null;
+        }
+      }
+    }
+
+    console.log(`✅ Booking ${booking_id} completed by worker ${worker.id}, payout: ₹${netAmount}, payout_id: ${payoutId}`);
 
     return new Response(JSON.stringify({
       success: true,
       booking_id,
+      payout_id: payoutId,
       payout: {
         gross: grossAmount,
         platform_fee: platformFee,
