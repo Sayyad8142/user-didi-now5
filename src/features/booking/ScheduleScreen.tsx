@@ -49,6 +49,8 @@ export function ScheduleScreen() {
   const { profile, loading: profileLoading } = useProfile();
   const { toast } = useToast();
   const { flatSize: autoFlatSize } = useFlatSize();
+  const { data: walletData } = useWalletBalance();
+  const walletBalance = walletData?.balance_inr ?? 0;
 
   const [selectedDate, setSelectedDate] = useState<Date>(() => {
     // Auto-select the first date that has available (non-past) slots
