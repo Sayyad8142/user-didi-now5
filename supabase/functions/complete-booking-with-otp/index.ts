@@ -173,11 +173,11 @@ Deno.serve(async (req) => {
           .insert({
             booking_id,
             worker_id: worker.id,
-            gross_amount: grossAmount,
+            booking_amount: grossAmount,
             platform_fee: platformFee,
-            net_amount: netAmount,
+            payout_amount: netAmount,
             status: "pending",
-            notes: `OTP verified at ${now}. Payment: ${booking.payment_method || "razorpay"}`,
+            admin_notes: `OTP verified at ${now}. Payment: ${booking.payment_method || "razorpay"}`,
           })
           .select("id")
           .single();
