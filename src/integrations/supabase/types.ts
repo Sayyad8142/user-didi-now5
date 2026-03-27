@@ -122,6 +122,36 @@ export type Database = {
         }
         Relationships: []
       }
+      otp_attempts: {
+        Row: {
+          attempt_count: number
+          booking_id: string
+          created_at: string
+          id: string
+          last_attempt_at: string | null
+          locked_at: string | null
+          worker_id: string
+        }
+        Insert: {
+          attempt_count?: number
+          booking_id: string
+          created_at?: string
+          id?: string
+          last_attempt_at?: string | null
+          locked_at?: string | null
+          worker_id: string
+        }
+        Update: {
+          attempt_count?: number
+          booking_id?: string
+          created_at?: string
+          id?: string
+          last_attempt_at?: string | null
+          locked_at?: string | null
+          worker_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
