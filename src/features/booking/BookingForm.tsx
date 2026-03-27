@@ -1189,6 +1189,39 @@ export function BookingForm() {
             handleSchedule();
           }}
         />
+
+        {/* Payment Method Picker for Instant Booking */}
+        <AlertDialog open={showPaymentPicker} onOpenChange={setShowPaymentPicker}>
+          <AlertDialogContent className="max-w-sm rounded-2xl">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-center text-lg">Choose Payment Method</AlertDialogTitle>
+              <AlertDialogDescription className="text-center text-sm text-muted-foreground">
+                How would you like to pay for this booking?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <div className="py-2">
+              <PaymentMethodSelector
+                selected={paymentMethod}
+                onChange={setPaymentMethod}
+              />
+            </div>
+            <div className="flex gap-2 mt-2">
+              <Button
+                variant="outline"
+                className="flex-1 rounded-xl"
+                onClick={() => setShowPaymentPicker(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="flex-1 rounded-xl"
+                onClick={handleConfirmInstantBooking}
+              >
+                {paymentMethod === 'pay_after_service' ? 'Confirm Booking' : 'Pay & Book'}
+              </Button>
+            </div>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>;
 }
