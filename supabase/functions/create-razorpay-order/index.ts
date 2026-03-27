@@ -80,9 +80,11 @@ Deno.serve(async (req) => {
 
     // 6. If order already exists and not yet paid, return existing order
     if (booking.razorpay_order_id && booking.payment_status === "order_created") {
+      // Use razorpay_paid_amount if set (partial wallet payment), otherwise full price
+      const existingAmount = (booking.razorpay_paid_amount ?? booking.price_inr!) * 100;
       return new Response(JSON.stringify({
         order_id: booking.razorpay_order_id,
-        amount: booking.price_inr! * 100,
+        amount: existingAmount,
         currency: "INR",
         key_id: RAZORPAY_KEY_ID,
         booking_id: booking.id,
