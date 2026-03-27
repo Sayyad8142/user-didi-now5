@@ -422,6 +422,7 @@ export function BookingForm() {
 
     setSubmitting(true);
     try {
+      const isPayAfter = bookingType === 'instant' && paymentMethod === 'pay_after_service';
       const bookingData = {
         user_id: profile.id,
         service_type,
@@ -446,7 +447,9 @@ export function BookingForm() {
         cust_phone: profile.phone,
         community: profile.community,
         flat_no: profile.flat_no,
-        preferred_worker_id: null
+        preferred_worker_id: null,
+        payment_method: isPayAfter ? 'pay_after_service' : null,
+        payment_status: isPayAfter ? 'pay_after_service' : 'pending',
       } as any;
 
       console.log('📤 Sending booking data to database:', bookingData);
@@ -480,6 +483,45 @@ export function BookingForm() {
       }
 
       console.log('✅ Booking created successfully:', data);
+      const newBookingId = data?.[0]?.id;
+
+      // Pay After Service: skip payment flow
+      if (isPayAfter || !newBookingId) {
+        toast({
+          title: isPayAfter ? "Booking confirmed!" : "Booking received!",
+          description: bookingType === 'instant' 
+            ? (isPayAfter ? "Worker will arrive in ~10 minutes. Pay after service is done." : "Service will arrive in 10 minutes.")
+            : "Your booking has been scheduled successfully."
+        });
+        setScheduleSheetOpen(false);
+        clearPreferredWorker();
+        navigate(bookingType === 'instant' ? '/bookings' : '/home');
+        return;
+      }
+
+      // Pay Now: Execute payment flow
+      if (bookingType === 'instant' && paymentMethod === 'pay_now') {
+        try {
+          await executePaymentFlow(newBookingId, (status) => {
+            setPaymentStatus(status);
+          });
+          toast({
+            title: "Payment successful!",
+            description: "Your booking is confirmed. Worker will arrive in ~10 minutes."
+          });
+          clearPreferredWorker();
+          navigate('/bookings');
+        } catch (payErr: any) {
+          console.error('❌ Payment error:', payErr);
+          await supabase.from('bookings').delete().eq('id', newBookingId);
+          if (payErr.message === 'Payment cancelled by user') {
+            toast({ title: "Payment cancelled", description: "No booking was created. You can try again anytime." });
+          } else {
+            toast({ title: "Payment Failed", description: payErr.message || 'Payment could not be completed.', variant: "destructive" });
+          }
+        }
+        return;
+      }
 
       toast({
         title: "Booking received!",
@@ -500,6 +542,7 @@ export function BookingForm() {
       });
     } finally {
       setSubmitting(false);
+      setPaymentStatus(null);
     }
   };
   if (!user || !service_type || !isValidServiceType(service_type)) {
