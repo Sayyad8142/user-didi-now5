@@ -587,6 +587,8 @@ export function ScheduleScreen() {
               selected={paymentMethod}
               onChange={setPaymentMethod}
               disabled={submitting}
+              walletBalance={walletBalance}
+              bookingAmount={price ? price + (selectedTime ? getSurge(selectedTime) : 0) : 0}
             />
             <AlertDialogFooter className="mt-2">
               <Button
