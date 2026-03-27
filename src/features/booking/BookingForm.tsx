@@ -27,6 +27,10 @@ import { type DishIntensity } from './DishIntensitySheet';
 import { useDishIntensityPricing } from '@/hooks/useDishIntensityPricing';
 import { useFlatSize } from '@/hooks/useFlatSize';
 import { MaidPriceChartSheet } from './MaidPriceChartSheet';
+import { PaymentMethodSelector, type PaymentMethod } from '@/components/PaymentMethodSelector';
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription } from '@/components/ui/alert-dialog';
+import { executePaymentFlow, type PaymentFlowStatus } from '@/lib/paymentService';
+import { CreditCard, HandCoins } from 'lucide-react';
 
 // Maid task types and constants
 type MaidTask = "floor_cleaning" | "dish_washing";
@@ -68,6 +72,9 @@ export function BookingForm() {
   const [scheduleSheetOpen, setScheduleSheetOpen] = useState(false);
   const [priceChartOpen, setPriceChartOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [showPaymentPicker, setShowPaymentPicker] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('pay_now');
+  const [paymentStatus, setPaymentStatus] = useState<PaymentFlowStatus | null>(null);
 
   // Check instant booking availability (must be before any early returns)
   const { isAvailable: instantAvailable, isError: instantError, isLoading: instantLoading } = useInstantBookingAvailability(service_type || '');
@@ -294,10 +301,7 @@ export function BookingForm() {
         });
         return;
       }
-      await createBooking('instant', null, null, totalPrice);
-    } else if (service_type === 'bathroom_cleaning') {
-      await createBooking('instant', null, null, bathroomTotalPrice);
-    } else {
+    } else if (service_type !== 'bathroom_cleaning') {
       if (!selectedFlatSize) return;
       const price = pricingMap[selectedFlatSize];
       if (!price) {
@@ -308,6 +312,25 @@ export function BookingForm() {
         });
         return;
       }
+    }
+
+    // All validations passed — show payment method picker
+    setPaymentMethod('pay_now');
+    setShowPaymentPicker(true);
+  };
+
+  const handleConfirmInstantBooking = async () => {
+    setShowPaymentPicker(false);
+    if (!profile || !service_type) return;
+
+    if (service_type === 'maid') {
+      await createBooking('instant', null, null, totalPrice);
+    } else if (service_type === 'bathroom_cleaning') {
+      await createBooking('instant', null, null, bathroomTotalPrice);
+    } else {
+      if (!selectedFlatSize) return;
+      const price = pricingMap[selectedFlatSize];
+      if (!price) return;
       await createBooking('instant', null, null, price);
     }
   };
@@ -399,6 +422,7 @@ export function BookingForm() {
 
     setSubmitting(true);
     try {
+      const isPayAfter = bookingType === 'instant' && paymentMethod === 'pay_after_service';
       const bookingData = {
         user_id: profile.id,
         service_type,
@@ -423,7 +447,9 @@ export function BookingForm() {
         cust_phone: profile.phone,
         community: profile.community,
         flat_no: profile.flat_no,
-        preferred_worker_id: null
+        preferred_worker_id: null,
+        payment_method: isPayAfter ? 'pay_after_service' : null,
+        payment_status: isPayAfter ? 'pay_after_service' : 'pending',
       } as any;
 
       console.log('📤 Sending booking data to database:', bookingData);
@@ -457,6 +483,45 @@ export function BookingForm() {
       }
 
       console.log('✅ Booking created successfully:', data);
+      const newBookingId = data?.[0]?.id;
+
+      // Pay After Service: skip payment flow
+      if (isPayAfter || !newBookingId) {
+        toast({
+          title: isPayAfter ? "Booking confirmed!" : "Booking received!",
+          description: bookingType === 'instant' 
+            ? (isPayAfter ? "Worker will arrive in ~10 minutes. Pay after service is done." : "Service will arrive in 10 minutes.")
+            : "Your booking has been scheduled successfully."
+        });
+        setScheduleSheetOpen(false);
+        clearPreferredWorker();
+        navigate(bookingType === 'instant' ? '/bookings' : '/home');
+        return;
+      }
+
+      // Pay Now: Execute payment flow
+      if (bookingType === 'instant' && paymentMethod === 'pay_now') {
+        try {
+          await executePaymentFlow(newBookingId, (status) => {
+            setPaymentStatus(status);
+          });
+          toast({
+            title: "Payment successful!",
+            description: "Your booking is confirmed. Worker will arrive in ~10 minutes."
+          });
+          clearPreferredWorker();
+          navigate('/bookings');
+        } catch (payErr: any) {
+          console.error('❌ Payment error:', payErr);
+          await supabase.from('bookings').delete().eq('id', newBookingId);
+          if (payErr.message === 'Payment cancelled by user') {
+            toast({ title: "Payment cancelled", description: "No booking was created. You can try again anytime." });
+          } else {
+            toast({ title: "Payment Failed", description: payErr.message || 'Payment could not be completed.', variant: "destructive" });
+          }
+        }
+        return;
+      }
 
       toast({
         title: "Booking received!",
@@ -477,6 +542,7 @@ export function BookingForm() {
       });
     } finally {
       setSubmitting(false);
+      setPaymentStatus(null);
     }
   };
   if (!user || !service_type || !isValidServiceType(service_type)) {
@@ -1123,6 +1189,39 @@ export function BookingForm() {
             handleSchedule();
           }}
         />
+
+        {/* Payment Method Picker for Instant Booking */}
+        <AlertDialog open={showPaymentPicker} onOpenChange={setShowPaymentPicker}>
+          <AlertDialogContent className="max-w-sm rounded-2xl">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-center text-lg">Choose Payment Method</AlertDialogTitle>
+              <AlertDialogDescription className="text-center text-sm text-muted-foreground">
+                How would you like to pay for this booking?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <div className="py-2">
+              <PaymentMethodSelector
+                selected={paymentMethod}
+                onChange={setPaymentMethod}
+              />
+            </div>
+            <div className="flex gap-2 mt-2">
+              <Button
+                variant="outline"
+                className="flex-1 rounded-xl"
+                onClick={() => setShowPaymentPicker(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="flex-1 rounded-xl"
+                onClick={handleConfirmInstantBooking}
+              >
+                {paymentMethod === 'pay_after_service' ? 'Confirm Booking' : 'Pay & Book'}
+              </Button>
+            </div>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>;
 }

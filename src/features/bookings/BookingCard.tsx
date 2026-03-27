@@ -337,6 +337,8 @@ export function BookingCard({
               <h3 className="font-semibold text-gray-900 text-base">{title}</h3>
               <p className="text-xs text-gray-600">
                 {booking.booking_type === 'instant' ? 'Instant' : 'Scheduled'}
+                {' · '}
+                {format(new Date(booking.created_at), 'dd MMM, hh:mm a')}
               </p>
             </div>
           </div>
