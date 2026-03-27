@@ -98,11 +98,72 @@ Deno.serve(async (req) => {
       });
     }
 
+    // 7b. Rate limiting — check OTP attempt count
+    const { data: attemptRow } = await supabase
+      .from("otp_attempts")
+      .select("id, attempt_count, last_attempt_at, locked_at")
+      .eq("booking_id", booking_id)
+      .eq("worker_id", worker.id)
+      .maybeSingle();
+
+    if (attemptRow?.locked_at) {
+      return new Response(JSON.stringify({
+        error: "Too many incorrect attempts. Please contact support.",
+      }), {
+        status: 429,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Cooldown: reject if last attempt was < COOLDOWN_SECONDS ago
+    if (attemptRow?.last_attempt_at) {
+      const elapsed = (Date.now() - new Date(attemptRow.last_attempt_at).getTime()) / 1000;
+      if (elapsed < COOLDOWN_SECONDS) {
+        return new Response(JSON.stringify({
+          error: `Please wait ${Math.ceil(COOLDOWN_SECONDS - elapsed)} seconds before trying again.`,
+        }), {
+          status: 429,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
     // 8. Verify OTP matches
     if (booking.completion_otp !== otp.toString().trim()) {
-      return new Response(JSON.stringify({ error: "Invalid OTP" }), {
-        status: 400,
+      // Track failed attempt
+      const newCount = (attemptRow?.attempt_count ?? 0) + 1;
+      const updateData: Record<string, unknown> = {
+        attempt_count: newCount,
+        last_attempt_at: new Date().toISOString(),
+      };
+      if (newCount >= MAX_OTP_ATTEMPTS) {
+        updateData.locked_at = new Date().toISOString();
+      }
+
+      if (attemptRow) {
+        await supabase
+          .from("otp_attempts")
+          .update(updateData)
+          .eq("id", attemptRow.id);
+      } else {
+        await supabase
+          .from("otp_attempts")
+          .insert({
+            booking_id,
+            worker_id: worker.id,
+            ...updateData,
+          });
+      }
+
+      const remaining = MAX_OTP_ATTEMPTS - newCount;
+      const errorMsg = remaining <= 0
+        ? "Too many incorrect attempts. Please contact support."
+        : `Invalid OTP. ${remaining} attempt${remaining === 1 ? "" : "s"} remaining.`;
+
+      return new Response(JSON.stringify({ error: errorMsg }), {
+        status: remaining <= 0 ? 429 : 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
       });
     }
 
