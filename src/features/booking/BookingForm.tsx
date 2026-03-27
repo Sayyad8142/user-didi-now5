@@ -68,6 +68,8 @@ export function BookingForm() {
   // Flat size from flats table (admin-managed, not user-selectable)
   const { flatSize: autoFlatSize, loading: flatSizeLoading, error: flatSizeError } = useFlatSize();
   const selectedFlatSize = autoFlatSize as FlatSize | null;
+  const { data: walletData } = useWalletBalance();
+  const walletBalance = walletData?.balance_inr ?? 0;
   const [pricingMap, setPricingMap] = useState<PricingMap>({});
   const [loadingPricing, setLoadingPricing] = useState(true);
   const [scheduleSheetOpen, setScheduleSheetOpen] = useState(false);
