@@ -70,7 +70,12 @@ export function InstantCheckoutScreen() {
     setSelectedWorker(null);
   }, []);
 
-  const handleBookNow = async () => {
+  const handleBookNow = () => {
+    setShowPaymentPicker(true);
+  };
+
+  const confirmBooking = async () => {
+    setShowPaymentPicker(false);
     if (!profile || !service_type || !user) return;
 
     // Server-side supply check
@@ -105,7 +110,6 @@ export function InstantCheckoutScreen() {
     setSubmitting(true);
     setPaymentStatus(null);
     try {
-      // Step 1: Create booking in pending/unpaid state
       const maidTasks = tasks ? tasks.split(',') : null;
       const bookingData = {
         user_id: profile.id,
@@ -173,7 +177,7 @@ export function InstantCheckoutScreen() {
         return;
       }
 
-      // Pay Now: Execute payment flow (create order → checkout → verify)
+      // Pay Now: Execute payment flow
       try {
         await executePaymentFlow(newBookingId, (status) => {
           setPaymentStatus(status);
@@ -187,8 +191,6 @@ export function InstantCheckoutScreen() {
         navigate('/bookings');
       } catch (payErr: any) {
         console.error('❌ Payment error:', payErr);
-        
-        // Delete the unpaid booking so it doesn't linger
         console.log('🗑️ Deleting unpaid booking:', newBookingId);
         await supabase.from('bookings').delete().eq('id', newBookingId);
         
