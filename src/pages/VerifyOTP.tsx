@@ -386,6 +386,17 @@ export default function VerifyOTP() {
     return null;
   }
 
+  // Show a full-screen loading state while waiting to redirect after successful OTP
+  if (pendingRedirect) {
+    return (
+      <div className="min-h-screen gradient-bg flex flex-col items-center justify-center p-4 gap-4">
+        <CheckCircle2 className="w-12 h-12 text-green-500 animate-pulse" />
+        <p className="text-lg font-semibold text-foreground">Login Successful</p>
+        <p className="text-sm text-muted-foreground">Redirecting…</p>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen gradient-bg flex items-center justify-center p-4">
       <div className="w-full max-w-md space-y-4">

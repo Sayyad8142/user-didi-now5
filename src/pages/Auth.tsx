@@ -14,6 +14,15 @@ export default function Auth() {
     return <Navigate to="/home" replace />;
   }
 
+  // While auth state is loading, show a blank/loading screen instead of flashing the login form
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-pink-50 via-white to-rose-50 flex items-center justify-center">
+        <div className="animate-pulse w-8 h-8 bg-primary/20 rounded-full" />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen relative flex flex-col items-center justify-center p-4 overflow-hidden bg-gradient-to-br from-pink-50 via-white to-rose-50">
       {/* Decorative background elements */}
