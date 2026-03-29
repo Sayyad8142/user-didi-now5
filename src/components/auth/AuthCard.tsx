@@ -60,10 +60,14 @@ export function AuthCard() {
   // Validation errors
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Setup reCAPTCHA on mount — runs on ALL platforms (web + Capacitor webview)
+  // Setup reCAPTCHA on mount — ONLY on web (not needed on native)
   useEffect(() => {
+    if (isNativePlatform()) {
+      console.log('📱 AuthCard: skipping reCAPTCHA on native platform');
+      return;
+    }
     const timer = setTimeout(() => {
-      console.log('🔑 AuthCard: initializing reCAPTCHA');
+      console.log('🌐 AuthCard: initializing reCAPTCHA');
       setupRecaptcha('recaptcha-container');
     }, 500);
     return () => clearTimeout(timer);
@@ -425,8 +429,8 @@ export function AuthCard() {
           Explore services before signing up
         </p>
 
-        {/* Invisible reCAPTCHA container — all platforms */}
-        <div id="recaptcha-container"></div>
+        {/* Invisible reCAPTCHA container — web only */}
+        {isWeb() && <div id="recaptcha-container"></div>}
       </CardContent>
     </Card>
   );

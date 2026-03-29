@@ -347,9 +347,11 @@ export default function VerifyOTP() {
     setError('');
 
     try {
-      // Setup reCAPTCHA for resend — works on all platforms
-      setupRecaptcha('recaptcha-container-verify');
-      await new Promise(resolve => setTimeout(resolve, 300));
+      // Setup reCAPTCHA for resend — ONLY on web
+      if (!isNativePlatform()) {
+        setupRecaptcha('recaptcha-container-verify');
+        await new Promise(resolve => setTimeout(resolve, 300));
+      }
       
       const result = await sendOtp(phone);
 
@@ -469,8 +471,8 @@ export default function VerifyOTP() {
               )}
             </div>
 
-            {/* Invisible reCAPTCHA container for resend — all platforms */}
-            <div id="recaptcha-container-verify"></div>
+            {/* Invisible reCAPTCHA container for resend — web only */}
+            {!isNativePlatform() && <div id="recaptcha-container-verify"></div>}
           </CardContent>
         </Card>
       </div>
