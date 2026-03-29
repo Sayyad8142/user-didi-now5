@@ -349,49 +349,32 @@ function verifyOtpWeb(code: string): Promise<{ success: boolean; user?: User; er
 
 // ─── Unified public API ──────────────────────────────────────────────
 
-// ─── Config flag ─────────────────────────────────────────────────────
-// Set to true ONLY when the native Capacitor Firebase plugin is fully
-// configured and tested on Android/iOS. When false (default), all
-// platforms — including Capacitor apps — use the web OTP flow.
-const USE_NATIVE_PHONE_AUTH = false;
-
-const shouldUseNative = (): boolean => USE_NATIVE_PHONE_AUTH && isNativePlatform();
-
-// ─── Unified public API ──────────────────────────────────────────────
-
-// Send OTP — defaults to web flow; native only when USE_NATIVE_PHONE_AUTH=true
+// Send OTP — strict platform split: native on Android/iOS, web on browser
 export const sendOtp = async (phoneNumber: string): Promise<{ success: boolean; error?: string }> => {
   const platform = Capacitor.getPlatform();
-  console.log(`📲 sendOtp — platform: ${platform}, cap: ${isNativePlatform()}, useNative: ${shouldUseNative()}, phone: ${phoneNumber}`);
+  const native = isNativePlatform();
+  console.log(`📲 sendOtp — platform: ${platform}, native: ${native}, phone: ${phoneNumber}`);
 
-  if (shouldUseNative()) {
-    console.log(`📱 Attempting NATIVE OTP flow (${platform})`);
-    try {
-      const result = await sendOtpNative(phoneNumber);
-      if (result.success) return result;
-      console.warn('⚠️ Native OTP failed, falling back to web flow:', result.error);
-    } catch (error: any) {
-      console.warn('⚠️ Native OTP threw, falling back to web flow:', error?.message);
-    }
+  if (native) {
+    console.log(`📱 Using NATIVE OTP flow (${platform}) — no reCAPTCHA`);
+    return sendOtpNative(phoneNumber);
   }
 
-  // Web flow (default for all platforms)
   console.log('🌐 Using WEB OTP flow (reCAPTCHA)');
   return sendOtpWeb(phoneNumber);
 };
 
-// Verify OTP — matches the flow used by sendOtp
+// Verify OTP — strict platform split matching sendOtp
 export const verifyOtp = async (code: string): Promise<{ success: boolean; user?: User; nativeUser?: NativeAuthUser; error?: string }> => {
   const platform = Capacitor.getPlatform();
-  console.log(`🔐 verifyOtp — platform: ${platform}, cap: ${isNativePlatform()}, useNative: ${shouldUseNative()}, hasNativeId: ${!!nativeVerificationId}, hasWebCR: ${!!confirmationResult}`);
+  const native = isNativePlatform();
+  console.log(`🔐 verifyOtp — platform: ${platform}, native: ${native}, hasNativeId: ${!!nativeVerificationId}, hasWebCR: ${!!confirmationResult}`);
 
-  // If we have a native verification in progress, verify natively
-  if (shouldUseNative() && nativeVerificationId) {
+  if (native) {
     console.log(`📱 Using NATIVE verify flow (${platform})`);
     return verifyOtpNative(code);
   }
 
-  // Web flow (default)
   console.log('🌐 Using WEB verify flow');
   return verifyOtpWeb(code);
 };

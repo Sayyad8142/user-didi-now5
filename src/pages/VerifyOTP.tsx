@@ -471,8 +471,8 @@ export default function VerifyOTP() {
               )}
             </div>
 
-            {/* Invisible reCAPTCHA container for resend — all platforms */}
-            <div id="recaptcha-container-verify"></div>
+            {/* Invisible reCAPTCHA container for resend — web only */}
+            {!isNativePlatform() && <div id="recaptcha-container-verify"></div>}
           </CardContent>
         </Card>
       </div>
