@@ -413,9 +413,9 @@ export const getCurrentUser = (): User | null => {
   return authInstance?.currentUser ?? null;
 };
 
-// Get current user from native plugin (async)
+// Get current user from native plugin (async) — only on Android where plugin works
 export const getNativeCurrentUser = async (): Promise<NativeAuthUser | null> => {
-  if (!isNativePlatform()) return null;
+  if (!shouldUseNativeAuth()) return null;
   try {
     const { FirebaseAuthentication } = await import('@capacitor-firebase/authentication');
     const result = await FirebaseAuthentication.getCurrentUser();
