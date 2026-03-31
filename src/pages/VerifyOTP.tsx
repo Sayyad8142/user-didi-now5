@@ -247,7 +247,7 @@ export default function VerifyOTP() {
       clearDemoSession();
 
       // Notify AuthProvider of native auth change so it picks up the new user
-      if (isNativePlatform()) {
+      if (shouldUseNativeAuth()) {
         window.dispatchEvent(new Event('native-auth-changed'));
       }
 
