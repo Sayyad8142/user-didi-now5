@@ -51,6 +51,33 @@ export const isAndroid = (): boolean => Capacitor.getPlatform() === 'android';
 export const isIOS = (): boolean => Capacitor.getPlatform() === 'ios';
 export const isWeb = (): boolean => !Capacitor.isNativePlatform();
 
+// Whether native Firebase phone auth plugin is available and safe to call.
+// Currently only Android has the plugin implemented; iOS will get it later.
+let _nativeAuthAvailable: boolean | null = null;
+
+export const isNativeAuthAvailable = async (): Promise<boolean> => {
+  if (_nativeAuthAvailable !== null) return _nativeAuthAvailable;
+  if (!isNativePlatform() || !isAndroid()) {
+    _nativeAuthAvailable = false;
+    return false;
+  }
+  try {
+    const { FirebaseAuthentication } = await import('@capacitor-firebase/authentication');
+    // Quick smoke-test: if plugin is a stub this will throw
+    await FirebaseAuthentication.getCurrentUser();
+    _nativeAuthAvailable = true;
+    console.log('✅ Native FirebaseAuthentication plugin available');
+  } catch (e: any) {
+    console.warn('⚠️ Native FirebaseAuthentication not available, falling back to web OTP:', e?.message);
+    _nativeAuthAvailable = false;
+  }
+  return _nativeAuthAvailable;
+};
+
+// Synchronous best-guess: Android native = true, everything else = false.
+// Use this for UI decisions (e.g. hiding reCAPTCHA container).
+export const shouldUseNativeAuth = (): boolean => isNativePlatform() && isAndroid();
+
 // Initialize Firebase (lazy, singleton)
 export const getFirebaseApp = (): FirebaseApp | null => {
   if (!isFirebaseConfigured()) {
