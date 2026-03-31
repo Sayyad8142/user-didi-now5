@@ -472,7 +472,7 @@ export default function VerifyOTP() {
             </div>
 
             {/* Invisible reCAPTCHA container for resend — web only */}
-            {!isNativePlatform() && <div id="recaptcha-container-verify"></div>}
+            {!shouldUseNativeAuth() && <div id="recaptcha-container-verify"></div>}
           </CardContent>
         </Card>
       </div>
