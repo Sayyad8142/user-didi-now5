@@ -376,33 +376,34 @@ function verifyOtpWeb(code: string): Promise<{ success: boolean; user?: User; er
 
 // ─── Unified public API ──────────────────────────────────────────────
 
-// Send OTP — strict platform split: native on Android/iOS, web on browser
+// Send OTP — Android native uses plugin, everything else uses web reCAPTCHA.
+// iOS native currently falls back to web OTP because the plugin is not implemented.
 export const sendOtp = async (phoneNumber: string): Promise<{ success: boolean; error?: string }> => {
   const platform = Capacitor.getPlatform();
-  const native = isNativePlatform();
-  console.log(`📲 sendOtp — platform: ${platform}, native: ${native}, phone: ${phoneNumber}`);
+  const useNative = await isNativeAuthAvailable();
+  console.log(`📲 sendOtp — platform: ${platform}, useNative: ${useNative}, phone: ${phoneNumber}`);
 
-  if (native) {
-    console.log(`📱 Using NATIVE OTP flow (${platform}) — no reCAPTCHA`);
+  if (useNative) {
+    console.log('📱 Using NATIVE OTP flow (Android) — no reCAPTCHA');
     return sendOtpNative(phoneNumber);
   }
 
-  console.log('🌐 Using WEB OTP flow (reCAPTCHA)');
+  console.log(`🌐 Using WEB OTP flow (reCAPTCHA) — platform: ${platform}`);
   return sendOtpWeb(phoneNumber);
 };
 
-// Verify OTP — strict platform split matching sendOtp
+// Verify OTP — matches the flow chosen by sendOtp
 export const verifyOtp = async (code: string): Promise<{ success: boolean; user?: User; nativeUser?: NativeAuthUser; error?: string }> => {
   const platform = Capacitor.getPlatform();
-  const native = isNativePlatform();
-  console.log(`🔐 verifyOtp — platform: ${platform}, native: ${native}, hasNativeId: ${!!nativeVerificationId}, hasWebCR: ${!!confirmationResult}`);
+  const useNative = await isNativeAuthAvailable();
+  console.log(`🔐 verifyOtp — platform: ${platform}, useNative: ${useNative}, hasNativeId: ${!!nativeVerificationId}, hasWebCR: ${!!confirmationResult}`);
 
-  if (native) {
-    console.log(`📱 Using NATIVE verify flow (${platform})`);
+  if (useNative) {
+    console.log('📱 Using NATIVE verify flow (Android)');
     return verifyOtpNative(code);
   }
 
-  console.log('🌐 Using WEB verify flow');
+  console.log(`🌐 Using WEB verify flow — platform: ${platform}`);
   return verifyOtpWeb(code);
 };
 
