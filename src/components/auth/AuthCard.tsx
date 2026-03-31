@@ -18,7 +18,7 @@ import { useBuildings } from '@/hooks/useBuildings';
 import { useFlats } from '@/hooks/useFlats';
 import { isDemoCredentials, setDemoSession, setGuestSession, clearDemoSession } from '@/lib/demo';
 import { FlatSearchInput } from './FlatSearchInput';
-import { sendOtp, setupRecaptcha, signOut as firebaseSignOut, isNativePlatform, isWeb } from '@/lib/firebase';
+import { sendOtp, setupRecaptcha, signOut as firebaseSignOut, shouldUseNativeAuth, isWeb } from '@/lib/firebase';
 
 export function AuthCard() {
   const navigate = useNavigate();
@@ -62,8 +62,8 @@ export function AuthCard() {
 
   // Setup reCAPTCHA on mount — ONLY on web (not needed on native)
   useEffect(() => {
-    if (isNativePlatform()) {
-      console.log('📱 AuthCard: skipping reCAPTCHA on native platform');
+    if (shouldUseNativeAuth()) {
+      console.log('📱 AuthCard: skipping reCAPTCHA on Android native');
       return;
     }
     const timer = setTimeout(() => {

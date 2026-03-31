@@ -51,6 +51,33 @@ export const isAndroid = (): boolean => Capacitor.getPlatform() === 'android';
 export const isIOS = (): boolean => Capacitor.getPlatform() === 'ios';
 export const isWeb = (): boolean => !Capacitor.isNativePlatform();
 
+// Whether native Firebase phone auth plugin is available and safe to call.
+// Currently only Android has the plugin implemented; iOS will get it later.
+let _nativeAuthAvailable: boolean | null = null;
+
+export const isNativeAuthAvailable = async (): Promise<boolean> => {
+  if (_nativeAuthAvailable !== null) return _nativeAuthAvailable;
+  if (!isNativePlatform() || !isAndroid()) {
+    _nativeAuthAvailable = false;
+    return false;
+  }
+  try {
+    const { FirebaseAuthentication } = await import('@capacitor-firebase/authentication');
+    // Quick smoke-test: if plugin is a stub this will throw
+    await FirebaseAuthentication.getCurrentUser();
+    _nativeAuthAvailable = true;
+    console.log('✅ Native FirebaseAuthentication plugin available');
+  } catch (e: any) {
+    console.warn('⚠️ Native FirebaseAuthentication not available, falling back to web OTP:', e?.message);
+    _nativeAuthAvailable = false;
+  }
+  return _nativeAuthAvailable;
+};
+
+// Synchronous best-guess: Android native = true, everything else = false.
+// Use this for UI decisions (e.g. hiding reCAPTCHA container).
+export const shouldUseNativeAuth = (): boolean => isNativePlatform() && isAndroid();
+
 // Initialize Firebase (lazy, singleton)
 export const getFirebaseApp = (): FirebaseApp | null => {
   if (!isFirebaseConfigured()) {
@@ -349,33 +376,34 @@ function verifyOtpWeb(code: string): Promise<{ success: boolean; user?: User; er
 
 // ─── Unified public API ──────────────────────────────────────────────
 
-// Send OTP — strict platform split: native on Android/iOS, web on browser
+// Send OTP — Android native uses plugin, everything else uses web reCAPTCHA.
+// iOS native currently falls back to web OTP because the plugin is not implemented.
 export const sendOtp = async (phoneNumber: string): Promise<{ success: boolean; error?: string }> => {
   const platform = Capacitor.getPlatform();
-  const native = isNativePlatform();
-  console.log(`📲 sendOtp — platform: ${platform}, native: ${native}, phone: ${phoneNumber}`);
+  const useNative = await isNativeAuthAvailable();
+  console.log(`📲 sendOtp — platform: ${platform}, useNative: ${useNative}, phone: ${phoneNumber}`);
 
-  if (native) {
-    console.log(`📱 Using NATIVE OTP flow (${platform}) — no reCAPTCHA`);
+  if (useNative) {
+    console.log('📱 Using NATIVE OTP flow (Android) — no reCAPTCHA');
     return sendOtpNative(phoneNumber);
   }
 
-  console.log('🌐 Using WEB OTP flow (reCAPTCHA)');
+  console.log(`🌐 Using WEB OTP flow (reCAPTCHA) — platform: ${platform}`);
   return sendOtpWeb(phoneNumber);
 };
 
-// Verify OTP — strict platform split matching sendOtp
+// Verify OTP — matches the flow chosen by sendOtp
 export const verifyOtp = async (code: string): Promise<{ success: boolean; user?: User; nativeUser?: NativeAuthUser; error?: string }> => {
   const platform = Capacitor.getPlatform();
-  const native = isNativePlatform();
-  console.log(`🔐 verifyOtp — platform: ${platform}, native: ${native}, hasNativeId: ${!!nativeVerificationId}, hasWebCR: ${!!confirmationResult}`);
+  const useNative = await isNativeAuthAvailable();
+  console.log(`🔐 verifyOtp — platform: ${platform}, useNative: ${useNative}, hasNativeId: ${!!nativeVerificationId}, hasWebCR: ${!!confirmationResult}`);
 
-  if (native) {
-    console.log(`📱 Using NATIVE verify flow (${platform})`);
+  if (useNative) {
+    console.log('📱 Using NATIVE verify flow (Android)');
     return verifyOtpNative(code);
   }
 
-  console.log('🌐 Using WEB verify flow');
+  console.log(`🌐 Using WEB verify flow — platform: ${platform}`);
   return verifyOtpWeb(code);
 };
 
@@ -385,9 +413,9 @@ export const getCurrentUser = (): User | null => {
   return authInstance?.currentUser ?? null;
 };
 
-// Get current user from native plugin (async)
+// Get current user from native plugin (async) — only on Android where plugin works
 export const getNativeCurrentUser = async (): Promise<NativeAuthUser | null> => {
-  if (!isNativePlatform()) return null;
+  if (!shouldUseNativeAuth()) return null;
   try {
     const { FirebaseAuthentication } = await import('@capacitor-firebase/authentication');
     const result = await FirebaseAuthentication.getCurrentUser();
@@ -414,9 +442,9 @@ export const onFirebaseAuthStateChanged = (callback: (user: User | null) => void
   return onAuthStateChanged(authInstance, callback);
 };
 
-// Sign out — native-first on mobile
+// Sign out — native plugin on Android only, web SDK everywhere
 export const signOut = async (): Promise<void> => {
-  if (isNativePlatform()) {
+  if (shouldUseNativeAuth()) {
     try {
       const { FirebaseAuthentication } = await import('@capacitor-firebase/authentication');
       await FirebaseAuthentication.signOut();
@@ -436,8 +464,8 @@ export const signOut = async (): Promise<void> => {
 
 // Get Firebase ID token for Supabase
 export const getFirebaseIdToken = async (): Promise<string | null> => {
-  // On native platforms, use the native plugin to get the token
-  if (isNativePlatform()) {
+  // On Android native, use the native plugin to get the token
+  if (shouldUseNativeAuth()) {
     try {
       const { FirebaseAuthentication } = await import('@capacitor-firebase/authentication');
       const result = await FirebaseAuthentication.getIdToken({ forceRefresh: false });

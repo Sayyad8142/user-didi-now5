@@ -13,7 +13,7 @@ import { normalizePhone } from '@/features/profile/ensureProfile';
 import { isDemoCredentials, setDemoSession, clearDemoSession } from '@/lib/demo';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useAuth } from '@/components/auth/AuthProvider';
-import { verifyOtp, sendOtp, getCurrentUser, setupRecaptcha, isNativePlatform, isWeb } from '@/lib/firebase';
+import { verifyOtp, sendOtp, getCurrentUser, setupRecaptcha, shouldUseNativeAuth, isWeb } from '@/lib/firebase';
 
 interface LocationState {
   phone: string;
@@ -247,7 +247,7 @@ export default function VerifyOTP() {
       clearDemoSession();
 
       // Notify AuthProvider of native auth change so it picks up the new user
-      if (isNativePlatform()) {
+      if (shouldUseNativeAuth()) {
         window.dispatchEvent(new Event('native-auth-changed'));
       }
 
@@ -348,7 +348,7 @@ export default function VerifyOTP() {
 
     try {
       // Setup reCAPTCHA for resend — ONLY on web
-      if (!isNativePlatform()) {
+      if (!shouldUseNativeAuth()) {
         setupRecaptcha('recaptcha-container-verify');
         await new Promise(resolve => setTimeout(resolve, 300));
       }
@@ -472,7 +472,7 @@ export default function VerifyOTP() {
             </div>
 
             {/* Invisible reCAPTCHA container for resend — web only */}
-            {!isNativePlatform() && <div id="recaptcha-container-verify"></div>}
+            {!shouldUseNativeAuth() && <div id="recaptcha-container-verify"></div>}
           </CardContent>
         </Card>
       </div>
