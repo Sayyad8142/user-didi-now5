@@ -62,8 +62,8 @@ export function AuthCard() {
 
   // Setup reCAPTCHA on mount — ONLY on web (not needed on native)
   useEffect(() => {
-    if (isNativePlatform()) {
-      console.log('📱 AuthCard: skipping reCAPTCHA on native platform');
+    if (shouldUseNativeAuth()) {
+      console.log('📱 AuthCard: skipping reCAPTCHA on Android native');
       return;
     }
     const timer = setTimeout(() => {

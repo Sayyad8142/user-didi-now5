@@ -13,7 +13,7 @@ import { normalizePhone } from '@/features/profile/ensureProfile';
 import { isDemoCredentials, setDemoSession, clearDemoSession } from '@/lib/demo';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useAuth } from '@/components/auth/AuthProvider';
-import { verifyOtp, sendOtp, getCurrentUser, setupRecaptcha, isNativePlatform, isWeb } from '@/lib/firebase';
+import { verifyOtp, sendOtp, getCurrentUser, setupRecaptcha, shouldUseNativeAuth, isWeb } from '@/lib/firebase';
 
 interface LocationState {
   phone: string;
