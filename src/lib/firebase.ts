@@ -261,7 +261,7 @@ async function verifyOtpNative(code: string): Promise<{ success: boolean; user?:
 // ─── Web Firebase Auth (reCAPTCHA) ───────────────────────────────────
 
 // Setup invisible reCAPTCHA verifier — works on ALL platforms (web + Capacitor webview)
-export const setupRecaptcha = (containerId: string = 'recaptcha-container'): RecaptchaVerifier | null => {
+export const setupRecaptcha = async (containerId: string = 'recaptcha-container'): Promise<RecaptchaVerifier | null> => {
   const authInstance = getFirebaseAuth();
   if (!authInstance) {
     console.error('❌ Auth not available for reCAPTCHA');
@@ -269,6 +269,7 @@ export const setupRecaptcha = (containerId: string = 'recaptcha-container'): Rec
   }
 
   try {
+    // Clear any existing verifier
     if (recaptchaVerifier) {
       try { recaptchaVerifier.clear(); } catch {}
       recaptchaVerifier = null;
@@ -280,68 +281,86 @@ export const setupRecaptcha = (containerId: string = 'recaptcha-container'): Rec
       return null;
     }
 
+    // Clear stale reCAPTCHA DOM artifacts from previous verifier
+    container.innerHTML = '';
+
+    console.log('[auth] setupRecaptcha start — container found');
+
     recaptchaVerifier = new RecaptchaVerifier(authInstance, containerId, {
       size: 'invisible',
       callback: () => {
         console.log('✅ reCAPTCHA solved');
       },
       'expired-callback': () => {
-        console.log('⚠️ reCAPTCHA expired');
+        console.log('⚠️ reCAPTCHA expired, will re-create on next send');
+        // Mark as stale so sendOtpWeb re-creates it
+        if (recaptchaVerifier) {
+          try { recaptchaVerifier.clear(); } catch {}
+          recaptchaVerifier = null;
+        }
       }
     });
 
-    console.log('✅ reCAPTCHA verifier created');
+    // Actually render the verifier — without this, signInWithPhoneNumber fails
+    await recaptchaVerifier.render();
+    console.log('✅ reCAPTCHA verifier created and rendered');
     return recaptchaVerifier;
   } catch (error) {
     console.error('❌ reCAPTCHA setup error:', error);
+    // Clean up on failure
+    if (recaptchaVerifier) {
+      try { recaptchaVerifier.clear(); } catch {}
+      recaptchaVerifier = null;
+    }
     return null;
   }
 };
 
-function sendOtpWeb(phoneNumber: string): Promise<{ success: boolean; error?: string }> {
-  return (async () => {
-    const authInstance = getFirebaseAuth();
-    if (!authInstance) {
-      return { success: false, error: 'Firebase Auth not initialized' };
+async function sendOtpWeb(phoneNumber: string): Promise<{ success: boolean; error?: string }> {
+  const authInstance = getFirebaseAuth();
+  if (!authInstance) {
+    return { success: false, error: 'Firebase Auth not initialized' };
+  }
+
+  try {
+    // Always ensure we have a fresh, rendered verifier
+    if (!recaptchaVerifier) {
+      console.log('[auth] sendOtpWeb: no verifier, creating one...');
+      const verifier = await setupRecaptcha();
+      if (!verifier) {
+        return { success: false, error: 'Failed to setup reCAPTCHA. Please refresh and try again.' };
+      }
     }
 
-    try {
-      if (!recaptchaVerifier) {
-        const verifier = setupRecaptcha();
-        if (!verifier) {
-          return { success: false, error: 'Failed to setup reCAPTCHA' };
-        }
-      }
+    console.log('🌐 Web: Sending OTP to:', phoneNumber);
+    confirmationResult = await signInWithPhoneNumber(authInstance, phoneNumber, recaptchaVerifier!);
+    console.log('✅ Web: OTP sent successfully');
 
-      console.log('📱 Web: Sending OTP to:', phoneNumber);
-      confirmationResult = await signInWithPhoneNumber(authInstance, phoneNumber, recaptchaVerifier!);
-      console.log('✅ Web: OTP sent successfully');
+    return { success: true };
+  } catch (error: any) {
+    console.error('❌ Web sendOtp error:', error?.code, error?.message);
 
-      return { success: true };
-    } catch (error: any) {
-      console.error('❌ Web sendOtp error:', error);
-
-      if (recaptchaVerifier) {
-        try { recaptchaVerifier.clear(); } catch {}
-        recaptchaVerifier = null;
-      }
-
-      let errorMessage = 'Failed to send OTP';
-      if (error.code === 'auth/invalid-phone-number') {
-        errorMessage = 'Invalid phone number format';
-      } else if (error.code === 'auth/too-many-requests') {
-        errorMessage = 'Too many attempts. Please try again later.';
-      } else if (error.code === 'auth/captcha-check-failed') {
-        errorMessage = 'reCAPTCHA verification failed. Please try again.';
-      } else if (error.code === 'auth/invalid-app-credential') {
-        errorMessage = 'App credential error. Please try again.';
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-
-      return { success: false, error: errorMessage };
+    // Clear stale verifier so next attempt rebuilds
+    if (recaptchaVerifier) {
+      try { recaptchaVerifier.clear(); } catch {}
+      recaptchaVerifier = null;
     }
-  })();
+
+    let errorMessage = 'Failed to send OTP';
+    if (error.code === 'auth/invalid-phone-number') {
+      errorMessage = 'Invalid phone number format';
+    } else if (error.code === 'auth/too-many-requests') {
+      errorMessage = 'Too many attempts. Please try again later.';
+    } else if (error.code === 'auth/captcha-check-failed') {
+      errorMessage = 'reCAPTCHA verification failed. Please try again.';
+    } else if (error.code === 'auth/invalid-app-credential') {
+      errorMessage = 'App credential error. Please try again.';
+    } else if (error.message) {
+      errorMessage = error.message;
+    }
+
+    return { success: false, error: errorMessage };
+  }
 }
 
 function verifyOtpWeb(code: string): Promise<{ success: boolean; user?: User; error?: string }> {

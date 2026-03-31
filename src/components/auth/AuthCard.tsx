@@ -430,7 +430,7 @@ export function AuthCard() {
         </p>
 
         {/* Invisible reCAPTCHA container — web only */}
-        {isWeb() && <div id="recaptcha-container"></div>}
+        {!shouldUseNativeAuth() && <div id="recaptcha-container"></div>}
       </CardContent>
     </Card>
   );
