@@ -442,9 +442,9 @@ export const onFirebaseAuthStateChanged = (callback: (user: User | null) => void
   return onAuthStateChanged(authInstance, callback);
 };
 
-// Sign out — native-first on mobile
+// Sign out — native plugin on Android only, web SDK everywhere
 export const signOut = async (): Promise<void> => {
-  if (isNativePlatform()) {
+  if (shouldUseNativeAuth()) {
     try {
       const { FirebaseAuthentication } = await import('@capacitor-firebase/authentication');
       await FirebaseAuthentication.signOut();
