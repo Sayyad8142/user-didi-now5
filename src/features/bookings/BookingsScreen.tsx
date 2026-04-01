@@ -50,6 +50,9 @@ export function BookingsScreen() {
   const { profile } = useProfile();
   const navigate = useNavigate();
   
+  // Auto-cancel orphan unpaid bookings on page load
+  useCleanupUnpaidBookings();
+  
 // Only enable realtime/toasts after initial load
 const [enableRealtime, setEnableRealtime] = useState(false);
 const [activeTab, setActiveTab] = useState('upcoming');
