@@ -7,8 +7,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { executePaymentFlow, PaymentError, type PaymentFlowStatus } from '@/lib/paymentService';
+import { executePaymentFlow, PaymentError, type PaymentFlowStatus, type PaymentErrorType } from '@/lib/paymentService';
 import { PaymentMethodSelector, type PaymentMethod } from '@/components/PaymentMethodSelector';
+import { PaymentRetrySheet } from '@/components/PaymentRetrySheet';
 import { useWalletBalance } from '@/hooks/useWallet';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useProfile } from '@/contexts/ProfileContext';
@@ -76,6 +77,13 @@ export function ScheduleScreen() {
   const [showPaymentPicker, setShowPaymentPicker] = useState(false);
   const [unavailableSlots, setUnavailableSlots] = useState<Set<string>>(new Set());
   const [loadingAvailability, setLoadingAvailability] = useState(false);
+
+  // Retry state
+  const [retrySheetOpen, setRetrySheetOpen] = useState(false);
+  const [retryErrorType, setRetryErrorType] = useState<PaymentErrorType>('payment_failed');
+  const [retryBookingId, setRetryBookingId] = useState<string | null>(null);
+  const [retryBookingCreatedAt, setRetryBookingCreatedAt] = useState<string | null>(null);
+  const [retrying, setRetrying] = useState(false);
 
   // Dynamic slot surge pricing
   const { getSurge } = useSlotSurge(profile?.community_id, service_type || 'maid');
@@ -322,37 +330,10 @@ export function ScheduleScreen() {
       } catch (payErr: any) {
         console.error('❌ Payment error:', payErr);
         const errType = payErr instanceof PaymentError ? payErr.type : 'payment_failed';
-
-        if (errType === 'user_cancelled') {
-          // Keep booking pending for retry — do NOT delete
-          toast({
-            title: "Payment not completed",
-            description: "Your booking is saved. You can retry payment from your bookings.",
-          });
-          navigate('/bookings');
-        } else if (errType === 'verification_failed') {
-          // Payment captured but verification failed — webhook will finalize
-          toast({
-            title: "Verifying payment...",
-            description: "Your payment is being verified. Your booking will update automatically.",
-          });
-          navigate('/bookings');
-        } else if (errType === 'network_error') {
-          toast({
-            title: "Network error",
-            description: "Please check your internet connection and retry payment from your bookings.",
-            variant: "destructive"
-          });
-          navigate('/bookings');
-        } else {
-          // Generic payment failure — keep for retry
-          toast({
-            title: "Payment Failed",
-            description: "You can retry payment from your bookings.",
-            variant: "destructive"
-          });
-          navigate('/bookings');
-        }
+        setRetryErrorType(errType as PaymentErrorType);
+        setRetryBookingId(newBookingId);
+        setRetryBookingCreatedAt(new Date().toISOString());
+        setRetrySheetOpen(true);
       }
     } catch (err: any) {
       console.error('Booking error:', err);
@@ -654,6 +635,42 @@ export function ScheduleScreen() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {/* Payment Retry Sheet */}
+        <PaymentRetrySheet
+          open={retrySheetOpen}
+          onOpenChange={setRetrySheetOpen}
+          errorType={retryErrorType}
+          bookingCreatedAt={retryBookingCreatedAt}
+          retrying={retrying}
+          onRetry={async () => {
+            if (!retryBookingId || retrying) return;
+            setRetrying(true);
+            try {
+              await executePaymentFlow(retryBookingId, setPaymentStatus);
+              setRetrySheetOpen(false);
+              toast({ title: "Payment successful!", description: "Your scheduled booking is confirmed." });
+              navigate('/bookings');
+            } catch (err: any) {
+              const errType = err instanceof PaymentError ? err.type : 'payment_failed';
+              setRetryErrorType(errType as PaymentErrorType);
+            } finally {
+              setRetrying(false);
+            }
+          }}
+          onPayAfterService={async () => {
+            if (!retryBookingId) return;
+            await supabase.from('bookings').update({ payment_method: 'pay_after_service', payment_status: 'pay_after_service' }).eq('id', retryBookingId);
+            setRetrySheetOpen(false);
+            toast({ title: "Booking scheduled!", description: "Pay after service is done." });
+            navigate('/bookings');
+          }}
+          onVerificationResolved={() => {
+            setRetrySheetOpen(false);
+            toast({ title: "Payment being verified", description: "Your booking will update automatically." });
+            navigate('/bookings');
+          }}
+        />
       </div>
     </div>
   );

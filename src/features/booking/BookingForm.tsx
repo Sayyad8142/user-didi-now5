@@ -29,7 +29,8 @@ import { useFlatSize } from '@/hooks/useFlatSize';
 import { MaidPriceChartSheet } from './MaidPriceChartSheet';
 import { PaymentMethodSelector, type PaymentMethod } from '@/components/PaymentMethodSelector';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription } from '@/components/ui/alert-dialog';
-import { executePaymentFlow, PaymentError, type PaymentFlowStatus } from '@/lib/paymentService';
+import { executePaymentFlow, PaymentError, type PaymentFlowStatus, type PaymentErrorType } from '@/lib/paymentService';
+import { PaymentRetrySheet } from '@/components/PaymentRetrySheet';
 import { CreditCard, HandCoins } from 'lucide-react';
 import { useWalletBalance } from '@/hooks/useWallet';
 
@@ -78,6 +79,13 @@ export function BookingForm() {
   const [showPaymentPicker, setShowPaymentPicker] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('pay_now');
   const [paymentStatus, setPaymentStatus] = useState<PaymentFlowStatus | null>(null);
+
+  // Retry state
+  const [retrySheetOpen, setRetrySheetOpen] = useState(false);
+  const [retryErrorType, setRetryErrorType] = useState<PaymentErrorType>('payment_failed');
+  const [retryBookingId, setRetryBookingId] = useState<string | null>(null);
+  const [retryBookingCreatedAt, setRetryBookingCreatedAt] = useState<string | null>(null);
+  const [retrying, setRetrying] = useState(false);
 
   // Check instant booking availability (must be before any early returns)
   const { isAvailable: instantAvailable, isError: instantError, isLoading: instantLoading } = useInstantBookingAvailability(service_type || '');
@@ -517,17 +525,10 @@ export function BookingForm() {
         } catch (payErr: any) {
           console.error('❌ Payment error:', payErr);
           const errType = payErr instanceof PaymentError ? payErr.type : 'payment_failed';
-
-          if (errType === 'user_cancelled') {
-            toast({ title: "Payment not completed", description: "Your booking is saved. You can retry payment from your bookings." });
-          } else if (errType === 'verification_failed') {
-            toast({ title: "Verifying payment...", description: "Your payment is being verified. Your booking will update automatically." });
-          } else if (errType === 'network_error') {
-            toast({ title: "Network error", description: "Please check your connection and retry from your bookings.", variant: "destructive" });
-          } else {
-            toast({ title: "Payment Failed", description: "You can retry payment from your bookings.", variant: "destructive" });
-          }
-          navigate('/bookings');
+          setRetryErrorType(errType as PaymentErrorType);
+          setRetryBookingId(newBookingId);
+          setRetryBookingCreatedAt(new Date().toISOString())
+          setRetrySheetOpen(true);
         }
         return;
       }
@@ -1232,6 +1233,43 @@ export function BookingForm() {
             </div>
           </AlertDialogContent>
         </AlertDialog>
+
+        {/* Payment Retry Sheet */}
+        <PaymentRetrySheet
+          open={retrySheetOpen}
+          onOpenChange={setRetrySheetOpen}
+          errorType={retryErrorType}
+          bookingCreatedAt={retryBookingCreatedAt}
+          retrying={retrying}
+          onRetry={async () => {
+            if (!retryBookingId || retrying) return;
+            setRetrying(true);
+            try {
+              await executePaymentFlow(retryBookingId, setPaymentStatus);
+              setRetrySheetOpen(false);
+              clearPreferredWorker();
+              toast({ title: "Payment successful!", description: "Your booking is confirmed." });
+              navigate('/bookings');
+            } catch (err: any) {
+              const errType = err instanceof PaymentError ? err.type : 'payment_failed';
+              setRetryErrorType(errType as PaymentErrorType);
+            } finally {
+              setRetrying(false);
+            }
+          }}
+          onPayAfterService={async () => {
+            if (!retryBookingId) return;
+            await supabase.from('bookings').update({ payment_method: 'pay_after_service', payment_status: 'pay_after_service' }).eq('id', retryBookingId);
+            setRetrySheetOpen(false);
+            toast({ title: "Booking confirmed!", description: "Pay after service is done." });
+            navigate('/bookings');
+          }}
+          onVerificationResolved={() => {
+            setRetrySheetOpen(false);
+            toast({ title: "Payment being verified", description: "Your booking will update automatically." });
+            navigate('/bookings');
+          }}
+        />
       </div>
     </div>;
 }
