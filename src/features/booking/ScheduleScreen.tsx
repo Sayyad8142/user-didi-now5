@@ -148,26 +148,14 @@ export function ScheduleScreen() {
           p_date: dateStr,
         });
         if (error || cancelled) return;
-        // Build a set of AVAILABLE slots from the RPC response.
-        // Any UI slot not present in the RPC data is treated as unavailable.
-        const available = new Set<string>();
+        const unavailable = new Set<string>();
         ((data as any[]) || []).forEach((row: { slot_time: string; worker_count: number }) => {
-          if (row.worker_count >= 1) {
+          if (row.worker_count < 1) {
+            // Normalize "HH:MM:SS" from DB to "HH:MM" to match makeSlots format
             const normalized = row.slot_time.length > 5 ? row.slot_time.slice(0, 5) : row.slot_time;
-            available.add(normalized);
+            unavailable.add(normalized);
           }
         });
-        // Mark every possible slot NOT in available set as unavailable
-        const allSegments: TimeSegment[] = ['Morning', 'Afternoon', 'Evening'];
-        const unavailable = new Set<string>();
-        for (const seg of allSegments) {
-          const slots = makeSlots(TIME_SEGMENTS[seg].start, TIME_SEGMENTS[seg].end);
-          for (const slot of slots) {
-            if (!available.has(slot)) {
-              unavailable.add(slot);
-            }
-          }
-        }
         setUnavailableSlots(unavailable);
       } catch (err) {
         console.error('Slot availability fetch failed:', err);
