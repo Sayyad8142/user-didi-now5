@@ -151,7 +151,9 @@ export function ScheduleScreen() {
         const unavailable = new Set<string>();
         ((data as any[]) || []).forEach((row: { slot_time: string; worker_count: number }) => {
           if (row.worker_count < 1) {
-            unavailable.add(row.slot_time);
+            // Normalize "HH:MM:SS" from DB to "HH:MM" to match makeSlots format
+            const normalized = row.slot_time.length > 5 ? row.slot_time.slice(0, 5) : row.slot_time;
+            unavailable.add(normalized);
           }
         });
         setUnavailableSlots(unavailable);
