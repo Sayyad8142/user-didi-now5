@@ -345,7 +345,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 11. Return success
+    // 12. Return success
     return json({
       success: true,
       booking_id: newBooking.id,
