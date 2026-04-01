@@ -314,7 +314,7 @@ Deno.serve(async (req) => {
         .limit(1);
     }
 
-    // 10. Trigger dispatch for instant bookings
+    // 11. Trigger dispatch for instant bookings
     if (newBooking.booking_type === "instant") {
       console.log(
         `[create-paid-booking] 🚀 Dispatching instant booking ${newBooking.id}`,
