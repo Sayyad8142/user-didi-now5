@@ -274,9 +274,13 @@ export async function executePaymentFlowForNewBooking(
     console.log('✅ Wallet fully covers ₹' + priceInr);
     onStatusChange('verifying_payment');
 
+    // Generate idempotency key to prevent duplicate bookings on retries
+    const requestId = crypto.randomUUID();
+    const payloadWithRequestId = { ...bookingPayload, request_id: requestId };
+
     try {
       const result = await createPaidBooking({
-        booking_data: bookingPayload,
+        booking_data: payloadWithRequestId,
         payment_type: 'wallet',
         wallet_amount: priceInr,
       });

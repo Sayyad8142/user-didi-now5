@@ -198,7 +198,31 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 7. Build the final booking row
+    // 7. Idempotency check — if request_id already used, return existing booking
+    const requestId = booking_data.request_id;
+    if (requestId) {
+      const { data: existing } = await supabase
+        .from("bookings")
+        .select("id, booking_type, status, payment_method")
+        .eq("request_id", requestId)
+        .maybeSingle();
+
+      if (existing) {
+        console.log(
+          `[create-paid-booking] ⚡ Duplicate request_id=${requestId}, returning existing booking ${existing.id}`,
+        );
+        return json({
+          success: true,
+          booking_id: existing.id,
+          payment_id: razorpay_payment_id || null,
+          payment_method: existing.payment_method,
+          wallet_debited: 0, // already debited on first call
+          idempotent: true,
+        });
+      }
+    }
+
+    // 8. Build the final booking row
     const completionOtp = generateOtp();
     const now = new Date().toISOString();
 
