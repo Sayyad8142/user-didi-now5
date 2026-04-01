@@ -159,6 +159,12 @@ export function PaymentRetrySheet({
           <p className="text-sm text-muted-foreground leading-snug max-w-[260px]">
             {config.message}
           </p>
+          {/* Debug: show actual error for troubleshooting */}
+          {errorMessage && errorType === 'payment_failed' && (
+            <p className="text-xs text-destructive/80 mt-1 max-w-[280px] break-words font-mono">
+              Error: {errorMessage}
+            </p>
+          )}
         </div>
 
         {/* Timer */}
