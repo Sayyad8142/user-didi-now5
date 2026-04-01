@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { executePaymentFlow, type PaymentFlowStatus } from '@/lib/paymentService';
+import { executePaymentFlow, PaymentError, type PaymentFlowStatus } from '@/lib/paymentService';
 import { PaymentMethodSelector, type PaymentMethod } from '@/components/PaymentMethodSelector';
 import { useWalletBalance } from '@/hooks/useWallet';
 import { useAuth } from '@/components/auth/AuthProvider';
