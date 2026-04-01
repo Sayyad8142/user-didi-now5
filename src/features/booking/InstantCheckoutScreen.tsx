@@ -16,7 +16,7 @@ import { useFlatSize } from '@/hooks/useFlatSize';
 import { useFavoriteWorkers, type FavoriteWorker } from '@/hooks/useFavoriteWorkers';
 import { checkInstantBookingAvailability } from '@/hooks/useSupplyCheck';
 import { SupplyFullModal } from '@/components/SupplyFullModal';
-import { executePaymentFlow, PaymentError, type PaymentFlowStatus, type PaymentErrorType } from '@/lib/paymentService';
+import { executePaymentFlow, executePaymentFirstFlow, PaymentError, type PaymentFlowStatus, type PaymentErrorType } from '@/lib/paymentService';
 import { PaymentMethodSelector, type PaymentMethod } from '@/components/PaymentMethodSelector';
 import { PaymentRetrySheet } from '@/components/PaymentRetrySheet';
 import { trackPaymentEvent } from '@/lib/paymentAnalytics';
@@ -41,6 +41,7 @@ export function InstantCheckoutScreen() {
   const [retryErrorType, setRetryErrorType] = useState<PaymentErrorType>('payment_failed');
   const [retryErrorMessage, setRetryErrorMessage] = useState<string | undefined>();
   const [retryBookingId, setRetryBookingId] = useState<string | null>(null);
+  const [retryBookingData, setRetryBookingData] = useState<Record<string, any> | null>(null);
   const [retryBookingCreatedAt, setRetryBookingCreatedAt] = useState<string | null>(null);
   const [retrying, setRetrying] = useState(false);
 
@@ -153,36 +154,26 @@ export function InstantCheckoutScreen() {
         payment_status: paymentMethod === 'pay_after_service' ? 'pay_after_service' : 'pending',
       } as any;
 
-      const { data, error } = await supabase.from('bookings').insert([bookingData]).select();
-
-      if (error) {
-        console.error('❌ Booking error:', error);
-        if (error.message?.includes('SUPPLY_FULL')) {
-          setSupplyModalOpen(true);
+      // Pay After Service: create booking directly
+      if (paymentMethod === 'pay_after_service') {
+        const { data, error } = await supabase.from('bookings').insert([bookingData]).select();
+        if (error) {
+          console.error('❌ Booking error:', error);
+          if (error.message?.includes('SUPPLY_FULL')) {
+            setSupplyModalOpen(true);
+            return;
+          }
+          const isFlatError = error.message?.includes('flat details');
+          toast({
+            title: "Booking Failed",
+            description: isFlatError
+              ? "Please update your flat details in Account Settings before booking."
+              : `Error: ${error.message || 'Please try again.'}`,
+            variant: "destructive"
+          });
+          if (isFlatError) navigate('/profile/settings');
           return;
         }
-        const isFlatError = error.message?.includes('flat details');
-        toast({
-          title: "Booking Failed",
-          description: isFlatError
-            ? "Please update your flat details in Account Settings before booking."
-            : `Error: ${error.message || 'Please try again.'}`,
-          variant: "destructive"
-        });
-        if (isFlatError) navigate('/profile/settings');
-        return;
-      }
-
-      const newBookingId = data?.[0]?.id;
-      if (!newBookingId) {
-        toast({ title: "Booking Failed", description: "No booking ID returned.", variant: "destructive" });
-        return;
-      }
-
-      trackPaymentEvent('booking_created', { booking_id: newBookingId, user_id: profile.id, amount: price });
-
-      // Pay After Service: skip payment, go straight to bookings
-      if (paymentMethod === 'pay_after_service') {
         sessionStorage.removeItem(`preferred_worker_${service_type}`);
         toast({
           title: "Booking confirmed!",
@@ -192,9 +183,9 @@ export function InstantCheckoutScreen() {
         return;
       }
 
-      // Pay Now: Execute payment flow
+      // Pay Now: payment-first flow (NO booking until payment verified)
       try {
-        await executePaymentFlow(newBookingId, (status) => {
+        await executePaymentFirstFlow(bookingData, walletBalance, (status) => {
           setPaymentStatus(status);
         });
 
@@ -209,7 +200,7 @@ export function InstantCheckoutScreen() {
         const errType = payErr instanceof PaymentError ? payErr.type : 'payment_failed';
         setRetryErrorType(errType as PaymentErrorType);
         setRetryErrorMessage(payErr?.message);
-        setRetryBookingId(newBookingId);
+        setRetryBookingData(bookingData);
         setRetryBookingCreatedAt(new Date().toISOString());
         setRetrySheetOpen(true);
       }
@@ -514,18 +505,10 @@ export function InstantCheckoutScreen() {
       {/* Payment Retry Sheet */}
       <PaymentRetrySheet
         open={retrySheetOpen}
-        onOpenChange={async (open) => {
+        onOpenChange={(open) => {
           setRetrySheetOpen(open);
-          if (!open && retryBookingId) {
-            console.log('🗑️ Cancelling unpaid booking on retry dismiss:', retryBookingId);
-            await supabase.from('bookings').update({
-              status: 'cancelled',
-              cancelled_at: new Date().toISOString(),
-              cancelled_by: 'user',
-              cancellation_reason: 'payment_not_completed',
-              cancel_source: 'user',
-              cancel_reason: 'Payment not completed',
-            }).eq('id', retryBookingId).eq('payment_status', 'pending');
+          if (!open) {
+            setRetryBookingData(null);
             setRetryBookingId(null);
           }
         }}
@@ -534,10 +517,14 @@ export function InstantCheckoutScreen() {
         bookingCreatedAt={retryBookingCreatedAt}
         retrying={retrying}
         onRetry={async () => {
-          if (!retryBookingId || retrying) return;
+          if (retrying) return;
           setRetrying(true);
           try {
-            await executePaymentFlow(retryBookingId, setPaymentStatus);
+            if (retryBookingData) {
+              await executePaymentFirstFlow(retryBookingData, walletBalance, setPaymentStatus);
+            } else if (retryBookingId) {
+              await executePaymentFlow(retryBookingId, setPaymentStatus);
+            }
             setRetrySheetOpen(false);
             sessionStorage.removeItem(`preferred_worker_${service_type}`);
             toast({ title: "Payment successful!", description: "Your booking is confirmed." });
@@ -551,11 +538,23 @@ export function InstantCheckoutScreen() {
           }
         }}
         onPayAfterService={async () => {
-          if (!retryBookingId) return;
-          await supabase.from('bookings').update({ payment_method: 'pay_after_service', payment_status: 'pay_after_service' }).eq('id', retryBookingId);
-          setRetrySheetOpen(false);
-          toast({ title: "Booking confirmed!", description: "Pay after service is done." });
-          navigate('/bookings');
+          if (retryBookingData) {
+            const { error } = await supabase.from('bookings').insert([{
+              ...retryBookingData,
+              payment_method: 'pay_after_service',
+              payment_status: 'pay_after_service',
+            }]);
+            if (!error) {
+              setRetrySheetOpen(false);
+              toast({ title: "Booking confirmed!", description: "Pay after service is done." });
+              navigate('/bookings');
+            }
+          } else if (retryBookingId) {
+            await supabase.from('bookings').update({ payment_method: 'pay_after_service', payment_status: 'pay_after_service' }).eq('id', retryBookingId);
+            setRetrySheetOpen(false);
+            toast({ title: "Booking confirmed!", description: "Pay after service is done." });
+            navigate('/bookings');
+          }
         }}
         onVerificationResolved={() => {
           setRetrySheetOpen(false);
