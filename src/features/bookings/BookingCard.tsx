@@ -7,6 +7,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { prettyServiceName } from '@/features/booking/utils';
 import { formatDateTime } from '@/features/bookings/dt';
 import { format } from 'date-fns';
+import { formatWalletReason } from '@/hooks/useWallet';
 import { PhoneCall, Sparkles, ChefHat, ShowerHead, Clock, User, MapPin, Timer, CreditCard, Star, MessageCircle, RefreshCw, Shield, Wallet, KeyRound } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { supabase } from '@/integrations/supabase/client';
@@ -518,11 +519,7 @@ export function BookingCard({
             <div className="flex-1">
               <p className="text-xs font-semibold text-emerald-800">₹{row.wallet_refund_amount} added to wallet</p>
               <p className="text-[10px] text-emerald-600">
-                {row.wallet_refund_reason === 'no_worker_found' 
-                  ? 'Refund: No worker available'
-                  : row.wallet_refund_reason === 'user_cancelled_before_completion'
-                  ? 'Refund: Booking cancelled'
-                  : `Refund: ${row.wallet_refund_reason || 'Booking cancelled'}`}
+                {formatWalletReason(row.wallet_refund_reason)}
               </p>
             </div>
           </div>

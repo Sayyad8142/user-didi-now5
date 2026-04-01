@@ -58,10 +58,11 @@ export default function CancelAction({ booking, onCancel }: CancelActionProps) {
         }
       } else {
         const isPaid = booking.payment_status === 'paid';
+        const amount = booking.price_inr || booking.payment_amount_inr;
         toast({
           title: "Booking cancelled",
-          description: isPaid
-            ? "Full amount has been added to your Didi Now wallet."
+          description: isPaid && amount
+            ? `₹${amount} has been refunded to your Didi Now wallet.`
             : "Your booking has been cancelled.",
         });
         onCancel?.();
