@@ -82,6 +82,7 @@ export function ScheduleScreen() {
   // Retry state
   const [retrySheetOpen, setRetrySheetOpen] = useState(false);
   const [retryErrorType, setRetryErrorType] = useState<PaymentErrorType>('payment_failed');
+  const [retryErrorMessage, setRetryErrorMessage] = useState<string | undefined>();
   const [retryBookingId, setRetryBookingId] = useState<string | null>(null);
   const [retryBookingCreatedAt, setRetryBookingCreatedAt] = useState<string | null>(null);
   const [retrying, setRetrying] = useState(false);
@@ -336,6 +337,7 @@ export function ScheduleScreen() {
         console.error('❌ Payment error:', payErr);
         const errType = payErr instanceof PaymentError ? payErr.type : 'payment_failed';
         setRetryErrorType(errType as PaymentErrorType);
+        setRetryErrorMessage(payErr?.message);
         setRetryBookingId(newBookingId);
         setRetryBookingCreatedAt(new Date().toISOString());
         setRetrySheetOpen(true);
@@ -646,6 +648,7 @@ export function ScheduleScreen() {
           open={retrySheetOpen}
           onOpenChange={setRetrySheetOpen}
           errorType={retryErrorType}
+          errorMessage={retryErrorMessage}
           bookingCreatedAt={retryBookingCreatedAt}
           retrying={retrying}
           onRetry={async () => {
@@ -659,6 +662,7 @@ export function ScheduleScreen() {
             } catch (err: any) {
               const errType = err instanceof PaymentError ? err.type : 'payment_failed';
               setRetryErrorType(errType as PaymentErrorType);
+              setRetryErrorMessage(err?.message);
             } finally {
               setRetrying(false);
             }

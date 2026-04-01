@@ -46,7 +46,24 @@ public class RazorpayPlugin extends Plugin implements PaymentResultWithDataListe
         String prefillName = call.getString("prefill_name", "");
         String themeColor = call.getString("theme_color", "#ec4899");
 
+        // Detailed input logging
+        Log.d(TAG, "╔══════════════════════════════════════════");
+        Log.d(TAG, "║ RAZORPAY CHECKOUT INPUT");
+        Log.d(TAG, "╠══════════════════════════════════════════");
+        Log.d(TAG, "║ key: " + (key != null ? key.substring(0, Math.min(12, key.length())) + "..." : "NULL"));
+        Log.d(TAG, "║ key_type: " + (key != null && key.startsWith("rzp_live") ? "LIVE" : key != null && key.startsWith("rzp_test") ? "TEST" : "UNKNOWN"));
+        Log.d(TAG, "║ amount (paise): " + amount);
+        Log.d(TAG, "║ amount (INR): " + (amount != null ? amount / 100.0 : "NULL"));
+        Log.d(TAG, "║ currency: " + currency);
+        Log.d(TAG, "║ order_id: " + orderId);
+        Log.d(TAG, "║ name: " + name);
+        Log.d(TAG, "║ description: " + description);
+        Log.d(TAG, "║ prefill_contact: " + (prefillContact.isEmpty() ? "EMPTY" : "***" + prefillContact.substring(Math.max(0, prefillContact.length() - 4))));
+        Log.d(TAG, "║ prefill_name: " + (prefillName.isEmpty() ? "EMPTY" : prefillName));
+        Log.d(TAG, "╚══════════════════════════════════════════");
+
         if (key == null || orderId == null || amount == null) {
+            Log.e(TAG, "❌ Missing required fields: key=" + (key == null) + " orderId=" + (orderId == null) + " amount=" + (amount == null));
             call.reject("Missing required fields: key, order_id, amount");
             return;
         }
@@ -95,7 +112,12 @@ public class RazorpayPlugin extends Plugin implements PaymentResultWithDataListe
 
     @Override
     public void onPaymentSuccess(String razorpayPaymentId, PaymentData paymentData) {
-        Log.d(TAG, "✅ Payment success: " + razorpayPaymentId);
+        Log.d(TAG, "╔══════════════════════════════════════════");
+        Log.d(TAG, "║ ✅ PAYMENT SUCCESS");
+        Log.d(TAG, "║ payment_id: " + paymentData.getPaymentId());
+        Log.d(TAG, "║ order_id: " + paymentData.getOrderId());
+        Log.d(TAG, "║ signature: " + (paymentData.getSignature() != null ? paymentData.getSignature().substring(0, Math.min(20, paymentData.getSignature().length())) + "..." : "NULL"));
+        Log.d(TAG, "╚══════════════════════════════════════════");
         if (savedCall != null) {
             JSObject result = new JSObject();
             result.put("razorpay_payment_id", paymentData.getPaymentId());
@@ -108,7 +130,16 @@ public class RazorpayPlugin extends Plugin implements PaymentResultWithDataListe
 
     @Override
     public void onPaymentError(int code, String description, PaymentData paymentData) {
-        Log.w(TAG, "❌ Payment error [code=" + code + "]: " + description);
+        Log.e(TAG, "╔══════════════════════════════════════════");
+        Log.e(TAG, "║ ❌ PAYMENT ERROR");
+        Log.e(TAG, "║ code: " + code);
+        Log.e(TAG, "║ description: " + description);
+        Log.e(TAG, "║ user_cancelled: " + (code == 2));
+        if (paymentData != null) {
+            Log.e(TAG, "║ payment_id: " + paymentData.getPaymentId());
+            Log.e(TAG, "║ order_id: " + paymentData.getOrderId());
+        }
+        Log.e(TAG, "╚══════════════════════════════════════════");
         if (savedCall != null) {
             JSObject error = new JSObject();
             error.put("code", code);

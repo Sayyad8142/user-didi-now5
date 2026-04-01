@@ -194,7 +194,15 @@ export async function executePaymentFlow(
   // Step 3: Create Razorpay order for remaining amount
   onStatusChange('creating_order');
   const order = await createRazorpayOrder(bookingId);
-  console.log('🛒 Order created:', order.order_id, 'amount:', order.amount);
+  console.log('🛒 [PaymentFlow] Order created:', JSON.stringify({
+    order_id: order.order_id,
+    amount_paise: order.amount,
+    amount_inr: order.amount / 100,
+    currency: order.currency,
+    key_id: order.key_id ? `${order.key_id.slice(0, 12)}...` : 'MISSING',
+    key_type: order.key_id?.startsWith('rzp_live') ? 'LIVE' : order.key_id?.startsWith('rzp_test') ? 'TEST' : 'UNKNOWN',
+    booking_id: order.booking_id,
+  }, null, 2));
 
   // Step 4: Open checkout (native on Android, web otherwise)
   onStatusChange('opening_checkout');
@@ -209,23 +217,40 @@ export async function executePaymentFlow(
     checkoutResult = await runCheckout(order);
   } catch (err: any) {
     const msg = err?.message || '';
-    if (msg === 'Payment cancelled by user') {
+    const errCode = err?.code || err?.data?.code || '';
+    const errDesc = err?.data?.description || err?.description || msg;
+    const userCancelled = msg === 'Payment cancelled by user' || err?.data?.user_cancelled === true || errCode === '2';
+
+    console.error('❌ [PaymentFlow] Checkout failed:', {
+      message: msg,
+      code: errCode,
+      description: errDesc,
+      user_cancelled: userCancelled,
+      full_error: JSON.stringify(err, Object.getOwnPropertyNames(err || {}), 2),
+      error_data: JSON.stringify(err?.data, null, 2),
+    });
+    trackPaymentEvent('payment_failed', {
+      booking_id: bookingId,
+      error_type: userCancelled ? 'user_cancelled' : isNetworkError(err) ? 'network_error' : 'payment_failed',
+      raw_error: errDesc,
+      error_code: errCode,
+    });
+
+    if (userCancelled) {
       console.log('🚪 User cancelled payment');
       onStatusChange('payment_cancelled');
-      trackPaymentEvent('payment_cancelled', { booking_id: bookingId });
       saveLastFailure('upi', 'user_cancelled');
       throw new PaymentError('Payment cancelled by user', 'user_cancelled');
     }
     if (isNetworkError(err)) {
       onStatusChange('payment_failed');
-      trackPaymentEvent('payment_failed', { booking_id: bookingId, error_type: 'network_error' });
       saveLastFailure('upi', 'network_error');
       throw new PaymentError('Network error during payment. Please check your connection and try again.', 'network_error');
     }
     onStatusChange('payment_failed');
-    trackPaymentEvent('payment_failed', { booking_id: bookingId, error_type: 'payment_failed' });
     saveLastFailure('upi', 'payment_failed');
-    throw new PaymentError(msg || 'Payment failed', 'payment_failed');
+    // Include actual error description for debugging
+    throw new PaymentError(errDesc || 'Payment failed', 'payment_failed');
   }
 
   // Step 5: Verify on backend with retry (source of truth)
