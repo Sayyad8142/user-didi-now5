@@ -321,18 +321,31 @@ export function ScheduleScreen() {
         navigate('/bookings');
       } catch (payErr: any) {
         console.error('❌ Payment error:', payErr);
-        if (payErr.message === 'Payment cancelled by user') {
-          // User dismissed Razorpay — no payment was captured, safe to delete
-          await supabase.from('bookings').delete().eq('id', newBookingId);
+        const errType = payErr instanceof PaymentError ? payErr.type : 'payment_failed';
+
+        if (errType === 'user_cancelled') {
+          // Keep booking pending for retry — do NOT delete
           toast({
-            title: "Payment cancelled",
-            description: "No booking was created. You can try again.",
+            title: "Payment not completed",
+            description: "Your booking is saved. You can retry payment from your bookings.",
           });
-          // Stay on the schedule page so user can retry
-          return;
+          navigate('/bookings');
+        } else if (errType === 'verification_failed') {
+          // Payment captured but verification failed — webhook will finalize
+          toast({
+            title: "Verifying payment...",
+            description: "Your payment is being verified. Your booking will update automatically.",
+          });
+          navigate('/bookings');
+        } else if (errType === 'network_error') {
+          toast({
+            title: "Network error",
+            description: "Please check your internet connection and retry payment from your bookings.",
+            variant: "destructive"
+          });
+          navigate('/bookings');
         } else {
-          // Actual payment failure — keep booking for webhook reconciliation / retry
-          await supabase.from('bookings').update({ payment_status: 'failed' }).eq('id', newBookingId);
+          // Generic payment failure — keep for retry
           toast({
             title: "Payment Failed",
             description: "You can retry payment from your bookings.",
