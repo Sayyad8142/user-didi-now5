@@ -10,6 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { executePaymentFlow, PaymentError, type PaymentFlowStatus, type PaymentErrorType } from '@/lib/paymentService';
 import { PaymentMethodSelector, type PaymentMethod } from '@/components/PaymentMethodSelector';
 import { PaymentRetrySheet } from '@/components/PaymentRetrySheet';
+import { trackPaymentEvent } from '@/lib/paymentAnalytics';
 import { useWalletBalance } from '@/hooks/useWallet';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useProfile } from '@/contexts/ProfileContext';
