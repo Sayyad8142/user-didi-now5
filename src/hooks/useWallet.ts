@@ -23,12 +23,15 @@ export interface WalletTransaction {
 }
 
 const WALLET_REASONS: Record<string, string> = {
-  no_worker_found: 'Refund: No worker found',
+  no_worker_found: 'Refund: No worker available',
   user_cancelled_before_completion: 'Refund: Booking cancelled',
   user_cancelled: 'Refund: Booking cancelled',
   admin_cancelled: 'Refund: Cancelled by support',
   service_issue: 'Refund: Service issue',
   booking_cancelled: 'Refund: Booking cancelled',
+  system_expiry: 'Refund: Booking expired',
+  dispatch_expired: 'Refund: No worker assigned',
+  booking_payment: 'Booking payment',
 };
 
 export function formatWalletReason(reason: string | null): string {

@@ -518,11 +518,7 @@ export function BookingCard({
             <div className="flex-1">
               <p className="text-xs font-semibold text-emerald-800">₹{row.wallet_refund_amount} added to wallet</p>
               <p className="text-[10px] text-emerald-600">
-                {row.wallet_refund_reason === 'no_worker_found' 
-                  ? 'Refund: No worker available'
-                  : row.wallet_refund_reason === 'user_cancelled_before_completion'
-                  ? 'Refund: Booking cancelled'
-                  : `Refund: ${row.wallet_refund_reason || 'Booking cancelled'}`}
+                {formatRefundReason(row.wallet_refund_reason)}
               </p>
             </div>
           </div>
