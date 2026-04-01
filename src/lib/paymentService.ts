@@ -6,9 +6,13 @@
  * 2. If fully paid → done
  * 3. Create Razorpay order for remainder
  * 4. Open checkout (platform-aware via checkoutRunner)
- * 5. Verify payment on backend
+ * 5. Verify payment on backend (with retry)
  *
- * Backend edge functions are NEVER modified by this file.
+ * SAFETY:
+ * - Never deletes bookings
+ * - On cancel → booking stays pending for retry
+ * - On verification failure → webhook reconciles
+ * - Backend is always source of truth
  */
 import { supabase } from '@/integrations/supabase/client';
 import { getFirebaseIdToken } from '@/lib/firebase';
@@ -53,7 +57,20 @@ export type PaymentFlowStatus =
   | 'verifying_payment'
   | 'payment_success'
   | 'payment_failed'
-  | 'payment_dismissed';
+  | 'payment_cancelled'
+  | 'verification_pending';
+
+/** Error types for downstream handling */
+export type PaymentErrorType = 'user_cancelled' | 'payment_failed' | 'network_error' | 'verification_failed';
+
+export class PaymentError extends Error {
+  type: PaymentErrorType;
+  constructor(message: string, type: PaymentErrorType) {
+    super(message);
+    this.name = 'PaymentError';
+    this.type = type;
+  }
+}
 
 // ─── Helpers ──────────────────────────────────────────────────
 
@@ -71,6 +88,15 @@ async function invokeWithFirebaseAuth<T>(functionName: string, body: Record<stri
   return data as T;
 }
 
+function isNetworkError(err: any): boolean {
+  const msg = err?.message || '';
+  return msg.includes('Load failed') || msg.includes('Failed to fetch') || msg.includes('NetworkError') || msg.includes('network');
+}
+
+async function sleep(ms: number) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 // ─── Wallet ───────────────────────────────────────────────────
 
 export async function debitWalletForBooking(bookingId: string): Promise<WalletPayResult> {
@@ -85,28 +111,46 @@ export async function createRazorpayOrder(bookingId: string): Promise<RazorpayOr
   return invokeWithFirebaseAuth<RazorpayOrderResponse>('create-razorpay-order', { booking_id: bookingId });
 }
 
-// ─── Verification ─────────────────────────────────────────────
+// ─── Verification (with retry) ────────────────────────────────
 
-export async function verifyRazorpayPayment(
+async function verifyWithRetry(
   bookingId: string,
   razorpayOrderId: string,
   razorpayPaymentId: string,
   razorpaySignature: string,
+  maxAttempts = 3,
 ): Promise<PaymentResult> {
-  console.log('🔍 Verifying payment:', { bookingId, razorpayPaymentId });
-  return invokeWithFirebaseAuth<PaymentResult>('verify-razorpay-payment', {
-    booking_id: bookingId,
-    razorpay_order_id: razorpayOrderId,
-    razorpay_payment_id: razorpayPaymentId,
-    razorpay_signature: razorpaySignature,
-  });
+  let lastErr: any;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      console.log(`🔍 Verify attempt ${attempt}/${maxAttempts}:`, razorpayPaymentId);
+      const result = await invokeWithFirebaseAuth<PaymentResult>('verify-razorpay-payment', {
+        booking_id: bookingId,
+        razorpay_order_id: razorpayOrderId,
+        razorpay_payment_id: razorpayPaymentId,
+        razorpay_signature: razorpaySignature,
+      });
+      console.log('✅ Backend verification success on attempt', attempt);
+      return result;
+    } catch (err: any) {
+      lastErr = err;
+      console.warn(`⚠️ Verify attempt ${attempt} failed:`, err.message);
+      if (attempt < maxAttempts) await sleep(1500 * attempt);
+    }
+  }
+  throw lastErr;
 }
 
 // ─── Full Payment Flow ────────────────────────────────────────
 
 /**
  * Wallet-first, platform-aware payment flow.
- * SAFETY: Never deletes bookings. On failure, booking stays for webhook reconciliation.
+ *
+ * SAFETY:
+ * - NEVER deletes bookings
+ * - On cancel → throws PaymentError('user_cancelled') — caller keeps booking pending
+ * - On failure → throws PaymentError('payment_failed') — caller keeps booking for retry
+ * - On verify failure after 3 retries → throws PaymentError('verification_pending') — webhook reconciles
  */
 export async function executePaymentFlow(
   bookingId: string,
@@ -137,32 +181,45 @@ export async function executePaymentFlow(
 
   // Step 4: Open checkout (native on Android, web otherwise)
   onStatusChange('opening_checkout');
-  const checkoutResult = await runCheckout(order);
-
-  // Step 5: Verify on backend (source of truth)
-  onStatusChange('verifying_payment');
+  let checkoutResult;
   try {
-    const verifyResult = await verifyRazorpayPayment(
+    checkoutResult = await runCheckout(order);
+  } catch (err: any) {
+    const msg = err?.message || '';
+    if (msg === 'Payment cancelled by user') {
+      console.log('🚪 User cancelled payment');
+      onStatusChange('payment_cancelled');
+      throw new PaymentError('Payment cancelled by user', 'user_cancelled');
+    }
+    if (isNetworkError(err)) {
+      onStatusChange('payment_failed');
+      throw new PaymentError('Network error during payment. Please check your connection and try again.', 'network_error');
+    }
+    onStatusChange('payment_failed');
+    throw new PaymentError(msg || 'Payment failed', 'payment_failed');
+  }
+
+  // Step 5: Verify on backend with retry (source of truth)
+  onStatusChange('verifying_payment');
+  const paymentMethod = walletResult && walletResult.wallet_debited > 0 ? 'wallet+razorpay' : 'razorpay';
+
+  try {
+    const verifyResult = await verifyWithRetry(
       bookingId,
       checkoutResult.razorpay_order_id,
       checkoutResult.razorpay_payment_id,
       checkoutResult.razorpay_signature,
     );
-    console.log('✅ Backend verification success');
     onStatusChange('payment_success');
-    return {
-      ...verifyResult,
-      payment_method: walletResult && walletResult.wallet_debited > 0 ? 'wallet+razorpay' : 'razorpay',
-    };
+    return { ...verifyResult, payment_method: paymentMethod };
   } catch (verifyErr: any) {
-    // Verification call failed but payment may have gone through — webhook will reconcile
-    console.warn('⚠️ Verify call failed, webhook will reconcile:', verifyErr.message);
-    onStatusChange('payment_success');
-    return {
-      success: true,
-      booking_id: bookingId,
-      payment_id: checkoutResult.razorpay_payment_id,
-      payment_method: walletResult && walletResult.wallet_debited > 0 ? 'wallet+razorpay' : 'razorpay',
-    };
+    // All 3 verify attempts failed — DO NOT mark as success
+    // Webhook will reconcile. Tell user to wait.
+    console.warn('⚠️ All verify attempts failed, webhook will reconcile:', verifyErr.message);
+    onStatusChange('verification_pending');
+    throw new PaymentError(
+      'Payment is being verified. Please wait a moment — your booking will update automatically.',
+      'verification_failed',
+    );
   }
 }

@@ -29,7 +29,7 @@ import { useFlatSize } from '@/hooks/useFlatSize';
 import { MaidPriceChartSheet } from './MaidPriceChartSheet';
 import { PaymentMethodSelector, type PaymentMethod } from '@/components/PaymentMethodSelector';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription } from '@/components/ui/alert-dialog';
-import { executePaymentFlow, type PaymentFlowStatus } from '@/lib/paymentService';
+import { executePaymentFlow, PaymentError, type PaymentFlowStatus } from '@/lib/paymentService';
 import { CreditCard, HandCoins } from 'lucide-react';
 import { useWalletBalance } from '@/hooks/useWallet';
 
@@ -516,15 +516,18 @@ export function BookingForm() {
           navigate('/bookings');
         } catch (payErr: any) {
           console.error('❌ Payment error:', payErr);
-          if (payErr.message === 'Payment cancelled by user') {
-            await supabase.from('bookings').delete().eq('id', newBookingId);
-            toast({ title: "Payment cancelled", description: "No booking was created. You can try again." });
-            return;
+          const errType = payErr instanceof PaymentError ? payErr.type : 'payment_failed';
+
+          if (errType === 'user_cancelled') {
+            toast({ title: "Payment not completed", description: "Your booking is saved. You can retry payment from your bookings." });
+          } else if (errType === 'verification_failed') {
+            toast({ title: "Verifying payment...", description: "Your payment is being verified. Your booking will update automatically." });
+          } else if (errType === 'network_error') {
+            toast({ title: "Network error", description: "Please check your connection and retry from your bookings.", variant: "destructive" });
           } else {
-            await supabase.from('bookings').update({ payment_status: 'failed' }).eq('id', newBookingId);
             toast({ title: "Payment Failed", description: "You can retry payment from your bookings.", variant: "destructive" });
-            navigate('/bookings');
           }
+          navigate('/bookings');
         }
         return;
       }
