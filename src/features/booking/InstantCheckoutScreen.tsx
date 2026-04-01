@@ -39,6 +39,7 @@ export function InstantCheckoutScreen() {
   // Retry state
   const [retrySheetOpen, setRetrySheetOpen] = useState(false);
   const [retryErrorType, setRetryErrorType] = useState<PaymentErrorType>('payment_failed');
+  const [retryErrorMessage, setRetryErrorMessage] = useState<string | undefined>();
   const [retryBookingId, setRetryBookingId] = useState<string | null>(null);
   const [retryBookingCreatedAt, setRetryBookingCreatedAt] = useState<string | null>(null);
   const [retrying, setRetrying] = useState(false);
