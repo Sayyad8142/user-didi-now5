@@ -78,6 +78,13 @@ export function ScheduleScreen() {
   const [unavailableSlots, setUnavailableSlots] = useState<Set<string>>(new Set());
   const [loadingAvailability, setLoadingAvailability] = useState(false);
 
+  // Retry state
+  const [retrySheetOpen, setRetrySheetOpen] = useState(false);
+  const [retryErrorType, setRetryErrorType] = useState<PaymentErrorType>('payment_failed');
+  const [retryBookingId, setRetryBookingId] = useState<string | null>(null);
+  const [retryBookingCreatedAt, setRetryBookingCreatedAt] = useState<string | null>(null);
+  const [retrying, setRetrying] = useState(false);
+
   // Dynamic slot surge pricing
   const { getSurge } = useSlotSurge(profile?.community_id, service_type || 'maid');
 
