@@ -1201,34 +1201,33 @@ export function BookingForm() {
 
         {/* Payment Method Picker for Instant Booking */}
         <AlertDialog open={showPaymentPicker} onOpenChange={setShowPaymentPicker}>
-          <AlertDialogContent className="max-w-sm rounded-2xl">
-            <AlertDialogHeader>
-              <AlertDialogTitle className="text-center text-lg">Choose Payment Method</AlertDialogTitle>
-              <AlertDialogDescription className="text-center text-sm text-muted-foreground">
-                How would you like to pay for this booking?
+          <AlertDialogContent className="max-w-sm rounded-2xl p-5">
+            <AlertDialogHeader className="pb-1">
+              <AlertDialogTitle className="text-center text-base font-bold">Complete your booking</AlertDialogTitle>
+              <AlertDialogDescription className="text-center text-xs text-muted-foreground">
+                Choose how you'd like to pay
               </AlertDialogDescription>
             </AlertDialogHeader>
-            <div className="py-2">
-              <PaymentMethodSelector
-                selected={paymentMethod}
-                onChange={setPaymentMethod}
-                walletBalance={walletBalance}
-                bookingAmount={service_type === 'maid' ? totalPrice : service_type === 'bathroom_cleaning' ? bathroomTotalPrice : (selectedFlatSize ? pricingMap[selectedFlatSize] ?? 0 : 0)}
-              />
-            </div>
-            <div className="flex gap-2 mt-2">
+            <PaymentMethodSelector
+              selected={paymentMethod}
+              onChange={setPaymentMethod}
+              walletBalance={walletBalance}
+              bookingAmount={service_type === 'maid' ? totalPrice : service_type === 'bathroom_cleaning' ? bathroomTotalPrice : (selectedFlatSize ? pricingMap[selectedFlatSize] ?? 0 : 0)}
+            />
+            <div className="flex gap-2 mt-3">
               <Button
                 variant="outline"
-                className="flex-1 rounded-xl"
+                className="flex-1 rounded-xl h-11"
                 onClick={() => setShowPaymentPicker(false)}
               >
                 Cancel
               </Button>
               <Button
-                className="flex-1 rounded-xl"
+                className="flex-1 rounded-xl h-11 font-bold"
                 onClick={handleConfirmInstantBooking}
+                disabled={submitting}
               >
-                {paymentMethod === 'pay_after_service' ? 'Confirm Booking' : 'Pay & Book'}
+                {paymentMethod === 'pay_after_service' ? 'Confirm Booking' : 'Pay securely'}
               </Button>
             </div>
           </AlertDialogContent>

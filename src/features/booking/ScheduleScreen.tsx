@@ -593,13 +593,13 @@ export function ScheduleScreen() {
 
         {/* Payment Method Popup */}
         <AlertDialog open={showPaymentPicker} onOpenChange={setShowPaymentPicker}>
-          <AlertDialogContent className="max-w-sm rounded-2xl">
-            <AlertDialogHeader>
-              <AlertDialogTitle className="text-lg font-semibold text-foreground">
-                Choose payment method
+          <AlertDialogContent className="max-w-sm rounded-2xl p-5">
+            <AlertDialogHeader className="pb-1">
+              <AlertDialogTitle className="text-base font-bold text-center">
+                Complete your booking
               </AlertDialogTitle>
-              <AlertDialogDescription className="text-sm text-muted-foreground">
-                How would you like to pay for this booking?
+              <AlertDialogDescription className="text-xs text-muted-foreground text-center">
+                Choose how you'd like to pay
               </AlertDialogDescription>
             </AlertDialogHeader>
             <PaymentMethodSelector
@@ -609,18 +609,25 @@ export function ScheduleScreen() {
               walletBalance={walletBalance}
               bookingAmount={price ? price + (selectedTime ? getSurge(selectedTime) : 0) : 0}
             />
-            <AlertDialogFooter className="mt-2">
+            <div className="flex gap-2 mt-3">
+              <Button
+                variant="outline"
+                onClick={() => setShowPaymentPicker(false)}
+                className="flex-1 rounded-xl h-11"
+              >
+                Cancel
+              </Button>
               <Button
                 onClick={() => {
                   setShowPaymentPicker(false);
                   handleConfirmSchedule();
                 }}
                 disabled={submitting}
-                className="w-full h-11 rounded-full bg-gradient-to-r from-[#ff007a] to-[#d9006a] text-white font-semibold text-sm"
+                className="flex-1 rounded-xl h-11 font-bold"
               >
-                {paymentMethod === 'pay_after_service' ? 'Confirm Booking' : 'Pay & Confirm'}
+                {paymentMethod === 'pay_after_service' ? 'Confirm Booking' : 'Pay securely'}
               </Button>
-            </AlertDialogFooter>
+            </div>
           </AlertDialogContent>
         </AlertDialog>
 
