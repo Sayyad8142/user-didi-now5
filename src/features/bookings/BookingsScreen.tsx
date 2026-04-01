@@ -11,6 +11,7 @@ import { BookingCard } from './BookingCard';
 import { EmptyState } from './EmptyState';
 import { useMyBookingsRealtime } from './useMyBookingsRealtime';
 import { useBookingStatusToasts } from './useBookingStatusToasts';
+import { useCleanupUnpaidBookings } from '@/hooks/useCleanupUnpaidBookings';
 
 interface Booking {
   id: string;
