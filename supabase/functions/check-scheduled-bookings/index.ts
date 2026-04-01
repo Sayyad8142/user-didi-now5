@@ -34,6 +34,8 @@ serve(async (req) => {
     const todayIST = nowIST.toISOString().slice(0, 10);
     const tomorrowIST = new Date(nowIST.getTime() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
+    // Only dispatch bookings that are paid or pay_after_service
+    // Skip unpaid Pay Now bookings (payment_status='pending', payment_method=null)
     const { data: bookings, error: bookingsError } = await supabase
       .from('bookings')
       .select('*')
@@ -41,7 +43,8 @@ serve(async (req) => {
       .eq('status', 'pending')
       .not('scheduled_date', 'is', null)
       .not('scheduled_time', 'is', null)
-      .in('scheduled_date', [todayIST, tomorrowIST]);
+      .in('scheduled_date', [todayIST, tomorrowIST])
+      .in('payment_status', ['paid', 'pay_after_service']);
 
     if (bookingsError) {
       console.error('❌ Error fetching bookings:', bookingsError);
