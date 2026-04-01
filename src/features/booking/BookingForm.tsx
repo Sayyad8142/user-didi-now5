@@ -80,6 +80,13 @@ export function BookingForm() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('pay_now');
   const [paymentStatus, setPaymentStatus] = useState<PaymentFlowStatus | null>(null);
 
+  // Retry state
+  const [retrySheetOpen, setRetrySheetOpen] = useState(false);
+  const [retryErrorType, setRetryErrorType] = useState<PaymentErrorType>('payment_failed');
+  const [retryBookingId, setRetryBookingId] = useState<string | null>(null);
+  const [retryBookingCreatedAt, setRetryBookingCreatedAt] = useState<string | null>(null);
+  const [retrying, setRetrying] = useState(false);
+
   // Check instant booking availability (must be before any early returns)
   const { isAvailable: instantAvailable, isError: instantError, isLoading: instantLoading } = useInstantBookingAvailability(service_type || '');
   const instantDisabled = !instantLoading && (!instantAvailable || instantError);
