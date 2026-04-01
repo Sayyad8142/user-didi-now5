@@ -648,6 +648,7 @@ export function ScheduleScreen() {
           open={retrySheetOpen}
           onOpenChange={setRetrySheetOpen}
           errorType={retryErrorType}
+          errorMessage={retryErrorMessage}
           bookingCreatedAt={retryBookingCreatedAt}
           retrying={retrying}
           onRetry={async () => {
@@ -661,6 +662,7 @@ export function ScheduleScreen() {
             } catch (err: any) {
               const errType = err instanceof PaymentError ? err.type : 'payment_failed';
               setRetryErrorType(errType as PaymentErrorType);
+              setRetryErrorMessage(err?.message);
             } finally {
               setRetrying(false);
             }
