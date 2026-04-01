@@ -514,7 +514,21 @@ export function InstantCheckoutScreen() {
       {/* Payment Retry Sheet */}
       <PaymentRetrySheet
         open={retrySheetOpen}
-        onOpenChange={setRetrySheetOpen}
+        onOpenChange={async (open) => {
+          setRetrySheetOpen(open);
+          if (!open && retryBookingId) {
+            console.log('🗑️ Cancelling unpaid booking on retry dismiss:', retryBookingId);
+            await supabase.from('bookings').update({
+              status: 'cancelled',
+              cancelled_at: new Date().toISOString(),
+              cancelled_by: 'user',
+              cancellation_reason: 'payment_not_completed',
+              cancel_source: 'user',
+              cancel_reason: 'Payment not completed',
+            }).eq('id', retryBookingId).eq('payment_status', 'pending');
+            setRetryBookingId(null);
+          }
+        }}
         errorType={retryErrorType}
         errorMessage={retryErrorMessage}
         bookingCreatedAt={retryBookingCreatedAt}
