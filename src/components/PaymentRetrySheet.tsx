@@ -116,9 +116,14 @@ export function PaymentRetrySheet({
 }: PaymentRetrySheetProps) {
   const config = getErrorConfig(errorType);
   const { display: timerDisplay, isExpired } = useCountdown(bookingCreatedAt, 10);
+  const retrySuggestion = getRetrySuggestion(errorType);
 
-  // Auto-dismiss verification_failed after 15s and let parent refresh
+  // Track retry sheet open
   useEffect(() => {
+    if (open) {
+      trackPaymentEvent('payment_method_selected', { error_type: errorType });
+    }
+  }, [open, errorType]);
     if (errorType !== 'verification_failed' || !open) return;
     const t = setTimeout(() => {
       onVerificationResolved?.();
