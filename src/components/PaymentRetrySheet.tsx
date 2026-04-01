@@ -7,6 +7,7 @@ import {
   Clock, ShieldCheck, AlertTriangle
 } from 'lucide-react';
 import type { PaymentErrorType } from '@/lib/paymentService';
+import { trackPaymentEvent, getRetrySuggestion } from '@/lib/paymentAnalytics';
 
 // ─── Error config ─────────────────────────────────────────────
 interface ErrorConfig {
@@ -115,8 +116,16 @@ export function PaymentRetrySheet({
 }: PaymentRetrySheetProps) {
   const config = getErrorConfig(errorType);
   const { display: timerDisplay, isExpired } = useCountdown(bookingCreatedAt, 10);
+  const retrySuggestion = getRetrySuggestion(errorType);
 
-  // Auto-dismiss verification_failed after 15s and let parent refresh
+  // Track retry sheet open
+  useEffect(() => {
+    if (open) {
+      trackPaymentEvent('payment_method_selected', { error_type: errorType });
+    }
+  }, [open, errorType]);
+
+  // Auto-dismiss verification_failed after 15s
   useEffect(() => {
     if (errorType !== 'verification_failed' || !open) return;
     const t = setTimeout(() => {
@@ -171,7 +180,10 @@ export function PaymentRetrySheet({
             <Button
               className="w-full h-12 text-sm font-semibold rounded-2xl gap-2"
               disabled={retrying || isExpired}
-              onClick={onRetry}
+              onClick={() => {
+                trackPaymentEvent('payment_retry_clicked', { error_type: errorType });
+                onRetry();
+              }}
             >
               {retrying ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -182,8 +194,16 @@ export function PaymentRetrySheet({
             </Button>
           )}
 
-          {/* Fallback suggestion */}
-          {config.showFallback && !isExpired && (
+          {/* Smart retry suggestion */}
+          {retrySuggestion && !isExpired && !retrying && (
+            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-muted/50 text-xs text-muted-foreground">
+              <CreditCard className="w-3.5 h-3.5 shrink-0" />
+              <span>{retrySuggestion}</span>
+            </div>
+          )}
+
+          {/* Fallback suggestion (when no smart suggestion) */}
+          {config.showFallback && !retrySuggestion && !isExpired && (
             <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-muted/50 text-xs text-muted-foreground">
               <CreditCard className="w-3.5 h-3.5 shrink-0" />
               <span>Try Card or Netbanking if UPI didn't work</span>

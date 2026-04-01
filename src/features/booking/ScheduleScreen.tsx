@@ -10,6 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { executePaymentFlow, PaymentError, type PaymentFlowStatus, type PaymentErrorType } from '@/lib/paymentService';
 import { PaymentMethodSelector, type PaymentMethod } from '@/components/PaymentMethodSelector';
 import { PaymentRetrySheet } from '@/components/PaymentRetrySheet';
+import { trackPaymentEvent } from '@/lib/paymentAnalytics';
 import { useWalletBalance } from '@/hooks/useWallet';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useProfile } from '@/contexts/ProfileContext';
@@ -305,6 +306,8 @@ export function ScheduleScreen() {
         toast({ title: "Booking Failed", description: "No booking ID returned.", variant: "destructive" });
         return;
       }
+
+      trackPaymentEvent('booking_created', { booking_id: newBookingId, user_id: profile.id });
 
       // Pay After Service: skip payment, go straight to bookings
       if (paymentMethod === 'pay_after_service') {

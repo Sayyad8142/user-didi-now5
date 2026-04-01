@@ -19,6 +19,7 @@ import { SupplyFullModal } from '@/components/SupplyFullModal';
 import { executePaymentFlow, PaymentError, type PaymentFlowStatus, type PaymentErrorType } from '@/lib/paymentService';
 import { PaymentMethodSelector, type PaymentMethod } from '@/components/PaymentMethodSelector';
 import { PaymentRetrySheet } from '@/components/PaymentRetrySheet';
+import { trackPaymentEvent } from '@/lib/paymentAnalytics';
 import { useWalletBalance } from '@/hooks/useWallet';
 
 export function InstantCheckoutScreen() {
@@ -176,6 +177,8 @@ export function InstantCheckoutScreen() {
         toast({ title: "Booking Failed", description: "No booking ID returned.", variant: "destructive" });
         return;
       }
+
+      trackPaymentEvent('booking_created', { booking_id: newBookingId, user_id: profile.id, amount: price });
 
       // Pay After Service: skip payment, go straight to bookings
       if (paymentMethod === 'pay_after_service') {
