@@ -109,6 +109,7 @@ export function PaymentRetrySheet({
   open,
   onOpenChange,
   errorType,
+  errorMessage,
   bookingCreatedAt,
   onRetry,
   onPayAfterService,
