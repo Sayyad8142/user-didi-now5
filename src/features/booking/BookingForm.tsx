@@ -536,37 +536,17 @@ export function BookingForm() {
         return;
       }
 
-      // Pay Now: Execute payment flow
-      if (bookingType === 'instant' && paymentMethod === 'pay_now') {
-        try {
-          await executePaymentFlow(newBookingId, (status) => {
-            setPaymentStatus(status);
-          });
-          toast({
-            title: "Payment successful!",
-            description: "Your booking is confirmed. Worker will arrive in ~10 minutes."
-          });
-          clearPreferredWorker();
-          navigate('/bookings');
-        } catch (payErr: any) {
-          console.error('❌ Payment error:', payErr);
-          const errType = payErr instanceof PaymentError ? payErr.type : 'payment_failed';
-          setRetryErrorType(errType as PaymentErrorType);
-          setRetryErrorMessage(payErr?.message);
-          setRetryBookingId(newBookingId);
-          setRetryBookingCreatedAt(new Date().toISOString())
-          setRetrySheetOpen(true);
-        }
-        return;
-      }
-
+      // Pay After Service or non-pay_now: booking already created above
       toast({
-        title: "Booking received!",
-        description: bookingType === 'instant' ? "Service will arrive in 10 minutes." : "Your booking has been scheduled successfully."
+        title: isPayAfter ? "Booking confirmed!" : "Booking received!",
+        description: bookingType === 'instant' 
+          ? (isPayAfter ? "Worker will arrive in ~10 minutes. Pay after service is done." : "Service will arrive in 10 minutes.")
+          : "Your booking has been scheduled successfully."
       });
       setScheduleSheetOpen(false);
       clearPreferredWorker();
-      navigate('/home');
+      navigate(bookingType === 'instant' ? '/bookings' : '/home');
+
     } catch (err: any) {
       console.error('❌ Booking error:', err);
       const isNetworkError = err?.message?.includes('Load failed') || err?.message?.includes('Failed to fetch') || err?.message?.includes('NetworkError');
