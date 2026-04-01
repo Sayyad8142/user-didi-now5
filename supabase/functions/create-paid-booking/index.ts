@@ -135,8 +135,33 @@ Deno.serve(async (req) => {
       console.log("[create-paid-booking] ✅ Razorpay signature verified");
     }
 
-    // 6. Handle wallet debit (if applicable)
+    // 6. Idempotency check — BEFORE wallet debit to prevent double-deduction
+    const requestId = booking_data.request_id;
+    if (requestId) {
+      const { data: existing } = await supabase
+        .from("bookings")
+        .select("id, booking_type, status, payment_method")
+        .eq("request_id", requestId)
+        .maybeSingle();
+
+      if (existing) {
+        console.log(
+          `[create-paid-booking] ⚡ Duplicate request_id=${requestId}, returning existing booking ${existing.id}`,
+        );
+        return json({
+          success: true,
+          booking_id: existing.id,
+          payment_id: razorpay_payment_id || null,
+          payment_method: existing.payment_method,
+          wallet_debited: 0,
+          idempotent: true,
+        });
+      }
+    }
+
+    // 7. Handle wallet debit (if applicable)
     let walletDebited = 0;
+    let walletRowSnapshot: { id: string; balance_inr: number } | null = null;
     if (
       (payment_type === "wallet" || payment_type === "wallet_and_razorpay") &&
       wallet_amount > 0
@@ -155,6 +180,7 @@ Deno.serve(async (req) => {
         // For wallet_and_razorpay, proceed without wallet debit
         console.warn("[create-paid-booking] Wallet not found, skipping wallet debit");
       } else {
+        walletRowSnapshot = walletRow;
         const debitAmount = Math.min(wallet_amount, walletRow.balance_inr);
 
         if (payment_type === "wallet" && debitAmount < booking_data.price_inr) {
@@ -195,30 +221,6 @@ Deno.serve(async (req) => {
             );
           }
         }
-      }
-    }
-
-    // 7. Idempotency check — if request_id already used, return existing booking
-    const requestId = booking_data.request_id;
-    if (requestId) {
-      const { data: existing } = await supabase
-        .from("bookings")
-        .select("id, booking_type, status, payment_method")
-        .eq("request_id", requestId)
-        .maybeSingle();
-
-      if (existing) {
-        console.log(
-          `[create-paid-booking] ⚡ Duplicate request_id=${requestId}, returning existing booking ${existing.id}`,
-        );
-        return json({
-          success: true,
-          booking_id: existing.id,
-          payment_id: razorpay_payment_id || null,
-          payment_method: existing.payment_method,
-          wallet_debited: 0, // already debited on first call
-          idempotent: true,
-        });
       }
     }
 
@@ -270,6 +272,49 @@ Deno.serve(async (req) => {
       .single();
 
     if (insertErr) {
+      // 9a. Race condition: unique index violation means another request won the race
+      if (requestId && (insertErr.code === "23505" || insertErr.message?.includes("uq_bookings_request_id"))) {
+        console.warn(
+          `[create-paid-booking] ⚡ Race: unique index hit for request_id=${requestId}, fetching existing booking`,
+        );
+        // Refund wallet since the winning request already debited
+        if (walletDebited > 0) {
+          await supabase
+            .from("user_wallets")
+            .update({
+              balance_inr: walletRowSnapshot!.balance_inr,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("user_id", profile.id);
+          // Remove the duplicate wallet transaction
+          await supabase
+            .from("wallet_transactions")
+            .delete()
+            .eq("user_id", profile.id)
+            .eq("type", "debit")
+            .is("booking_id", null)
+            .order("created_at", { ascending: false })
+            .limit(1);
+        }
+
+        const { data: raceWinner } = await supabase
+          .from("bookings")
+          .select("id, booking_type, status, payment_method")
+          .eq("request_id", requestId)
+          .single();
+
+        if (raceWinner) {
+          return json({
+            success: true,
+            booking_id: raceWinner.id,
+            payment_id: razorpay_payment_id || null,
+            payment_method: raceWinner.payment_method,
+            wallet_debited: 0,
+            idempotent: true,
+          });
+        }
+      }
+
       console.error("[create-paid-booking] ❌ Booking insert failed:", insertErr);
 
       // If wallet was debited but insert failed, refund wallet
@@ -280,12 +325,11 @@ Deno.serve(async (req) => {
           p_amount: walletDebited,
           p_description: "Refund: booking creation failed",
         }).catch((refundErr: any) => {
-          // Fallback: manual credit
           console.error("[create-paid-booking] credit_wallet RPC failed, trying manual:", refundErr);
           return supabase
             .from("user_wallets")
             .update({
-              balance_inr: (walletRow as any).balance_inr, // restore original
+              balance_inr: walletRowSnapshot?.balance_inr ?? 0,
               updated_at: new Date().toISOString(),
             })
             .eq("user_id", profile.id);
