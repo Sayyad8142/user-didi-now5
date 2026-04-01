@@ -548,7 +548,6 @@ export function BookingForm() {
       setSubmitting(false);
       setPaymentStatus(null);
     }
-    }
   };
   if (!user || !service_type || !isValidServiceType(service_type)) {
     return null;
