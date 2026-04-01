@@ -41,25 +41,15 @@ Deno.serve(async (req) => {
     const firebaseUser = await verifyFirebaseToken(idToken);
 
     // 2. Parse request
-    const body = await req.json();
     const {
       booking_id,
-      booking_data,
-      wallet_amount,
       razorpay_order_id,
       razorpay_payment_id,
       razorpay_signature,
-    } = body;
+    } = await req.json();
 
-    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
-      return new Response(JSON.stringify({ error: "Missing required razorpay fields" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    if (!booking_id && !booking_data) {
-      return new Response(JSON.stringify({ error: "booking_id or booking_data required" }), {
+    if (!booking_id || !razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+      return new Response(JSON.stringify({ error: "Missing required fields" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -81,148 +71,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // 4. HMAC signature verification
-    const expectedData = `${razorpay_order_id}|${razorpay_payment_id}`;
-    const isValid = await hmacSha256Verify(expectedData, razorpay_signature, RAZORPAY_KEY_SECRET);
-
-    if (!isValid) {
-      console.error("HMAC verification failed");
-      // If legacy mode with booking_id, mark as failed
-      if (booking_id) {
-        await supabase
-          .from("bookings")
-          .update({ payment_status: "failed" })
-          .eq("id", booking_id);
-      }
-      return new Response(JSON.stringify({ error: "Payment verification failed" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // ── MODE A: Payment-first — create booking after payment verified ──
-    if (booking_data) {
-      // Verify user_id matches authenticated user
-      if (booking_data.user_id !== profile.id) {
-        return new Response(JSON.stringify({ error: "User mismatch in booking data" }), {
-          status: 403,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      // Idempotency: check if booking already created for this Razorpay order
-      const { data: existingBooking } = await supabase
-        .from("bookings")
-        .select("id")
-        .eq("razorpay_order_id", razorpay_order_id)
-        .maybeSingle();
-
-      if (existingBooking) {
-        console.log(`✅ Idempotent: booking ${existingBooking.id} already exists for order ${razorpay_order_id}`);
-        return new Response(JSON.stringify({
-          success: true,
-          booking_id: existingBooking.id,
-          payment_id: razorpay_payment_id,
-        }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      // Calculate amounts
-      const walletUsed = wallet_amount || 0;
-      const razorpayPaid = booking_data.price_inr - walletUsed;
-
-      // Remove any client-set payment fields — we set them server-side
-      const cleanBookingData = { ...booking_data };
-      delete cleanBookingData.payment_status;
-      delete cleanBookingData.payment_method;
-
-      // Insert booking with verified payment info
-      const { data: newBooking, error: insertErr } = await supabase
-        .from("bookings")
-        .insert([{
-          ...cleanBookingData,
-          payment_status: "paid",
-          payment_method: walletUsed > 0 ? "wallet+razorpay" : "razorpay",
-          razorpay_order_id,
-          razorpay_payment_id,
-          razorpay_signature,
-          paid_at: new Date().toISOString(),
-          wallet_used_amount: walletUsed > 0 ? walletUsed : null,
-          razorpay_paid_amount: razorpayPaid,
-          payment_amount_inr: booking_data.price_inr,
-        }])
-        .select("id, booking_type");
-
-      if (insertErr) {
-        console.error("❌ Booking creation failed after payment:", insertErr);
-        return new Response(JSON.stringify({ error: "Failed to create booking: " + insertErr.message }), {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      const newBookingId = newBooking![0].id;
-      const bookingType = newBooking![0].booking_type;
-      console.log(`✅ Payment verified + booking ${newBookingId} created (payment-first)`);
-
-      // Wallet debit if needed
-      if (walletUsed > 0) {
-        try {
-          const { error: walletErr } = await supabase.rpc("debit_wallet_for_booking", {
-            p_user_id: profile.id,
-            p_booking_id: newBookingId,
-            p_amount: 0,
-          });
-          if (walletErr) {
-            console.error("Wallet debit RPC failed (non-blocking):", walletErr.message);
-          } else {
-            console.log(`💰 Wallet debited ${walletUsed} for booking ${newBookingId}`);
-          }
-        } catch (walletCatchErr: any) {
-          console.error("Wallet debit error (non-blocking):", walletCatchErr.message);
-        }
-      }
-
-      // Dispatch for instant bookings
-      if (bookingType === "instant") {
-        console.log(`🚀 Triggering dispatch for instant booking ${newBookingId}...`);
-        try {
-          const { error: dispatchErr } = await supabase.rpc("dispatch_booking", {
-            p_booking_id: newBookingId,
-          });
-          if (dispatchErr) {
-            console.error("dispatch_booking RPC failed, trying edge function:", dispatchErr);
-            try {
-              await fetch(`${SUPABASE_URL}/functions/v1/scheduled-dispatch`, {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-                },
-                body: JSON.stringify({ booking_id: newBookingId }),
-              });
-            } catch (fallbackErr) {
-              console.error("Edge function dispatch fallback failed:", fallbackErr);
-            }
-          } else {
-            console.log(`✅ Dispatch triggered for ${newBookingId}`);
-          }
-        } catch (dispatchCatchErr) {
-          console.error("Dispatch error (non-blocking):", dispatchCatchErr);
-        }
-      }
-
-      return new Response(JSON.stringify({
-        success: true,
-        booking_id: newBookingId,
-        payment_id: razorpay_payment_id,
-      }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // ── MODE B: Legacy — update existing booking ──
+    // 4. Get booking
     const { data: booking, error: bookingErr } = await supabase
       .from("bookings")
       .select("id, user_id, razorpay_order_id, payment_status, payment_amount_inr, status, booking_type")
@@ -236,6 +85,7 @@ Deno.serve(async (req) => {
       });
     }
 
+    // 5. Verify booking belongs to user
     if (booking.user_id !== profile.id) {
       return new Response(JSON.stringify({ error: "Booking does not belong to user" }), {
         status: 403,
@@ -243,12 +93,14 @@ Deno.serve(async (req) => {
       });
     }
 
+    // 6. Prevent duplicate verification
     if (booking.payment_status === "paid") {
       return new Response(JSON.stringify({ success: true, message: "Already verified" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
+    // 7. Verify order ID matches
     if (booking.razorpay_order_id !== razorpay_order_id) {
       return new Response(JSON.stringify({ error: "Order ID mismatch" }), {
         status: 400,
@@ -256,7 +108,24 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Mark booking as paid
+    // 8. HMAC signature verification
+    const expectedData = `${razorpay_order_id}|${razorpay_payment_id}`;
+    const isValid = await hmacSha256Verify(expectedData, razorpay_signature, RAZORPAY_KEY_SECRET);
+
+    if (!isValid) {
+      console.error("HMAC verification failed for booking:", booking_id);
+      await supabase
+        .from("bookings")
+        .update({ payment_status: "failed" })
+        .eq("id", booking_id);
+
+      return new Response(JSON.stringify({ error: "Payment verification failed" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // 9. Mark booking as paid
     const { error: updateErr } = await supabase
       .from("bookings")
       .update({
@@ -278,15 +147,18 @@ Deno.serve(async (req) => {
 
     console.log(`✅ Payment verified for booking ${booking_id}, payment: ${razorpay_payment_id}`);
 
-    // Dispatch for instant bookings
+    // 10. TRIGGER DISPATCH — only for instant bookings (scheduled bookings dispatch on their own schedule)
     if (booking.booking_type === "instant") {
       console.log(`🚀 Triggering dispatch for instant booking ${booking_id}...`);
       try {
+        // Try DB dispatch function first (preferred — atomic, uses advisory locks)
         const { error: dispatchErr } = await supabase.rpc("dispatch_booking", {
           p_booking_id: booking_id,
         });
+
         if (dispatchErr) {
-          console.error("dispatch_booking RPC failed, trying edge function:", dispatchErr);
+          console.error("dispatch_booking RPC failed, trying edge function fallback:", dispatchErr);
+          // Fallback: call scheduled-dispatch edge function
           try {
             await fetch(`${SUPABASE_URL}/functions/v1/scheduled-dispatch`, {
               method: "POST",
@@ -296,14 +168,15 @@ Deno.serve(async (req) => {
               },
               body: JSON.stringify({ booking_id }),
             });
+            console.log(`✅ Dispatch triggered via edge function for ${booking_id}`);
           } catch (fallbackErr) {
-            console.error("Edge function dispatch fallback failed:", fallbackErr);
+            console.error("Edge function dispatch fallback also failed:", fallbackErr);
           }
         } else {
           console.log(`✅ Dispatch triggered via RPC for ${booking_id}`);
         }
       } catch (dispatchCatchErr) {
-        console.error("Dispatch error (non-blocking):", dispatchCatchErr);
+        console.error("Dispatch trigger error (non-blocking):", dispatchCatchErr);
       }
     }
 

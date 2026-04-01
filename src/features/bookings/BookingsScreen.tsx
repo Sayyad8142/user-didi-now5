@@ -11,7 +11,6 @@ import { BookingCard } from './BookingCard';
 import { EmptyState } from './EmptyState';
 import { useMyBookingsRealtime } from './useMyBookingsRealtime';
 import { useBookingStatusToasts } from './useBookingStatusToasts';
-import { useCleanupUnpaidBookings } from '@/hooks/useCleanupUnpaidBookings';
 
 interface Booking {
   id: string;
@@ -49,9 +48,6 @@ interface Booking {
 export function BookingsScreen() {
   const { profile } = useProfile();
   const navigate = useNavigate();
-  
-  // Auto-cancel orphan unpaid bookings on page load
-  useCleanupUnpaidBookings();
   
 // Only enable realtime/toasts after initial load
 const [enableRealtime, setEnableRealtime] = useState(false);

@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { executePaymentFlow, executePaymentFirstFlow, PaymentError, type PaymentFlowStatus, type PaymentErrorType } from '@/lib/paymentService';
+import { executePaymentFlow, PaymentError, type PaymentFlowStatus, type PaymentErrorType } from '@/lib/paymentService';
 import { PaymentMethodSelector, type PaymentMethod } from '@/components/PaymentMethodSelector';
 import { PaymentRetrySheet } from '@/components/PaymentRetrySheet';
 import { trackPaymentEvent } from '@/lib/paymentAnalytics';
@@ -84,7 +84,6 @@ export function ScheduleScreen() {
   const [retryErrorType, setRetryErrorType] = useState<PaymentErrorType>('payment_failed');
   const [retryErrorMessage, setRetryErrorMessage] = useState<string | undefined>();
   const [retryBookingId, setRetryBookingId] = useState<string | null>(null);
-  const [retryBookingData, setRetryBookingData] = useState<Record<string, any> | null>(null);
   const [retryBookingCreatedAt, setRetryBookingCreatedAt] = useState<string | null>(null);
   const [retrying, setRetrying] = useState(false);
 
@@ -279,32 +278,42 @@ export function ScheduleScreen() {
         payment_status: paymentMethod === 'pay_after_service' ? 'pay_after_service' : 'pending',
       };
 
-      console.log('📤 Scheduled booking data prepared:', bookingData);
+      console.log('📤 Sending scheduled booking to database:', bookingData);
 
-      // Pay After Service: create booking directly (no payment risk)
+      const { data, error } = await supabase
+        .from('bookings')
+        .insert([bookingData])
+        .select();
+
+      if (error) {
+        console.error('❌ Scheduled booking error:', error);
+        const isFlatError = error.message?.includes('flat details');
+        const isSlotError = error.message?.includes('Slot unavailable') || error.message?.includes('Not enough workers');
+        toast({
+          title: isSlotError ? "Slot unavailable" : "Booking Failed",
+          description: isFlatError
+            ? "Please update your flat details in Account Settings before booking."
+            : isSlotError
+            ? "No workers are available at this time. Please choose another time slot."
+            : `Error: ${error.message || 'Please try again.'}`,
+          variant: "destructive"
+        });
+        if (isFlatError) navigate('/profile/settings');
+        return;
+      }
+
+      console.log('✅ Scheduled booking created successfully:', data);
+
+      const newBookingId = data?.[0]?.id;
+      if (!newBookingId) {
+        toast({ title: "Booking Failed", description: "No booking ID returned.", variant: "destructive" });
+        return;
+      }
+
+      trackPaymentEvent('booking_created', { booking_id: newBookingId, user_id: profile.id });
+
+      // Pay After Service: skip payment, go straight to bookings
       if (paymentMethod === 'pay_after_service') {
-        const { data, error } = await supabase
-          .from('bookings')
-          .insert([bookingData])
-          .select();
-
-        if (error) {
-          console.error('❌ Scheduled booking error:', error);
-          const isFlatError = error.message?.includes('flat details');
-          const isSlotError = error.message?.includes('Slot unavailable') || error.message?.includes('Not enough workers');
-          toast({
-            title: isSlotError ? "Slot unavailable" : "Booking Failed",
-            description: isFlatError
-              ? "Please update your flat details in Account Settings before booking."
-              : isSlotError
-              ? "No workers are available at this time. Please choose another time slot."
-              : `Error: ${error.message || 'Please try again.'}`,
-            variant: "destructive"
-          });
-          if (isFlatError) navigate('/profile/settings');
-          return;
-        }
-
         toast({
           title: "Booking scheduled!",
           description: "Worker will be assigned before the scheduled time. Pay after service is done."
@@ -313,9 +322,9 @@ export function ScheduleScreen() {
         return;
       }
 
-      // Pay Now: payment-first flow (NO booking until payment verified)
+      // Pay Now: Execute payment flow
       try {
-        await executePaymentFirstFlow(bookingData, walletBalance, (status) => {
+        await executePaymentFlow(newBookingId, (status) => {
           setPaymentStatus(status);
         });
 
@@ -329,7 +338,7 @@ export function ScheduleScreen() {
         const errType = payErr instanceof PaymentError ? payErr.type : 'payment_failed';
         setRetryErrorType(errType as PaymentErrorType);
         setRetryErrorMessage(payErr?.message);
-        setRetryBookingData(bookingData);
+        setRetryBookingId(newBookingId);
         setRetryBookingCreatedAt(new Date().toISOString());
         setRetrySheetOpen(true);
       }
@@ -637,27 +646,16 @@ export function ScheduleScreen() {
         {/* Payment Retry Sheet */}
         <PaymentRetrySheet
           open={retrySheetOpen}
-          onOpenChange={(open) => {
-            setRetrySheetOpen(open);
-            // Payment-first: no booking exists to cancel on dismiss
-            if (!open) {
-              setRetryBookingData(null);
-              setRetryBookingId(null);
-            }
-          }}
+          onOpenChange={setRetrySheetOpen}
           errorType={retryErrorType}
           errorMessage={retryErrorMessage}
           bookingCreatedAt={retryBookingCreatedAt}
           retrying={retrying}
           onRetry={async () => {
-            if (retrying) return;
+            if (!retryBookingId || retrying) return;
             setRetrying(true);
             try {
-              if (retryBookingData) {
-                await executePaymentFirstFlow(retryBookingData, walletBalance, setPaymentStatus);
-              } else if (retryBookingId) {
-                await executePaymentFlow(retryBookingId, setPaymentStatus);
-              }
+              await executePaymentFlow(retryBookingId, setPaymentStatus);
               setRetrySheetOpen(false);
               toast({ title: "Payment successful!", description: "Your scheduled booking is confirmed." });
               navigate('/bookings');
@@ -670,23 +668,11 @@ export function ScheduleScreen() {
             }
           }}
           onPayAfterService={async () => {
-            if (retryBookingData) {
-              const { error } = await supabase.from('bookings').insert([{
-                ...retryBookingData,
-                payment_method: 'pay_after_service',
-                payment_status: 'pay_after_service',
-              }]);
-              if (!error) {
-                setRetrySheetOpen(false);
-                toast({ title: "Booking scheduled!", description: "Pay after service is done." });
-                navigate('/bookings');
-              }
-            } else if (retryBookingId) {
-              await supabase.from('bookings').update({ payment_method: 'pay_after_service', payment_status: 'pay_after_service' }).eq('id', retryBookingId);
-              setRetrySheetOpen(false);
-              toast({ title: "Booking scheduled!", description: "Pay after service is done." });
-              navigate('/bookings');
-            }
+            if (!retryBookingId) return;
+            await supabase.from('bookings').update({ payment_method: 'pay_after_service', payment_status: 'pay_after_service' }).eq('id', retryBookingId);
+            setRetrySheetOpen(false);
+            toast({ title: "Booking scheduled!", description: "Pay after service is done." });
+            navigate('/bookings');
           }}
           onVerificationResolved={() => {
             setRetrySheetOpen(false);

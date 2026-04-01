@@ -12,6 +12,7 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // 1. Authenticate user
     const idToken = extractToken(req);
     if (!idToken) {
       return new Response(JSON.stringify({ error: "Not authenticated" }), {
@@ -21,18 +22,20 @@ Deno.serve(async (req) => {
     }
 
     const firebaseUser = await verifyFirebaseToken(idToken);
-    const body = await req.json();
-    const { booking_id, amount_inr, cust_name, cust_phone, service_type } = body;
 
-    if (!booking_id && !amount_inr) {
-      return new Response(JSON.stringify({ error: "booking_id or amount_inr required" }), {
+    // 2. Parse request
+    const { booking_id } = await req.json();
+    if (!booking_id) {
+      return new Response(JSON.stringify({ error: "booking_id required" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
+    // 3. Get booking from DB
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
+    // Map firebase_uid to profile
     const { data: profile } = await supabase
       .from("profiles")
       .select("id")
@@ -46,77 +49,58 @@ Deno.serve(async (req) => {
       });
     }
 
-    let chargeAmount: number;
-    let prefillName = cust_name || "";
-    let prefillContact = cust_phone || "";
-    let receiptId: string;
-    let orderNotes: Record<string, string>;
+    const { data: booking, error: bookingErr } = await supabase
+      .from("bookings")
+      .select("id, user_id, price_inr, payment_status, razorpay_order_id, cust_name, cust_phone, service_type, wallet_used_amount, razorpay_paid_amount")
+      .eq("id", booking_id)
+      .single();
 
-    if (booking_id) {
-      // ── MODE B: Legacy — booking already exists (retry / wallet partial) ──
-      const { data: booking, error: bookingErr } = await supabase
-        .from("bookings")
-        .select("id, user_id, price_inr, payment_status, razorpay_order_id, cust_name, cust_phone, service_type, wallet_used_amount, razorpay_paid_amount")
-        .eq("id", booking_id)
-        .single();
-
-      if (bookingErr || !booking) {
-        return new Response(JSON.stringify({ error: "Booking not found" }), {
-          status: 404,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      if (booking.user_id !== profile.id) {
-        return new Response(JSON.stringify({ error: "Booking does not belong to user" }), {
-          status: 403,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      if (booking.payment_status === "paid") {
-        return new Response(JSON.stringify({ error: "Booking already paid" }), {
-          status: 409,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      // Return existing order if already created
-      if (booking.razorpay_order_id && booking.payment_status === "order_created") {
-        const existingAmount = (booking.razorpay_paid_amount ?? booking.price_inr!) * 100;
-        return new Response(JSON.stringify({
-          order_id: booking.razorpay_order_id,
-          amount: existingAmount,
-          currency: "INR",
-          key_id: RAZORPAY_KEY_ID,
-          booking_id: booking.id,
-          prefill: { name: booking.cust_name, contact: booking.cust_phone },
-        }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      chargeAmount = booking.razorpay_paid_amount ?? booking.price_inr!;
-      prefillName = booking.cust_name;
-      prefillContact = booking.cust_phone;
-      receiptId = booking.id;
-      orderNotes = {
-        booking_id: booking.id,
-        service_type: booking.service_type,
-        user_id: booking.user_id,
-      };
-    } else {
-      // ── MODE A: Payment-first — no booking exists yet ──
-      chargeAmount = amount_inr;
-      receiptId = crypto.randomUUID();
-      orderNotes = {
-        service_type: service_type || "",
-        user_id: profile.id,
-        mode: "payment_first",
-      };
+    if (bookingErr || !booking) {
+      return new Response(JSON.stringify({ error: "Booking not found" }), {
+        status: 404,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    const amountInPaise = Math.round(chargeAmount * 100);
+    // 4. Verify booking belongs to user
+    if (booking.user_id !== profile.id) {
+      return new Response(JSON.stringify({ error: "Booking does not belong to user" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // 5. Prevent duplicate order creation if already paid
+    if (booking.payment_status === "paid") {
+      return new Response(JSON.stringify({ error: "Booking already paid" }), {
+        status: 409,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // 6. If order already exists and not yet paid, return existing order
+    if (booking.razorpay_order_id && booking.payment_status === "order_created") {
+      // Use razorpay_paid_amount if set (partial wallet payment), otherwise full price
+      const existingAmount = (booking.razorpay_paid_amount ?? booking.price_inr!) * 100;
+      return new Response(JSON.stringify({
+        order_id: booking.razorpay_order_id,
+        amount: existingAmount,
+        currency: "INR",
+        key_id: RAZORPAY_KEY_ID,
+        booking_id: booking.id,
+        prefill: {
+          name: booking.cust_name,
+          contact: booking.cust_phone,
+        },
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // 7. Server-side price validation
+    // Use razorpay_paid_amount if wallet was partially used, otherwise full price
+    const chargeAmount = booking.razorpay_paid_amount ?? booking.price_inr!;
+    const amountInPaise = chargeAmount * 100;
     if (amountInPaise <= 0) {
       return new Response(JSON.stringify({ error: "Invalid booking amount" }), {
         status: 400,
@@ -124,7 +108,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Create Razorpay order
+    // 8. Create Razorpay order
     const authHeader = "Basic " + btoa(`${RAZORPAY_KEY_ID}:${RAZORPAY_KEY_SECRET}`);
     const rpRes = await fetch("https://api.razorpay.com/v1/orders", {
       method: "POST",
@@ -135,8 +119,12 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         amount: amountInPaise,
         currency: "INR",
-        receipt: receiptId,
-        notes: orderNotes,
+        receipt: booking.id,
+        notes: {
+          booking_id: booking.id,
+          service_type: booking.service_type,
+          user_id: booking.user_id,
+        },
       }),
     });
 
@@ -151,25 +139,27 @@ Deno.serve(async (req) => {
 
     const rpOrder = await rpRes.json();
 
-    // If legacy mode, update booking with order info
-    if (booking_id) {
-      await supabase
-        .from("bookings")
-        .update({
-          razorpay_order_id: rpOrder.id,
-          payment_status: "order_created",
-          payment_amount_inr: chargeAmount,
-        })
-        .eq("id", booking_id);
-    }
+    // 9. Update booking with order info
+    await supabase
+      .from("bookings")
+      .update({
+        razorpay_order_id: rpOrder.id,
+        payment_status: "order_created",
+        payment_amount_inr: chargeAmount,
+      })
+      .eq("id", booking.id);
 
+    // 10. Return order details to frontend
     return new Response(JSON.stringify({
       order_id: rpOrder.id,
       amount: amountInPaise,
       currency: "INR",
       key_id: RAZORPAY_KEY_ID,
-      booking_id: booking_id || null,
-      prefill: { name: prefillName, contact: prefillContact },
+      booking_id: booking.id,
+      prefill: {
+        name: booking.cust_name,
+        contact: booking.cust_phone,
+      },
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
