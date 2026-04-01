@@ -519,7 +519,7 @@ export function BookingCard({
             <div className="flex-1">
               <p className="text-xs font-semibold text-emerald-800">₹{row.wallet_refund_amount} added to wallet</p>
               <p className="text-[10px] text-emerald-600">
-                {formatRefundReason(row.wallet_refund_reason)}
+                {formatWalletReason(row.wallet_refund_reason)}
               </p>
             </div>
           </div>
