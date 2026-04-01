@@ -335,9 +335,13 @@ export async function executePaymentFlowForNewBooking(
 
   const paymentType = walletCanCover > 0 ? 'wallet_and_razorpay' : 'razorpay';
 
+  // Generate idempotency key for Razorpay flow too
+  const razorpayRequestId = crypto.randomUUID();
+  const razorpayPayloadWithRequestId = { ...bookingPayload, request_id: razorpayRequestId };
+
   try {
     const result = await createPaidBooking({
-      booking_data: bookingPayload,
+      booking_data: razorpayPayloadWithRequestId,
       payment_type: paymentType,
       razorpay_order_id: checkoutResult!.razorpay_order_id,
       razorpay_payment_id: checkoutResult!.razorpay_payment_id,
