@@ -180,7 +180,10 @@ export function PaymentRetrySheet({
             <Button
               className="w-full h-12 text-sm font-semibold rounded-2xl gap-2"
               disabled={retrying || isExpired}
-              onClick={onRetry}
+              onClick={() => {
+                trackPaymentEvent('payment_retry_clicked', { error_type: errorType });
+                onRetry();
+              }}
             >
               {retrying ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -191,8 +194,16 @@ export function PaymentRetrySheet({
             </Button>
           )}
 
-          {/* Fallback suggestion */}
-          {config.showFallback && !isExpired && (
+          {/* Smart retry suggestion */}
+          {retrySuggestion && !isExpired && !retrying && (
+            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-muted/50 text-xs text-muted-foreground">
+              <CreditCard className="w-3.5 h-3.5 shrink-0" />
+              <span>{retrySuggestion}</span>
+            </div>
+          )}
+
+          {/* Fallback suggestion (when no smart suggestion) */}
+          {config.showFallback && !retrySuggestion && !isExpired && (
             <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-muted/50 text-xs text-muted-foreground">
               <CreditCard className="w-3.5 h-3.5 shrink-0" />
               <span>Try Card or Netbanking if UPI didn't work</span>
