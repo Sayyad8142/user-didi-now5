@@ -469,6 +469,7 @@ export function InstantCheckoutScreen() {
                     {paymentStatus === 'creating_order' && 'Creating order...'}
                     {paymentStatus === 'opening_checkout' && 'Opening payment...'}
                     {paymentStatus === 'verifying_payment' && 'Verifying payment...'}
+                    {paymentStatus === 'verification_pending' && 'Verifying payment, please wait...'}
                     {(!paymentStatus || paymentStatus === 'payment_success') && 'Processing...'}
                   </span>
                 </div>
