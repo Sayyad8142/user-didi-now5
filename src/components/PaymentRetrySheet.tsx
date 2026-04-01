@@ -96,6 +96,7 @@ interface PaymentRetrySheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   errorType: PaymentErrorType;
+  errorMessage?: string; // actual error description for debugging
   bookingCreatedAt: string | null;
   onRetry: () => void;
   onPayAfterService?: () => void;
