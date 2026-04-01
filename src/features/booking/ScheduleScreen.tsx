@@ -635,6 +635,42 @@ export function ScheduleScreen() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {/* Payment Retry Sheet */}
+        <PaymentRetrySheet
+          open={retrySheetOpen}
+          onOpenChange={setRetrySheetOpen}
+          errorType={retryErrorType}
+          bookingCreatedAt={retryBookingCreatedAt}
+          retrying={retrying}
+          onRetry={async () => {
+            if (!retryBookingId || retrying) return;
+            setRetrying(true);
+            try {
+              await executePaymentFlow(retryBookingId, setPaymentStatus);
+              setRetrySheetOpen(false);
+              toast({ title: "Payment successful!", description: "Your scheduled booking is confirmed." });
+              navigate('/bookings');
+            } catch (err: any) {
+              const errType = err instanceof PaymentError ? err.type : 'payment_failed';
+              setRetryErrorType(errType as PaymentErrorType);
+            } finally {
+              setRetrying(false);
+            }
+          }}
+          onPayAfterService={async () => {
+            if (!retryBookingId) return;
+            await supabase.from('bookings').update({ payment_method: 'pay_after_service', payment_status: 'pay_after_service' }).eq('id', retryBookingId);
+            setRetrySheetOpen(false);
+            toast({ title: "Booking scheduled!", description: "Pay after service is done." });
+            navigate('/bookings');
+          }}
+          onVerificationResolved={() => {
+            setRetrySheetOpen(false);
+            toast({ title: "Payment being verified", description: "Your booking will update automatically." });
+            navigate('/bookings');
+          }}
+        />
       </div>
     </div>
   );
