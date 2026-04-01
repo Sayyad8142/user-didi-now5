@@ -262,7 +262,7 @@ Deno.serve(async (req) => {
       }),
     );
 
-    // 8. Insert booking
+    // 9. Insert booking
     const { data: newBooking, error: insertErr } = await supabase
       .from("bookings")
       .insert([bookingRow])
