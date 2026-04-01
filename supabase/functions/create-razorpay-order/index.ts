@@ -1,12 +1,3 @@
-/**
- * create-razorpay-order — Creates a Razorpay order.
- *
- * Supports TWO modes:
- *   1. Legacy mode:        { booking_id }          — looks up existing booking (for retries)
- *   2. Payment-first mode: { amount, service_type } — creates order without a booking row
- *
- * Payment-first mode is used when no booking exists yet (pay_now flow).
- */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { verifyFirebaseToken, extractToken, corsHeaders } from "../_shared/firebaseAuth.ts";
 
@@ -14,13 +5,6 @@ const RAZORPAY_KEY_ID = Deno.env.get("RAZORPAY_KEY_ID")!;
 const RAZORPAY_KEY_SECRET = Deno.env.get("RAZORPAY_KEY_SECRET")!;
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-
-function json(body: Record<string, unknown>, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
-}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -30,87 +14,39 @@ Deno.serve(async (req) => {
   try {
     // 1. Authenticate user
     const idToken = extractToken(req);
-    if (!idToken) return json({ error: "Not authenticated" }, 401);
+    if (!idToken) {
+      return new Response(JSON.stringify({ error: "Not authenticated" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const firebaseUser = await verifyFirebaseToken(idToken);
 
     // 2. Parse request
-    const body = await req.json();
-    const { booking_id, amount, service_type } = body;
-
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-
-    // 3. Map firebase_uid to profile
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("id, full_name, phone")
-      .eq("firebase_uid", firebaseUser.uid)
-      .single();
-
-    if (!profile) return json({ error: "Profile not found" }, 404);
-
-    // ────────────────────────────────────────────────────────────
-    // MODE A: Payment-first (no booking exists yet)
-    // ────────────────────────────────────────────────────────────
-    if (!booking_id && amount && service_type) {
-      const amountInPaise = Math.round(amount * 100);
-      if (amountInPaise <= 0) {
-        return json({ error: "Invalid amount" }, 400);
-      }
-
-      const receipt = `pf_${profile.id.slice(0, 8)}_${Date.now()}`;
-      const prefillName = /^\+?\d{7,15}$/.test((profile.full_name || "").trim())
-        ? "User " + (profile.phone || "").slice(-4)
-        : profile.full_name || "";
-
-      // Create Razorpay order
-      const authHeader = "Basic " + btoa(`${RAZORPAY_KEY_ID}:${RAZORPAY_KEY_SECRET}`);
-      const rpRes = await fetch("https://api.razorpay.com/v1/orders", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: authHeader,
-        },
-        body: JSON.stringify({
-          amount: amountInPaise,
-          currency: "INR",
-          receipt,
-          notes: {
-            service_type,
-            user_id: profile.id,
-            mode: "payment_first",
-          },
-        }),
-      });
-
-      if (!rpRes.ok) {
-        const errText = await rpRes.text();
-        console.error("Razorpay order creation failed:", rpRes.status, errText);
-        return json({ error: "Failed to create payment order" }, 502);
-      }
-
-      const rpOrder = await rpRes.json();
-
-      console.log(`[create-razorpay-order] ✅ Payment-first order: ${rpOrder.id}, amount: ₹${amount}`);
-
-      return json({
-        order_id: rpOrder.id,
-        amount: amountInPaise,
-        currency: "INR",
-        key_id: RAZORPAY_KEY_ID,
-        booking_id: receipt, // Use receipt as placeholder (no real booking yet)
-        prefill: {
-          name: prefillName,
-          contact: profile.phone || "",
-        },
+    const { booking_id } = await req.json();
+    if (!booking_id) {
+      return new Response(JSON.stringify({ error: "booking_id required" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // ────────────────────────────────────────────────────────────
-    // MODE B: Legacy mode (existing booking_id) — for retries
-    // ────────────────────────────────────────────────────────────
-    if (!booking_id) {
-      return json({ error: "booking_id or (amount + service_type) required" }, 400);
+    // 3. Get booking from DB
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+    // Map firebase_uid to profile
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("firebase_uid", firebaseUser.uid)
+      .single();
+
+    if (!profile) {
+      return new Response(JSON.stringify({ error: "Profile not found" }), {
+        status: 404,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     const { data: booking, error: bookingErr } = await supabase
@@ -120,21 +56,33 @@ Deno.serve(async (req) => {
       .single();
 
     if (bookingErr || !booking) {
-      return json({ error: "Booking not found" }, 404);
+      return new Response(JSON.stringify({ error: "Booking not found" }), {
+        status: 404,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
+    // 4. Verify booking belongs to user
     if (booking.user_id !== profile.id) {
-      return json({ error: "Booking does not belong to user" }, 403);
+      return new Response(JSON.stringify({ error: "Booking does not belong to user" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
+    // 5. Prevent duplicate order creation if already paid
     if (booking.payment_status === "paid") {
-      return json({ error: "Booking already paid" }, 409);
+      return new Response(JSON.stringify({ error: "Booking already paid" }), {
+        status: 409,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    // If order already exists and not yet paid, return existing order
+    // 6. If order already exists and not yet paid, return existing order
     if (booking.razorpay_order_id && booking.payment_status === "order_created") {
+      // Use razorpay_paid_amount if set (partial wallet payment), otherwise full price
       const existingAmount = (booking.razorpay_paid_amount ?? booking.price_inr!) * 100;
-      return json({
+      return new Response(JSON.stringify({
         order_id: booking.razorpay_order_id,
         amount: existingAmount,
         currency: "INR",
@@ -144,15 +92,23 @@ Deno.serve(async (req) => {
           name: booking.cust_name,
           contact: booking.cust_phone,
         },
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
+    // 7. Server-side price validation
+    // Use razorpay_paid_amount if wallet was partially used, otherwise full price
     const chargeAmount = booking.razorpay_paid_amount ?? booking.price_inr!;
     const amountInPaise = chargeAmount * 100;
     if (amountInPaise <= 0) {
-      return json({ error: "Invalid booking amount" }, 400);
+      return new Response(JSON.stringify({ error: "Invalid booking amount" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
+    // 8. Create Razorpay order
     const authHeader = "Basic " + btoa(`${RAZORPAY_KEY_ID}:${RAZORPAY_KEY_SECRET}`);
     const rpRes = await fetch("https://api.razorpay.com/v1/orders", {
       method: "POST",
@@ -175,11 +131,15 @@ Deno.serve(async (req) => {
     if (!rpRes.ok) {
       const errText = await rpRes.text();
       console.error("Razorpay order creation failed:", rpRes.status, errText);
-      return json({ error: "Failed to create payment order" }, 502);
+      return new Response(JSON.stringify({ error: "Failed to create payment order" }), {
+        status: 502,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     const rpOrder = await rpRes.json();
 
+    // 9. Update booking with order info
     await supabase
       .from("bookings")
       .update({
@@ -189,7 +149,8 @@ Deno.serve(async (req) => {
       })
       .eq("id", booking.id);
 
-    return json({
+    // 10. Return order details to frontend
+    return new Response(JSON.stringify({
       order_id: rpOrder.id,
       amount: amountInPaise,
       currency: "INR",
@@ -199,10 +160,15 @@ Deno.serve(async (req) => {
         name: booking.cust_name,
         contact: booking.cust_phone,
       },
+    }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
 
   } catch (err: any) {
     console.error("create-razorpay-order error:", err);
-    return json({ error: err.message || "Internal error" }, 500);
+    return new Response(JSON.stringify({ error: err.message || "Internal error" }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });
