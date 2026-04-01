@@ -279,42 +279,32 @@ export function ScheduleScreen() {
         payment_status: paymentMethod === 'pay_after_service' ? 'pay_after_service' : 'pending',
       };
 
-      console.log('📤 Sending scheduled booking to database:', bookingData);
+      console.log('📤 Scheduled booking data prepared:', bookingData);
 
-      const { data, error } = await supabase
-        .from('bookings')
-        .insert([bookingData])
-        .select();
-
-      if (error) {
-        console.error('❌ Scheduled booking error:', error);
-        const isFlatError = error.message?.includes('flat details');
-        const isSlotError = error.message?.includes('Slot unavailable') || error.message?.includes('Not enough workers');
-        toast({
-          title: isSlotError ? "Slot unavailable" : "Booking Failed",
-          description: isFlatError
-            ? "Please update your flat details in Account Settings before booking."
-            : isSlotError
-            ? "No workers are available at this time. Please choose another time slot."
-            : `Error: ${error.message || 'Please try again.'}`,
-          variant: "destructive"
-        });
-        if (isFlatError) navigate('/profile/settings');
-        return;
-      }
-
-      console.log('✅ Scheduled booking created successfully:', data);
-
-      const newBookingId = data?.[0]?.id;
-      if (!newBookingId) {
-        toast({ title: "Booking Failed", description: "No booking ID returned.", variant: "destructive" });
-        return;
-      }
-
-      trackPaymentEvent('booking_created', { booking_id: newBookingId, user_id: profile.id });
-
-      // Pay After Service: skip payment, go straight to bookings
+      // Pay After Service: create booking directly (no payment risk)
       if (paymentMethod === 'pay_after_service') {
+        const { data, error } = await supabase
+          .from('bookings')
+          .insert([bookingData])
+          .select();
+
+        if (error) {
+          console.error('❌ Scheduled booking error:', error);
+          const isFlatError = error.message?.includes('flat details');
+          const isSlotError = error.message?.includes('Slot unavailable') || error.message?.includes('Not enough workers');
+          toast({
+            title: isSlotError ? "Slot unavailable" : "Booking Failed",
+            description: isFlatError
+              ? "Please update your flat details in Account Settings before booking."
+              : isSlotError
+              ? "No workers are available at this time. Please choose another time slot."
+              : `Error: ${error.message || 'Please try again.'}`,
+            variant: "destructive"
+          });
+          if (isFlatError) navigate('/profile/settings');
+          return;
+        }
+
         toast({
           title: "Booking scheduled!",
           description: "Worker will be assigned before the scheduled time. Pay after service is done."
@@ -323,9 +313,9 @@ export function ScheduleScreen() {
         return;
       }
 
-      // Pay Now: Execute payment flow
+      // Pay Now: payment-first flow (NO booking until payment verified)
       try {
-        await executePaymentFlow(newBookingId, (status) => {
+        await executePaymentFirstFlow(bookingData, walletBalance, (status) => {
           setPaymentStatus(status);
         });
 
@@ -339,7 +329,7 @@ export function ScheduleScreen() {
         const errType = payErr instanceof PaymentError ? payErr.type : 'payment_failed';
         setRetryErrorType(errType as PaymentErrorType);
         setRetryErrorMessage(payErr?.message);
-        setRetryBookingId(newBookingId);
+        setRetryBookingData(bookingData);
         setRetryBookingCreatedAt(new Date().toISOString());
         setRetrySheetOpen(true);
       }
