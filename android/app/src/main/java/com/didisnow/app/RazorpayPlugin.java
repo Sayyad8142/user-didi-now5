@@ -46,7 +46,24 @@ public class RazorpayPlugin extends Plugin implements PaymentResultWithDataListe
         String prefillName = call.getString("prefill_name", "");
         String themeColor = call.getString("theme_color", "#ec4899");
 
+        // Detailed input logging
+        Log.d(TAG, "╔══════════════════════════════════════════");
+        Log.d(TAG, "║ RAZORPAY CHECKOUT INPUT");
+        Log.d(TAG, "╠══════════════════════════════════════════");
+        Log.d(TAG, "║ key: " + (key != null ? key.substring(0, Math.min(12, key.length())) + "..." : "NULL"));
+        Log.d(TAG, "║ key_type: " + (key != null && key.startsWith("rzp_live") ? "LIVE" : key != null && key.startsWith("rzp_test") ? "TEST" : "UNKNOWN"));
+        Log.d(TAG, "║ amount (paise): " + amount);
+        Log.d(TAG, "║ amount (INR): " + (amount != null ? amount / 100.0 : "NULL"));
+        Log.d(TAG, "║ currency: " + currency);
+        Log.d(TAG, "║ order_id: " + orderId);
+        Log.d(TAG, "║ name: " + name);
+        Log.d(TAG, "║ description: " + description);
+        Log.d(TAG, "║ prefill_contact: " + (prefillContact.isEmpty() ? "EMPTY" : "***" + prefillContact.substring(Math.max(0, prefillContact.length() - 4))));
+        Log.d(TAG, "║ prefill_name: " + (prefillName.isEmpty() ? "EMPTY" : prefillName));
+        Log.d(TAG, "╚══════════════════════════════════════════");
+
         if (key == null || orderId == null || amount == null) {
+            Log.e(TAG, "❌ Missing required fields: key=" + (key == null) + " orderId=" + (orderId == null) + " amount=" + (amount == null));
             call.reject("Missing required fields: key, order_id, amount");
             return;
         }
