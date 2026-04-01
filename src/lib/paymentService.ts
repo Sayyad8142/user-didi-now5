@@ -149,7 +149,7 @@ interface CreatePaidBookingParams {
 
 async function createPaidBooking(params: CreatePaidBookingParams): Promise<PaymentResult> {
   console.log('📝 Creating paid booking via edge function:', params.payment_type);
-  return invokeWithFirebaseAuth<PaymentResult>('create-paid-booking', params);
+  return invokeWithFirebaseAuth<PaymentResult>('create-paid-booking', params as unknown as Record<string, unknown>);
 }
 
 // ─── Legacy Helpers (for existing booking retries) ────────────

@@ -14,6 +14,7 @@ import { getAppPlatform } from '@/utils/platform';
 export type PaymentEventName =
   | 'booking_created'
   | 'payment_started'
+  | 'payment_first_started'
   | 'payment_checkout_opened'
   | 'payment_success'
   | 'payment_failed'
