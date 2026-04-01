@@ -547,13 +547,6 @@ export function BookingForm() {
       clearPreferredWorker();
       navigate(bookingType === 'instant' ? '/bookings' : '/home');
 
-      toast({
-        title: "Booking received!",
-        description: bookingType === 'instant' ? "Service will arrive in 10 minutes." : "Your booking has been scheduled successfully."
-      });
-      setScheduleSheetOpen(false);
-      clearPreferredWorker();
-      navigate('/home');
     } catch (err: any) {
       console.error('❌ Booking error:', err);
       const isNetworkError = err?.message?.includes('Load failed') || err?.message?.includes('Failed to fetch') || err?.message?.includes('NetworkError');
