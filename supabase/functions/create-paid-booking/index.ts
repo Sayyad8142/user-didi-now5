@@ -302,7 +302,7 @@ Deno.serve(async (req) => {
       `[create-paid-booking] ✅ Booking created: ${newBooking.id}`,
     );
 
-    // 9. Update wallet transaction with booking reference (if applicable)
+    // 10. Update wallet transaction with booking reference (if applicable)
     if (walletDebited > 0) {
       await supabase
         .from("wallet_transactions")
