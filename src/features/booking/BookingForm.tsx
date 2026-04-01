@@ -29,7 +29,8 @@ import { useFlatSize } from '@/hooks/useFlatSize';
 import { MaidPriceChartSheet } from './MaidPriceChartSheet';
 import { PaymentMethodSelector, type PaymentMethod } from '@/components/PaymentMethodSelector';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription } from '@/components/ui/alert-dialog';
-import { executePaymentFlow, PaymentError, type PaymentFlowStatus } from '@/lib/paymentService';
+import { executePaymentFlow, PaymentError, type PaymentFlowStatus, type PaymentErrorType } from '@/lib/paymentService';
+import { PaymentRetrySheet } from '@/components/PaymentRetrySheet';
 import { CreditCard, HandCoins } from 'lucide-react';
 import { useWalletBalance } from '@/hooks/useWallet';
 
