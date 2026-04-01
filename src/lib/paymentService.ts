@@ -163,6 +163,8 @@ export async function executePaymentFlow(
   bookingId: string,
   onStatusChange: (status: PaymentFlowStatus) => void,
 ): Promise<PaymentResult> {
+  trackPaymentEvent('payment_started', { booking_id: bookingId });
+
   // Step 1: Try wallet
   onStatusChange('debiting_wallet');
   let walletResult: WalletPayResult | null = null;
@@ -178,6 +180,14 @@ export async function executePaymentFlow(
   if (walletResult?.fully_paid) {
     console.log('✅ Fully paid by wallet');
     onStatusChange('payment_success');
+    trackPaymentEvent('payment_success', {
+      booking_id: bookingId,
+      payment_method: 'wallet',
+      wallet_used_amount: walletResult.wallet_debited,
+    });
+    savePreferredMethod('wallet');
+    clearLastFailure();
+    logPaymentSummary();
     return { success: true, booking_id: bookingId, payment_method: 'wallet' };
   }
 
@@ -188,6 +198,12 @@ export async function executePaymentFlow(
 
   // Step 4: Open checkout (native on Android, web otherwise)
   onStatusChange('opening_checkout');
+  trackPaymentEvent('payment_checkout_opened', {
+    booking_id: bookingId,
+    amount: order.amount / 100,
+    wallet_used_amount: walletResult?.wallet_debited ?? 0,
+  });
+
   let checkoutResult;
   try {
     checkoutResult = await runCheckout(order);
@@ -196,18 +212,25 @@ export async function executePaymentFlow(
     if (msg === 'Payment cancelled by user') {
       console.log('🚪 User cancelled payment');
       onStatusChange('payment_cancelled');
+      trackPaymentEvent('payment_cancelled', { booking_id: bookingId });
+      saveLastFailure('upi', 'user_cancelled');
       throw new PaymentError('Payment cancelled by user', 'user_cancelled');
     }
     if (isNetworkError(err)) {
       onStatusChange('payment_failed');
+      trackPaymentEvent('payment_failed', { booking_id: bookingId, error_type: 'network_error' });
+      saveLastFailure('upi', 'network_error');
       throw new PaymentError('Network error during payment. Please check your connection and try again.', 'network_error');
     }
     onStatusChange('payment_failed');
+    trackPaymentEvent('payment_failed', { booking_id: bookingId, error_type: 'payment_failed' });
+    saveLastFailure('upi', 'payment_failed');
     throw new PaymentError(msg || 'Payment failed', 'payment_failed');
   }
 
   // Step 5: Verify on backend with retry (source of truth)
   onStatusChange('verifying_payment');
+  trackPaymentEvent('payment_verification_pending', { booking_id: bookingId });
   const paymentMethod = walletResult && walletResult.wallet_debited > 0 ? 'wallet+razorpay' : 'razorpay';
 
   try {
@@ -218,12 +241,20 @@ export async function executePaymentFlow(
       checkoutResult.razorpay_signature,
     );
     onStatusChange('payment_success');
+    trackPaymentEvent('payment_success', {
+      booking_id: bookingId,
+      payment_method: paymentMethod,
+      wallet_used_amount: walletResult?.wallet_debited ?? 0,
+    });
+    trackPaymentEvent('payment_verified_success', { booking_id: bookingId });
+    savePreferredMethod('upi');
+    clearLastFailure();
+    logPaymentSummary();
     return { ...verifyResult, payment_method: paymentMethod };
   } catch (verifyErr: any) {
-    // All 3 verify attempts failed — DO NOT mark as success
-    // Webhook will reconcile. Tell user to wait.
     console.warn('⚠️ All verify attempts failed, webhook will reconcile:', verifyErr.message);
     onStatusChange('verification_pending');
+    trackPaymentEvent('payment_failed', { booking_id: bookingId, error_type: 'verification_failed' });
     throw new PaymentError(
       'Payment is being verified. Please wait a moment — your booking will update automatically.',
       'verification_failed',
