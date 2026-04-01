@@ -97,7 +97,7 @@ function runWebCheckout(order: RazorpayOrderResponse): Promise<CheckoutSuccessPa
       amount: order.amount,
       currency: order.currency,
       name: 'Didi Now',
-      description: `Booking #${order.booking_id.slice(0, 8)}`,
+      description: order.booking_id ? `Booking #${order.booking_id.slice(0, 8)}` : `Payment #${order.order_id.slice(0, 8)}`,
       order_id: order.order_id,
       prefill: {
         name: order.prefill?.name || '',
