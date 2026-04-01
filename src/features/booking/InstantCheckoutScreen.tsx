@@ -505,18 +505,10 @@ export function InstantCheckoutScreen() {
       {/* Payment Retry Sheet */}
       <PaymentRetrySheet
         open={retrySheetOpen}
-        onOpenChange={async (open) => {
+        onOpenChange={(open) => {
           setRetrySheetOpen(open);
-          if (!open && retryBookingId) {
-            console.log('🗑️ Cancelling unpaid booking on retry dismiss:', retryBookingId);
-            await supabase.from('bookings').update({
-              status: 'cancelled',
-              cancelled_at: new Date().toISOString(),
-              cancelled_by: 'user',
-              cancellation_reason: 'payment_not_completed',
-              cancel_source: 'user',
-              cancel_reason: 'Payment not completed',
-            }).eq('id', retryBookingId).eq('payment_status', 'pending');
+          if (!open) {
+            setRetryBookingData(null);
             setRetryBookingId(null);
           }
         }}
@@ -525,10 +517,14 @@ export function InstantCheckoutScreen() {
         bookingCreatedAt={retryBookingCreatedAt}
         retrying={retrying}
         onRetry={async () => {
-          if (!retryBookingId || retrying) return;
+          if (retrying) return;
           setRetrying(true);
           try {
-            await executePaymentFlow(retryBookingId, setPaymentStatus);
+            if (retryBookingData) {
+              await executePaymentFirstFlow(retryBookingData, walletBalance, setPaymentStatus);
+            } else if (retryBookingId) {
+              await executePaymentFlow(retryBookingId, setPaymentStatus);
+            }
             setRetrySheetOpen(false);
             sessionStorage.removeItem(`preferred_worker_${service_type}`);
             toast({ title: "Payment successful!", description: "Your booking is confirmed." });
@@ -542,11 +538,23 @@ export function InstantCheckoutScreen() {
           }
         }}
         onPayAfterService={async () => {
-          if (!retryBookingId) return;
-          await supabase.from('bookings').update({ payment_method: 'pay_after_service', payment_status: 'pay_after_service' }).eq('id', retryBookingId);
-          setRetrySheetOpen(false);
-          toast({ title: "Booking confirmed!", description: "Pay after service is done." });
-          navigate('/bookings');
+          if (retryBookingData) {
+            const { error } = await supabase.from('bookings').insert([{
+              ...retryBookingData,
+              payment_method: 'pay_after_service',
+              payment_status: 'pay_after_service',
+            }]);
+            if (!error) {
+              setRetrySheetOpen(false);
+              toast({ title: "Booking confirmed!", description: "Pay after service is done." });
+              navigate('/bookings');
+            }
+          } else if (retryBookingId) {
+            await supabase.from('bookings').update({ payment_method: 'pay_after_service', payment_status: 'pay_after_service' }).eq('id', retryBookingId);
+            setRetrySheetOpen(false);
+            toast({ title: "Booking confirmed!", description: "Pay after service is done." });
+            navigate('/bookings');
+          }
         }}
         onVerificationResolved={() => {
           setRetrySheetOpen(false);
