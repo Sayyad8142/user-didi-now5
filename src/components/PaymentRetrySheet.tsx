@@ -124,6 +124,9 @@ export function PaymentRetrySheet({
       trackPaymentEvent('payment_method_selected', { error_type: errorType });
     }
   }, [open, errorType]);
+
+  // Auto-dismiss verification_failed after 15s
+  useEffect(() => {
     if (errorType !== 'verification_failed' || !open) return;
     const t = setTimeout(() => {
       onVerificationResolved?.();
