@@ -112,7 +112,12 @@ public class RazorpayPlugin extends Plugin implements PaymentResultWithDataListe
 
     @Override
     public void onPaymentSuccess(String razorpayPaymentId, PaymentData paymentData) {
-        Log.d(TAG, "✅ Payment success: " + razorpayPaymentId);
+        Log.d(TAG, "╔══════════════════════════════════════════");
+        Log.d(TAG, "║ ✅ PAYMENT SUCCESS");
+        Log.d(TAG, "║ payment_id: " + paymentData.getPaymentId());
+        Log.d(TAG, "║ order_id: " + paymentData.getOrderId());
+        Log.d(TAG, "║ signature: " + (paymentData.getSignature() != null ? paymentData.getSignature().substring(0, Math.min(20, paymentData.getSignature().length())) + "..." : "NULL"));
+        Log.d(TAG, "╚══════════════════════════════════════════");
         if (savedCall != null) {
             JSObject result = new JSObject();
             result.put("razorpay_payment_id", paymentData.getPaymentId());
@@ -125,7 +130,16 @@ public class RazorpayPlugin extends Plugin implements PaymentResultWithDataListe
 
     @Override
     public void onPaymentError(int code, String description, PaymentData paymentData) {
-        Log.w(TAG, "❌ Payment error [code=" + code + "]: " + description);
+        Log.e(TAG, "╔══════════════════════════════════════════");
+        Log.e(TAG, "║ ❌ PAYMENT ERROR");
+        Log.e(TAG, "║ code: " + code);
+        Log.e(TAG, "║ description: " + description);
+        Log.e(TAG, "║ user_cancelled: " + (code == 2));
+        if (paymentData != null) {
+            Log.e(TAG, "║ payment_id: " + paymentData.getPaymentId());
+            Log.e(TAG, "║ order_id: " + paymentData.getOrderId());
+        }
+        Log.e(TAG, "╚══════════════════════════════════════════");
         if (savedCall != null) {
             JSObject error = new JSObject();
             error.put("code", code);
