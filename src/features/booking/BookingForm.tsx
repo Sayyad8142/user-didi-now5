@@ -29,7 +29,7 @@ import { useFlatSize } from '@/hooks/useFlatSize';
 import { MaidPriceChartSheet } from './MaidPriceChartSheet';
 import { PaymentMethodSelector, type PaymentMethod } from '@/components/PaymentMethodSelector';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription } from '@/components/ui/alert-dialog';
-import { executePaymentFlow, PaymentError, type PaymentFlowStatus, type PaymentErrorType } from '@/lib/paymentService';
+import { executePaymentFlow, executePaymentFlowForNewBooking, PaymentError, type PaymentFlowStatus, type PaymentErrorType } from '@/lib/paymentService';
 import { PaymentRetrySheet } from '@/components/PaymentRetrySheet';
 import { trackPaymentEvent } from '@/lib/paymentAnalytics';
 import { CreditCard, HandCoins } from 'lucide-react';
@@ -435,7 +435,6 @@ export function BookingForm() {
 
     setSubmitting(true);
     try {
-      const isPayAfter = bookingType === 'instant' && paymentMethod === 'pay_after_service';
       const bookingData = {
         user_id: profile.id,
         service_type,
@@ -461,47 +460,44 @@ export function BookingForm() {
         community: profile.community,
         flat_no: profile.flat_no,
         preferred_worker_id: null,
-        payment_method: isPayAfter ? 'pay_after_service' : null,
-        payment_status: isPayAfter ? 'pay_after_service' : 'pending',
       } as any;
 
-      console.log('📤 Sending booking data to database:', bookingData);
+      const isPayAfter = bookingType === 'instant' && paymentMethod === 'pay_after_service';
+      const isPayNow = bookingType === 'instant' && paymentMethod === 'pay_now';
 
-      const { data, error } = await supabase.from('bookings').insert([bookingData]).select();
+      // ── Pay After Service OR non-payment booking: insert directly ──
+      if (isPayAfter || !isPayNow) {
+        const insertData = {
+          ...bookingData,
+          payment_method: isPayAfter ? 'pay_after_service' : null,
+          payment_status: isPayAfter ? 'pay_after_service' : 'pending',
+        };
 
-      if (error) {
-        console.error('❌ Booking error:', {
-          error,
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-          code: error.code
-        });
-        // Handle SUPPLY_FULL from DB trigger
-        if (error.message?.includes('SUPPLY_FULL')) {
-          refetchSupply();
-          setSupplyModalOpen(true);
+        console.log('📤 Sending booking data to database:', insertData);
+        const { data, error } = await supabase.from('bookings').insert([insertData]).select();
+
+        if (error) {
+          console.error('❌ Booking error:', error);
+          if (error.message?.includes('SUPPLY_FULL')) {
+            refetchSupply();
+            setSupplyModalOpen(true);
+            return;
+          }
+          const isFlatError = error.message?.includes('flat details');
+          toast({
+            title: "Booking Failed",
+            description: isFlatError ?
+              "Please update your flat details in Account Settings before booking." :
+              `Error: ${error.message || 'Please try again.'}`,
+            variant: "destructive"
+          });
+          if (isFlatError) navigate('/profile/settings');
           return;
         }
-        const isFlatError = error.message?.includes('flat details');
-        toast({
-          title: "Booking Failed",
-          description: isFlatError ?
-          "Please update your flat details in Account Settings before booking." :
-          `Error: ${error.message || 'Please try again.'}`,
-          variant: "destructive"
-        });
-        if (isFlatError) navigate('/profile/settings');
-        return;
-      }
 
-      console.log('✅ Booking created successfully:', data);
-      const newBookingId = data?.[0]?.id;
+        console.log('✅ Booking created successfully:', data);
+        trackPaymentEvent('booking_created', { booking_id: data?.[0]?.id, user_id: profile.id, amount: price });
 
-      trackPaymentEvent('booking_created', { booking_id: newBookingId, user_id: profile.id, amount: price });
-
-      // Pay After Service: skip payment flow
-      if (isPayAfter || !newBookingId) {
         toast({
           title: isPayAfter ? "Booking confirmed!" : "Booking received!",
           description: bookingType === 'instant' 
@@ -514,37 +510,30 @@ export function BookingForm() {
         return;
       }
 
-      // Pay Now: Execute payment flow
-      if (bookingType === 'instant' && paymentMethod === 'pay_now') {
-        try {
-          await executePaymentFlow(newBookingId, (status) => {
-            setPaymentStatus(status);
-          });
-          toast({
-            title: "Payment successful!",
-            description: "Your booking is confirmed. Worker will arrive in ~10 minutes."
-          });
-          clearPreferredWorker();
-          navigate('/bookings');
-        } catch (payErr: any) {
-          console.error('❌ Payment error:', payErr);
-          const errType = payErr instanceof PaymentError ? payErr.type : 'payment_failed';
-          setRetryErrorType(errType as PaymentErrorType);
-          setRetryErrorMessage(payErr?.message);
-          setRetryBookingId(newBookingId);
-          setRetryBookingCreatedAt(new Date().toISOString())
-          setRetrySheetOpen(true);
-        }
-        return;
-      }
+      // ── Pay Now (instant): PAYMENT-FIRST — no booking until payment verified ──
+      console.log('💳 Starting payment-first flow for instant booking');
+      try {
+        const result = await executePaymentFlowForNewBooking(bookingData, (status) => {
+          setPaymentStatus(status);
+        });
 
-      toast({
-        title: "Booking received!",
-        description: bookingType === 'instant' ? "Service will arrive in 10 minutes." : "Your booking has been scheduled successfully."
-      });
-      setScheduleSheetOpen(false);
-      clearPreferredWorker();
-      navigate('/home');
+        console.log('✅ Payment-first booking created:', result.booking_id);
+        toast({
+          title: "Payment successful!",
+          description: "Your booking is confirmed. Worker will arrive in ~10 minutes."
+        });
+        clearPreferredWorker();
+        navigate('/bookings');
+      } catch (payErr: any) {
+        console.error('❌ Payment error:', payErr);
+        const errType = payErr instanceof PaymentError ? payErr.type : 'payment_failed';
+        setRetryErrorType(errType as PaymentErrorType);
+        setRetryErrorMessage(payErr?.message);
+        // No booking was created — no ID
+        setRetryBookingId(null);
+        setRetryBookingCreatedAt(new Date().toISOString());
+        setRetrySheetOpen(true);
+      }
     } catch (err: any) {
       console.error('❌ Booking error:', err);
       const isNetworkError = err?.message?.includes('Load failed') || err?.message?.includes('Failed to fetch') || err?.message?.includes('NetworkError');

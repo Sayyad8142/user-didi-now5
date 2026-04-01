@@ -1,17 +1,24 @@
 /**
  * Payment service — wallet-first payments + Razorpay checkout.
  *
- * Flow:
- * 1. Debit wallet (if balance > 0)
- * 2. If fully paid → done
- * 3. Create Razorpay order for remainder
- * 4. Open checkout (platform-aware via checkoutRunner)
- * 5. Verify payment on backend (with retry)
+ * TWO FLOWS:
+ *
+ * A. Payment-First (pay_now for new bookings):
+ *    1. Check wallet balance
+ *    2. If fully covered → call create-paid-booking with payment_type='wallet'
+ *    3. Otherwise → create Razorpay order for remainder
+ *    4. Open checkout
+ *    5. On success → call create-paid-booking with Razorpay proof
+ *    6. Backend atomically: verifies payment + creates booking + dispatches
+ *    ⚠️ NO booking is created until payment is verified
+ *
+ * B. Legacy Flow (for retries on existing bookings):
+ *    Same as before — booking already exists, just retry payment
  *
  * SAFETY:
- * - Never deletes bookings
- * - On cancel → booking stays pending for retry
- * - On verification failure → webhook reconciles
+ * - Never creates bookings before payment verification
+ * - On cancel → NO booking created, NO orphan rows
+ * - On failure → NO booking created
  * - Backend is always source of truth
  */
 import { supabase } from '@/integrations/supabase/client';
@@ -104,21 +111,60 @@ async function sleep(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-// ─── Wallet ───────────────────────────────────────────────────
+// ─── Wallet Balance Check ─────────────────────────────────────
+
+async function getWalletBalance(userId: string): Promise<number> {
+  const { data } = await supabase
+    .from('user_wallets')
+    .select('balance_inr')
+    .eq('user_id', userId)
+    .single();
+  return data?.balance_inr ?? 0;
+}
+
+// ─── Order Creation (payment-first mode) ──────────────────────
+
+async function createRazorpayOrderForAmount(
+  amount: number,
+  serviceType: string,
+): Promise<RazorpayOrderResponse> {
+  console.log('🛒 Creating Razorpay order (payment-first), amount:', amount);
+  return invokeWithFirebaseAuth<RazorpayOrderResponse>('create-razorpay-order', {
+    amount,
+    service_type: serviceType,
+  });
+}
+
+// ─── Create Paid Booking (backend) ────────────────────────────
+
+interface CreatePaidBookingParams {
+  booking_data: Record<string, unknown>;
+  payment_type: 'razorpay' | 'wallet' | 'wallet_and_razorpay';
+  razorpay_order_id?: string;
+  razorpay_payment_id?: string;
+  razorpay_signature?: string;
+  razorpay_amount?: number;
+  wallet_amount?: number;
+}
+
+async function createPaidBooking(params: CreatePaidBookingParams): Promise<PaymentResult> {
+  console.log('📝 Creating paid booking via edge function:', params.payment_type);
+  return invokeWithFirebaseAuth<PaymentResult>('create-paid-booking', params as unknown as Record<string, unknown>);
+}
+
+// ─── Legacy Helpers (for existing booking retries) ────────────
 
 export async function debitWalletForBooking(bookingId: string): Promise<WalletPayResult> {
   console.log('💰 Debiting wallet for booking:', bookingId);
   return invokeWithFirebaseAuth<WalletPayResult>('wallet-pay', { booking_id: bookingId });
 }
 
-// ─── Order Creation ───────────────────────────────────────────
-
 export async function createRazorpayOrder(bookingId: string): Promise<RazorpayOrderResponse> {
   console.log('🛒 Creating Razorpay order for booking:', bookingId);
   return invokeWithFirebaseAuth<RazorpayOrderResponse>('create-razorpay-order', { booking_id: bookingId });
 }
 
-// ─── Verification (with retry) ────────────────────────────────
+// ─── Verification (with retry, for legacy flow) ───────────────
 
 async function verifyWithRetry(
   bookingId: string,
@@ -148,16 +194,187 @@ async function verifyWithRetry(
   throw lastErr;
 }
 
-// ─── Full Payment Flow ────────────────────────────────────────
+// ─── Checkout Error Handler (shared) ──────────────────────────
+
+function handleCheckoutError(err: any, bookingId: string, onStatusChange: (s: PaymentFlowStatus) => void): never {
+  const msg = err?.message || '';
+  const errCode = err?.code || err?.data?.code || '';
+  const errDesc = err?.data?.description || err?.description || msg;
+  const userCancelled = msg === 'Payment cancelled by user' || err?.data?.user_cancelled === true || errCode === '2';
+
+  console.error('❌ [PaymentFlow] Checkout failed:', {
+    message: msg,
+    code: errCode,
+    description: errDesc,
+    user_cancelled: userCancelled,
+  });
+
+  trackPaymentEvent('payment_failed', {
+    booking_id: bookingId,
+    error_type: userCancelled ? 'user_cancelled' : isNetworkError(err) ? 'network_error' : 'payment_failed',
+    raw_error: errDesc,
+    error_code: errCode,
+  });
+
+  if (userCancelled) {
+    onStatusChange('payment_cancelled');
+    saveLastFailure('upi', 'user_cancelled');
+    throw new PaymentError('Payment cancelled by user', 'user_cancelled');
+  }
+  if (isNetworkError(err)) {
+    onStatusChange('payment_failed');
+    saveLastFailure('upi', 'network_error');
+    throw new PaymentError('Network error during payment. Please check your connection and try again.', 'network_error');
+  }
+  onStatusChange('payment_failed');
+  saveLastFailure('upi', 'payment_failed');
+  throw new PaymentError(errDesc || 'Payment failed', 'payment_failed');
+}
+
+// ══════════════════════════════════════════════════════════════
+// PAYMENT-FIRST FLOW (for new pay_now bookings)
+// ══════════════════════════════════════════════════════════════
 
 /**
- * Wallet-first, platform-aware payment flow.
+ * Payment-first flow for new bookings.
  *
- * SAFETY:
- * - NEVER deletes bookings
- * - On cancel → throws PaymentError('user_cancelled') — caller keeps booking pending
- * - On failure → throws PaymentError('payment_failed') — caller keeps booking for retry
- * - On verify failure after 3 retries → throws PaymentError('verification_pending') — webhook reconciles
+ * CRITICAL: NO booking is inserted into the database until payment
+ * is fully verified. If user cancels or payment fails, nothing
+ * is created in the database.
+ *
+ * @param bookingPayload - Full booking data (same shape as DB insert)
+ * @param onStatusChange - UI status callback
+ * @returns PaymentResult with booking_id from the newly created booking
+ */
+export async function executePaymentFlowForNewBooking(
+  bookingPayload: Record<string, unknown>,
+  onStatusChange: (status: PaymentFlowStatus) => void,
+): Promise<PaymentResult> {
+  const priceInr = bookingPayload.price_inr as number;
+  const userId = bookingPayload.user_id as string;
+  const serviceType = bookingPayload.service_type as string;
+
+  trackPaymentEvent('payment_first_started', { service_type: serviceType, amount: priceInr });
+
+  // Step 1: Check wallet balance
+  onStatusChange('debiting_wallet');
+  let walletBalance = 0;
+  try {
+    walletBalance = await getWalletBalance(userId);
+    console.log('💰 Wallet balance:', walletBalance);
+  } catch (e) {
+    console.warn('⚠️ Could not fetch wallet balance:', e);
+  }
+
+  const walletCanCover = Math.min(walletBalance, priceInr);
+  const razorpayAmount = priceInr - walletCanCover;
+
+  // Step 2: If wallet fully covers the price
+  if (razorpayAmount <= 0 && walletCanCover >= priceInr) {
+    console.log('✅ Wallet fully covers ₹' + priceInr);
+    onStatusChange('verifying_payment');
+
+    try {
+      const result = await createPaidBooking({
+        booking_data: bookingPayload,
+        payment_type: 'wallet',
+        wallet_amount: priceInr,
+      });
+
+      onStatusChange('payment_success');
+      trackPaymentEvent('payment_success', {
+        booking_id: result.booking_id,
+        payment_method: 'wallet',
+        wallet_used_amount: priceInr,
+      });
+      savePreferredMethod('wallet');
+      clearLastFailure();
+      logPaymentSummary();
+      return result;
+    } catch (err: any) {
+      console.error('❌ Wallet-only booking creation failed:', err);
+      onStatusChange('payment_failed');
+      throw new PaymentError(err.message || 'Wallet payment failed', 'payment_failed');
+    }
+  }
+
+  // Step 3: Create Razorpay order for remainder
+  onStatusChange('creating_order');
+  const order = await createRazorpayOrderForAmount(razorpayAmount, serviceType);
+
+  console.log('🛒 [PaymentFirst] Order created:', JSON.stringify({
+    order_id: order.order_id,
+    amount_paise: order.amount,
+    amount_inr: order.amount / 100,
+    wallet_portion: walletCanCover,
+    razorpay_portion: razorpayAmount,
+  }));
+
+  // Step 4: Open checkout
+  onStatusChange('opening_checkout');
+  trackPaymentEvent('payment_checkout_opened', {
+    amount: razorpayAmount,
+    wallet_used_amount: walletCanCover,
+  });
+
+  let checkoutResult;
+  try {
+    checkoutResult = await runCheckout(order);
+  } catch (err: any) {
+    // Payment cancelled or failed — NO booking created
+    handleCheckoutError(err, 'pending', onStatusChange);
+  }
+
+  // Step 5: Payment succeeded — now create booking + verify atomically
+  onStatusChange('verifying_payment');
+  trackPaymentEvent('payment_verification_pending', { order_id: order.order_id });
+
+  const paymentType = walletCanCover > 0 ? 'wallet_and_razorpay' : 'razorpay';
+
+  try {
+    const result = await createPaidBooking({
+      booking_data: bookingPayload,
+      payment_type: paymentType,
+      razorpay_order_id: checkoutResult!.razorpay_order_id,
+      razorpay_payment_id: checkoutResult!.razorpay_payment_id,
+      razorpay_signature: checkoutResult!.razorpay_signature,
+      razorpay_amount: order.amount,
+      wallet_amount: walletCanCover > 0 ? walletCanCover : undefined,
+    });
+
+    onStatusChange('payment_success');
+    trackPaymentEvent('payment_success', {
+      booking_id: result.booking_id,
+      payment_method: paymentType,
+      wallet_used_amount: walletCanCover,
+    });
+    savePreferredMethod('upi');
+    clearLastFailure();
+    logPaymentSummary();
+    return result;
+  } catch (verifyErr: any) {
+    console.error('❌ create-paid-booking failed after successful checkout:', verifyErr);
+    // Payment was captured but booking creation failed.
+    // The webhook will reconcile via orphan_payments.
+    onStatusChange('verification_pending');
+    trackPaymentEvent('payment_failed', {
+      error_type: 'verification_failed',
+      razorpay_payment_id: checkoutResult!.razorpay_payment_id,
+    });
+    throw new PaymentError(
+      'Payment received but booking creation is pending. It will be confirmed automatically within a few minutes.',
+      'verification_failed',
+    );
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// LEGACY FLOW (for retries on existing bookings)
+// ══════════════════════════════════════════════════════════════
+
+/**
+ * Legacy payment flow for EXISTING bookings.
+ * Used for retry scenarios where booking already exists in DB.
  */
 export async function executePaymentFlow(
   bookingId: string,
@@ -194,17 +411,8 @@ export async function executePaymentFlow(
   // Step 3: Create Razorpay order for remaining amount
   onStatusChange('creating_order');
   const order = await createRazorpayOrder(bookingId);
-  console.log('🛒 [PaymentFlow] Order created:', JSON.stringify({
-    order_id: order.order_id,
-    amount_paise: order.amount,
-    amount_inr: order.amount / 100,
-    currency: order.currency,
-    key_id: order.key_id ? `${order.key_id.slice(0, 12)}...` : 'MISSING',
-    key_type: order.key_id?.startsWith('rzp_live') ? 'LIVE' : order.key_id?.startsWith('rzp_test') ? 'TEST' : 'UNKNOWN',
-    booking_id: order.booking_id,
-  }, null, 2));
 
-  // Step 4: Open checkout (native on Android, web otherwise)
+  // Step 4: Open checkout
   onStatusChange('opening_checkout');
   trackPaymentEvent('payment_checkout_opened', {
     booking_id: bookingId,
@@ -216,54 +424,19 @@ export async function executePaymentFlow(
   try {
     checkoutResult = await runCheckout(order);
   } catch (err: any) {
-    const msg = err?.message || '';
-    const errCode = err?.code || err?.data?.code || '';
-    const errDesc = err?.data?.description || err?.description || msg;
-    const userCancelled = msg === 'Payment cancelled by user' || err?.data?.user_cancelled === true || errCode === '2';
-
-    console.error('❌ [PaymentFlow] Checkout failed:', {
-      message: msg,
-      code: errCode,
-      description: errDesc,
-      user_cancelled: userCancelled,
-      full_error: JSON.stringify(err, Object.getOwnPropertyNames(err || {}), 2),
-      error_data: JSON.stringify(err?.data, null, 2),
-    });
-    trackPaymentEvent('payment_failed', {
-      booking_id: bookingId,
-      error_type: userCancelled ? 'user_cancelled' : isNetworkError(err) ? 'network_error' : 'payment_failed',
-      raw_error: errDesc,
-      error_code: errCode,
-    });
-
-    if (userCancelled) {
-      console.log('🚪 User cancelled payment');
-      onStatusChange('payment_cancelled');
-      saveLastFailure('upi', 'user_cancelled');
-      throw new PaymentError('Payment cancelled by user', 'user_cancelled');
-    }
-    if (isNetworkError(err)) {
-      onStatusChange('payment_failed');
-      saveLastFailure('upi', 'network_error');
-      throw new PaymentError('Network error during payment. Please check your connection and try again.', 'network_error');
-    }
-    onStatusChange('payment_failed');
-    saveLastFailure('upi', 'payment_failed');
-    // Include actual error description for debugging
-    throw new PaymentError(errDesc || 'Payment failed', 'payment_failed');
+    handleCheckoutError(err, bookingId, onStatusChange);
   }
 
-  // Step 5: Verify on backend with retry (source of truth)
+  // Step 5: Verify on backend with retry
   onStatusChange('verifying_payment');
-  trackPaymentEvent('payment_verification_pending', { booking_id: bookingId });
   const paymentMethod = walletResult && walletResult.wallet_debited > 0 ? 'wallet+razorpay' : 'razorpay';
 
   try {
     const verifyResult = await verifyWithRetry(
       bookingId,
-      checkoutResult.razorpay_order_id,
-      checkoutResult.razorpay_payment_id,
-      checkoutResult.razorpay_signature,
+      checkoutResult!.razorpay_order_id,
+      checkoutResult!.razorpay_payment_id,
+      checkoutResult!.razorpay_signature,
     );
     onStatusChange('payment_success');
     trackPaymentEvent('payment_success', {
@@ -271,7 +444,6 @@ export async function executePaymentFlow(
       payment_method: paymentMethod,
       wallet_used_amount: walletResult?.wallet_debited ?? 0,
     });
-    trackPaymentEvent('payment_verified_success', { booking_id: bookingId });
     savePreferredMethod('upi');
     clearLastFailure();
     logPaymentSummary();
