@@ -497,6 +497,8 @@ export function BookingForm() {
       console.log('✅ Booking created successfully:', data);
       const newBookingId = data?.[0]?.id;
 
+      trackPaymentEvent('booking_created', { booking_id: newBookingId, user_id: profile.id, amount: price });
+
       // Pay After Service: skip payment flow
       if (isPayAfter || !newBookingId) {
         toast({

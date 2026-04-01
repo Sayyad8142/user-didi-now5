@@ -307,6 +307,8 @@ export function ScheduleScreen() {
         return;
       }
 
+      trackPaymentEvent('booking_created', { booking_id: newBookingId, user_id: profile.id });
+
       // Pay After Service: skip payment, go straight to bookings
       if (paymentMethod === 'pay_after_service') {
         toast({

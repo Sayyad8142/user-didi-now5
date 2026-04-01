@@ -178,6 +178,8 @@ export function InstantCheckoutScreen() {
         return;
       }
 
+      trackPaymentEvent('booking_created', { booking_id: newBookingId, user_id: profile.id, amount: price });
+
       // Pay After Service: skip payment, go straight to bookings
       if (paymentMethod === 'pay_after_service') {
         sessionStorage.removeItem(`preferred_worker_${service_type}`);
