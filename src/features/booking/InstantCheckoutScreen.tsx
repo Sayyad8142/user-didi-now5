@@ -486,11 +486,11 @@ export function InstantCheckoutScreen() {
 
       {/* Payment Method Picker Dialog */}
       <AlertDialog open={showPaymentPicker} onOpenChange={setShowPaymentPicker}>
-        <AlertDialogContent className="max-w-sm rounded-2xl">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-base">Choose payment method</AlertDialogTitle>
-            <AlertDialogDescription className="text-xs text-muted-foreground">
-              How would you like to pay for this booking?
+        <AlertDialogContent className="max-w-sm rounded-2xl p-5">
+          <AlertDialogHeader className="pb-1">
+            <AlertDialogTitle className="text-base font-bold text-center">Complete your booking</AlertDialogTitle>
+            <AlertDialogDescription className="text-xs text-muted-foreground text-center">
+              Choose how you'd like to pay
             </AlertDialogDescription>
           </AlertDialogHeader>
           <PaymentMethodSelector
@@ -499,12 +499,16 @@ export function InstantCheckoutScreen() {
             walletBalance={walletBalance}
             bookingAmount={price}
           />
-          <AlertDialogFooter className="flex-row gap-2 mt-2">
-            <AlertDialogCancel className="flex-1 rounded-xl">Cancel</AlertDialogCancel>
-            <Button className="flex-1 rounded-xl font-bold" onClick={confirmBooking}>
-              {paymentMethod === 'pay_after_service' ? 'Confirm Booking' : walletBalance >= price ? `Pay ₹${price} from Wallet` : `Pay ₹${price}`}
+          <div className="flex gap-2 mt-3">
+            <AlertDialogCancel className="flex-1 rounded-xl h-11">Cancel</AlertDialogCancel>
+            <Button className="flex-1 rounded-xl h-11 font-bold" onClick={confirmBooking} disabled={submitting}>
+              {paymentMethod === 'pay_after_service'
+                ? 'Confirm Booking'
+                : walletBalance >= price
+                  ? `Pay ₹${price} securely`
+                  : `Pay ₹${price} securely`}
             </Button>
-          </AlertDialogFooter>
+          </div>
         </AlertDialogContent>
       </AlertDialog>
 
