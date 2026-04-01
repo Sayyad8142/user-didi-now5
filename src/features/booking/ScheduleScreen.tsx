@@ -337,6 +337,7 @@ export function ScheduleScreen() {
         console.error('❌ Payment error:', payErr);
         const errType = payErr instanceof PaymentError ? payErr.type : 'payment_failed';
         setRetryErrorType(errType as PaymentErrorType);
+        setRetryErrorMessage(payErr?.message);
         setRetryBookingId(newBookingId);
         setRetryBookingCreatedAt(new Date().toISOString());
         setRetrySheetOpen(true);
