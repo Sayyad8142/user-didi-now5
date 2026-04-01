@@ -525,17 +525,10 @@ export function BookingForm() {
         } catch (payErr: any) {
           console.error('❌ Payment error:', payErr);
           const errType = payErr instanceof PaymentError ? payErr.type : 'payment_failed';
-
-          if (errType === 'user_cancelled') {
-            toast({ title: "Payment not completed", description: "Your booking is saved. You can retry payment from your bookings." });
-          } else if (errType === 'verification_failed') {
-            toast({ title: "Verifying payment...", description: "Your payment is being verified. Your booking will update automatically." });
-          } else if (errType === 'network_error') {
-            toast({ title: "Network error", description: "Please check your connection and retry from your bookings.", variant: "destructive" });
-          } else {
-            toast({ title: "Payment Failed", description: "You can retry payment from your bookings.", variant: "destructive" });
-          }
-          navigate('/bookings');
+          setRetryErrorType(errType as PaymentErrorType);
+          setRetryBookingId(newBookingId);
+          setRetryBookingCreatedAt(new Date().toISOString())
+          setRetrySheetOpen(true);
         }
         return;
       }
