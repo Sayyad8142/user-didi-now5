@@ -154,36 +154,26 @@ export function InstantCheckoutScreen() {
         payment_status: paymentMethod === 'pay_after_service' ? 'pay_after_service' : 'pending',
       } as any;
 
-      const { data, error } = await supabase.from('bookings').insert([bookingData]).select();
-
-      if (error) {
-        console.error('❌ Booking error:', error);
-        if (error.message?.includes('SUPPLY_FULL')) {
-          setSupplyModalOpen(true);
+      // Pay After Service: create booking directly
+      if (paymentMethod === 'pay_after_service') {
+        const { data, error } = await supabase.from('bookings').insert([bookingData]).select();
+        if (error) {
+          console.error('❌ Booking error:', error);
+          if (error.message?.includes('SUPPLY_FULL')) {
+            setSupplyModalOpen(true);
+            return;
+          }
+          const isFlatError = error.message?.includes('flat details');
+          toast({
+            title: "Booking Failed",
+            description: isFlatError
+              ? "Please update your flat details in Account Settings before booking."
+              : `Error: ${error.message || 'Please try again.'}`,
+            variant: "destructive"
+          });
+          if (isFlatError) navigate('/profile/settings');
           return;
         }
-        const isFlatError = error.message?.includes('flat details');
-        toast({
-          title: "Booking Failed",
-          description: isFlatError
-            ? "Please update your flat details in Account Settings before booking."
-            : `Error: ${error.message || 'Please try again.'}`,
-          variant: "destructive"
-        });
-        if (isFlatError) navigate('/profile/settings');
-        return;
-      }
-
-      const newBookingId = data?.[0]?.id;
-      if (!newBookingId) {
-        toast({ title: "Booking Failed", description: "No booking ID returned.", variant: "destructive" });
-        return;
-      }
-
-      trackPaymentEvent('booking_created', { booking_id: newBookingId, user_id: profile.id, amount: price });
-
-      // Pay After Service: skip payment, go straight to bookings
-      if (paymentMethod === 'pay_after_service') {
         sessionStorage.removeItem(`preferred_worker_${service_type}`);
         toast({
           title: "Booking confirmed!",
@@ -193,9 +183,9 @@ export function InstantCheckoutScreen() {
         return;
       }
 
-      // Pay Now: Execute payment flow
+      // Pay Now: payment-first flow (NO booking until payment verified)
       try {
-        await executePaymentFlow(newBookingId, (status) => {
+        await executePaymentFirstFlow(bookingData, walletBalance, (status) => {
           setPaymentStatus(status);
         });
 
@@ -210,7 +200,7 @@ export function InstantCheckoutScreen() {
         const errType = payErr instanceof PaymentError ? payErr.type : 'payment_failed';
         setRetryErrorType(errType as PaymentErrorType);
         setRetryErrorMessage(payErr?.message);
-        setRetryBookingId(newBookingId);
+        setRetryBookingData(bookingData);
         setRetryBookingCreatedAt(new Date().toISOString());
         setRetrySheetOpen(true);
       }
