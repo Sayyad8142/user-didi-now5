@@ -34,33 +34,54 @@ export async function runCheckout(order: RazorpayOrderResponse): Promise<Checkou
 // ─── Android native SDK ───────────────────────────────────────
 
 async function runNativeAndroidCheckout(order: RazorpayOrderResponse): Promise<CheckoutSuccessPayload> {
-  console.log('📱 Opening native Razorpay checkout (Android)');
+  const checkoutInput = {
+    key: order.key_id,
+    amount: order.amount,
+    currency: order.currency,
+    order_id: order.order_id,
+    name: 'Didi Now',
+    description: `Booking #${order.booking_id.slice(0, 8)}`,
+    prefill_contact: order.prefill?.contact || '',
+    prefill_name: order.prefill?.name || '',
+    theme_color: '#ec4899',
+  };
+
+  console.log('📱 [NativeCheckout] Opening native Razorpay checkout (Android)');
+  console.log('📱 [NativeCheckout] Input:', JSON.stringify({
+    key: checkoutInput.key ? `${checkoutInput.key.slice(0, 12)}...` : 'MISSING',
+    key_prefix: checkoutInput.key?.startsWith('rzp_live') ? 'LIVE' : checkoutInput.key?.startsWith('rzp_test') ? 'TEST' : 'UNKNOWN',
+    amount: checkoutInput.amount,
+    amount_inr: checkoutInput.amount / 100,
+    currency: checkoutInput.currency,
+    order_id: checkoutInput.order_id,
+    prefill_contact: checkoutInput.prefill_contact ? '***' + checkoutInput.prefill_contact.slice(-4) : 'EMPTY',
+    prefill_name: checkoutInput.prefill_name || 'EMPTY',
+  }, null, 2));
 
   // Dynamic import so the Capacitor plugin module is only loaded on native
   const { default: RazorpayNative } = await import('./razorpayNative');
 
   try {
-    const result = await RazorpayNative.openCheckout({
-      key: order.key_id,
-      amount: order.amount,
-      currency: order.currency,
-      order_id: order.order_id,
-      name: 'Didi Now',
-      description: `Booking #${order.booking_id.slice(0, 8)}`,
-      prefill_contact: order.prefill?.contact || '',
-      prefill_name: order.prefill?.name || '',
-      theme_color: '#ec4899',
-    });
+    const result = await RazorpayNative.openCheckout(checkoutInput);
 
-    console.log('✅ Native checkout success:', result.razorpay_payment_id);
+    console.log('✅ [NativeCheckout] Payment SUCCESS:', JSON.stringify({
+      razorpay_payment_id: result.razorpay_payment_id,
+      razorpay_order_id: result.razorpay_order_id,
+      razorpay_signature: result.razorpay_signature ? result.razorpay_signature.slice(0, 20) + '...' : 'MISSING',
+    }, null, 2));
+
     return {
       razorpay_order_id: result.razorpay_order_id,
       razorpay_payment_id: result.razorpay_payment_id,
       razorpay_signature: result.razorpay_signature,
     };
   } catch (err: any) {
-    // The native plugin rejects with "Payment cancelled by user" when code=2
-    console.warn('⚠️ Native checkout error:', err?.message);
+    console.error('❌ [NativeCheckout] Payment FAILED');
+    console.error('❌ [NativeCheckout] Error message:', err?.message);
+    console.error('❌ [NativeCheckout] Error code:', err?.code);
+    console.error('❌ [NativeCheckout] Full error:', JSON.stringify(err, Object.getOwnPropertyNames(err || {}), 2));
+    console.error('❌ [NativeCheckout] Error data:', JSON.stringify(err?.data, null, 2));
+    console.error('❌ [NativeCheckout] user_cancelled:', err?.data?.user_cancelled ?? err?.message?.includes('cancelled'));
     throw err;
   }
 }

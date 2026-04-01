@@ -194,7 +194,15 @@ export async function executePaymentFlow(
   // Step 3: Create Razorpay order for remaining amount
   onStatusChange('creating_order');
   const order = await createRazorpayOrder(bookingId);
-  console.log('🛒 Order created:', order.order_id, 'amount:', order.amount);
+  console.log('🛒 [PaymentFlow] Order created:', JSON.stringify({
+    order_id: order.order_id,
+    amount_paise: order.amount,
+    amount_inr: order.amount / 100,
+    currency: order.currency,
+    key_id: order.key_id ? `${order.key_id.slice(0, 12)}...` : 'MISSING',
+    key_type: order.key_id?.startsWith('rzp_live') ? 'LIVE' : order.key_id?.startsWith('rzp_test') ? 'TEST' : 'UNKNOWN',
+    booking_id: order.booking_id,
+  }, null, 2));
 
   // Step 4: Open checkout (native on Android, web otherwise)
   onStatusChange('opening_checkout');
