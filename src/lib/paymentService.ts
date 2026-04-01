@@ -17,6 +17,13 @@
 import { supabase } from '@/integrations/supabase/client';
 import { getFirebaseIdToken } from '@/lib/firebase';
 import { runCheckout } from './checkoutRunner';
+import {
+  trackPaymentEvent,
+  savePreferredMethod,
+  saveLastFailure,
+  clearLastFailure,
+  logPaymentSummary,
+} from './paymentAnalytics';
 
 // ─── Types ────────────────────────────────────────────────────
 
