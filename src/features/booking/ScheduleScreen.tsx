@@ -339,6 +339,7 @@ export function ScheduleScreen() {
             variant: "destructive"
           });
           navigate('/bookings');
+        }
       }
     } catch (err: any) {
       console.error('Booking error:', err);
