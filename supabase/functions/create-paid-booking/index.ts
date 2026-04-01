@@ -198,7 +198,31 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 7. Build the final booking row
+    // 7. Idempotency check — if request_id already used, return existing booking
+    const requestId = booking_data.request_id;
+    if (requestId) {
+      const { data: existing } = await supabase
+        .from("bookings")
+        .select("id, booking_type, status, payment_method")
+        .eq("request_id", requestId)
+        .maybeSingle();
+
+      if (existing) {
+        console.log(
+          `[create-paid-booking] ⚡ Duplicate request_id=${requestId}, returning existing booking ${existing.id}`,
+        );
+        return json({
+          success: true,
+          booking_id: existing.id,
+          payment_id: razorpay_payment_id || null,
+          payment_method: existing.payment_method,
+          wallet_debited: 0, // already debited on first call
+          idempotent: true,
+        });
+      }
+    }
+
+    // 8. Build the final booking row
     const completionOtp = generateOtp();
     const now = new Date().toISOString();
 
@@ -238,7 +262,7 @@ Deno.serve(async (req) => {
       }),
     );
 
-    // 8. Insert booking
+    // 9. Insert booking
     const { data: newBooking, error: insertErr } = await supabase
       .from("bookings")
       .insert([bookingRow])
@@ -278,7 +302,7 @@ Deno.serve(async (req) => {
       `[create-paid-booking] ✅ Booking created: ${newBooking.id}`,
     );
 
-    // 9. Update wallet transaction with booking reference (if applicable)
+    // 10. Update wallet transaction with booking reference (if applicable)
     if (walletDebited > 0) {
       await supabase
         .from("wallet_transactions")
@@ -290,7 +314,7 @@ Deno.serve(async (req) => {
         .limit(1);
     }
 
-    // 10. Trigger dispatch for instant bookings
+    // 11. Trigger dispatch for instant bookings
     if (newBooking.booking_type === "instant") {
       console.log(
         `[create-paid-booking] 🚀 Dispatching instant booking ${newBooking.id}`,
@@ -321,7 +345,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 11. Return success
+    // 12. Return success
     return json({
       success: true,
       booking_id: newBooking.id,
