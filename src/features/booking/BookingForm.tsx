@@ -466,7 +466,28 @@ export function BookingForm() {
         payment_status: isPayAfter ? 'pay_after_service' : 'pending',
       } as any;
 
-      console.log('📤 Sending booking data to database:', bookingData);
+      console.log('📤 Booking data prepared:', bookingData);
+
+      // Pay Now instant: payment-first flow (NO booking until payment verified)
+      if (!isPayAfter && bookingType === 'instant' && paymentMethod === 'pay_now') {
+        try {
+          const result = await executePaymentFirstFlow(bookingData, walletBalance, (status) => {
+            setPaymentStatus(status);
+          });
+          toast({ title: "Payment successful!", description: "Your booking is confirmed. Worker will arrive in ~10 minutes." });
+          clearPreferredWorker();
+          navigate('/bookings');
+        } catch (payErr: any) {
+          console.error('❌ Payment error:', payErr);
+          const errType = payErr instanceof PaymentError ? payErr.type : 'payment_failed';
+          setRetryErrorType(errType as PaymentErrorType);
+          setRetryErrorMessage(payErr?.message);
+          setRetryBookingData(bookingData);
+          setRetryBookingCreatedAt(new Date().toISOString());
+          setRetrySheetOpen(true);
+        }
+        return;
+      }
 
       const { data, error } = await supabase.from('bookings').insert([bookingData]).select();
 
