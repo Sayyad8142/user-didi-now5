@@ -194,21 +194,24 @@ export function InstantCheckoutScreen() {
         navigate('/bookings');
       } catch (payErr: any) {
         console.error('❌ Payment error:', payErr);
-        // Mark as failed instead of deleting — webhook may still reconcile
-        await supabase.from('bookings').update({ payment_status: 'failed' }).eq('id', newBookingId);
         if (payErr.message === 'Payment cancelled by user') {
+          // User dismissed Razorpay — no payment captured, safe to delete
+          await supabase.from('bookings').delete().eq('id', newBookingId);
           toast({
             title: "Payment cancelled",
-            description: "You can retry payment from your bookings.",
+            description: "No booking was created. You can try again.",
           });
+          return;
         } else {
+          // Actual failure — keep for webhook reconciliation / retry
+          await supabase.from('bookings').update({ payment_status: 'failed' }).eq('id', newBookingId);
           toast({
             title: "Payment Failed",
             description: "You can retry payment from your bookings.",
             variant: "destructive"
           });
+          navigate('/bookings');
         }
-        navigate('/bookings');
       }
     } catch (err: any) {
       console.error('❌ Booking error:', err);
