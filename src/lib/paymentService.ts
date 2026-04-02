@@ -77,12 +77,29 @@ export type PaymentFlowStatus =
 /** Error types for downstream handling */
 export type PaymentErrorType = 'user_cancelled' | 'payment_failed' | 'network_error' | 'verification_failed';
 
+/** Stored checkout data for retry after verification_failed */
+export interface PendingCheckoutData {
+  bookingPayload: Record<string, unknown>;
+  checkoutResult: {
+    razorpay_order_id: string;
+    razorpay_payment_id: string;
+    razorpay_signature: string;
+  };
+  razorpayAmount: number;
+  walletCanCover: number;
+  paymentType: 'razorpay' | 'wallet_and_razorpay';
+  requestId: string;
+}
+
 export class PaymentError extends Error {
   type: PaymentErrorType;
-  constructor(message: string, type: PaymentErrorType) {
+  /** Available when type === 'verification_failed' in payment-first flow */
+  pendingCheckout?: PendingCheckoutData;
+  constructor(message: string, type: PaymentErrorType, pendingCheckout?: PendingCheckoutData) {
     super(message);
     this.name = 'PaymentError';
     this.type = type;
+    this.pendingCheckout = pendingCheckout;
   }
 }
 
