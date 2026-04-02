@@ -2,7 +2,7 @@ import React from 'react';
 import { CreditCard, HandCoins, Wallet, Shield, Zap, Smartphone } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-export type PaymentMethod = 'pay_now' | 'pay_after_service';
+export type PaymentMethod = 'pay_now' | 'pay_after_service' | 'wallet';
 
 interface PaymentMethodSelectorProps {
   selected: PaymentMethod;
@@ -20,36 +20,85 @@ export function PaymentMethodSelector({ selected, onChange, disabled, walletBala
   const walletPartial = hasWallet && !walletCoversAll && bookingAmount > 0;
   const remainingAmount = walletPartial ? bookingAmount - walletBalance : 0;
 
+  // Auto-select wallet if it covers full amount
+  React.useEffect(() => {
+    if (walletCoversAll && selected !== 'wallet') {
+      onChange('wallet');
+    }
+  }, [walletCoversAll]);
+
   return (
     <div className="space-y-3">
-      {/* Wallet auto-apply banner */}
-      {hasWallet && bookingAmount > 0 && (
-        <div className={cn(
-          "flex items-center gap-2.5 rounded-xl px-3 py-2.5 border",
-          walletCoversAll
-            ? "bg-emerald-50 border-emerald-200"
-            : "bg-amber-50 border-amber-200"
-        )}>
-          <Wallet className={cn(
-            "w-4 h-4 shrink-0",
-            walletCoversAll ? "text-emerald-600" : "text-amber-600"
-          )} />
+      {/* Wallet Pay — only show when balance > 0 */}
+      {hasWallet && (
+        <button
+          type="button"
+          disabled={disabled || (!walletCoversAll)}
+          onClick={() => onChange('wallet')}
+          className={cn(
+            "relative w-full flex items-start gap-3 rounded-2xl border-2 px-4 py-3.5 transition-all text-left",
+            selected === 'wallet'
+              ? "border-emerald-500 bg-emerald-50 ring-1 ring-emerald-300"
+              : "border-border bg-card hover:border-emerald-400",
+            (disabled || !walletCoversAll) && "opacity-50 pointer-events-none"
+          )}
+        >
+          {walletCoversAll && (
+            <span className="absolute -top-2.5 left-3 inline-flex items-center gap-1 bg-emerald-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+              <Wallet className="w-3 h-3" /> Best Option
+            </span>
+          )}
+
+          <div className={cn(
+            "w-9 h-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5",
+            selected === 'wallet' ? "bg-emerald-100" : "bg-muted"
+          )}>
+            <Wallet className={cn("w-5 h-5", selected === 'wallet' ? "text-emerald-600" : "text-muted-foreground")} />
+          </div>
+
           <div className="flex-1 min-w-0">
-            {walletCoversAll ? (
-              <p className="text-xs text-emerald-800">
-                <span className="font-semibold">₹{walletBalance}</span> wallet balance covers full payment!
-              </p>
-            ) : (
-              <p className="text-xs text-amber-800">
-                <span className="font-semibold">₹{walletBalance}</span> from wallet applied automatically.{' '}
-                You pay only <span className="font-semibold">₹{remainingAmount}</span>.
-              </p>
+            <span className={cn(
+              "text-sm font-bold leading-tight",
+              selected === 'wallet' ? "text-emerald-700" : "text-foreground"
+            )}>
+              Pay with Wallet
+            </span>
+            <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
+              {walletCoversAll
+                ? <>Balance: <span className="font-semibold text-emerald-600">₹{walletBalance}</span> — covers full ₹{bookingAmount}</>
+                : <>Balance: <span className="font-semibold">₹{walletBalance}</span> — need ₹{bookingAmount} (insufficient)</>
+              }
+            </p>
+            {walletCoversAll && (
+              <div className="flex items-center gap-2.5 mt-1.5">
+                <span className="inline-flex items-center gap-0.5 text-[10px] text-emerald-600 font-medium">
+                  <Zap className="w-3 h-3" /> Instant • No payment app needed
+                </span>
+              </div>
             )}
           </div>
+
+          <div className={cn(
+            "w-5 h-5 rounded-full border-2 shrink-0 mt-1 flex items-center justify-center",
+            selected === 'wallet' ? "border-emerald-500" : "border-muted-foreground/30"
+          )}>
+            {selected === 'wallet' && <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />}
+          </div>
+        </button>
+      )}
+
+      {/* Wallet partial info banner */}
+      {walletPartial && selected === 'pay_now' && (
+        <div className="flex items-center gap-2.5 rounded-xl px-3 py-2.5 border bg-amber-50 border-amber-200">
+          <Wallet className="w-4 h-4 shrink-0 text-amber-600" />
+          <p className="text-xs text-amber-800">
+            <span className="font-semibold">₹{walletBalance}</span> from wallet applied automatically.{' '}
+            You pay only <span className="font-semibold">₹{remainingAmount}</span>.
+          </p>
         </div>
       )}
 
-      {/* Pay Now — primary / recommended */}
+      {/* Pay Now — UPI / Card */}
       <button
         type="button"
         disabled={disabled}
@@ -62,20 +111,17 @@ export function PaymentMethodSelector({ selected, onChange, disabled, walletBala
           disabled && "opacity-50 pointer-events-none"
         )}
       >
-        {/* Recommended badge */}
-        <span className="absolute -top-2.5 left-3 inline-flex items-center gap-1 bg-primary text-primary-foreground text-[10px] font-bold px-2 py-0.5 rounded-full">
-          <Zap className="w-3 h-3" /> Recommended
-        </span>
+        {!hasWallet && (
+          <span className="absolute -top-2.5 left-3 inline-flex items-center gap-1 bg-primary text-primary-foreground text-[10px] font-bold px-2 py-0.5 rounded-full">
+            <Zap className="w-3 h-3" /> Recommended
+          </span>
+        )}
 
         <div className={cn(
           "w-9 h-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5",
           selected === 'pay_now' ? "bg-primary/15" : "bg-muted"
         )}>
-          {walletCoversAll ? (
-            <Wallet className={cn("w-5 h-5", selected === 'pay_now' ? "text-primary" : "text-muted-foreground")} />
-          ) : (
-            <Smartphone className={cn("w-5 h-5", selected === 'pay_now' ? "text-primary" : "text-muted-foreground")} />
-          )}
+          <Smartphone className={cn("w-5 h-5", selected === 'pay_now' ? "text-primary" : "text-muted-foreground")} />
         </div>
 
         <div className="flex-1 min-w-0">
@@ -83,14 +129,12 @@ export function PaymentMethodSelector({ selected, onChange, disabled, walletBala
             "text-sm font-bold leading-tight",
             selected === 'pay_now' ? "text-primary" : "text-foreground"
           )}>
-            {walletCoversAll ? 'Pay with Wallet' : 'Pay Now — UPI / Card'}
+            Pay Now — UPI / Card
           </span>
           <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
-            {walletCoversAll
-              ? `₹${bookingAmount} from wallet • instant confirmation`
-              : walletPartial
-                ? `₹${walletBalance} wallet + ₹${remainingAmount} via PhonePe / GPay / Card`
-                : 'PhonePe, Google Pay, Paytm & more'}
+            {walletPartial
+              ? <>₹{walletBalance} wallet + ₹{remainingAmount} via PhonePe / GPay / Card</>
+              : 'PhonePe, Google Pay, Paytm & more'}
           </p>
           <div className="flex items-center gap-2.5 mt-1.5">
             <span className="inline-flex items-center gap-0.5 text-[10px] text-emerald-600 font-medium">
@@ -102,7 +146,6 @@ export function PaymentMethodSelector({ selected, onChange, disabled, walletBala
           </div>
         </div>
 
-        {/* Radio indicator */}
         <div className={cn(
           "w-5 h-5 rounded-full border-2 shrink-0 mt-1 flex items-center justify-center",
           selected === 'pay_now' ? "border-primary" : "border-muted-foreground/30"

@@ -611,7 +611,7 @@ export function ScheduleScreen() {
                 disabled={submitting}
                 className="flex-1 rounded-xl h-11 font-bold"
               >
-                {paymentMethod === 'pay_after_service' ? 'Confirm Booking' : 'Pay securely'}
+                {paymentMethod === 'pay_after_service' ? 'Confirm Booking' : paymentMethod === 'wallet' ? 'Pay with Wallet' : 'Pay securely'}
               </Button>
             </div>
           </AlertDialogContent>
