@@ -488,8 +488,11 @@ export function ScheduleScreen() {
                     const isPast = isPastToday(slot, selectedDate);
                     const isSelected = selectedTime === slot;
                     const slotSurge = getSurge(slot);
-                    const isSlotUnavailable = unavailableSlots.has(slot);
-                    const isDisabled = isPast || isSlotUnavailable;
+                    // Allowlist: slot must be explicitly returned as available by backend
+                    // While loading (availableSlots === null), disable all slots
+                    const isSlotUnavailable = availableSlots !== null && !availableSlots.has(slot);
+                    const isStillLoading = availableSlots === null && loadingAvailability;
+                    const isDisabled = isPast || isSlotUnavailable || isStillLoading;
                     
                     return (
                       <Button
@@ -514,7 +517,7 @@ export function ScheduleScreen() {
                         {isSlotUnavailable && !isPast && (
                           <span className="text-[9px] text-destructive font-normal">Unavailable</span>
                         )}
-                        {!isSlotUnavailable && slotSurge > 0 && (
+                        {!isSlotUnavailable && !isStillLoading && slotSurge > 0 && (
                           <span className={`text-[10px] font-semibold mt-0.5 ${
                             isSelected ? 'text-primary' : 'text-orange-500'
                           }`}>
