@@ -81,8 +81,7 @@ Deno.serve(async (req) => {
     if (!idToken) return json({ error: "Not authenticated" }, 401);
 
     const firebaseUser = await verifyFirebaseToken(idToken);
-
-    // 2. Parse request
+    console.log("[create-paid-booking] ✅ Firebase auth OK, uid:", firebaseUser.uid);
     const {
       booking_data,
       payment_type,
