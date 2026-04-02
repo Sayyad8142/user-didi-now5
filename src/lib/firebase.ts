@@ -503,7 +503,7 @@ export const getFirebaseIdToken = async (forceRefresh = false): Promise<string |
   
   if (authInstance.currentUser) {
     try {
-      return await authInstance.currentUser.getIdToken();
+      return await authInstance.currentUser.getIdToken(forceRefresh);
     } catch (error) {
       console.error('❌ Error getting ID token:', error);
       return null;
