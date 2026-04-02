@@ -117,7 +117,7 @@ export function PaymentMethodSelector({ selected, onChange, disabled, walletBala
           disabled && "opacity-50 pointer-events-none"
         )}
       >
-        {!hasWallet && (
+        {!walletCoversAll && (
           <span className="absolute -top-2.5 left-3 inline-flex items-center gap-1 bg-primary text-primary-foreground text-[10px] font-bold px-2 py-0.5 rounded-full">
             <Zap className="w-3 h-3" /> Recommended
           </span>
