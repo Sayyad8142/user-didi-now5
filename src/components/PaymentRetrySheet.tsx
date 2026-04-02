@@ -54,13 +54,13 @@ function getErrorConfig(errorType: PaymentErrorType): ErrorConfig {
       };
     case 'verification_failed':
       return {
-        title: 'Checking your payment…',
-        message: 'Your payment is being verified. This may take a moment.',
-        icon: <Loader2 className="w-6 h-6 text-primary animate-spin" />,
-        primaryLabel: 'Verifying…',
+        title: 'Booking creation pending',
+        message: 'Your payment was received. Tap below to complete booking creation.',
+        icon: <AlertTriangle className="w-6 h-6 text-amber-500" />,
+        primaryLabel: 'Retry Booking Creation',
         showFallback: false,
         showPayAfter: false,
-        allowRetry: false,
+        allowRetry: true,
       };
   }
 }
