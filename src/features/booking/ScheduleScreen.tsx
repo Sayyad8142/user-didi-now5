@@ -86,6 +86,7 @@ export function ScheduleScreen() {
   const [retryBookingId, setRetryBookingId] = useState<string | null>(null);
   const [retryBookingCreatedAt, setRetryBookingCreatedAt] = useState<string | null>(null);
   const [retrying, setRetrying] = useState(false);
+  const [pendingCheckout, setPendingCheckout] = useState<PendingCheckoutData | null>(null);
 
   // Dynamic slot surge pricing
   const { getSurge } = useSlotSurge(profile?.community_id, service_type || 'maid');
