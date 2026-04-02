@@ -76,7 +76,7 @@ export function ScheduleScreen() {
   const [showAvailabilityWarning, setShowAvailabilityWarning] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('pay_now');
   const [showPaymentPicker, setShowPaymentPicker] = useState(false);
-  const [unavailableSlots, setUnavailableSlots] = useState<Set<string>>(new Set());
+  const [availableSlots, setAvailableSlots] = useState<Set<string> | null>(null); // null = still loading
   const [loadingAvailability, setLoadingAvailability] = useState(false);
 
   // Retry state
