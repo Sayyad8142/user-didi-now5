@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { executePaymentFlow, executePaymentFlowForNewBooking, PaymentError, type PaymentFlowStatus, type PaymentErrorType } from '@/lib/paymentService';
+import { executePaymentFlow, executePaymentFlowForNewBooking, retryPendingBookingCreation, PaymentError, type PaymentFlowStatus, type PaymentErrorType, type PendingCheckoutData } from '@/lib/paymentService';
 import { PaymentMethodSelector, type PaymentMethod } from '@/components/PaymentMethodSelector';
 import { PaymentRetrySheet } from '@/components/PaymentRetrySheet';
 import { trackPaymentEvent } from '@/lib/paymentAnalytics';
