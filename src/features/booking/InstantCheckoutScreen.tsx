@@ -16,7 +16,7 @@ import { useFlatSize } from '@/hooks/useFlatSize';
 import { useFavoriteWorkers, type FavoriteWorker } from '@/hooks/useFavoriteWorkers';
 import { checkInstantBookingAvailability } from '@/hooks/useSupplyCheck';
 import { SupplyFullModal } from '@/components/SupplyFullModal';
-import { executePaymentFlow, executePaymentFlowForNewBooking, PaymentError, type PaymentFlowStatus, type PaymentErrorType } from '@/lib/paymentService';
+import { executePaymentFlow, executePaymentFlowForNewBooking, retryPendingBookingCreation, PaymentError, type PaymentFlowStatus, type PaymentErrorType, type PendingCheckoutData } from '@/lib/paymentService';
 import { PaymentMethodSelector, type PaymentMethod } from '@/components/PaymentMethodSelector';
 import { PaymentRetrySheet } from '@/components/PaymentRetrySheet';
 import { trackPaymentEvent } from '@/lib/paymentAnalytics';
@@ -43,6 +43,7 @@ export function InstantCheckoutScreen() {
   const [retryBookingId, setRetryBookingId] = useState<string | null>(null);
   const [retryBookingCreatedAt, setRetryBookingCreatedAt] = useState<string | null>(null);
   const [retrying, setRetrying] = useState(false);
+  const [pendingCheckout, setPendingCheckout] = useState<PendingCheckoutData | null>(null);
 
   const { flatSize: autoFlatSize } = useFlatSize();
   const { data: walletData } = useWalletBalance();
@@ -207,7 +208,10 @@ export function InstantCheckoutScreen() {
         const errType = payErr instanceof PaymentError ? payErr.type : 'payment_failed';
         setRetryErrorType(errType as PaymentErrorType);
         setRetryErrorMessage(payErr?.message);
-        // No booking was created — no bookingId to store
+        // Store pending checkout data for retry
+        if (payErr instanceof PaymentError && payErr.pendingCheckout) {
+          setPendingCheckout(payErr.pendingCheckout);
+        }
         setRetryBookingId(null);
         setRetryBookingCreatedAt(new Date().toISOString());
         setRetrySheetOpen(true);
@@ -519,9 +523,21 @@ export function InstantCheckoutScreen() {
         bookingCreatedAt={retryBookingCreatedAt}
         retrying={retrying}
         onRetry={async () => {
-          if (!retryBookingId || retrying) return;
+          if (retrying) return;
           setRetrying(true);
           try {
+            // Payment-first retry: re-call create-paid-booking
+            if (pendingCheckout) {
+              const result = await retryPendingBookingCreation(pendingCheckout, setPaymentStatus);
+              setRetrySheetOpen(false);
+              setPendingCheckout(null);
+              sessionStorage.removeItem(`preferred_worker_${service_type}`);
+              toast({ title: "Booking confirmed!", description: "Your booking is confirmed. Worker will arrive in ~10 minutes." });
+              navigate('/bookings');
+              return;
+            }
+            // Legacy retry: existing booking
+            if (!retryBookingId) return;
             await executePaymentFlow(retryBookingId, setPaymentStatus);
             setRetrySheetOpen(false);
             sessionStorage.removeItem(`preferred_worker_${service_type}`);
@@ -531,6 +547,9 @@ export function InstantCheckoutScreen() {
             const errType = err instanceof PaymentError ? err.type : 'payment_failed';
             setRetryErrorType(errType as PaymentErrorType);
             setRetryErrorMessage(err?.message);
+            if (err instanceof PaymentError && err.pendingCheckout) {
+              setPendingCheckout(err.pendingCheckout);
+            }
           } finally {
             setRetrying(false);
           }

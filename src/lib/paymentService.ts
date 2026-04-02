@@ -77,19 +77,38 @@ export type PaymentFlowStatus =
 /** Error types for downstream handling */
 export type PaymentErrorType = 'user_cancelled' | 'payment_failed' | 'network_error' | 'verification_failed';
 
+/** Stored checkout data for retry after verification_failed */
+export interface PendingCheckoutData {
+  bookingPayload: Record<string, unknown>;
+  checkoutResult: {
+    razorpay_order_id: string;
+    razorpay_payment_id: string;
+    razorpay_signature: string;
+  };
+  razorpayAmount: number;
+  walletCanCover: number;
+  paymentType: 'razorpay' | 'wallet_and_razorpay';
+  requestId: string;
+}
+
 export class PaymentError extends Error {
   type: PaymentErrorType;
-  constructor(message: string, type: PaymentErrorType) {
+  /** Available when type === 'verification_failed' in payment-first flow */
+  pendingCheckout?: PendingCheckoutData;
+  constructor(message: string, type: PaymentErrorType, pendingCheckout?: PendingCheckoutData) {
     super(message);
     this.name = 'PaymentError';
     this.type = type;
+    this.pendingCheckout = pendingCheckout;
   }
 }
 
 // ─── Helpers ──────────────────────────────────────────────────
 
 async function invokeWithFirebaseAuth<T>(functionName: string, body: Record<string, unknown>): Promise<T> {
-  const token = await getFirebaseIdToken();
+  // Force refresh token for payment-critical calls to avoid stale tokens after checkout
+  const forceRefresh = functionName === 'create-paid-booking' || functionName === 'verify-razorpay-payment';
+  const token = await getFirebaseIdToken(forceRefresh);
   if (!token) throw new Error('Authentication expired, please login again');
 
   const { data, error } = await supabase.functions.invoke(functionName, {
@@ -373,17 +392,58 @@ export async function executePaymentFlowForNewBooking(
   } catch (verifyErr: any) {
     console.error('❌ create-paid-booking failed after successful checkout:', verifyErr);
     // Payment was captured but booking creation failed.
-    // The webhook will reconcile via orphan_payments.
+    // Attach checkout data so the UI can retry createPaidBooking.
     onStatusChange('verification_pending');
     trackPaymentEvent('payment_failed', {
       error_type: 'verification_failed',
       razorpay_payment_id: checkoutResult!.razorpay_payment_id,
     });
     throw new PaymentError(
-      'Payment received but booking creation is pending. It will be confirmed automatically within a few minutes.',
+      'Payment received but booking creation is pending. Tap retry to complete.',
       'verification_failed',
+      {
+        bookingPayload: razorpayPayloadWithRequestId,
+        checkoutResult: checkoutResult!,
+        razorpayAmount,
+        walletCanCover,
+        paymentType,
+        requestId: razorpayRequestId,
+      },
     );
   }
+}
+
+/**
+ * Retry booking creation after a verification_failed error.
+ * Re-calls create-paid-booking with the same idempotent request_id.
+ */
+export async function retryPendingBookingCreation(
+  pending: PendingCheckoutData,
+  onStatusChange: (status: PaymentFlowStatus) => void,
+): Promise<PaymentResult> {
+  onStatusChange('verifying_payment');
+  console.log('🔄 Retrying create-paid-booking with request_id:', pending.requestId);
+
+  const result = await createPaidBooking({
+    booking_data: pending.bookingPayload,
+    payment_type: pending.paymentType,
+    razorpay_order_id: pending.checkoutResult.razorpay_order_id,
+    razorpay_payment_id: pending.checkoutResult.razorpay_payment_id,
+    razorpay_signature: pending.checkoutResult.razorpay_signature,
+    razorpay_amount: pending.razorpayAmount,
+    wallet_amount: pending.walletCanCover > 0 ? pending.walletCanCover : undefined,
+  });
+
+  onStatusChange('payment_success');
+  trackPaymentEvent('payment_success', {
+    booking_id: result.booking_id,
+    payment_method: pending.paymentType,
+    wallet_used_amount: pending.walletCanCover,
+  });
+  savePreferredMethod('upi');
+  clearLastFailure();
+  logPaymentSummary();
+  return result;
 }
 
 // ══════════════════════════════════════════════════════════════

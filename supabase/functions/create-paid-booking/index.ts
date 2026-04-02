@@ -63,14 +63,25 @@ Deno.serve(async (req) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
+  console.log("[create-paid-booking] ▶ Request received, method:", req.method);
+
   try {
+    // 0. Environment check
+    if (!RAZORPAY_KEY_SECRET || !SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+      console.error("[create-paid-booking] ❌ Missing env vars:", {
+        hasRazorpaySecret: !!RAZORPAY_KEY_SECRET,
+        hasSupabaseUrl: !!SUPABASE_URL,
+        hasServiceRole: !!SUPABASE_SERVICE_ROLE_KEY,
+      });
+      return json({ error: "Server configuration error", step: "env_check" }, 500);
+    }
+
     // 1. Authenticate via Firebase
     const idToken = extractToken(req);
     if (!idToken) return json({ error: "Not authenticated" }, 401);
 
     const firebaseUser = await verifyFirebaseToken(idToken);
-
-    // 2. Parse request
+    console.log("[create-paid-booking] ✅ Firebase auth OK, uid:", firebaseUser.uid);
     const {
       booking_data,
       payment_type,
