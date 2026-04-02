@@ -106,7 +106,9 @@ export class PaymentError extends Error {
 // ─── Helpers ──────────────────────────────────────────────────
 
 async function invokeWithFirebaseAuth<T>(functionName: string, body: Record<string, unknown>): Promise<T> {
-  const token = await getFirebaseIdToken();
+  // Force refresh token for payment-critical calls to avoid stale tokens after checkout
+  const forceRefresh = functionName === 'create-paid-booking' || functionName === 'verify-razorpay-payment';
+  const token = await getFirebaseIdToken(forceRefresh);
   if (!token) throw new Error('Authentication expired, please login again');
 
   const { data, error } = await supabase.functions.invoke(functionName, {
