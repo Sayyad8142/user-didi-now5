@@ -523,9 +523,21 @@ export function InstantCheckoutScreen() {
         bookingCreatedAt={retryBookingCreatedAt}
         retrying={retrying}
         onRetry={async () => {
-          if (!retryBookingId || retrying) return;
+          if (retrying) return;
           setRetrying(true);
           try {
+            // Payment-first retry: re-call create-paid-booking
+            if (pendingCheckout) {
+              const result = await retryPendingBookingCreation(pendingCheckout, setPaymentStatus);
+              setRetrySheetOpen(false);
+              setPendingCheckout(null);
+              sessionStorage.removeItem(`preferred_worker_${service_type}`);
+              toast({ title: "Booking confirmed!", description: "Your booking is confirmed. Worker will arrive in ~10 minutes." });
+              navigate('/bookings');
+              return;
+            }
+            // Legacy retry: existing booking
+            if (!retryBookingId) return;
             await executePaymentFlow(retryBookingId, setPaymentStatus);
             setRetrySheetOpen(false);
             sessionStorage.removeItem(`preferred_worker_${service_type}`);
@@ -535,6 +547,9 @@ export function InstantCheckoutScreen() {
             const errType = err instanceof PaymentError ? err.type : 'payment_failed';
             setRetryErrorType(errType as PaymentErrorType);
             setRetryErrorMessage(err?.message);
+            if (err instanceof PaymentError && err.pendingCheckout) {
+              setPendingCheckout(err.pendingCheckout);
+            }
           } finally {
             setRetrying(false);
           }
