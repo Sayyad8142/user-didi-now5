@@ -54,3 +54,9 @@ verify_jwt = false
 
 [functions.razorpay-webhook]
 verify_jwt = false
+
+[functions.wallet-pay]
+verify_jwt = false
+
+[functions.create-paid-booking]
+verify_jwt = false
