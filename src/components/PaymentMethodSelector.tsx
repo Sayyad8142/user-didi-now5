@@ -15,10 +15,10 @@ interface PaymentMethodSelectorProps {
 }
 
 export function PaymentMethodSelector({ selected, onChange, disabled, walletBalance = 0, bookingAmount = 0 }: PaymentMethodSelectorProps) {
-  const hasWallet = walletBalance > 0;
-  const walletCoversAll = hasWallet && walletBalance >= bookingAmount && bookingAmount > 0;
-  const walletPartial = hasWallet && !walletCoversAll && bookingAmount > 0;
+  const walletCoversAll = walletBalance > 0 && walletBalance >= bookingAmount && bookingAmount > 0;
+  const walletPartial = walletBalance > 0 && !walletCoversAll && bookingAmount > 0;
   const remainingAmount = walletPartial ? bookingAmount - walletBalance : 0;
+  const walletEmpty = walletBalance <= 0;
 
   // Auto-select wallet if it covers full amount
   React.useEffect(() => {
@@ -29,63 +29,69 @@ export function PaymentMethodSelector({ selected, onChange, disabled, walletBala
 
   return (
     <div className="space-y-3">
-      {/* Wallet Pay — only show when balance > 0 */}
-      {hasWallet && (
-        <button
-          type="button"
-          disabled={disabled || (!walletCoversAll)}
-          onClick={() => onChange('wallet')}
-          className={cn(
-            "relative w-full flex items-start gap-3 rounded-2xl border-2 px-4 py-3.5 transition-all text-left",
-            selected === 'wallet'
-              ? "border-emerald-500 bg-emerald-50 ring-1 ring-emerald-300"
-              : "border-border bg-card hover:border-emerald-400",
-            (disabled || !walletCoversAll) && "opacity-50 pointer-events-none"
-          )}
-        >
+      {/* Wallet Pay — always visible */}
+      <button
+        type="button"
+        disabled={disabled || !walletCoversAll}
+        onClick={() => onChange('wallet')}
+        className={cn(
+          "relative w-full flex items-start gap-3 rounded-2xl border-2 px-4 py-3.5 transition-all text-left",
+          selected === 'wallet'
+            ? "border-emerald-500 bg-emerald-50 ring-1 ring-emerald-300"
+            : "border-border bg-card",
+          walletCoversAll && selected !== 'wallet' && "hover:border-emerald-400",
+          !walletCoversAll && "opacity-60"
+        )}
+      >
+        {walletCoversAll && (
+          <span className="absolute -top-2.5 left-3 inline-flex items-center gap-1 bg-emerald-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+            <Wallet className="w-3 h-3" /> Best Option
+          </span>
+        )}
+
+        <div className={cn(
+          "w-9 h-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5",
+          selected === 'wallet' ? "bg-emerald-100" : "bg-muted"
+        )}>
+          <Wallet className={cn("w-5 h-5", selected === 'wallet' ? "text-emerald-600" : "text-muted-foreground")} />
+        </div>
+
+        <div className="flex-1 min-w-0">
+          <span className={cn(
+            "text-sm font-bold leading-tight",
+            selected === 'wallet' ? "text-emerald-700" : "text-foreground"
+          )}>
+            Pay with Wallet
+          </span>
+          <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
+            {walletCoversAll
+              ? <>Balance: <span className="font-semibold text-emerald-600">₹{walletBalance}</span> — covers full ₹{bookingAmount}</>
+              : walletPartial
+                ? <>Balance: <span className="font-semibold">₹{walletBalance}</span> — need ₹{bookingAmount} (insufficient)</>
+                : <>Wallet Balance: <span className="font-semibold">₹0</span></>
+            }
+          </p>
           {walletCoversAll && (
-            <span className="absolute -top-2.5 left-3 inline-flex items-center gap-1 bg-emerald-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
-              <Wallet className="w-3 h-3" /> Best Option
-            </span>
+            <div className="flex items-center gap-2.5 mt-1.5">
+              <span className="inline-flex items-center gap-0.5 text-[10px] text-emerald-600 font-medium">
+                <Zap className="w-3 h-3" /> Instant • No payment app needed
+              </span>
+            </div>
           )}
-
-          <div className={cn(
-            "w-9 h-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5",
-            selected === 'wallet' ? "bg-emerald-100" : "bg-muted"
-          )}>
-            <Wallet className={cn("w-5 h-5", selected === 'wallet' ? "text-emerald-600" : "text-muted-foreground")} />
-          </div>
-
-          <div className="flex-1 min-w-0">
-            <span className={cn(
-              "text-sm font-bold leading-tight",
-              selected === 'wallet' ? "text-emerald-700" : "text-foreground"
-            )}>
-              Pay with Wallet
-            </span>
-            <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
-              {walletCoversAll
-                ? <>Balance: <span className="font-semibold text-emerald-600">₹{walletBalance}</span> — covers full ₹{bookingAmount}</>
-                : <>Balance: <span className="font-semibold">₹{walletBalance}</span> — need ₹{bookingAmount} (insufficient)</>
-              }
+          {walletEmpty && (
+            <p className="text-[10px] text-muted-foreground mt-1">
+              Refunds from cancelled bookings appear here
             </p>
-            {walletCoversAll && (
-              <div className="flex items-center gap-2.5 mt-1.5">
-                <span className="inline-flex items-center gap-0.5 text-[10px] text-emerald-600 font-medium">
-                  <Zap className="w-3 h-3" /> Instant • No payment app needed
-                </span>
-              </div>
-            )}
-          </div>
+          )}
+        </div>
 
-          <div className={cn(
-            "w-5 h-5 rounded-full border-2 shrink-0 mt-1 flex items-center justify-center",
-            selected === 'wallet' ? "border-emerald-500" : "border-muted-foreground/30"
-          )}>
-            {selected === 'wallet' && <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />}
-          </div>
-        </button>
-      )}
+        <div className={cn(
+          "w-5 h-5 rounded-full border-2 shrink-0 mt-1 flex items-center justify-center",
+          selected === 'wallet' ? "border-emerald-500" : "border-muted-foreground/30"
+        )}>
+          {selected === 'wallet' && <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />}
+        </div>
+      </button>
 
       {/* Wallet partial info banner */}
       {walletPartial && selected === 'pay_now' && (
