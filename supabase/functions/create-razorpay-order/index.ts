@@ -225,7 +225,7 @@ Deno.serve(async (req) => {
     });
 
   } catch (err: any) {
-    console.error("create-razorpay-order error:", err);
-    return json({ error: err.message || "Internal error" }, 500);
+    console.error("[create-razorpay-order] ❌ Unhandled error:", err);
+    return json({ error: err.message || "Internal error", step: "unhandled" }, 500);
   }
 });
