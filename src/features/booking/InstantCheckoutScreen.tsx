@@ -496,8 +496,8 @@ export function InstantCheckoutScreen() {
             <Button className="flex-1 rounded-xl h-11 font-bold" onClick={confirmBooking} disabled={submitting}>
               {paymentMethod === 'pay_after_service'
                 ? 'Confirm Booking'
-                : walletBalance >= price
-                  ? `Pay ₹${price} securely`
+                : paymentMethod === 'wallet'
+                  ? 'Pay with Wallet'
                   : `Pay ₹${price} securely`}
             </Button>
           </div>
