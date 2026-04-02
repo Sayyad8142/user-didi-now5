@@ -197,8 +197,8 @@ Deno.serve(async (req) => {
 
     if (!rpRes.ok) {
       const errText = await rpRes.text();
-      console.error("Razorpay order creation failed:", rpRes.status, errText);
-      return json({ error: "Failed to create payment order" }, 502);
+      console.error("[create-razorpay-order] ❌ Razorpay API failed (legacy):", rpRes.status, errText);
+      return json({ error: "Unable to create Razorpay order", step: "razorpay_api", razorpay_status: rpRes.status }, 502);
     }
 
     const rpOrder = await rpRes.json();
