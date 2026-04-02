@@ -43,6 +43,7 @@ export function InstantCheckoutScreen() {
   const [retryBookingId, setRetryBookingId] = useState<string | null>(null);
   const [retryBookingCreatedAt, setRetryBookingCreatedAt] = useState<string | null>(null);
   const [retrying, setRetrying] = useState(false);
+  const [pendingCheckout, setPendingCheckout] = useState<PendingCheckoutData | null>(null);
 
   const { flatSize: autoFlatSize } = useFlatSize();
   const { data: walletData } = useWalletBalance();
