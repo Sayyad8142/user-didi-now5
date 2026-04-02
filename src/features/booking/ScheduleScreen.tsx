@@ -420,7 +420,8 @@ export function ScheduleScreen() {
   const timeSegments = TIME_SEGMENTS;
   const currentSegmentSlots = makeSlots(
     timeSegments[activeSegment].start,
-    timeSegments[activeSegment].end
+    timeSegments[activeSegment].end,
+    30
   );
 
   const canConfirm = selectedDate && selectedTime && !submitting;
