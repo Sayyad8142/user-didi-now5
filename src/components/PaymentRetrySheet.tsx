@@ -127,12 +127,12 @@ export function PaymentRetrySheet({
     }
   }, [open, errorType]);
 
-  // Auto-dismiss verification_failed after 15s
+  // Auto-dismiss verification_failed after 60s (give time for manual retry)
   useEffect(() => {
     if (errorType !== 'verification_failed' || !open) return;
     const t = setTimeout(() => {
       onVerificationResolved?.();
-    }, 15_000);
+    }, 60_000);
     return () => clearTimeout(t);
   }, [errorType, open, onVerificationResolved]);
 
