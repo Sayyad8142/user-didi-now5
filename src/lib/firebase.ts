@@ -482,12 +482,12 @@ export const signOut = async (): Promise<void> => {
 };
 
 // Get Firebase ID token for Supabase
-export const getFirebaseIdToken = async (): Promise<string | null> => {
+export const getFirebaseIdToken = async (forceRefresh = false): Promise<string | null> => {
   // On Android native, use the native plugin to get the token
   if (shouldUseNativeAuth()) {
     try {
       const { FirebaseAuthentication } = await import('@capacitor-firebase/authentication');
-      const result = await FirebaseAuthentication.getIdToken({ forceRefresh: false });
+      const result = await FirebaseAuthentication.getIdToken({ forceRefresh });
       if (result.token) {
         return result.token;
       }
