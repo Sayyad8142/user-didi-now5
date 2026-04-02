@@ -28,26 +28,49 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // 0. Validate env vars
+    if (!RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET) {
+      console.error("[create-razorpay-order] ❌ Missing RAZORPAY_KEY_ID or RAZORPAY_KEY_SECRET");
+      return json({ error: "Payment server not configured", step: "env_check" }, 500);
+    }
+
     // 1. Authenticate user
     const idToken = extractToken(req);
-    if (!idToken) return json({ error: "Not authenticated" }, 401);
+    if (!idToken) {
+      console.error("[create-razorpay-order] ❌ No auth token in request");
+      return json({ error: "Not authenticated", step: "auth" }, 401);
+    }
 
-    const firebaseUser = await verifyFirebaseToken(idToken);
+    let firebaseUser;
+    try {
+      firebaseUser = await verifyFirebaseToken(idToken);
+    } catch (authErr: any) {
+      console.error("[create-razorpay-order] ❌ Firebase token verification failed:", authErr.message);
+      return json({ error: "Authentication expired, please login again", step: "firebase_verify" }, 401);
+    }
+
+    console.log(`[create-razorpay-order] 🔑 firebase_uid=${firebaseUser.uid}`);
 
     // 2. Parse request
     const body = await req.json();
     const { booking_id, amount, service_type } = body;
+    console.log(`[create-razorpay-order] 📦 Request: booking_id=${booking_id || 'none'}, amount=${amount}, service_type=${service_type}`);
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
     // 3. Map firebase_uid to profile
-    const { data: profile } = await supabase
+    const { data: profile, error: profileErr } = await supabase
       .from("profiles")
       .select("id, full_name, phone")
       .eq("firebase_uid", firebaseUser.uid)
       .single();
 
-    if (!profile) return json({ error: "Profile not found" }, 404);
+    if (profileErr || !profile) {
+      console.error("[create-razorpay-order] ❌ Profile lookup failed:", profileErr?.message, "firebase_uid:", firebaseUser.uid);
+      return json({ error: "Profile not found", step: "profile_lookup" }, 404);
+    }
+
+    console.log(`[create-razorpay-order] 👤 profile_id=${profile.id}`);
 
     // ────────────────────────────────────────────────────────────
     // MODE A: Payment-first (no booking exists yet)

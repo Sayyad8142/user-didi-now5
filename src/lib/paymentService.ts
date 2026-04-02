@@ -90,14 +90,24 @@ export class PaymentError extends Error {
 
 async function invokeWithFirebaseAuth<T>(functionName: string, body: Record<string, unknown>): Promise<T> {
   const token = await getFirebaseIdToken();
-  if (!token) throw new Error('Not authenticated');
+  if (!token) throw new Error('Authentication expired, please login again');
 
   const { data, error } = await supabase.functions.invoke(functionName, {
     body,
     headers: { 'x-firebase-token': token },
   });
 
-  if (error) throw new Error(error.message || `${functionName} failed`);
+  if (error) {
+    // supabase.functions.invoke puts the response body in `data` even on non-2xx
+    // The `error.message` is always the generic "Edge Function returned a non-2xx status code"
+    const backendMessage = data?.error || data?.message;
+    if (backendMessage) {
+      console.error(`❌ [${functionName}] Backend error:`, backendMessage, 'step:', data?.step);
+      throw new Error(backendMessage);
+    }
+    console.error(`❌ [${functionName}] Error:`, error.message, 'data:', JSON.stringify(data));
+    throw new Error(error.message || `${functionName} failed`);
+  }
   if (data?.error) throw new Error(data.error);
   return data as T;
 }
