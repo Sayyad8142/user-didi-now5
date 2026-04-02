@@ -18,7 +18,7 @@ export function runCheckout(order: RazorpayOrderResponse): Promise<CheckoutSucce
   console.log(`💳 runCheckout — order=${order.order_id}`);
 
   return new Promise((resolve, reject) => {
-    const options = {
+    const options: Record<string, any> = {
       key: order.key_id,
       amount: order.amount,
       currency: order.currency,
@@ -30,6 +30,10 @@ export function runCheckout(order: RazorpayOrderResponse): Promise<CheckoutSucce
         contact: order.prefill?.contact || '',
       },
       theme: { color: '#ec4899' },
+      // Enable UPI intent flow inside Capacitor / WebView so Razorpay
+      // shows installed UPI apps (GPay, PhonePe, Paytm) instead of
+      // only the manual UPI-ID entry screen.
+      webview_intent: true,
       modal: {
         ondismiss: () => {
           console.log('🚪 Checkout dismissed by user');
