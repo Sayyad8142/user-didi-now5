@@ -76,7 +76,7 @@ export function ScheduleScreen() {
   const [showAvailabilityWarning, setShowAvailabilityWarning] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('pay_now');
   const [showPaymentPicker, setShowPaymentPicker] = useState(false);
-  const [unavailableSlots, setUnavailableSlots] = useState<Set<string>>(new Set());
+  const [availableSlots, setAvailableSlots] = useState<Set<string> | null>(null); // null = still loading
   const [loadingAvailability, setLoadingAvailability] = useState(false);
 
   // Retry state
@@ -132,16 +132,17 @@ export function ScheduleScreen() {
     setInitialSegmentSet(true);
   }, [selectedDate]);
 
-  // Fetch slot availability when date or community changes
+  // Fetch slot availability when date or community changes — ALLOWLIST approach
   useEffect(() => {
     if (!selectedDate || !profile?.community || !service_type) {
-      setUnavailableSlots(new Set());
+      setAvailableSlots(null);
       return;
     }
 
     let cancelled = false;
     const fetchAvailability = async () => {
       setLoadingAvailability(true);
+      setAvailableSlots(null); // reset while loading
       try {
         const dateStr = format(selectedDate, 'yyyy-MM-dd');
         const { data, error } = await supabase.rpc('get_scheduled_slot_availability', {
@@ -150,15 +151,15 @@ export function ScheduleScreen() {
           p_date: dateStr,
         });
         if (error || cancelled) return;
-        const unavailable = new Set<string>();
+        const allowed = new Set<string>();
         ((data as any[]) || []).forEach((row: { slot_time: string; worker_count: number }) => {
-          if (row.worker_count < 1) {
+          if (row.worker_count >= 1) {
             // Normalize "HH:MM:SS" from DB to "HH:MM" to match makeSlots format
             const normalized = row.slot_time.length > 5 ? row.slot_time.slice(0, 5) : row.slot_time;
-            unavailable.add(normalized);
+            allowed.add(normalized);
           }
         });
-        setUnavailableSlots(unavailable);
+        if (!cancelled) setAvailableSlots(allowed);
       } catch (err) {
         console.error('Slot availability fetch failed:', err);
       } finally {
@@ -169,6 +170,13 @@ export function ScheduleScreen() {
     fetchAvailability();
     return () => { cancelled = true; };
   }, [selectedDate, profile?.community, service_type]);
+
+  // Auto-clear selected slot if it becomes unavailable after availability loads
+  useEffect(() => {
+    if (availableSlots !== null && selectedTime && !availableSlots.has(selectedTime)) {
+      setSelectedTime('');
+    }
+  }, [availableSlots, selectedTime]);
 
   useEffect(() => {
     if (priceParam) {
@@ -480,8 +488,11 @@ export function ScheduleScreen() {
                     const isPast = isPastToday(slot, selectedDate);
                     const isSelected = selectedTime === slot;
                     const slotSurge = getSurge(slot);
-                    const isSlotUnavailable = unavailableSlots.has(slot);
-                    const isDisabled = isPast || isSlotUnavailable;
+                    // Allowlist: slot must be explicitly returned as available by backend
+                    // While loading (availableSlots === null), disable all slots
+                    const isSlotUnavailable = availableSlots !== null && !availableSlots.has(slot);
+                    const isStillLoading = availableSlots === null && loadingAvailability;
+                    const isDisabled = isPast || isSlotUnavailable || isStillLoading;
                     
                     return (
                       <Button
@@ -506,7 +517,7 @@ export function ScheduleScreen() {
                         {isSlotUnavailable && !isPast && (
                           <span className="text-[9px] text-destructive font-normal">Unavailable</span>
                         )}
-                        {!isSlotUnavailable && slotSurge > 0 && (
+                        {!isSlotUnavailable && !isStillLoading && slotSurge > 0 && (
                           <span className={`text-[10px] font-semibold mt-0.5 ${
                             isSelected ? 'text-primary' : 'text-orange-500'
                           }`}>
