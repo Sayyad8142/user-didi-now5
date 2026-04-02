@@ -333,7 +333,9 @@ export function ScheduleScreen() {
         const errType = payErr instanceof PaymentError ? payErr.type : 'payment_failed';
         setRetryErrorType(errType as PaymentErrorType);
         setRetryErrorMessage(payErr?.message);
-        // No booking was created — store payload for retry
+        if (payErr instanceof PaymentError && payErr.pendingCheckout) {
+          setPendingCheckout(payErr.pendingCheckout);
+        }
         setRetryBookingId(null);
         setRetryBookingCreatedAt(new Date().toISOString());
         setRetrySheetOpen(true);
