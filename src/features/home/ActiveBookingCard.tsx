@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Sparkles, ChefHat, ShowerHead, ArrowRight, X, CreditCard, PhoneCall, MessageCircle, Star, CheckCircle, XCircle, RefreshCw } from 'lucide-react';
+import { Sparkles, ChefHat, ShowerHead, ArrowRight, X, CreditCard, PhoneCall, MessageCircle, Star, CheckCircle, XCircle, RefreshCw, KeyRound } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { useProfile } from '@/contexts/ProfileContext';
@@ -43,6 +43,9 @@ interface Booking {
   reach_status?: string | null;
   reach_confirmed_at?: string | null;
   reach_confirmed_by?: string | null;
+  completion_otp?: string | null;
+  otp_verified_at?: string | null;
+  payment_status?: string | null;
 }
 
 const getServiceIcon = (serviceType: string) => {
@@ -618,6 +621,22 @@ const ActiveBookingCard = memo(() => {
               Not Reached
             </Button>
           </div>
+        </div>
+      )}
+
+      {/* Completion OTP */}
+      {activeBooking.completion_otp && (activeBooking.payment_status === 'paid' || activeBooking.payment_status === 'pay_after_service') && !activeBooking.otp_verified_at && activeBooking.status !== 'cancelled' && (
+        <div className="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+          <div className="flex items-center gap-2 mb-1">
+            <KeyRound className="w-4 h-4 text-amber-700" />
+            <p className="text-xs font-semibold text-amber-800 uppercase tracking-wide">Completion OTP</p>
+          </div>
+          <p className="text-2xl font-bold text-amber-900 tracking-[0.3em] text-center">
+            {activeBooking.completion_otp}
+          </p>
+          <p className="text-[10px] text-amber-600 text-center mt-1">
+            Share this OTP only after the work is fully completed
+          </p>
         </div>
       )}
 
