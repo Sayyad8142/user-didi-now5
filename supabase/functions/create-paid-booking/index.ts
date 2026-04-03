@@ -152,6 +152,7 @@ Deno.serve(async (req) => {
       razorpay_signature,
       razorpay_amount,
       wallet_amount,
+      qr_recovery,
     } = await req.json();
 
     if (!rawBookingData || typeof rawBookingData !== "object") {
@@ -171,9 +172,10 @@ Deno.serve(async (req) => {
       return json({ error: "Invalid payment_type" }, 400);
     }
 
-    // Razorpay fields required for razorpay payments
+    // Razorpay fields required for razorpay payments (unless QR recovery)
     if (
       (payment_type === "razorpay" || payment_type === "wallet_and_razorpay") &&
+      !qr_recovery &&
       (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature)
     ) {
       return json(
@@ -182,6 +184,15 @@ Deno.serve(async (req) => {
       );
     }
 
+    // QR recovery requires at least order_id and payment_id
+    if (qr_recovery && (!razorpay_order_id || !razorpay_payment_id)) {
+      return json(
+        { error: "order_id and payment_id required for QR recovery" },
+        400,
+      );
+    }
+
+    const RAZORPAY_KEY_ID = Deno.env.get("RAZORPAY_KEY_ID")!;
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
     // 3. Resolve profile from Firebase UID
@@ -198,22 +209,48 @@ Deno.serve(async (req) => {
       return json({ error: "User ID mismatch" }, 403);
     }
 
-    // 5. Verify Razorpay signature (if applicable)
+    // 5. Verify payment
     if (payment_type === "razorpay" || payment_type === "wallet_and_razorpay") {
-      const expectedData = `${razorpay_order_id}|${razorpay_payment_id}`;
-      const isValid = await hmacSha256Verify(
-        expectedData,
-        razorpay_signature,
-        RAZORPAY_KEY_SECRET,
-      );
-      if (!isValid) {
-        console.error(
-          "[create-paid-booking] HMAC verification failed for user:",
-          profile.id,
+      if (qr_recovery) {
+        // QR recovery: verify payment directly with Razorpay API
+        console.log("[create-paid-booking] 🔍 QR recovery — verifying payment via Razorpay API");
+        const authHeader = "Basic " + btoa(`${RAZORPAY_KEY_ID}:${RAZORPAY_KEY_SECRET}`);
+        const rpRes = await fetch(`https://api.razorpay.com/v1/payments/${razorpay_payment_id}`, {
+          headers: { Authorization: authHeader },
+        });
+
+        if (!rpRes.ok) {
+          console.error("[create-paid-booking] ❌ Razorpay payment lookup failed:", rpRes.status);
+          return json({ error: "Payment verification failed" }, 400);
+        }
+
+        const rpPayment = await rpRes.json();
+        if (rpPayment.status !== "captured" && rpPayment.status !== "authorized") {
+          console.error("[create-paid-booking] ❌ Payment not captured:", rpPayment.status);
+          return json({ error: `Payment status: ${rpPayment.status}` }, 400);
+        }
+        if (rpPayment.order_id !== razorpay_order_id) {
+          console.error("[create-paid-booking] ❌ Payment order mismatch");
+          return json({ error: "Payment order mismatch" }, 400);
+        }
+        console.log("[create-paid-booking] ✅ QR payment verified via Razorpay API");
+      } else {
+        // Normal flow: verify HMAC signature
+        const expectedData = `${razorpay_order_id}|${razorpay_payment_id}`;
+        const isValid = await hmacSha256Verify(
+          expectedData,
+          razorpay_signature,
+          RAZORPAY_KEY_SECRET,
         );
-        return json({ error: "Payment verification failed" }, 400);
+        if (!isValid) {
+          console.error(
+            "[create-paid-booking] HMAC verification failed for user:",
+            profile.id,
+          );
+          return json({ error: "Payment verification failed" }, 400);
+        }
+        console.log("[create-paid-booking] ✅ Razorpay signature verified");
       }
-      console.log("[create-paid-booking] ✅ Razorpay signature verified");
     }
 
     // 6. Idempotency check — BEFORE wallet debit to prevent double-deduction

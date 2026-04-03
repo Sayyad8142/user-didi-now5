@@ -23,7 +23,7 @@
  */
 import { supabase } from '@/integrations/supabase/client';
 import { getFirebaseIdToken } from '@/lib/firebase';
-import { runCheckout } from './checkoutRunner';
+import { runCheckout, type CheckoutResult } from './checkoutRunner';
 import {
   trackPaymentEvent,
   savePreferredMethod,
@@ -298,6 +298,59 @@ async function createPaidBooking(params: CreatePaidBookingParams): Promise<Payme
   return invokeWithFirebaseAuth<PaymentResult>('create-paid-booking', payload);
 }
 
+// ─── QR Payment Recovery ──────────────────────────────────────
+
+interface OrderCheckResult {
+  paid: boolean;
+  razorpay_payment_id?: string;
+  razorpay_order_id?: string;
+  amount?: number;
+}
+
+/**
+ * Checks with Razorpay if an order has been paid (for QR payment recovery).
+ * Polls up to 3 times with 3s delay to allow payment processing.
+ */
+async function checkRazorpayOrderPayment(orderId: string): Promise<OrderCheckResult> {
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    console.log(`🔍 Checking order payment status, attempt ${attempt}/3`);
+    try {
+      const result = await invokeWithFirebaseAuth<OrderCheckResult>('check-razorpay-order', {
+        order_id: orderId,
+      });
+      if (result.paid) return result;
+    } catch (err) {
+      console.warn(`⚠️ Order check attempt ${attempt} failed:`, err);
+    }
+    if (attempt < 3) await sleep(3000);
+  }
+  return { paid: false };
+}
+
+/**
+ * Creates a paid booking after QR payment recovery (no signature available).
+ * Uses a server-side verified payment — the edge function will verify
+ * the payment directly with Razorpay instead of using HMAC signature.
+ */
+async function createPaidBookingAfterQrPayment(params: Omit<CreatePaidBookingParams, 'razorpay_signature'>): Promise<PaymentResult> {
+  const payload: Record<string, unknown> = {
+    ...params,
+    booking_data: sanitizeBookingDataForCreatePaidBooking(params.booking_data as Record<string, unknown>),
+    // Signal to backend that this is a QR recovery — verify payment server-side
+    qr_recovery: true,
+  };
+  if (params.request_id) payload.request_id = params.request_id;
+
+  console.log('📝 Creating paid booking after QR recovery:', params.payment_type);
+  logCreatePaidBookingDebug('request', {
+    functionName: 'create-paid-booking',
+    payload: maskSensitivePayloadForLogs(payload),
+    qr_recovery: true,
+  });
+
+  return invokeWithFirebaseAuth<PaymentResult>('create-paid-booking', payload);
+}
+
 // ─── Legacy Helpers (for existing booking retries) ────────────
 
 export async function debitWalletForBooking(bookingId: string): Promise<WalletPayResult> {
@@ -468,15 +521,91 @@ export async function executePaymentFlowForNewBooking(
     wallet_used_amount: walletCanCover,
   });
 
-  let checkoutResult;
-  try {
-    checkoutResult = await runCheckout(order);
-  } catch (err: any) {
-    // Payment cancelled or failed — NO booking created
-    handleCheckoutError(err, 'pending', onStatusChange);
+  const checkoutResult: CheckoutResult = await runCheckout(order);
+
+  // Step 4b: Handle checkout result
+  if (checkoutResult.status === 'failed') {
+    handleCheckoutError(
+      new Error(checkoutResult.error || 'Payment failed'),
+      'pending',
+      onStatusChange,
+    );
   }
 
-  // Step 5: Payment succeeded — now create booking + verify atomically
+  if (checkoutResult.status === 'dismissed') {
+    // User dismissed overlay — but may have paid via QR/UPI.
+    // Poll Razorpay to check if payment actually went through.
+    console.log('🔍 Checkout dismissed — checking if payment was captured for order:', order.order_id);
+    onStatusChange('verifying_payment');
+
+    const orderCheck = await checkRazorpayOrderPayment(order.order_id);
+    if (!orderCheck.paid) {
+      console.log('❌ No payment found after dismiss — treating as cancelled');
+      onStatusChange('payment_cancelled');
+      saveLastFailure('upi', 'user_cancelled');
+      throw new PaymentError('Payment cancelled by user', 'user_cancelled');
+    }
+
+    // Payment WAS captured via QR! Use the payment details.
+    console.log('✅ Payment found after dismiss:', orderCheck.razorpay_payment_id);
+    trackPaymentEvent('payment_recovered_after_dismiss', {
+      order_id: order.order_id,
+      payment_id: orderCheck.razorpay_payment_id,
+    });
+
+    // For QR payments we don't have a signature — create booking without signature verification
+    // The edge function will skip HMAC check if we pass a special flag
+    const razorpayRequestId = crypto.randomUUID();
+    const razorpayPayloadWithRequestId = { ...bookingPayload, request_id: razorpayRequestId };
+    const paymentType = walletCanCover > 0 ? 'wallet_and_razorpay' : 'razorpay';
+
+    // We need to verify via the order check — create booking using webhook-style verification
+    // Since we can't get the signature for QR payments, use verify-razorpay-payment flow
+    try {
+      const result = await createPaidBookingAfterQrPayment({
+        request_id: razorpayRequestId,
+        booking_data: razorpayPayloadWithRequestId,
+        payment_type: paymentType,
+        razorpay_order_id: order.order_id,
+        razorpay_payment_id: orderCheck.razorpay_payment_id!,
+        razorpay_amount: order.amount,
+        wallet_amount: walletCanCover > 0 ? walletCanCover : undefined,
+      });
+
+      onStatusChange('payment_success');
+      trackPaymentEvent('payment_success', {
+        booking_id: result.booking_id,
+        payment_method: paymentType,
+        wallet_used_amount: walletCanCover,
+        recovered_from_dismiss: true,
+      });
+      savePreferredMethod('upi');
+      clearLastFailure();
+      logPaymentSummary();
+      return result;
+    } catch (qrErr: any) {
+      console.error('❌ Booking creation failed after QR payment recovery:', qrErr);
+      onStatusChange('verification_pending');
+      throw new PaymentError(
+        qrErr?.message || 'Payment received but booking creation is pending. Tap retry to complete.',
+        'verification_failed',
+        {
+          bookingPayload: razorpayPayloadWithRequestId,
+          checkoutResult: {
+            razorpay_order_id: order.order_id,
+            razorpay_payment_id: orderCheck.razorpay_payment_id!,
+            razorpay_signature: '', // No signature for QR payments
+          },
+          razorpayAmount,
+          walletCanCover,
+          paymentType,
+          requestId: razorpayRequestId,
+        },
+      );
+    }
+  }
+
+  // Step 5: Payment succeeded via handler — create booking + verify atomically
   onStatusChange('verifying_payment');
   trackPaymentEvent('payment_verification_pending', { order_id: order.order_id });
 
@@ -491,9 +620,9 @@ export async function executePaymentFlowForNewBooking(
         request_id: razorpayRequestId,
       booking_data: razorpayPayloadWithRequestId,
       payment_type: paymentType,
-      razorpay_order_id: checkoutResult!.razorpay_order_id,
-      razorpay_payment_id: checkoutResult!.razorpay_payment_id,
-      razorpay_signature: checkoutResult!.razorpay_signature,
+      razorpay_order_id: checkoutResult.payload!.razorpay_order_id,
+      razorpay_payment_id: checkoutResult.payload!.razorpay_payment_id,
+      razorpay_signature: checkoutResult.payload!.razorpay_signature,
       razorpay_amount: order.amount,
       wallet_amount: walletCanCover > 0 ? walletCanCover : undefined,
     });
@@ -510,19 +639,17 @@ export async function executePaymentFlowForNewBooking(
     return result;
   } catch (verifyErr: any) {
     console.error('❌ create-paid-booking failed after successful checkout:', verifyErr);
-    // Payment was captured but booking creation failed.
-    // Attach checkout data so the UI can retry createPaidBooking.
     onStatusChange('verification_pending');
     trackPaymentEvent('payment_failed', {
       error_type: 'verification_failed',
-      razorpay_payment_id: checkoutResult!.razorpay_payment_id,
+      razorpay_payment_id: checkoutResult.payload!.razorpay_payment_id,
     });
     throw new PaymentError(
       verifyErr?.message || 'Payment received but booking creation is pending. Tap retry to complete.',
       'verification_failed',
       {
         bookingPayload: razorpayPayloadWithRequestId,
-        checkoutResult: checkoutResult!,
+        checkoutResult: checkoutResult.payload!,
         razorpayAmount,
         walletCanCover,
         paymentType,
