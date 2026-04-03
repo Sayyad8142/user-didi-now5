@@ -351,6 +351,10 @@ async function createPaidBookingAfterQrPayment(params: Omit<CreatePaidBookingPar
   return invokeWithFirebaseAuth<PaymentResult>('create-paid-booking', payload);
 }
 
+function shouldUseQrRecovery(checkoutResult: { razorpay_signature?: string } | null | undefined): boolean {
+  return !checkoutResult?.razorpay_signature;
+}
+
 // ─── Legacy Helpers (for existing booking retries) ────────────
 
 export async function debitWalletForBooking(bookingId: string): Promise<WalletPayResult> {
@@ -521,7 +525,19 @@ export async function executePaymentFlowForNewBooking(
     wallet_used_amount: walletCanCover,
   });
 
-  const checkoutResult: CheckoutResult = await runCheckout(order);
+  const checkoutResult: CheckoutResult = await runCheckout(order, {
+    pollForPayment: async () => {
+      const orderCheck = await checkRazorpayOrderPayment(order.order_id);
+      if (!orderCheck.paid || !orderCheck.razorpay_payment_id) return null;
+
+      return {
+        razorpay_order_id: orderCheck.razorpay_order_id || order.order_id,
+        razorpay_payment_id: orderCheck.razorpay_payment_id,
+      };
+    },
+    pollIntervalMs: 4000,
+    maxPollAttempts: 45,
+  });
 
   // Step 4b: Handle checkout result
   if (checkoutResult.status === 'failed') {
@@ -616,13 +632,19 @@ export async function executePaymentFlowForNewBooking(
   const razorpayPayloadWithRequestId = { ...bookingPayload, request_id: razorpayRequestId };
 
   try {
-    const result = await createPaidBooking({
-        request_id: razorpayRequestId,
+    const createPaidBookingFn = shouldUseQrRecovery(checkoutResult.payload)
+      ? createPaidBookingAfterQrPayment
+      : createPaidBooking;
+
+    const result = await createPaidBookingFn({
+      request_id: razorpayRequestId,
       booking_data: razorpayPayloadWithRequestId,
       payment_type: paymentType,
       razorpay_order_id: checkoutResult.payload!.razorpay_order_id,
       razorpay_payment_id: checkoutResult.payload!.razorpay_payment_id,
-      razorpay_signature: checkoutResult.payload!.razorpay_signature,
+      ...(shouldUseQrRecovery(checkoutResult.payload)
+        ? {}
+        : { razorpay_signature: checkoutResult.payload!.razorpay_signature }),
       razorpay_amount: order.amount,
       wallet_amount: walletCanCover > 0 ? walletCanCover : undefined,
     });
@@ -670,13 +692,19 @@ export async function retryPendingBookingCreation(
   onStatusChange('verifying_payment');
   console.log('🔄 Retrying create-paid-booking with request_id:', pending.requestId);
 
-  const result = await createPaidBooking({
+  const createPaidBookingFn = shouldUseQrRecovery(pending.checkoutResult)
+    ? createPaidBookingAfterQrPayment
+    : createPaidBooking;
+
+  const result = await createPaidBookingFn({
     request_id: pending.requestId,
     booking_data: pending.bookingPayload,
     payment_type: pending.paymentType,
     razorpay_order_id: pending.checkoutResult.razorpay_order_id,
     razorpay_payment_id: pending.checkoutResult.razorpay_payment_id,
-    razorpay_signature: pending.checkoutResult.razorpay_signature,
+    ...(shouldUseQrRecovery(pending.checkoutResult)
+      ? {}
+      : { razorpay_signature: pending.checkoutResult.razorpay_signature }),
     razorpay_amount: pending.razorpayAmount,
     wallet_amount: pending.walletCanCover > 0 ? pending.walletCanCover : undefined,
   });
