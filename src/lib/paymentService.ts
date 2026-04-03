@@ -119,6 +119,7 @@ function sanitizeBookingDataForCreatePaidBooking(bookingData: Record<string, unk
 
   delete sanitized.slot_surge_amount;
   delete sanitized.slot_surge_time;
+  delete sanitized.request_id;
 
   if (sanitized.price_inr == null && sanitized.price != null) {
     sanitized.price_inr = sanitized.price;
@@ -264,6 +265,7 @@ async function createRazorpayOrderForAmount(
 // ─── Create Paid Booking (backend) ────────────────────────────
 
 interface CreatePaidBookingParams {
+  request_id?: string;
   booking_data: Record<string, unknown>;
   payment_type: 'razorpay' | 'wallet' | 'wallet_and_razorpay';
   razorpay_order_id?: string;
@@ -274,10 +276,16 @@ interface CreatePaidBookingParams {
 }
 
 async function createPaidBooking(params: CreatePaidBookingParams): Promise<PaymentResult> {
+  const requestId =
+    (typeof params.request_id === 'string' && params.request_id) ||
+    (typeof params.booking_data.request_id === 'string' && params.booking_data.request_id) ||
+    undefined;
+
   const payload: Record<string, unknown> = {
     ...params,
     booking_data: sanitizeBookingDataForCreatePaidBooking(params.booking_data),
   };
+  if (requestId) payload.request_id = requestId;
   const maskedPayload = maskSensitivePayloadForLogs(payload);
 
   console.log('📝 Creating paid booking via edge function:', params.payment_type);
@@ -418,6 +426,7 @@ export async function executePaymentFlowForNewBooking(
 
     try {
       const result = await createPaidBooking({
+        request_id: requestId,
         booking_data: payloadWithRequestId,
         payment_type: 'wallet',
         wallet_amount: priceInr,
@@ -479,6 +488,7 @@ export async function executePaymentFlowForNewBooking(
 
   try {
     const result = await createPaidBooking({
+        request_id: razorpayRequestId,
       booking_data: razorpayPayloadWithRequestId,
       payment_type: paymentType,
       razorpay_order_id: checkoutResult!.razorpay_order_id,
@@ -508,7 +518,7 @@ export async function executePaymentFlowForNewBooking(
       razorpay_payment_id: checkoutResult!.razorpay_payment_id,
     });
     throw new PaymentError(
-      'Payment received but booking creation is pending. Tap retry to complete.',
+      verifyErr?.message || 'Payment received but booking creation is pending. Tap retry to complete.',
       'verification_failed',
       {
         bookingPayload: razorpayPayloadWithRequestId,
@@ -534,6 +544,7 @@ export async function retryPendingBookingCreation(
   console.log('🔄 Retrying create-paid-booking with request_id:', pending.requestId);
 
   const result = await createPaidBooking({
+    request_id: pending.requestId,
     booking_data: pending.bookingPayload,
     payment_type: pending.paymentType,
     razorpay_order_id: pending.checkoutResult.razorpay_order_id,

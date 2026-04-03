@@ -56,6 +56,67 @@ function generateOtp(): string {
   return String(Math.floor(1000 + Math.random() * 9000));
 }
 
+const OPTIONAL_BOOKING_INSERT_COLUMNS = new Set([
+  "completion_otp",
+  "paid_at",
+  "payment_amount_inr",
+  "razorpay_paid_amount",
+  "request_id",
+  "wallet_used_amount",
+]);
+
+function extractMissingColumnName(message?: string): string | null {
+  if (!message) return null;
+
+  const patterns = [
+    /Could not find the '([^']+)' column of 'bookings' in the schema cache/i,
+    /column(?:\s+"|\s+)([^"\s]+)(?:"|\s+)of relation(?:\s+"|\s+)bookings(?:"|\s+)does not exist/i,
+  ];
+
+  for (const pattern of patterns) {
+    const match = message.match(pattern);
+    if (match?.[1]) return match[1];
+  }
+
+  return null;
+}
+
+async function insertBookingWithCompatibilityFallback(
+  supabase: ReturnType<typeof createClient>,
+  bookingRow: Record<string, unknown>,
+) {
+  const rowToInsert = { ...bookingRow };
+  let lastError: unknown = null;
+
+  for (let attempt = 0; attempt <= OPTIONAL_BOOKING_INSERT_COLUMNS.size; attempt++) {
+    const result = await supabase
+      .from("bookings")
+      .insert([rowToInsert])
+      .select("id, booking_type, status")
+      .single();
+
+    if (!result.error) return result;
+
+    lastError = result.error;
+    const missingColumn = extractMissingColumnName(result.error.message);
+
+    if (
+      !missingColumn ||
+      !OPTIONAL_BOOKING_INSERT_COLUMNS.has(missingColumn) ||
+      !(missingColumn in rowToInsert)
+    ) {
+      return result;
+    }
+
+    console.warn(
+      `[create-paid-booking] Retrying insert without unsupported column: ${missingColumn}`,
+    );
+    delete rowToInsert[missingColumn];
+  }
+
+  return { data: null, error: lastError };
+}
+
 // ── Main handler ─────────────────────────────────────────────
 
 Deno.serve(async (req) => {
@@ -83,14 +144,23 @@ Deno.serve(async (req) => {
     const firebaseUser = await verifyFirebaseToken(idToken);
     console.log("[create-paid-booking] ✅ Firebase auth OK, uid:", firebaseUser.uid);
     const {
-      booking_data,
+      booking_data: rawBookingData,
       payment_type,
+      request_id,
       razorpay_order_id,
       razorpay_payment_id,
       razorpay_signature,
       razorpay_amount,
       wallet_amount,
     } = await req.json();
+
+    if (!rawBookingData || typeof rawBookingData !== "object") {
+      return json({ error: "booking_data and payment_type required" }, 400);
+    }
+
+    const booking_data = { ...rawBookingData } as Record<string, unknown>;
+    const requestId = request_id || booking_data.request_id || null;
+    delete booking_data.request_id;
 
     if (!booking_data || !payment_type) {
       return json({ error: "booking_data and payment_type required" }, 400);
@@ -147,15 +217,49 @@ Deno.serve(async (req) => {
     }
 
     // 6. Idempotency check — BEFORE wallet debit to prevent double-deduction
-    const requestId = booking_data.request_id;
+    if (
+      (payment_type === "razorpay" || payment_type === "wallet_and_razorpay") &&
+      razorpay_payment_id
+    ) {
+      const { data: existingByPayment, error: paymentLookupErr } = await supabase
+        .from("bookings")
+        .select("id, booking_type, status, payment_method")
+        .eq("razorpay_payment_id", razorpay_payment_id)
+        .maybeSingle();
+
+      if (paymentLookupErr) {
+        console.warn(
+          "[create-paid-booking] razorpay_payment_id lookup skipped:",
+          paymentLookupErr.message,
+        );
+      } else if (existingByPayment) {
+        console.log(
+          `[create-paid-booking] ⚡ Duplicate razorpay_payment_id=${razorpay_payment_id}, returning existing booking ${existingByPayment.id}`,
+        );
+        return json({
+          success: true,
+          booking_id: existingByPayment.id,
+          payment_id: razorpay_payment_id,
+          payment_method: existingByPayment.payment_method,
+          wallet_debited: 0,
+          idempotent: true,
+        });
+      }
+    }
+
     if (requestId) {
-      const { data: existing } = await supabase
+      const { data: existing, error: existingLookupErr } = await supabase
         .from("bookings")
         .select("id, booking_type, status, payment_method")
         .eq("request_id", requestId)
         .maybeSingle();
 
-      if (existing) {
+      if (existingLookupErr) {
+        console.warn(
+          "[create-paid-booking] request_id lookup skipped:",
+          existingLookupErr.message,
+        );
+      } else if (existing) {
         console.log(
           `[create-paid-booking] ⚡ Duplicate request_id=${requestId}, returning existing booking ${existing.id}`,
         );
@@ -246,7 +350,8 @@ Deno.serve(async (req) => {
           ? "wallet+razorpay"
           : "razorpay";
 
-    const bookingRow = {
+    const bookingPriceInr = Number(booking_data.price_inr ?? 0);
+    const bookingRow: Record<string, unknown> = {
       ...booking_data,
       payment_status: "paid",
       payment_method: paymentMethod,
@@ -254,15 +359,32 @@ Deno.serve(async (req) => {
       razorpay_order_id: razorpay_order_id || null,
       razorpay_payment_id: razorpay_payment_id || null,
       razorpay_signature: razorpay_signature || null,
-      razorpay_paid_amount:
-        payment_type !== "wallet" ? (razorpay_amount || booking_data.price_inr) / 100 : null,
-      wallet_used_amount: walletDebited > 0 ? walletDebited : null,
-      payment_amount_inr: booking_data.price_inr,
-      paid_confirmed_at: now,
+      payment_amount_inr: bookingPriceInr,
+      paid_at: now,
     };
+
+    if (requestId) {
+      bookingRow.request_id = requestId;
+    }
+
+    if (payment_type !== "wallet") {
+      const amountInPaise = Number(razorpay_amount ?? bookingPriceInr * 100);
+      bookingRow.razorpay_paid_amount = Number.isFinite(amountInPaise)
+        ? amountInPaise / 100
+        : null;
+    }
+
+    if (walletDebited > 0) {
+      bookingRow.wallet_used_amount = walletDebited;
+    }
 
     // Remove any fields the frontend shouldn't set
     delete bookingRow.payment_status_override;
+    delete bookingRow.request_id;
+
+    if (requestId) {
+      bookingRow.request_id = requestId;
+    }
 
     console.log(
       "[create-paid-booking] 📝 Inserting booking:",
@@ -276,11 +398,10 @@ Deno.serve(async (req) => {
     );
 
     // 9. Insert booking
-    const { data: newBooking, error: insertErr } = await supabase
-      .from("bookings")
-      .insert([bookingRow])
-      .select("id, booking_type, status")
-      .single();
+    const { data: newBooking, error: insertErr } = await insertBookingWithCompatibilityFallback(
+      supabase,
+      bookingRow,
+    );
 
     if (insertErr) {
       // 9a. Race condition: unique index violation means another request won the race
