@@ -43,6 +43,9 @@ interface Booking {
   reach_status?: string | null;
   reach_confirmed_at?: string | null;
   reach_confirmed_by?: string | null;
+  completion_otp?: string | null;
+  otp_verified_at?: string | null;
+  payment_status?: string | null;
 }
 
 const getServiceIcon = (serviceType: string) => {
