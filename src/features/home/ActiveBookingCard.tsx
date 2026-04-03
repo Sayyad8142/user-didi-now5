@@ -624,6 +624,22 @@ const ActiveBookingCard = memo(() => {
         </div>
       )}
 
+      {/* Completion OTP */}
+      {activeBooking.completion_otp && (activeBooking.payment_status === 'paid' || activeBooking.payment_status === 'pay_after_service') && !activeBooking.otp_verified_at && activeBooking.status !== 'cancelled' && (
+        <div className="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+          <div className="flex items-center gap-2 mb-1">
+            <KeyRound className="w-4 h-4 text-amber-700" />
+            <p className="text-xs font-semibold text-amber-800 uppercase tracking-wide">Completion OTP</p>
+          </div>
+          <p className="text-2xl font-bold text-amber-900 tracking-[0.3em] text-center">
+            {activeBooking.completion_otp}
+          </p>
+          <p className="text-[10px] text-amber-600 text-center mt-1">
+            Share this OTP only after the work is fully completed
+          </p>
+        </div>
+      )}
+
       {/* Action buttons */}
       <div className="space-y-2 mb-4">
         {/* Pay Now Button - shows when assigned and has UPI */}
