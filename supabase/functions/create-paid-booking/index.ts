@@ -152,6 +152,7 @@ Deno.serve(async (req) => {
       razorpay_signature,
       razorpay_amount,
       wallet_amount,
+      qr_recovery,
     } = await req.json();
 
     if (!rawBookingData || typeof rawBookingData !== "object") {
