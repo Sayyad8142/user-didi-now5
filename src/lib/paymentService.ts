@@ -105,6 +105,90 @@ export class PaymentError extends Error {
 
 // ─── Helpers ──────────────────────────────────────────────────
 
+function normalizeScheduledTime(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const match = value.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+  if (!match) return value;
+  const hours = match[1].padStart(2, '0');
+  const minutes = match[2];
+  return `${hours}:${minutes}:00`;
+}
+
+function sanitizeBookingDataForCreatePaidBooking(bookingData: Record<string, unknown>): Record<string, unknown> {
+  const sanitized = { ...bookingData };
+
+  delete sanitized.slot_surge_amount;
+  delete sanitized.slot_surge_time;
+
+  if (sanitized.price_inr == null && sanitized.price != null) {
+    sanitized.price_inr = sanitized.price;
+  }
+  if (typeof sanitized.price_inr === 'string') {
+    const parsedPrice = Number(sanitized.price_inr);
+    sanitized.price_inr = Number.isFinite(parsedPrice) ? parsedPrice : sanitized.price_inr;
+  }
+  delete sanitized.price;
+
+  const normalizedBookingType =
+    sanitized.booking_type === 'scheduled' || (sanitized.scheduled_date && sanitized.scheduled_time)
+      ? 'scheduled'
+      : 'instant';
+  sanitized.booking_type = normalizedBookingType;
+
+  if (normalizedBookingType === 'scheduled') {
+    const normalizedTime = normalizeScheduledTime(sanitized.scheduled_time);
+    if (normalizedTime) {
+      sanitized.scheduled_time = normalizedTime;
+    }
+  } else {
+    sanitized.scheduled_date = null;
+    sanitized.scheduled_time = null;
+  }
+
+  return sanitized;
+}
+
+function maskSensitivePayloadForLogs(body: Record<string, unknown>): Record<string, unknown> {
+  const payload = { ...body } as Record<string, unknown>;
+  const signature = payload.razorpay_signature;
+  if (typeof signature === 'string' && signature.length > 12) {
+    payload.razorpay_signature = `${signature.slice(0, 6)}…${signature.slice(-4)}`;
+  }
+  return payload;
+}
+
+function extractFunctionHttpStatus(error: any): number | null {
+  const status = error?.context?.status ?? error?.status ?? error?.response?.status ?? null;
+  return typeof status === 'number' ? status : null;
+}
+
+function formatFunctionErrorMessage(functionName: string, error: any, data: unknown): string {
+  if (typeof data === 'string' && data.trim()) return data;
+
+  if (data && typeof data === 'object') {
+    const responseBody = data as Record<string, unknown>;
+    const backendMessage =
+      (typeof responseBody.error === 'string' && responseBody.error) ||
+      (typeof responseBody.message === 'string' && responseBody.message) ||
+      null;
+
+    if (backendMessage) return backendMessage;
+
+    try {
+      const serialized = JSON.stringify(responseBody);
+      if (serialized && serialized !== '{}') return serialized;
+    } catch {
+      // ignore JSON stringify failures and fall through to the generic message
+    }
+  }
+
+  return error?.message || `${functionName} failed`;
+}
+
+function logCreatePaidBookingDebug(stage: 'request' | 'response' | 'error', details: Record<string, unknown>) {
+  console.log('CREATE_PAID_BOOKING_DEBUG', { stage, ...details });
+}
+
 async function invokeWithFirebaseAuth<T>(functionName: string, body: Record<string, unknown>): Promise<T> {
   // Force refresh token for payment-critical calls to avoid stale tokens after checkout
   const forceRefresh = functionName === 'create-paid-booking' || functionName === 'verify-razorpay-payment';
@@ -116,18 +200,31 @@ async function invokeWithFirebaseAuth<T>(functionName: string, body: Record<stri
     headers: { 'x-firebase-token': token },
   });
 
-  if (error) {
-    // supabase.functions.invoke puts the response body in `data` even on non-2xx
-    // The `error.message` is always the generic "Edge Function returned a non-2xx status code"
-    const backendMessage = data?.error || data?.message;
-    if (backendMessage) {
-      console.error(`❌ [${functionName}] Backend error:`, backendMessage, 'step:', data?.step);
-      throw new Error(backendMessage);
-    }
-    console.error(`❌ [${functionName}] Error:`, error.message, 'data:', JSON.stringify(data));
-    throw new Error(error.message || `${functionName} failed`);
+  const httpStatus = extractFunctionHttpStatus(error);
+
+  if (functionName === 'create-paid-booking') {
+    logCreatePaidBookingDebug(error ? 'error' : 'response', {
+      functionName,
+      httpStatus: httpStatus ?? (error ? null : 200),
+      responseBody: data ?? null,
+      errorMessage: error?.message ?? null,
+    });
   }
-  if (data?.error) throw new Error(data.error);
+
+  if (error) {
+    const backendMessage = formatFunctionErrorMessage(functionName, error, data);
+    console.error(`❌ [${functionName}] Error:`, {
+      httpStatus,
+      errorMessage: error.message,
+      responseBody: data ?? null,
+    });
+    throw new Error(backendMessage || error.message || `${functionName} failed`);
+  }
+
+  if (data && typeof data === 'object' && 'error' in data && typeof (data as { error?: unknown }).error === 'string') {
+    throw new Error((data as { error: string }).error);
+  }
+
   return data as T;
 }
 
@@ -177,8 +274,20 @@ interface CreatePaidBookingParams {
 }
 
 async function createPaidBooking(params: CreatePaidBookingParams): Promise<PaymentResult> {
+  const payload: Record<string, unknown> = {
+    ...params,
+    booking_data: sanitizeBookingDataForCreatePaidBooking(params.booking_data),
+  };
+  const maskedPayload = maskSensitivePayloadForLogs(payload);
+
   console.log('📝 Creating paid booking via edge function:', params.payment_type);
-  return invokeWithFirebaseAuth<PaymentResult>('create-paid-booking', params as unknown as Record<string, unknown>);
+  console.log('CREATE_PAID_BOOKING_PAYLOAD', maskedPayload);
+  logCreatePaidBookingDebug('request', {
+    functionName: 'create-paid-booking',
+    payload: maskedPayload,
+  });
+
+  return invokeWithFirebaseAuth<PaymentResult>('create-paid-booking', payload);
 }
 
 // ─── Legacy Helpers (for existing booking retries) ────────────
