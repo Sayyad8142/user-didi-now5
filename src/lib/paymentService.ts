@@ -298,6 +298,59 @@ async function createPaidBooking(params: CreatePaidBookingParams): Promise<Payme
   return invokeWithFirebaseAuth<PaymentResult>('create-paid-booking', payload);
 }
 
+// ─── QR Payment Recovery ──────────────────────────────────────
+
+interface OrderCheckResult {
+  paid: boolean;
+  razorpay_payment_id?: string;
+  razorpay_order_id?: string;
+  amount?: number;
+}
+
+/**
+ * Checks with Razorpay if an order has been paid (for QR payment recovery).
+ * Polls up to 3 times with 3s delay to allow payment processing.
+ */
+async function checkRazorpayOrderPayment(orderId: string): Promise<OrderCheckResult> {
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    console.log(`🔍 Checking order payment status, attempt ${attempt}/3`);
+    try {
+      const result = await invokeWithFirebaseAuth<OrderCheckResult>('check-razorpay-order', {
+        order_id: orderId,
+      });
+      if (result.paid) return result;
+    } catch (err) {
+      console.warn(`⚠️ Order check attempt ${attempt} failed:`, err);
+    }
+    if (attempt < 3) await sleep(3000);
+  }
+  return { paid: false };
+}
+
+/**
+ * Creates a paid booking after QR payment recovery (no signature available).
+ * Uses a server-side verified payment — the edge function will verify
+ * the payment directly with Razorpay instead of using HMAC signature.
+ */
+async function createPaidBookingAfterQrPayment(params: Omit<CreatePaidBookingParams, 'razorpay_signature'>): Promise<PaymentResult> {
+  const payload: Record<string, unknown> = {
+    ...params,
+    booking_data: sanitizeBookingDataForCreatePaidBooking(params.booking_data as Record<string, unknown>),
+    // Signal to backend that this is a QR recovery — verify payment server-side
+    qr_recovery: true,
+  };
+  if (params.request_id) payload.request_id = params.request_id;
+
+  console.log('📝 Creating paid booking after QR recovery:', params.payment_type);
+  logCreatePaidBookingDebug('request', {
+    functionName: 'create-paid-booking',
+    payload: maskSensitivePayloadForLogs(payload),
+    qr_recovery: true,
+  });
+
+  return invokeWithFirebaseAuth<PaymentResult>('create-paid-booking', payload);
+}
+
 // ─── Legacy Helpers (for existing booking retries) ────────────
 
 export async function debitWalletForBooking(bookingId: string): Promise<WalletPayResult> {
