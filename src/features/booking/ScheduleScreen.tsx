@@ -60,7 +60,7 @@ export function ScheduleScreen() {
     const allSegments: TimeSegment[] = ['Morning', 'Afternoon', 'Evening'];
     for (const chip of chips.slice(0, 4)) {
       const hasSlot = allSegments.some(seg => {
-        const slots = makeSlots(TIME_SEGMENTS[seg].start, TIME_SEGMENTS[seg].end);
+        const slots = makeSlots(TIME_SEGMENTS[seg].start, TIME_SEGMENTS[seg].end, 30);
         return slots.some(slot => !isPastToday(slot, chip.date));
       });
       if (hasSlot) return chip.date;
@@ -118,10 +118,10 @@ export function ScheduleScreen() {
     if (initialSegmentSet) return;
     const today = new Date();
     if (selectedDate.toDateString() !== today.toDateString()) return;
-    
+
     const segments: TimeSegment[] = ['Morning', 'Afternoon', 'Evening'];
     for (const seg of segments) {
-      const slots = makeSlots(TIME_SEGMENTS[seg].start, TIME_SEGMENTS[seg].end);
+      const slots = makeSlots(TIME_SEGMENTS[seg].start, TIME_SEGMENTS[seg].end, 30);
       const hasAvailable = slots.some(slot => !isPastToday(slot, selectedDate));
       if (hasAvailable) {
         setActiveSegment(seg);
@@ -130,7 +130,7 @@ export function ScheduleScreen() {
       }
     }
     setInitialSegmentSet(true);
-  }, [selectedDate]);
+  }, [initialSegmentSet, selectedDate]);
 
   // Fetch slot availability when date or community changes — ALLOWLIST approach
   useEffect(() => {
@@ -154,7 +154,6 @@ export function ScheduleScreen() {
         const allowed = new Set<string>();
         ((data as any[]) || []).forEach((row: { slot_time: string; worker_count: number }) => {
           if (row.worker_count >= 1) {
-            // Normalize "HH:MM:SS" from DB to "HH:MM" to match makeSlots format
             const normalized = row.slot_time.length > 5 ? row.slot_time.slice(0, 5) : row.slot_time;
             allowed.add(normalized);
           }
@@ -168,7 +167,9 @@ export function ScheduleScreen() {
     };
 
     fetchAvailability();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [selectedDate, profile?.community, service_type]);
 
   // Auto-clear selected slot if it becomes unavailable after availability loads
@@ -188,7 +189,7 @@ export function ScheduleScreen() {
 
   const loadPrice = async () => {
     if (!service_type || !profile || !flatSize) return;
-    
+
     try {
       const pricing = await getPricingMap(service_type, profile.community);
       const flatPrice = pricing[flatSize];
@@ -207,13 +208,22 @@ export function ScheduleScreen() {
     if (service_type !== 'bathroom_cleaning' && !flatSize) return;
     if (service_type === 'bathroom_cleaning' && !bathroomCount) return;
 
+    const isThirtyMinuteSlot = /^\d{1,2}:(00|30)$/.test(selectedTime);
+    const isSelectedSlotAvailable = availableSlots !== null && availableSlots.has(selectedTime);
+
+    if (!isThirtyMinuteSlot || !isSelectedSlotAvailable) {
+      toast({
+        title: 'Slot unavailable',
+        description: 'Please select a currently available 30-minute slot before continuing.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setSubmitting(true);
     try {
-      // Format date as YYYY-MM-DD for PostgreSQL DATE column
       const scheduledDate = format(selectedDate, 'yyyy-MM-dd');
-      
-      // Format time as HH:MM:SS for PostgreSQL TIME column
-      // Ensure we have proper HH:MM format first, then add seconds
+
       const timeMatch = selectedTime.match(/^(\d{1,2}):(\d{2})$/);
       if (!timeMatch) {
         console.error('❌ Invalid time format:', selectedTime);
@@ -239,7 +249,6 @@ export function ScheduleScreen() {
         price
       });
 
-      // Validate flat details are linked (required by DB trigger)
       if (service_type !== 'bathroom_cleaning' && !profile.flat_id) {
         toast({
           title: "Flat Details Missing",
@@ -251,7 +260,6 @@ export function ScheduleScreen() {
         return;
       }
 
-      // Calculate surge from dynamic slot_surge_pricing
       const surcharge = getSurge(selectedTime);
       const finalPrice = price + surcharge;
 
@@ -273,14 +281,12 @@ export function ScheduleScreen() {
         dish_intensity_extra_inr: service_type === 'maid' && dishIntensityExtra > 0 ? dishIntensityExtra : null,
         bathroom_count: service_type === 'bathroom_cleaning' ? parseInt(bathroomCount!) : null,
         has_glass_partition: service_type === 'bathroom_cleaning' ? hasGlassPartition : null,
-        glass_partition_fee: service_type === 'bathroom_cleaning' && hasGlassPartition 
-          ? GLASS_PARTITION_FEE * parseInt(bathroomCount!) 
+        glass_partition_fee: service_type === 'bathroom_cleaning' && hasGlassPartition
+          ? GLASS_PARTITION_FEE * parseInt(bathroomCount!)
           : null,
         price_inr: finalPrice,
         surcharge_amount: surcharge,
         surcharge_reason: surcharge > 0 ? 'slot_surge' : null,
-        slot_surge_amount: surcharge,
-        slot_surge_time: surcharge > 0 ? selectedTime : null,
         cust_name: /^\+?\d{7,15}$/.test(profile.full_name.trim()) ? 'User ' + profile.phone.slice(-4) : profile.full_name,
         cust_phone: profile.phone,
         community: profile.community,
