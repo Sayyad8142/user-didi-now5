@@ -23,7 +23,7 @@
  */
 import { supabase } from '@/integrations/supabase/client';
 import { getFirebaseIdToken } from '@/lib/firebase';
-import { runCheckout } from './checkoutRunner';
+import { runCheckout, type CheckoutResult } from './checkoutRunner';
 import {
   trackPaymentEvent,
   savePreferredMethod,
