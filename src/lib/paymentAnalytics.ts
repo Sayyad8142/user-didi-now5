@@ -22,7 +22,8 @@ export type PaymentEventName =
   | 'payment_retry_clicked'
   | 'payment_method_selected'
   | 'payment_verification_pending'
-  | 'payment_verified_success';
+  | 'payment_verified_success'
+  | 'payment_recovered_after_dismiss';
 
 export interface PaymentEventPayload {
   booking_id?: string;
