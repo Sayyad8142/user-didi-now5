@@ -30,7 +30,8 @@ export function WalletRealtimeProvider({ children }: { children: React.ReactNode
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'wallet_transactions', filter: `user_id=eq.${userId}` },
-        () => {
+        (payload) => {
+          console.info('[WalletRT] wallet_transactions insert received:', payload);
           qc.invalidateQueries({ queryKey: ['wallet-balance', userId] });
           qc.invalidateQueries({ queryKey: ['wallet-transactions', userId] });
         }
