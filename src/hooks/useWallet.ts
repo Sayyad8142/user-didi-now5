@@ -56,7 +56,8 @@ export function useWalletBalance() {
       return data ?? null;
     },
     enabled: !!userId,
-    staleTime: 30_000,
+    staleTime: 15_000,
+    refetchOnWindowFocus: true,
   });
 }
 
@@ -78,7 +79,8 @@ export function useWalletTransactions() {
       return (data ?? []) as WalletTransaction[];
     },
     enabled: !!userId,
-    staleTime: 30_000,
+    staleTime: 15_000,
+    refetchOnWindowFocus: true,
   });
 }
 
