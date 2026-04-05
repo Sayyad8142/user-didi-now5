@@ -36,7 +36,9 @@ export function WalletRealtimeProvider({ children }: { children: React.ReactNode
           qc.invalidateQueries({ queryKey: ['wallet-transactions', userId] });
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.info('[WalletRT] Channel status:', status, 'for userId:', userId);
+      });
 
     return () => {
       supabase.removeChannel(channel);
