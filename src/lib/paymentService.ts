@@ -23,6 +23,7 @@
  */
 import { supabase } from '@/integrations/supabase/client';
 import { getFirebaseIdToken } from '@/lib/firebase';
+import { fetchWalletBalanceValue } from '@/lib/wallet';
 import { runCheckout, type CheckoutResult } from './checkoutRunner';
 import {
   trackPaymentEvent,
@@ -241,12 +242,12 @@ async function sleep(ms: number) {
 // ─── Wallet Balance Check ─────────────────────────────────────
 
 async function getWalletBalance(userId: string): Promise<number> {
-  const { data } = await supabase
-    .from('user_wallets')
-    .select('balance_inr')
-    .eq('user_id', userId)
-    .single();
-  return data?.balance_inr ?? 0;
+  return fetchWalletBalanceValue({
+    authUserId: null,
+    profileId: userId,
+    source: 'paymentService.getWalletBalance',
+    walletUserId: userId,
+  });
 }
 
 // ─── Order Creation (payment-first mode) ──────────────────────
