@@ -18,6 +18,7 @@ import { BottomTabs } from "@/components/BottomTabs";
 import { useBackButton } from "@/hooks/useBackButton";
 import { useAppWarmup } from "@/hooks/useAppWarmup";
 import AuthGate from "@/auth/AuthGate";
+import { WalletRealtimeProvider } from "@/components/WalletRealtimeProvider";
 
 
 import { initSupabase } from "@/integrations/supabase/client";
