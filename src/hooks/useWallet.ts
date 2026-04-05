@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useAuth } from '@/components/auth/AuthProvider';
+import { useEffect } from 'react';
 import {
   fetchWalletBalanceRow,
   fetchWalletTransactions,
@@ -36,7 +37,7 @@ export function useWalletBalance() {
   const userId = profile?.id;
   const authUserId = user?.id;
 
-  return useQuery<WalletBalance | null>({
+  const query = useQuery<WalletBalance | null>({
     queryKey: walletBalanceQueryKey(userId),
     queryFn: async () => {
       if (!userId) {
@@ -59,6 +60,22 @@ export function useWalletBalance() {
     refetchOnWindowFocus: true,
     refetchOnReconnect: true,
   });
+
+  useEffect(() => {
+    if (!userId) return;
+
+    console.info('[Wallet] Final displayed balance', {
+      authUserId: authUserId ?? null,
+      profileId: profile?.id ?? null,
+      walletUserId: userId,
+      hasWalletRow: !!query.data,
+      finalDisplayedBalance: query.data?.balance_inr ?? 0,
+      isFetching: query.isFetching,
+      isError: query.isError,
+    });
+  }, [authUserId, profile?.id, query.data, query.isError, query.isFetching, userId]);
+
+  return query;
 }
 
 export function useWalletTransactions() {
