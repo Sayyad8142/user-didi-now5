@@ -51,6 +51,7 @@ export function WalletRealtimeProvider({ children }: { children: React.ReactNode
 
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') {
+        console.info('[WalletRT] App resumed, refetching wallet for:', userId);
         qc.invalidateQueries({ queryKey: ['wallet-balance', userId] });
         qc.invalidateQueries({ queryKey: ['wallet-transactions', userId] });
       }
