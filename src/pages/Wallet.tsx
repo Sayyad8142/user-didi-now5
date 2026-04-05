@@ -165,6 +165,25 @@ export default function Wallet() {
             Wallet refunds from cancelled bookings and no-worker cases will appear here.
           </p>
 
+          {/* Debug diagnostic (temporary) */}
+          <div className="border border-amber-300 bg-amber-50 rounded-xl p-3 space-y-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={runDebugCheck}
+              disabled={debugLoading}
+              className="w-full rounded-full gap-1.5 text-xs border-amber-400 text-amber-800"
+            >
+              <Bug className="w-3.5 h-3.5" />
+              {debugLoading ? 'Checking...' : 'Debug: Force Check Wallet DB'}
+            </Button>
+            {debugInfo && (
+              <pre className="text-[9px] text-gray-700 bg-white rounded-lg p-2 overflow-auto max-h-60 whitespace-pre-wrap break-all border">
+                {debugInfo}
+              </pre>
+            )}
+          </div>
+
           {/* Transaction history */}
           <div>
             <h2 className="text-sm font-semibold text-gray-700 mb-3 uppercase tracking-wide">
