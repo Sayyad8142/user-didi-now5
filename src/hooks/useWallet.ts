@@ -56,7 +56,8 @@ export function useWalletBalance() {
       return data ?? null;
     },
     enabled: !!userId,
-    staleTime: 30_000,
+    staleTime: 15_000,
+    refetchOnWindowFocus: true,
   });
 }
 
