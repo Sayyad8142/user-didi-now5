@@ -21,7 +21,8 @@ export function WalletRealtimeProvider({ children }: { children: React.ReactNode
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'user_wallets', filter: `user_id=eq.${userId}` },
-        () => {
+        (payload) => {
+          console.info('[WalletRT] user_wallets change received:', payload);
           qc.invalidateQueries({ queryKey: ['wallet-balance', userId] });
           qc.invalidateQueries({ queryKey: ['wallet-transactions', userId] });
         }
@@ -29,12 +30,15 @@ export function WalletRealtimeProvider({ children }: { children: React.ReactNode
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'wallet_transactions', filter: `user_id=eq.${userId}` },
-        () => {
+        (payload) => {
+          console.info('[WalletRT] wallet_transactions insert received:', payload);
           qc.invalidateQueries({ queryKey: ['wallet-balance', userId] });
           qc.invalidateQueries({ queryKey: ['wallet-transactions', userId] });
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.info('[WalletRT] Channel status:', status, 'for userId:', userId);
+      });
 
     return () => {
       supabase.removeChannel(channel);
@@ -47,6 +51,7 @@ export function WalletRealtimeProvider({ children }: { children: React.ReactNode
 
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') {
+        console.info('[WalletRT] App resumed, refetching wallet for:', userId);
         qc.invalidateQueries({ queryKey: ['wallet-balance', userId] });
         qc.invalidateQueries({ queryKey: ['wallet-transactions', userId] });
       }

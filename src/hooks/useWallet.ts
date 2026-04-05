@@ -46,12 +46,17 @@ export function useWalletBalance() {
   return useQuery<WalletBalance | null>({
     queryKey: ['wallet-balance', userId],
     queryFn: async () => {
-      if (!userId) return null;
-      const { data, error } = await supabase
+      if (!userId) {
+        console.warn('[Wallet] No userId, skipping balance fetch');
+        return null;
+      }
+      console.info('[Wallet] Fetching balance for userId:', userId);
+      const { data, error, status, statusText } = await supabase
         .from('user_wallets')
         .select('user_id, balance_inr, updated_at')
         .eq('user_id', userId)
         .maybeSingle();
+      console.info('[Wallet] Balance response:', { data, error, status, statusText, userId });
       if (error) throw error;
       return data ?? null;
     },
@@ -69,12 +74,14 @@ export function useWalletTransactions() {
     queryKey: ['wallet-transactions', userId],
     queryFn: async () => {
       if (!userId) return [];
-      const { data, error } = await supabase
+      console.info('[Wallet] Fetching transactions for userId:', userId);
+      const { data, error, status } = await supabase
         .from('wallet_transactions')
         .select('*')
         .eq('user_id', userId)
         .order('created_at', { ascending: false })
         .limit(50);
+      console.info('[Wallet] Transactions response:', { count: data?.length, error, status, userId });
       if (error) throw error;
       return (data ?? []) as WalletTransaction[];
     },

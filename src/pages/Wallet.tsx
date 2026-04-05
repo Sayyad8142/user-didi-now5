@@ -1,9 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Wallet as WalletIcon, ArrowDownCircle, ArrowUpCircle, RefreshCw, Receipt } from 'lucide-react';
+import { ArrowLeft, Wallet as WalletIcon, ArrowDownCircle, ArrowUpCircle, RefreshCw, Receipt, Bug } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useWalletBalance, useWalletTransactions, useWalletRefresh, formatWalletReason } from '@/hooks/useWallet';
+import { useProfile } from '@/contexts/ProfileContext';
+import { supabase } from '@/integrations/supabase/client';
+import { getCurrentBackendUrl } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 
 function TransactionItem({ tx }: { tx: any }) {
@@ -35,11 +38,77 @@ function TransactionItem({ tx }: { tx: any }) {
 
 export default function Wallet() {
   const navigate = useNavigate();
+  const { profile } = useProfile();
   const { data: wallet, isLoading: balanceLoading, isError: balanceError } = useWalletBalance();
   const { data: transactions, isLoading: txLoading, isError: txError } = useWalletTransactions();
   const { refreshWallet } = useWalletRefresh();
+  const [debugInfo, setDebugInfo] = useState<string | null>(null);
+  const [debugLoading, setDebugLoading] = useState(false);
 
   const balance = wallet?.balance_inr ?? 0;
+
+  const runDebugCheck = async () => {
+    setDebugLoading(true);
+    const lines: string[] = [];
+    const userId = profile?.id;
+    const backendUrl = getCurrentBackendUrl();
+    
+    lines.push(`Profile ID: ${userId || 'NONE'}`);
+    lines.push(`Profile phone: ${profile?.phone || 'NONE'}`);
+    lines.push(`Backend URL: ${backendUrl}`);
+    lines.push(`Env URL: ${import.meta.env.VITE_SUPABASE_URL}`);
+    lines.push(`---`);
+    
+    // Direct query bypassing cache
+    try {
+      const { data: walletRow, error: wErr, status: wStatus } = await supabase
+        .from('user_wallets')
+        .select('*')
+        .eq('user_id', userId!)
+        .maybeSingle();
+      lines.push(`Wallet row: ${JSON.stringify(walletRow)}`);
+      lines.push(`Wallet err: ${JSON.stringify(wErr)}`);
+      lines.push(`Wallet HTTP: ${wStatus}`);
+    } catch (e: any) {
+      lines.push(`Wallet exception: ${e.message}`);
+    }
+
+    lines.push(`---`);
+
+    // Check ALL wallet rows (without user filter) to see if data exists at all
+    try {
+      const { data: allRows, error: aErr, count } = await supabase
+        .from('user_wallets')
+        .select('user_id, balance_inr', { count: 'exact' })
+        .limit(5);
+      lines.push(`All wallets (limit 5): ${JSON.stringify(allRows)}`);
+      lines.push(`Total count: ${count}`);
+      lines.push(`All err: ${JSON.stringify(aErr)}`);
+    } catch (e: any) {
+      lines.push(`All wallets exception: ${e.message}`);
+    }
+
+    lines.push(`---`);
+
+    // Check transactions
+    try {
+      const { data: txRows, error: tErr } = await supabase
+        .from('wallet_transactions')
+        .select('id, user_id, type, amount_inr, reason, created_at')
+        .eq('user_id', userId!)
+        .order('created_at', { ascending: false })
+        .limit(5);
+      lines.push(`Transactions: ${JSON.stringify(txRows)}`);
+      lines.push(`Tx err: ${JSON.stringify(tErr)}`);
+    } catch (e: any) {
+      lines.push(`Tx exception: ${e.message}`);
+    }
+
+    const result = lines.join('\n');
+    console.info('[WalletDebug]\n' + result);
+    setDebugInfo(result);
+    setDebugLoading(false);
+  };
 
   return (
     <main className="min-h-screen bg-slate-50 flex flex-col">
@@ -95,6 +164,25 @@ export default function Wallet() {
           <p className="text-xs text-gray-500 text-center px-4">
             Wallet refunds from cancelled bookings and no-worker cases will appear here.
           </p>
+
+          {/* Debug diagnostic (temporary) */}
+          <div className="border border-amber-300 bg-amber-50 rounded-xl p-3 space-y-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={runDebugCheck}
+              disabled={debugLoading}
+              className="w-full rounded-full gap-1.5 text-xs border-amber-400 text-amber-800"
+            >
+              <Bug className="w-3.5 h-3.5" />
+              {debugLoading ? 'Checking...' : 'Debug: Force Check Wallet DB'}
+            </Button>
+            {debugInfo && (
+              <pre className="text-[9px] text-gray-700 bg-white rounded-lg p-2 overflow-auto max-h-60 whitespace-pre-wrap break-all border">
+                {debugInfo}
+              </pre>
+            )}
+          </div>
 
           {/* Transaction history */}
           <div>
