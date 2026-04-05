@@ -1,16 +1,75 @@
-import { useEffect } from 'react';
+import { useCallback, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useProfile } from '@/contexts/ProfileContext';
+import { useAuth } from '@/components/auth/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
+import {
+  fetchWalletBalanceRow,
+  fetchWalletTransactions,
+  walletBalanceQueryKey,
+  walletTransactionsQueryKey,
+} from '@/lib/wallet';
 
 /**
  * Global provider that keeps wallet balance in sync via realtime + app resume.
  * Mount once at app root level (inside ProfileProvider & QueryClientProvider).
  */
 export function WalletRealtimeProvider({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
   const { profile } = useProfile();
   const userId = profile?.id;
+  const authUserId = user?.id;
   const qc = useQueryClient();
+
+  const refetchWalletData = useCallback(async (source: string) => {
+    if (!userId) return;
+
+    console.info('[WalletRT] Refetching wallet data', {
+      authUserId: authUserId ?? null,
+      profileId: profile?.id ?? null,
+      source,
+      walletUserId: userId,
+    });
+
+    const [balanceResult, txResult] = await Promise.allSettled([
+      qc.fetchQuery({
+        queryKey: walletBalanceQueryKey(userId),
+        queryFn: () =>
+          fetchWalletBalanceRow({
+            authUserId,
+            profileId: profile?.id ?? null,
+            source: `${source}.balance`,
+            walletUserId: userId,
+          }),
+      }),
+      qc.fetchQuery({
+        queryKey: walletTransactionsQueryKey(userId),
+        queryFn: () =>
+          fetchWalletTransactions(
+            {
+              authUserId,
+              profileId: profile?.id ?? null,
+              source: `${source}.transactions`,
+              walletUserId: userId,
+            },
+            50,
+          ),
+      }),
+    ]);
+
+    if (balanceResult.status === 'rejected') {
+      console.error('[WalletRT] Balance refetch failed', balanceResult.reason);
+    }
+
+    if (txResult.status === 'rejected') {
+      console.error('[WalletRT] Transactions refetch failed', txResult.reason);
+    }
+  }, [authUserId, profile?.id, qc, userId]);
+
+  useEffect(() => {
+    if (!userId) return;
+    void refetchWalletData('wallet-provider-init');
+  }, [refetchWalletData, userId]);
 
   // 1. Realtime subscription for wallet changes
   useEffect(() => {
@@ -23,8 +82,7 @@ export function WalletRealtimeProvider({ children }: { children: React.ReactNode
         { event: '*', schema: 'public', table: 'user_wallets', filter: `user_id=eq.${userId}` },
         (payload) => {
           console.info('[WalletRT] user_wallets change received:', payload);
-          qc.invalidateQueries({ queryKey: ['wallet-balance', userId] });
-          qc.invalidateQueries({ queryKey: ['wallet-transactions', userId] });
+          void refetchWalletData('wallet-realtime.user_wallets');
         }
       )
       .on(
@@ -32,8 +90,7 @@ export function WalletRealtimeProvider({ children }: { children: React.ReactNode
         { event: 'INSERT', schema: 'public', table: 'wallet_transactions', filter: `user_id=eq.${userId}` },
         (payload) => {
           console.info('[WalletRT] wallet_transactions insert received:', payload);
-          qc.invalidateQueries({ queryKey: ['wallet-balance', userId] });
-          qc.invalidateQueries({ queryKey: ['wallet-transactions', userId] });
+          void refetchWalletData('wallet-realtime.wallet_transactions');
         }
       )
       .subscribe((status) => {
@@ -43,7 +100,7 @@ export function WalletRealtimeProvider({ children }: { children: React.ReactNode
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [userId, qc]);
+  }, [refetchWalletData, userId]);
 
   // 2. App resume / visibility change → refetch wallet
   useEffect(() => {
@@ -52,8 +109,7 @@ export function WalletRealtimeProvider({ children }: { children: React.ReactNode
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') {
         console.info('[WalletRT] App resumed, refetching wallet for:', userId);
-        qc.invalidateQueries({ queryKey: ['wallet-balance', userId] });
-        qc.invalidateQueries({ queryKey: ['wallet-transactions', userId] });
+        void refetchWalletData('wallet-visibility.visible');
       }
     };
 
@@ -68,8 +124,8 @@ export function WalletRealtimeProvider({ children }: { children: React.ReactNode
           const { App } = await import('@capacitor/app');
           const listener = App.addListener('appStateChange', ({ isActive }) => {
             if (isActive) {
-              qc.invalidateQueries({ queryKey: ['wallet-balance', userId] });
-              qc.invalidateQueries({ queryKey: ['wallet-transactions', userId] });
+              console.info('[WalletRT] Capacitor appStateChange active, refetching wallet for:', userId);
+              void refetchWalletData('wallet-capacitor.active');
             }
           });
           capacitorCleanup = () => { listener.then(l => l.remove()); };
@@ -83,7 +139,7 @@ export function WalletRealtimeProvider({ children }: { children: React.ReactNode
       document.removeEventListener('visibilitychange', handleVisibility);
       capacitorCleanup?.();
     };
-  }, [userId, qc]);
+  }, [refetchWalletData, userId]);
 
   return <>{children}</>;
 }

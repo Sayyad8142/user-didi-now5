@@ -1,26 +1,18 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
 import { useProfile } from '@/contexts/ProfileContext';
+import { useAuth } from '@/components/auth/AuthProvider';
 import { useEffect } from 'react';
+import {
+  fetchWalletBalanceRow,
+  fetchWalletTransactions,
+  walletBalanceQueryKey,
+  walletTransactionsQueryKey,
+  type WalletBalanceRow,
+  type WalletTransactionRow,
+} from '@/lib/wallet';
 
-export interface WalletBalance {
-  user_id: string;
-  balance_inr: number;
-  updated_at: string;
-}
-
-export interface WalletTransaction {
-  id: string;
-  user_id: string;
-  booking_id: string | null;
-  type: 'credit' | 'debit';
-  amount_inr: number;
-  reason: string | null;
-  reference_type: string | null;
-  reference_id: string | null;
-  notes: string | null;
-  created_at: string;
-}
+export type WalletBalance = WalletBalanceRow;
+export type WalletTransaction = WalletTransactionRow;
 
 const WALLET_REASONS: Record<string, string> = {
   no_worker_found: 'Refund: No worker available',
@@ -41,53 +33,83 @@ export function formatWalletReason(reason: string | null): string {
 
 export function useWalletBalance() {
   const { profile } = useProfile();
+  const { user } = useAuth();
   const userId = profile?.id;
+  const authUserId = user?.id;
 
-  return useQuery<WalletBalance | null>({
-    queryKey: ['wallet-balance', userId],
+  const query = useQuery<WalletBalance | null>({
+    queryKey: walletBalanceQueryKey(userId),
     queryFn: async () => {
       if (!userId) {
-        console.warn('[Wallet] No userId, skipping balance fetch');
+        console.warn('[Wallet] No profile.id, skipping balance fetch', {
+          authUserId: authUserId ?? null,
+          profileId: profile?.id ?? null,
+        });
         return null;
       }
-      console.info('[Wallet] Fetching balance for userId:', userId);
-      const { data, error, status, statusText } = await supabase
-        .from('user_wallets')
-        .select('user_id, balance_inr, updated_at')
-        .eq('user_id', userId)
-        .maybeSingle();
-      console.info('[Wallet] Balance response:', { data, error, status, statusText, userId });
-      if (error) throw error;
-      return data ?? null;
+      return fetchWalletBalanceRow({
+        authUserId,
+        profileId: profile?.id ?? null,
+        source: 'useWalletBalance',
+        walletUserId: userId,
+      });
     },
     enabled: !!userId,
-    staleTime: 15_000,
+    staleTime: 0,
+    refetchOnMount: true,
     refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
   });
+
+  useEffect(() => {
+    if (!userId) return;
+
+    console.info('[Wallet] Final displayed balance', {
+      authUserId: authUserId ?? null,
+      profileId: profile?.id ?? null,
+      walletUserId: userId,
+      hasWalletRow: !!query.data,
+      finalDisplayedBalance: query.data?.balance_inr ?? 0,
+      isFetching: query.isFetching,
+      isError: query.isError,
+    });
+  }, [authUserId, profile?.id, query.data, query.isError, query.isFetching, userId]);
+
+  return query;
 }
 
 export function useWalletTransactions() {
   const { profile } = useProfile();
+  const { user } = useAuth();
   const userId = profile?.id;
+  const authUserId = user?.id;
 
   return useQuery<WalletTransaction[]>({
-    queryKey: ['wallet-transactions', userId],
+    queryKey: walletTransactionsQueryKey(userId),
     queryFn: async () => {
-      if (!userId) return [];
-      console.info('[Wallet] Fetching transactions for userId:', userId);
-      const { data, error, status } = await supabase
-        .from('wallet_transactions')
-        .select('*')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false })
-        .limit(50);
-      console.info('[Wallet] Transactions response:', { count: data?.length, error, status, userId });
-      if (error) throw error;
-      return (data ?? []) as WalletTransaction[];
+      if (!userId) {
+        console.warn('[Wallet] No profile.id, skipping transactions fetch', {
+          authUserId: authUserId ?? null,
+          profileId: profile?.id ?? null,
+        });
+        return [];
+      }
+
+      return fetchWalletTransactions(
+        {
+          authUserId,
+          profileId: profile?.id ?? null,
+          source: 'useWalletTransactions',
+          walletUserId: userId,
+        },
+        50,
+      );
     },
     enabled: !!userId,
-    staleTime: 15_000,
+    staleTime: 0,
+    refetchOnMount: true,
     refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
   });
 }
 
@@ -95,42 +117,53 @@ export function useWalletTransactions() {
 export function useWalletRefresh() {
   const qc = useQueryClient();
   const { profile } = useProfile();
+  const { user } = useAuth();
   const userId = profile?.id;
-
-  // Subscribe to realtime wallet balance changes
-  useEffect(() => {
-    if (!userId) return;
-
-    const channel = supabase
-      .channel(`wallet-${userId}`)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'user_wallets', filter: `user_id=eq.${userId}` },
-        () => {
-          qc.invalidateQueries({ queryKey: ['wallet-balance', userId] });
-          qc.invalidateQueries({ queryKey: ['wallet-transactions', userId] });
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'wallet_transactions', filter: `user_id=eq.${userId}` },
-        () => {
-          qc.invalidateQueries({ queryKey: ['wallet-balance', userId] });
-          qc.invalidateQueries({ queryKey: ['wallet-transactions', userId] });
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [userId, qc]);
+  const authUserId = user?.id;
 
   return {
-    refreshWallet: () => {
+    refreshWallet: async () => {
       if (!userId) return;
-      qc.invalidateQueries({ queryKey: ['wallet-balance', userId] });
-      qc.invalidateQueries({ queryKey: ['wallet-transactions', userId] });
+
+      console.info('[Wallet] Manual hard refresh triggered', {
+        authUserId: authUserId ?? null,
+        profileId: profile?.id ?? null,
+        walletUserId: userId,
+      });
+
+      const [balanceResult, txResult] = await Promise.allSettled([
+        qc.fetchQuery({
+          queryKey: walletBalanceQueryKey(userId),
+          queryFn: () =>
+            fetchWalletBalanceRow({
+              authUserId,
+              profileId: profile?.id ?? null,
+              source: 'useWalletRefresh.balance',
+              walletUserId: userId,
+            }),
+        }),
+        qc.fetchQuery({
+          queryKey: walletTransactionsQueryKey(userId),
+          queryFn: () =>
+            fetchWalletTransactions(
+              {
+                authUserId,
+                profileId: profile?.id ?? null,
+                source: 'useWalletRefresh.transactions',
+                walletUserId: userId,
+              },
+              50,
+            ),
+        }),
+      ]);
+
+      if (balanceResult.status === 'rejected') {
+        console.error('[Wallet] Hard refresh balance fetch failed', balanceResult.reason);
+      }
+
+      if (txResult.status === 'rejected') {
+        console.error('[Wallet] Hard refresh transactions fetch failed', txResult.reason);
+      }
     },
   };
 }
