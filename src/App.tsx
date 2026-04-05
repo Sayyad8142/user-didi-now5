@@ -252,7 +252,9 @@ const App = () => {
       <Toaster />
       <Sonner />
       <AuthGate>
-        <AppContent />
+        <WalletRealtimeProvider>
+          <AppContent />
+        </WalletRealtimeProvider>
       </AuthGate>
     </TooltipProvider>
   );
