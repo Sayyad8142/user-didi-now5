@@ -173,6 +173,13 @@ const App = () => {
     resolveBackend();
   }, [resolveBackend]);
 
+  // Hide HTML splash as soon as React has mounted and resolving is done
+  useEffect(() => {
+    if (!resolving && typeof window !== 'undefined' && (window as any).hideSplash) {
+      (window as any).hideSplash();
+    }
+  }, [resolving]);
+
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
