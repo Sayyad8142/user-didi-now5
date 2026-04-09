@@ -10,7 +10,7 @@
  * unauthenticated reads (profiles, config), but wallet MUST NOT use
  * that fallback — it will always fail for authenticated Firebase calls.
  */
-import { getFirebaseIdToken } from '@/lib/firebase';
+import { getFirebaseIdToken, getCurrentUser, getNativeCurrentUser, shouldUseNativeAuth } from '@/lib/firebase';
 import { PRODUCTION_ANON_KEY, PRODUCTION_API_CANDIDATES } from '@/lib/constants';
 import { log } from '@/lib/logger';
 
@@ -93,6 +93,17 @@ export function clearWalletApiCache(): void {
 async function walletRpc<T>(fnName: string, body: Record<string, unknown> = {}): Promise<T> {
   const token = await getFirebaseIdToken();
   const baseUrl = await resolveWalletApiUrl();
+  const hasActiveFirebaseUser = shouldUseNativeAuth()
+    ? !!(await getNativeCurrentUser())
+    : !!getCurrentUser();
+
+  if (!token || !hasActiveFirebaseUser) {
+    log.warn(`[Wallet] Skipping RPC ${fnName} — user is not authenticated with Firebase`, {
+      hasToken: !!token,
+      hasActiveFirebaseUser,
+    });
+    throw new Error('Wallet requires a signed-in account');
+  }
 
   log.info(`[Wallet] RPC ${fnName}`, {
     hasToken: !!token,
@@ -102,14 +113,8 @@ async function walletRpc<T>(fnName: string, body: Record<string, unknown> = {}):
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     'apikey': PRODUCTION_ANON_KEY,
+    'Authorization': `Bearer ${token}`,
   };
-
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  } else {
-    headers['Authorization'] = `Bearer ${PRODUCTION_ANON_KEY}`;
-    log.warn('[Wallet] No Firebase token — wallet RPC will likely fail');
-  }
 
   const res = await fetch(`${baseUrl}/rest/v1/rpc/${fnName}`, {
     method: 'POST',
@@ -124,6 +129,27 @@ async function walletRpc<T>(fnName: string, body: Record<string, unknown> = {}):
     if (err?.code === 'PGRST301') {
       clearWalletApiCache();
     }
+    if (res.status === 401 || res.status === 403) {
+      const freshToken = await getFirebaseIdToken(true).catch(() => null);
+
+      if (freshToken && freshToken !== token) {
+        const retryRes = await fetch(`${baseUrl}/rest/v1/rpc/${fnName}`, {
+          method: 'POST',
+          headers: {
+            ...headers,
+            Authorization: `Bearer ${freshToken}`,
+          },
+          body: JSON.stringify(body),
+        });
+
+        if (retryRes.ok) {
+          const retryData = await retryRes.json();
+          log.info(`[Wallet] RPC ${fnName} succeeded after token refresh`);
+          return retryData as T;
+        }
+      }
+    }
+
     throw new Error(err.message || `Wallet RPC ${fnName} failed: HTTP ${res.status}`);
   }
 
