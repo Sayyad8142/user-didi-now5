@@ -70,10 +70,10 @@ async function resolveWalletApiUrl(): Promise<string> {
       clearTimeout(timer);
       // Any HTTP response = server is reachable
       _walletApiUrl = url;
-      console.info(`[Wallet] API resolved to: ${url} (HTTP ${res.status})`);
+      log.info(`[Wallet] API resolved to: ${url} (HTTP ${res.status})`);
       return url;
     } catch (e: any) {
-      console.warn(`[Wallet] API candidate ${url} unreachable:`, e?.message);
+      log.warn(`[Wallet] API candidate ${url} unreachable:`, e?.message);
     }
   }
 
@@ -94,7 +94,7 @@ async function walletRpc<T>(fnName: string, body: Record<string, unknown> = {}):
   const token = await getFirebaseIdToken();
   const baseUrl = await resolveWalletApiUrl();
 
-  console.info(`[Wallet] RPC ${fnName}`, {
+  log.info(`[Wallet] RPC ${fnName}`, {
     hasToken: !!token,
     baseUrl: baseUrl,
   });
@@ -108,7 +108,7 @@ async function walletRpc<T>(fnName: string, body: Record<string, unknown> = {}):
     headers['Authorization'] = `Bearer ${token}`;
   } else {
     headers['Authorization'] = `Bearer ${PRODUCTION_ANON_KEY}`;
-    console.warn('[Wallet] No Firebase token — wallet RPC will likely fail');
+    log.warn('[Wallet] No Firebase token — wallet RPC will likely fail');
   }
 
   const res = await fetch(`${baseUrl}/rest/v1/rpc/${fnName}`, {
@@ -119,7 +119,7 @@ async function walletRpc<T>(fnName: string, body: Record<string, unknown> = {}):
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({ message: `HTTP ${res.status}` }));
-    console.error(`[Wallet] RPC ${fnName} failed`, { status: res.status, baseUrl, err });
+    log.error(`[Wallet] RPC ${fnName} failed`, { status: res.status, baseUrl, err });
     // If we get PGRST301 on a custom domain, the cache might be stale — clear it
     if (err?.code === 'PGRST301') {
       clearWalletApiCache();
@@ -128,7 +128,7 @@ async function walletRpc<T>(fnName: string, body: Record<string, unknown> = {}):
   }
 
   const data = await res.json();
-  console.info(`[Wallet] RPC ${fnName} response`, {
+  log.info(`[Wallet] RPC ${fnName} response`, {
     dataType: typeof data,
     isArray: Array.isArray(data),
     preview: Array.isArray(data) ? `${data.length} rows` : data,
@@ -148,7 +148,7 @@ export async function fetchWalletBalanceRow(): Promise<WalletBalanceRow | null> 
     const balance = await walletRpc<number | null>('get_my_wallet_balance');
     const balanceNum = typeof balance === 'number' ? balance : 0;
 
-    console.info('[Wallet] Balance fetched via RPC', { balance: balanceNum });
+    log.info('[Wallet] Balance fetched via RPC', { balance: balanceNum });
 
     // RPC returns just the balance number; construct a compatible row
     return {
@@ -157,7 +157,7 @@ export async function fetchWalletBalanceRow(): Promise<WalletBalanceRow | null> 
       updated_at: new Date().toISOString(),
     };
   } catch (err) {
-    console.error('[Wallet] fetchWalletBalanceRow error:', err);
+    log.error('[Wallet] fetchWalletBalanceRow error:', err);
     throw err;
   }
 }
@@ -184,13 +184,13 @@ export async function fetchWalletTransactions(limit = 50): Promise<WalletTransac
     });
 
     if (!Array.isArray(rows)) {
-      console.warn('[Wallet] Transactions RPC returned non-array:', rows);
+      log.warn('[Wallet] Transactions RPC returned non-array:', rows);
       return [];
     }
 
     return rows;
   } catch (err) {
-    console.error('[Wallet] fetchWalletTransactions error:', err);
+    log.error('[Wallet] fetchWalletTransactions error:', err);
     throw err;
   }
 }

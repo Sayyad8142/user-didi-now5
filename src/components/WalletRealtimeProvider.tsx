@@ -2,6 +2,7 @@ import { useCallback, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useProfile } from '@/contexts/ProfileContext';
 import { supabase } from '@/integrations/supabase/client';
+import { log } from '@/lib/logger';
 import {
   walletBalanceQueryKey,
   walletTransactionsQueryKey,
@@ -22,7 +23,7 @@ export function WalletRealtimeProvider({ children }: { children: React.ReactNode
   const refetchWalletData = useCallback(async (source: string) => {
     if (!userId) return;
 
-    console.info('[WalletRT] Invalidating + refetching wallet data', { source, userId });
+    log.info('[WalletRT] Invalidating + refetching wallet data', { source, userId });
 
     // invalidateQueries forces cache bust + triggers refetch in all active useQuery subscribers
     await Promise.allSettled([
