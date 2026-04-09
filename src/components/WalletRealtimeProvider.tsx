@@ -3,8 +3,6 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useProfile } from '@/contexts/ProfileContext';
 import { supabase } from '@/integrations/supabase/client';
 import {
-  fetchWalletBalanceRow,
-  fetchWalletTransactions,
   walletBalanceQueryKey,
   walletTransactionsQueryKey,
 } from '@/lib/wallet';
