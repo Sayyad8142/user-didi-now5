@@ -2,6 +2,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useEffect } from 'react';
+import { log } from '@/lib/logger';
 import {
   fetchWalletBalanceRow,
   fetchWalletTransactions,
