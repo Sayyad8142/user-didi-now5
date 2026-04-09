@@ -1,13 +1,9 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Wallet as WalletIcon, ArrowDownCircle, ArrowUpCircle, RefreshCw, Receipt, Bug } from 'lucide-react';
+import { ArrowLeft, Wallet as WalletIcon, ArrowDownCircle, ArrowUpCircle, RefreshCw, Receipt } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useWalletBalance, useWalletTransactions, useWalletRefresh, formatWalletReason } from '@/hooks/useWallet';
-import { useProfile } from '@/contexts/ProfileContext';
-import { getCurrentBackendUrl } from '@/integrations/supabase/client';
-import { fetchWalletBalanceRow, fetchWalletTransactions, clearWalletApiCache } from '@/lib/wallet';
-import { getFirebaseIdToken } from '@/lib/firebase';
 import { format } from 'date-fns';
 
 function TransactionItem({ tx }: { tx: any }) {
@@ -37,63 +33,26 @@ function TransactionItem({ tx }: { tx: any }) {
   );
 }
 
+function TransactionSkeleton() {
+  return (
+    <div className="flex items-start gap-3 p-3 bg-white rounded-xl border border-gray-100">
+      <Skeleton className="h-9 w-9 rounded-full flex-shrink-0" />
+      <div className="flex-1 space-y-2">
+        <Skeleton className="h-4 w-16" />
+        <Skeleton className="h-3 w-32" />
+        <Skeleton className="h-2.5 w-24" />
+      </div>
+    </div>
+  );
+}
+
 export default function Wallet() {
   const navigate = useNavigate();
-  const { profile } = useProfile();
   const { data: wallet, isLoading: balanceLoading, isError: balanceError } = useWalletBalance();
   const { data: transactions, isLoading: txLoading, isError: txError } = useWalletTransactions();
   const { refreshWallet } = useWalletRefresh();
-  const [debugInfo, setDebugInfo] = useState<string | null>(null);
-  const [debugLoading, setDebugLoading] = useState(false);
 
   const balance = wallet?.balance_inr ?? 0;
-
-  const runDebugCheck = async () => {
-    setDebugLoading(true);
-    const lines: string[] = [];
-    const userId = profile?.id;
-    const backendUrl = getCurrentBackendUrl();
-    const { WALLET_API_CANDIDATES } = await import('@/lib/wallet').then(() => ({ WALLET_API_CANDIDATES: ['api.didisnow.com', 'api2.didisnow.com'] }));
-    
-    lines.push(`Profile ID: ${userId || 'NONE'}`);
-    lines.push(`Profile phone: ${profile?.phone || 'NONE'}`);
-    lines.push(`Supabase Client URL: ${backendUrl}`);
-    lines.push(`Wallet API: uses production domain only`);
-    lines.push(`---`);
-
-    // Check Firebase token
-    try {
-      const token = await getFirebaseIdToken();
-      lines.push(`Firebase token: ${token ? token.substring(0, 30) + '...' : 'NONE'}`);
-    } catch (e: any) {
-      lines.push(`Firebase token error: ${e.message}`);
-    }
-
-    lines.push(`---`);
-    
-    // RPC balance check
-    try {
-      const balanceRow = await fetchWalletBalanceRow();
-      lines.push(`RPC balance: ${JSON.stringify(balanceRow)}`);
-    } catch (e: any) {
-      lines.push(`RPC balance error: ${e.message}`);
-    }
-
-    lines.push(`---`);
-
-    // RPC transactions check
-    try {
-      const txRows = await fetchWalletTransactions(5);
-      lines.push(`RPC transactions (${txRows.length} rows): ${JSON.stringify(txRows.slice(0, 3))}`);
-    } catch (e: any) {
-      lines.push(`RPC transactions error: ${e.message}`);
-    }
-
-    const result = lines.join('\n');
-    console.info('[WalletDebug]\n' + result);
-    setDebugInfo(result);
-    setDebugLoading(false);
-  };
 
   return (
     <main className="min-h-screen bg-slate-50 flex flex-col">
@@ -128,7 +87,10 @@ export default function Wallet() {
               {balanceLoading ? (
                 <Skeleton className="h-10 w-32 bg-white/20 rounded-lg" />
               ) : balanceError ? (
-                <p className="text-lg font-semibold text-white/70">Unable to load</p>
+                <div>
+                  <p className="text-lg font-semibold text-white/70">Couldn't load balance</p>
+                  <p className="text-xs text-white/50 mt-1">Check your connection and try again</p>
+                </div>
               ) : (
                 <p className="text-4xl font-bold tracking-tight">₹{balance}</p>
               )}
@@ -150,25 +112,6 @@ export default function Wallet() {
             Wallet refunds from cancelled bookings and no-worker cases will appear here.
           </p>
 
-          {/* Debug diagnostic (temporary) */}
-          <div className="border border-amber-300 bg-amber-50 rounded-xl p-3 space-y-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={runDebugCheck}
-              disabled={debugLoading}
-              className="w-full rounded-full gap-1.5 text-xs border-amber-400 text-amber-800"
-            >
-              <Bug className="w-3.5 h-3.5" />
-              {debugLoading ? 'Checking...' : 'Debug: Force Check Wallet DB'}
-            </Button>
-            {debugInfo && (
-              <pre className="text-[9px] text-gray-700 bg-white rounded-lg p-2 overflow-auto max-h-60 whitespace-pre-wrap break-all border">
-                {debugInfo}
-              </pre>
-            )}
-          </div>
-
           {/* Transaction history */}
           <div>
             <h2 className="text-sm font-semibold text-gray-700 mb-3 uppercase tracking-wide">
@@ -176,14 +119,15 @@ export default function Wallet() {
             </h2>
 
             {txLoading ? (
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {[1, 2, 3].map((i) => (
-                  <Skeleton key={i} className="h-16 rounded-xl" />
+                  <TransactionSkeleton key={i} />
                 ))}
               </div>
             ) : txError ? (
               <div className="text-center py-10 space-y-3">
-                <p className="text-sm text-gray-500">Unable to load wallet right now</p>
+                <p className="text-sm text-gray-500">Unable to load transactions</p>
+                <p className="text-xs text-gray-400">Check your connection and try again</p>
                 <Button
                   variant="outline"
                   size="sm"
