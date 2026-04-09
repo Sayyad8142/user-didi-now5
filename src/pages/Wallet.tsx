@@ -5,8 +5,9 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useWalletBalance, useWalletTransactions, useWalletRefresh, formatWalletReason } from '@/hooks/useWallet';
 import { useProfile } from '@/contexts/ProfileContext';
-import { supabase } from '@/integrations/supabase/client';
 import { getCurrentBackendUrl } from '@/integrations/supabase/client';
+import { fetchWalletBalanceRow, fetchWalletTransactions } from '@/lib/wallet';
+import { getFirebaseIdToken } from '@/lib/firebase';
 import { format } from 'date-fns';
 
 function TransactionItem({ tx }: { tx: any }) {
