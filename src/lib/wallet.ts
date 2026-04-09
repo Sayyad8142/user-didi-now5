@@ -58,7 +58,7 @@ export const walletTransactionsQueryKey = (userId: string | null | undefined) =>
 async function resolveWalletApiUrl(): Promise<string> {
   if (_walletApiUrl) return _walletApiUrl;
 
-  for (const url of WALLET_API_CANDIDATES) {
+  for (const url of PRODUCTION_API_CANDIDATES) {
     try {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), WALLET_TIMEOUT_MS);
