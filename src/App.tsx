@@ -261,7 +261,9 @@ const App = () => {
       <Sonner />
       <AuthGate>
         <WalletRealtimeProvider>
-          <AppContent />
+          <ErrorBoundary fallbackTitle="Something went wrong">
+            <AppContent />
+          </ErrorBoundary>
         </WalletRealtimeProvider>
       </AuthGate>
     </TooltipProvider>
