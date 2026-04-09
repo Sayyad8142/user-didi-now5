@@ -11,17 +11,8 @@
  * that fallback — it will always fail for authenticated Firebase calls.
  */
 import { getFirebaseIdToken } from '@/lib/firebase';
-
-// ─── Production API configuration ────────────────────────────────────
-// These are the ONLY endpoints where Firebase JWT auth works.
-// The raw supabase.co endpoint does NOT support Firebase JWTs.
-const WALLET_API_CANDIDATES = [
-  'https://api.didisnow.com',
-  'https://api2.didisnow.com',
-] as const;
-
-const PRODUCTION_ANON_KEY =
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBheXd3YnVxeWNvdmpvcHJ5ZWxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUxNjkyNjksImV4cCI6MjA3MDc0NTI2OX0.js1MaTBkjuGlaDfQjrZpZ9_G8Jy9ygNAB8KpNDiQg8o';
+import { PRODUCTION_ANON_KEY, PRODUCTION_API_CANDIDATES } from '@/lib/constants';
+import { log } from '@/lib/logger';
 
 const WALLET_TIMEOUT_MS = 6000;
 
