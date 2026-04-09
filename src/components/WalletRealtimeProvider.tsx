@@ -2,6 +2,7 @@ import { useCallback, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useProfile } from '@/contexts/ProfileContext';
 import { supabase } from '@/integrations/supabase/client';
+import { log } from '@/lib/logger';
 import {
   walletBalanceQueryKey,
   walletTransactionsQueryKey,
@@ -22,7 +23,7 @@ export function WalletRealtimeProvider({ children }: { children: React.ReactNode
   const refetchWalletData = useCallback(async (source: string) => {
     if (!userId) return;
 
-    console.info('[WalletRT] Invalidating + refetching wallet data', { source, userId });
+    log.info('[WalletRT] Invalidating + refetching wallet data', { source, userId });
 
     // invalidateQueries forces cache bust + triggers refetch in all active useQuery subscribers
     await Promise.allSettled([
@@ -47,7 +48,7 @@ export function WalletRealtimeProvider({ children }: { children: React.ReactNode
         'postgres_changes',
         { event: '*', schema: 'public', table: 'user_wallets', filter: `user_id=eq.${userId}` },
         (payload) => {
-          console.info('[WalletRT] user_wallets change received:', payload);
+          log.info('[WalletRT] user_wallets change received:', payload);
           void refetchWalletData('wallet-realtime.user_wallets');
         }
       )
@@ -55,12 +56,12 @@ export function WalletRealtimeProvider({ children }: { children: React.ReactNode
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'wallet_transactions', filter: `user_id=eq.${userId}` },
         (payload) => {
-          console.info('[WalletRT] wallet_transactions insert received:', payload);
+          log.info('[WalletRT] wallet_transactions insert received:', payload);
           void refetchWalletData('wallet-realtime.wallet_transactions');
         }
       )
       .subscribe((status) => {
-        console.info('[WalletRT] Channel status:', status, 'for userId:', userId);
+        log.info('[WalletRT] Channel status:', status, 'for userId:', userId);
       });
 
     return () => {
@@ -74,7 +75,7 @@ export function WalletRealtimeProvider({ children }: { children: React.ReactNode
 
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') {
-        console.info('[WalletRT] App resumed, refetching wallet');
+        log.info('[WalletRT] App resumed, refetching wallet');
         void refetchWalletData('wallet-visibility.visible');
       }
     };
@@ -89,7 +90,7 @@ export function WalletRealtimeProvider({ children }: { children: React.ReactNode
           const { App } = await import('@capacitor/app');
           const listener = App.addListener('appStateChange', ({ isActive }) => {
             if (isActive) {
-              console.info('[WalletRT] Capacitor resumed, refetching wallet');
+              log.info('[WalletRT] Capacitor resumed, refetching wallet');
               void refetchWalletData('wallet-capacitor.active');
             }
           });

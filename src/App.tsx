@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Routes, Route, useNavigate } from "react-router-dom";
 import { useState, useEffect, useCallback, Suspense, lazy } from "react";
 import { UpdateBanner } from "@/components/UpdateBanner";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { UpdateRequiredScreen } from "@/components/UpdateRequiredScreen";
 import { NativeUpdateRequiredScreen } from "@/components/NativeUpdateRequiredScreen";
 import { SoftUpdateModal } from "@/components/SoftUpdateModal";
@@ -260,7 +261,9 @@ const App = () => {
       <Sonner />
       <AuthGate>
         <WalletRealtimeProvider>
-          <AppContent />
+          <ErrorBoundary fallbackTitle="Something went wrong">
+            <AppContent />
+          </ErrorBoundary>
         </WalletRealtimeProvider>
       </AuthGate>
     </TooltipProvider>
