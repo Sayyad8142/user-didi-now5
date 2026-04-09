@@ -1,7 +1,6 @@
 import { useCallback, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useProfile } from '@/contexts/ProfileContext';
-import { useAuth } from '@/components/auth/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
 import {
   fetchWalletBalanceRow,
@@ -13,59 +12,40 @@ import {
 /**
  * Global provider that keeps wallet balance in sync via realtime + app resume.
  * Mount once at app root level (inside ProfileProvider & QueryClientProvider).
+ *
+ * Realtime subscription uses the anon-key client (public channel).
+ * Actual data refetch uses authenticated RPC via wallet.ts.
  */
 export function WalletRealtimeProvider({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth();
   const { profile } = useProfile();
   const userId = profile?.id;
-  const authUserId = user?.id;
   const qc = useQueryClient();
 
   const refetchWalletData = useCallback(async (source: string) => {
     if (!userId) return;
 
-    console.info('[WalletRT] Refetching wallet data', {
-      authUserId: authUserId ?? null,
-      profileId: profile?.id ?? null,
-      source,
-      walletUserId: userId,
-    });
+    console.info('[WalletRT] Refetching wallet data', { source, userId });
 
     const [balanceResult, txResult] = await Promise.allSettled([
       qc.fetchQuery({
         queryKey: walletBalanceQueryKey(userId),
-        queryFn: () =>
-          fetchWalletBalanceRow({
-            authUserId,
-            profileId: profile?.id ?? null,
-            source: `${source}.balance`,
-            walletUserId: userId,
-          }),
+        queryFn: () => fetchWalletBalanceRow(),
       }),
       qc.fetchQuery({
         queryKey: walletTransactionsQueryKey(userId),
-        queryFn: () =>
-          fetchWalletTransactions(
-            {
-              authUserId,
-              profileId: profile?.id ?? null,
-              source: `${source}.transactions`,
-              walletUserId: userId,
-            },
-            50,
-          ),
+        queryFn: () => fetchWalletTransactions(50),
       }),
     ]);
 
     if (balanceResult.status === 'rejected') {
       console.error('[WalletRT] Balance refetch failed', balanceResult.reason);
     }
-
     if (txResult.status === 'rejected') {
       console.error('[WalletRT] Transactions refetch failed', txResult.reason);
     }
-  }, [authUserId, profile?.id, qc, userId]);
+  }, [qc, userId]);
 
+  // Initial fetch
   useEffect(() => {
     if (!userId) return;
     void refetchWalletData('wallet-provider-init');
@@ -108,14 +88,13 @@ export function WalletRealtimeProvider({ children }: { children: React.ReactNode
 
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') {
-        console.info('[WalletRT] App resumed, refetching wallet for:', userId);
+        console.info('[WalletRT] App resumed, refetching wallet');
         void refetchWalletData('wallet-visibility.visible');
       }
     };
 
     document.addEventListener('visibilitychange', handleVisibility);
 
-    // Also listen for Capacitor resume via custom event pattern
     let capacitorCleanup: (() => void) | undefined;
     (async () => {
       try {
@@ -124,7 +103,7 @@ export function WalletRealtimeProvider({ children }: { children: React.ReactNode
           const { App } = await import('@capacitor/app');
           const listener = App.addListener('appStateChange', ({ isActive }) => {
             if (isActive) {
-              console.info('[WalletRT] Capacitor appStateChange active, refetching wallet for:', userId);
+              console.info('[WalletRT] Capacitor resumed, refetching wallet');
               void refetchWalletData('wallet-capacitor.active');
             }
           });

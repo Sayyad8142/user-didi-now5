@@ -242,12 +242,7 @@ async function sleep(ms: number) {
 // ─── Wallet Balance Check ─────────────────────────────────────
 
 async function getWalletBalance(userId: string): Promise<number> {
-  return fetchWalletBalanceValue({
-    authUserId: null,
-    profileId: userId,
-    source: 'paymentService.getWalletBalance',
-    walletUserId: userId,
-  });
+  return fetchWalletBalanceValue();
 }
 
 // ─── Order Creation (payment-first mode) ──────────────────────
