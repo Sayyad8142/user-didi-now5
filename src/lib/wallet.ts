@@ -1,23 +1,18 @@
 /**
- * Wallet data layer — authenticated RPC calls with Firebase ID token.
+ * Wallet data layer — reads wallet data through a backend function.
  *
- * CRITICAL: Wallet RPCs MUST go through the production API domain
- * (api.didisnow.com or api2.didisnow.com) where Firebase JWT translation
- * is configured. The raw Supabase endpoint (paywwbuqycovjopryele.supabase.co)
- * CANNOT verify Firebase RS256 JWTs and will return 401 PGRST301.
- *
- * The backend resolver may fall back to the direct Supabase URL for
- * unauthenticated reads (profiles, config), but wallet MUST NOT use
- * that fallback — it will always fail for authenticated Firebase calls.
+ * This bypasses the legacy custom wallet API domains, which can fail SSL
+ * negotiation in some browsers/webviews and prevent admin-added money from
+ * appearing in the app.
  */
 import { getFirebaseIdToken, getCurrentUser, getNativeCurrentUser, shouldUseNativeAuth } from '@/lib/firebase';
-import { PRODUCTION_ANON_KEY, PRODUCTION_API_CANDIDATES } from '@/lib/constants';
 import { log } from '@/lib/logger';
 
-const WALLET_TIMEOUT_MS = 6000;
+const WALLET_FUNCTION_URL = import.meta.env.VITE_SUPABASE_URL
+  ? `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/wallet-read`
+  : '';
 
-// Cache the working wallet API URL for the session
-let _walletApiUrl: string | null = null;
+const WALLET_FUNCTION_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || '';
 
 // ─── Types ───────────────────────────────────────────────────────────
 
@@ -48,116 +43,67 @@ export const walletBalanceQueryKey = (userId: string | null | undefined) =>
 export const walletTransactionsQueryKey = (userId: string | null | undefined) =>
   ['wallet-transactions', userId] as const;
 
-// ─── Wallet API URL resolution ───────────────────────────────────────
+// ─── Authenticated fetch helper ───────────────────────────────────────
 
-/**
- * Resolve which production API URL to use for wallet RPCs.
- * Only tries the custom domain candidates (NOT the direct supabase.co URL).
- * Caches the result for the session.
- */
-async function resolveWalletApiUrl(): Promise<string> {
-  if (_walletApiUrl) return _walletApiUrl;
-
-  for (const url of PRODUCTION_API_CANDIDATES) {
-    try {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), WALLET_TIMEOUT_MS);
-      const res = await fetch(`${url}/rest/v1/`, {
-        method: 'GET',
-        headers: { apikey: PRODUCTION_ANON_KEY },
-        signal: controller.signal,
-      });
-      clearTimeout(timer);
-      // Any HTTP response = server is reachable
-      _walletApiUrl = url;
-      log.info(`[Wallet] API resolved to: ${url} (HTTP ${res.status})`);
-      return url;
-    } catch (e: any) {
-      log.warn(`[Wallet] API candidate ${url} unreachable:`, e?.message);
-    }
-  }
-
-  throw new Error(
-    '[Wallet] Production API unreachable. Wallet requires api.didisnow.com — ' +
-    'the direct Supabase endpoint does not support Firebase JWT auth.'
-  );
-}
-
-/** Clear cached wallet API URL (call on network failures to force re-resolve) */
-export function clearWalletApiCache(): void {
-  _walletApiUrl = null;
-}
-
-// ─── Authenticated fetch helper (production API only) ────────────────
-
-async function walletRpc<T>(fnName: string, body: Record<string, unknown> = {}): Promise<T> {
-  const token = await getFirebaseIdToken();
-  const baseUrl = await resolveWalletApiUrl();
+async function getWalletToken(forceRefresh = false): Promise<string> {
+  const token = await getFirebaseIdToken(forceRefresh);
   const hasActiveFirebaseUser = shouldUseNativeAuth()
     ? !!(await getNativeCurrentUser())
     : !!getCurrentUser();
 
   if (!token || !hasActiveFirebaseUser) {
-    log.warn(`[Wallet] Skipping RPC ${fnName} — user is not authenticated with Firebase`, {
+    log.warn('[Wallet] Skipping wallet request — user is not authenticated with Firebase', {
       hasToken: !!token,
       hasActiveFirebaseUser,
     });
     throw new Error('Wallet requires a signed-in account');
   }
 
-  log.info(`[Wallet] RPC ${fnName}`, {
-    hasToken: !!token,
-    baseUrl: baseUrl,
-  });
+  return token;
+}
 
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    'apikey': PRODUCTION_ANON_KEY,
-    'Authorization': `Bearer ${token}`,
-  };
-
-  const res = await fetch(`${baseUrl}/rest/v1/rpc/${fnName}`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(body),
-  });
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ message: `HTTP ${res.status}` }));
-    log.error(`[Wallet] RPC ${fnName} failed`, { status: res.status, baseUrl, err });
-    // If we get PGRST301 on a custom domain, the cache might be stale — clear it
-    if (err?.code === 'PGRST301') {
-      clearWalletApiCache();
-    }
-    if (res.status === 401 || res.status === 403) {
-      const freshToken = await getFirebaseIdToken(true).catch(() => null);
-
-      if (freshToken && freshToken !== token) {
-        const retryRes = await fetch(`${baseUrl}/rest/v1/rpc/${fnName}`, {
-          method: 'POST',
-          headers: {
-            ...headers,
-            Authorization: `Bearer ${freshToken}`,
-          },
-          body: JSON.stringify(body),
-        });
-
-        if (retryRes.ok) {
-          const retryData = await retryRes.json();
-          log.info(`[Wallet] RPC ${fnName} succeeded after token refresh`);
-          return retryData as T;
-        }
-      }
-    }
-
-    throw new Error(err.message || `Wallet RPC ${fnName} failed: HTTP ${res.status}`);
+async function walletRead<T>(action: 'get_balance' | 'get_transactions', body: Record<string, unknown> = {}): Promise<T> {
+  if (!WALLET_FUNCTION_URL || !WALLET_FUNCTION_KEY) {
+    throw new Error('Wallet backend is not configured');
   }
 
-  const data = await res.json();
-  log.info(`[Wallet] RPC ${fnName} response`, {
+  const request = async (forceRefresh = false) => {
+    const token = await getWalletToken(forceRefresh);
+
+    return fetch(WALLET_FUNCTION_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: WALLET_FUNCTION_KEY,
+        Authorization: `Bearer ${WALLET_FUNCTION_KEY}`,
+        'x-firebase-token': token,
+      },
+      body: JSON.stringify({ action, ...body }),
+    });
+  };
+
+  let res = await request(false);
+
+  if ((res.status === 401 || res.status === 403) && !res.ok) {
+    res = await request(true);
+  }
+
+  const data = await res.json().catch(() => ({}));
+
+  if (!res.ok) {
+    log.error(`[Wallet] wallet-read ${action} failed`, {
+      status: res.status,
+      error: data,
+    });
+    throw new Error(
+      (typeof data?.error === 'string' && data.error) ||
+      `Wallet request failed: HTTP ${res.status}`
+    );
+  }
+
+  log.info(`[Wallet] wallet-read ${action} response`, {
     dataType: typeof data,
     isArray: Array.isArray(data),
-    preview: Array.isArray(data) ? `${data.length} rows` : data,
   });
 
   return data as T;
@@ -171,16 +117,15 @@ async function walletRpc<T>(fnName: string, body: Record<string, unknown> = {}):
  */
 export async function fetchWalletBalanceRow(): Promise<WalletBalanceRow | null> {
   try {
-    const balance = await walletRpc<number | null>('get_my_wallet_balance');
-    const balanceNum = typeof balance === 'number' ? balance : 0;
+    const data = await walletRead<{ balance?: number; updated_at?: string; user_id?: string | null }>('get_balance');
+    const balanceNum = typeof data?.balance === 'number' ? data.balance : 0;
 
-    log.info('[Wallet] Balance fetched via RPC', { balance: balanceNum });
+    log.info('[Wallet] Balance fetched via wallet-read', { balance: balanceNum });
 
-    // RPC returns just the balance number; construct a compatible row
     return {
-      user_id: 'rpc', // placeholder — not used by UI
+      user_id: data?.user_id || 'wallet-read',
       balance_inr: balanceNum,
-      updated_at: new Date().toISOString(),
+      updated_at: data?.updated_at || new Date().toISOString(),
     };
   } catch (err) {
     log.error('[Wallet] fetchWalletBalanceRow error:', err);
@@ -205,16 +150,29 @@ export async function fetchWalletBalanceValue(): Promise<number> {
  */
 export async function fetchWalletTransactions(limit = 50): Promise<WalletTransactionRow[]> {
   try {
-    const rows = await walletRpc<WalletTransactionRow[]>('get_my_wallet_transactions', {
-      p_limit: limit,
-    });
+    const data = await walletRead<{ transactions?: Array<Record<string, unknown>> }>('get_transactions', { limit });
+    const rows = Array.isArray(data?.transactions) ? data.transactions : [];
 
-    if (!Array.isArray(rows)) {
-      log.warn('[Wallet] Transactions RPC returned non-array:', rows);
-      return [];
-    }
-
-    return rows;
+    return rows.map((row) => ({
+      id: String(row.id ?? `${row.created_at ?? Date.now()}-${Math.random()}`),
+      user_id: String(row.user_id ?? 'wallet-read'),
+      booking_id: typeof row.booking_id === 'string' ? row.booking_id : null,
+      type: row.type === 'debit' ? 'debit' : 'credit',
+      amount_inr: Number(row.amount_inr ?? row.amount ?? 0),
+      reason: typeof row.reason === 'string' ? row.reason : null,
+      reference_type: typeof row.reference_type === 'string' ? row.reference_type : null,
+      reference_id: typeof row.reference_id === 'string' ? row.reference_id : null,
+      notes:
+        typeof row.notes === 'string'
+          ? row.notes
+          : typeof row.description === 'string'
+            ? row.description
+            : null,
+      created_at:
+        typeof row.created_at === 'string'
+          ? row.created_at
+          : new Date().toISOString(),
+    }));
   } catch (err) {
     log.error('[Wallet] fetchWalletTransactions error:', err);
     throw err;
