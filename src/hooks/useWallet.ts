@@ -35,24 +35,19 @@ export function useWalletBalance() {
   const { profile } = useProfile();
   const { user } = useAuth();
   const userId = profile?.id;
-  const authUserId = user?.id;
 
   const query = useQuery<WalletBalance | null>({
     queryKey: walletBalanceQueryKey(userId),
     queryFn: async () => {
       if (!userId) {
-        console.warn('[Wallet] No profile.id, skipping balance fetch', {
-          authUserId: authUserId ?? null,
-          profileId: profile?.id ?? null,
-        });
+        console.warn('[Wallet] No profile.id, skipping balance fetch');
         return null;
       }
-      return fetchWalletBalanceRow({
-        authUserId,
-        profileId: profile?.id ?? null,
-        source: 'useWalletBalance',
-        walletUserId: userId,
+      console.info('[Wallet] useWalletBalance queryFn called', {
+        userId,
+        authUserId: user?.id,
       });
+      return fetchWalletBalanceRow();
     },
     enabled: !!userId,
     staleTime: 0,
@@ -63,17 +58,13 @@ export function useWalletBalance() {
 
   useEffect(() => {
     if (!userId) return;
-
-    console.info('[Wallet] Final displayed balance', {
-      authUserId: authUserId ?? null,
-      profileId: profile?.id ?? null,
-      walletUserId: userId,
-      hasWalletRow: !!query.data,
-      finalDisplayedBalance: query.data?.balance_inr ?? 0,
+    console.info('[Wallet] Displayed balance', {
+      userId,
+      balance: query.data?.balance_inr ?? 0,
       isFetching: query.isFetching,
       isError: query.isError,
     });
-  }, [authUserId, profile?.id, query.data, query.isError, query.isFetching, userId]);
+  }, [query.data, query.isError, query.isFetching, userId]);
 
   return query;
 }
@@ -82,28 +73,16 @@ export function useWalletTransactions() {
   const { profile } = useProfile();
   const { user } = useAuth();
   const userId = profile?.id;
-  const authUserId = user?.id;
 
   return useQuery<WalletTransaction[]>({
     queryKey: walletTransactionsQueryKey(userId),
     queryFn: async () => {
       if (!userId) {
-        console.warn('[Wallet] No profile.id, skipping transactions fetch', {
-          authUserId: authUserId ?? null,
-          profileId: profile?.id ?? null,
-        });
+        console.warn('[Wallet] No profile.id, skipping transactions fetch');
         return [];
       }
-
-      return fetchWalletTransactions(
-        {
-          authUserId,
-          profileId: profile?.id ?? null,
-          source: 'useWalletTransactions',
-          walletUserId: userId,
-        },
-        50,
-      );
+      console.info('[Wallet] useWalletTransactions queryFn called', { userId });
+      return fetchWalletTransactions(50);
     },
     enabled: !!userId,
     staleTime: 0,
@@ -117,52 +96,30 @@ export function useWalletTransactions() {
 export function useWalletRefresh() {
   const qc = useQueryClient();
   const { profile } = useProfile();
-  const { user } = useAuth();
   const userId = profile?.id;
-  const authUserId = user?.id;
 
   return {
     refreshWallet: async () => {
       if (!userId) return;
 
-      console.info('[Wallet] Manual hard refresh triggered', {
-        authUserId: authUserId ?? null,
-        profileId: profile?.id ?? null,
-        walletUserId: userId,
-      });
+      console.info('[Wallet] Manual refresh triggered', { userId });
 
       const [balanceResult, txResult] = await Promise.allSettled([
         qc.fetchQuery({
           queryKey: walletBalanceQueryKey(userId),
-          queryFn: () =>
-            fetchWalletBalanceRow({
-              authUserId,
-              profileId: profile?.id ?? null,
-              source: 'useWalletRefresh.balance',
-              walletUserId: userId,
-            }),
+          queryFn: () => fetchWalletBalanceRow(),
         }),
         qc.fetchQuery({
           queryKey: walletTransactionsQueryKey(userId),
-          queryFn: () =>
-            fetchWalletTransactions(
-              {
-                authUserId,
-                profileId: profile?.id ?? null,
-                source: 'useWalletRefresh.transactions',
-                walletUserId: userId,
-              },
-              50,
-            ),
+          queryFn: () => fetchWalletTransactions(50),
         }),
       ]);
 
       if (balanceResult.status === 'rejected') {
-        console.error('[Wallet] Hard refresh balance fetch failed', balanceResult.reason);
+        console.error('[Wallet] Refresh balance failed', balanceResult.reason);
       }
-
       if (txResult.status === 'rejected') {
-        console.error('[Wallet] Hard refresh transactions fetch failed', txResult.reason);
+        console.error('[Wallet] Refresh transactions failed', txResult.reason);
       }
     },
   };
