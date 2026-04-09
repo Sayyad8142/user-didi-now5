@@ -106,5 +106,14 @@ export function WalletRealtimeProvider({ children }: { children: React.ReactNode
     };
   }, [refetchWalletData, userId]);
 
+  // 3. Polling fallback every 30s — safety net if realtime publication is not enabled
+  useEffect(() => {
+    if (!userId) return;
+    const interval = setInterval(() => {
+      void refetchWalletData('wallet-poll-30s');
+    }, 30_000);
+    return () => clearInterval(interval);
+  }, [refetchWalletData, userId]);
+
   return <>{children}</>;
 }
