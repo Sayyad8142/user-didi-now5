@@ -42,7 +42,8 @@ export async function testUrl(url: string, timeoutMs = TIMEOUT_MS): Promise<Back
     });
     clearTimeout(timer);
     const ms = Math.round(performance.now() - t0);
-    return { url, ok: res.ok, ms };
+    // Any HTTP response (even 401/403) means the server is reachable
+    return { url, ok: true, ms };
   } catch (e: any) {
     const ms = Math.round(performance.now() - t0);
     return { url, ok: false, ms, error: e?.name === "AbortError" ? "Timeout" : e?.message || "Network error" };
