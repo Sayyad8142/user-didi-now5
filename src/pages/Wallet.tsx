@@ -6,7 +6,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useWalletBalance, useWalletTransactions, useWalletRefresh, formatWalletReason } from '@/hooks/useWallet';
 import { useProfile } from '@/contexts/ProfileContext';
 import { getCurrentBackendUrl } from '@/integrations/supabase/client';
-import { fetchWalletBalanceRow, fetchWalletTransactions } from '@/lib/wallet';
+import { fetchWalletBalanceRow, fetchWalletTransactions, clearWalletApiCache } from '@/lib/wallet';
 import { getFirebaseIdToken } from '@/lib/firebase';
 import { format } from 'date-fns';
 
@@ -53,10 +53,12 @@ export default function Wallet() {
     const lines: string[] = [];
     const userId = profile?.id;
     const backendUrl = getCurrentBackendUrl();
+    const { WALLET_API_CANDIDATES } = await import('@/lib/wallet').then(() => ({ WALLET_API_CANDIDATES: ['api.didisnow.com', 'api2.didisnow.com'] }));
     
     lines.push(`Profile ID: ${userId || 'NONE'}`);
     lines.push(`Profile phone: ${profile?.phone || 'NONE'}`);
-    lines.push(`Backend URL: ${backendUrl}`);
+    lines.push(`Supabase Client URL: ${backendUrl}`);
+    lines.push(`Wallet API: uses production domain only`);
     lines.push(`---`);
 
     // Check Firebase token
