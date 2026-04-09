@@ -41,10 +41,10 @@ export function useWalletBalance() {
     queryKey: walletBalanceQueryKey(userId),
     queryFn: async () => {
       if (!userId) {
-        console.warn('[Wallet] No profile.id, skipping balance fetch');
+        log.warn('[Wallet] No profile.id, skipping balance fetch');
         return null;
       }
-      console.info('[Wallet] useWalletBalance queryFn called', {
+      log.info('[Wallet] useWalletBalance queryFn called', {
         userId,
         authUserId: user?.id,
       });
@@ -59,7 +59,7 @@ export function useWalletBalance() {
 
   useEffect(() => {
     if (!userId) return;
-    console.info('[Wallet] Displayed balance', {
+    log.info('[Wallet] Displayed balance', {
       userId,
       balance: query.data?.balance_inr ?? 0,
       isFetching: query.isFetching,
@@ -79,10 +79,10 @@ export function useWalletTransactions() {
     queryKey: walletTransactionsQueryKey(userId),
     queryFn: async () => {
       if (!userId) {
-        console.warn('[Wallet] No profile.id, skipping transactions fetch');
+        log.warn('[Wallet] No profile.id, skipping transactions fetch');
         return [];
       }
-      console.info('[Wallet] useWalletTransactions queryFn called', { userId });
+      log.info('[Wallet] useWalletTransactions queryFn called', { userId });
       return fetchWalletTransactions(50);
     },
     enabled: !!userId,
@@ -103,7 +103,7 @@ export function useWalletRefresh() {
     refreshWallet: async () => {
       if (!userId) return;
 
-      console.info('[Wallet] Manual refresh triggered — invalidating cache', { userId });
+      log.info('[Wallet] Manual refresh triggered — invalidating cache', { userId });
 
       await Promise.allSettled([
         qc.invalidateQueries({ queryKey: walletBalanceQueryKey(userId) }),
