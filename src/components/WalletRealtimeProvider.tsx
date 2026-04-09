@@ -24,25 +24,13 @@ export function WalletRealtimeProvider({ children }: { children: React.ReactNode
   const refetchWalletData = useCallback(async (source: string) => {
     if (!userId) return;
 
-    console.info('[WalletRT] Refetching wallet data', { source, userId });
+    console.info('[WalletRT] Invalidating + refetching wallet data', { source, userId });
 
-    const [balanceResult, txResult] = await Promise.allSettled([
-      qc.fetchQuery({
-        queryKey: walletBalanceQueryKey(userId),
-        queryFn: () => fetchWalletBalanceRow(),
-      }),
-      qc.fetchQuery({
-        queryKey: walletTransactionsQueryKey(userId),
-        queryFn: () => fetchWalletTransactions(50),
-      }),
+    // invalidateQueries forces cache bust + triggers refetch in all active useQuery subscribers
+    await Promise.allSettled([
+      qc.invalidateQueries({ queryKey: walletBalanceQueryKey(userId) }),
+      qc.invalidateQueries({ queryKey: walletTransactionsQueryKey(userId) }),
     ]);
-
-    if (balanceResult.status === 'rejected') {
-      console.error('[WalletRT] Balance refetch failed', balanceResult.reason);
-    }
-    if (txResult.status === 'rejected') {
-      console.error('[WalletRT] Transactions refetch failed', txResult.reason);
-    }
   }, [qc, userId]);
 
   // Initial fetch

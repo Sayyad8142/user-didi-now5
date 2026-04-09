@@ -102,25 +102,12 @@ export function useWalletRefresh() {
     refreshWallet: async () => {
       if (!userId) return;
 
-      console.info('[Wallet] Manual refresh triggered', { userId });
+      console.info('[Wallet] Manual refresh triggered — invalidating cache', { userId });
 
-      const [balanceResult, txResult] = await Promise.allSettled([
-        qc.fetchQuery({
-          queryKey: walletBalanceQueryKey(userId),
-          queryFn: () => fetchWalletBalanceRow(),
-        }),
-        qc.fetchQuery({
-          queryKey: walletTransactionsQueryKey(userId),
-          queryFn: () => fetchWalletTransactions(50),
-        }),
+      await Promise.allSettled([
+        qc.invalidateQueries({ queryKey: walletBalanceQueryKey(userId) }),
+        qc.invalidateQueries({ queryKey: walletTransactionsQueryKey(userId) }),
       ]);
-
-      if (balanceResult.status === 'rejected') {
-        console.error('[Wallet] Refresh balance failed', balanceResult.reason);
-      }
-      if (txResult.status === 'rejected') {
-        console.error('[Wallet] Refresh transactions failed', txResult.reason);
-      }
     },
   };
 }
