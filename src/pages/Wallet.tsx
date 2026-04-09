@@ -57,52 +57,34 @@ export default function Wallet() {
     lines.push(`Profile ID: ${userId || 'NONE'}`);
     lines.push(`Profile phone: ${profile?.phone || 'NONE'}`);
     lines.push(`Backend URL: ${backendUrl}`);
-    lines.push(`Env URL: ${import.meta.env.VITE_SUPABASE_URL}`);
+    lines.push(`---`);
+
+    // Check Firebase token
+    try {
+      const token = await getFirebaseIdToken();
+      lines.push(`Firebase token: ${token ? token.substring(0, 30) + '...' : 'NONE'}`);
+    } catch (e: any) {
+      lines.push(`Firebase token error: ${e.message}`);
+    }
+
     lines.push(`---`);
     
-    // Direct query bypassing cache
+    // RPC balance check
     try {
-      const { data: walletRow, error: wErr, status: wStatus } = await supabase
-        .from('user_wallets')
-        .select('*')
-        .eq('user_id', userId!)
-        .maybeSingle();
-      lines.push(`Wallet row: ${JSON.stringify(walletRow)}`);
-      lines.push(`Wallet err: ${JSON.stringify(wErr)}`);
-      lines.push(`Wallet HTTP: ${wStatus}`);
+      const balanceRow = await fetchWalletBalanceRow();
+      lines.push(`RPC balance: ${JSON.stringify(balanceRow)}`);
     } catch (e: any) {
-      lines.push(`Wallet exception: ${e.message}`);
+      lines.push(`RPC balance error: ${e.message}`);
     }
 
     lines.push(`---`);
 
-    // Check ALL wallet rows (without user filter) to see if data exists at all
+    // RPC transactions check
     try {
-      const { data: allRows, error: aErr, count } = await supabase
-        .from('user_wallets')
-        .select('user_id, balance_inr', { count: 'exact' })
-        .limit(5);
-      lines.push(`All wallets (limit 5): ${JSON.stringify(allRows)}`);
-      lines.push(`Total count: ${count}`);
-      lines.push(`All err: ${JSON.stringify(aErr)}`);
+      const txRows = await fetchWalletTransactions(5);
+      lines.push(`RPC transactions (${txRows.length} rows): ${JSON.stringify(txRows.slice(0, 3))}`);
     } catch (e: any) {
-      lines.push(`All wallets exception: ${e.message}`);
-    }
-
-    lines.push(`---`);
-
-    // Check transactions
-    try {
-      const { data: txRows, error: tErr } = await supabase
-        .from('wallet_transactions')
-        .select('id, user_id, type, amount_inr, reason, created_at')
-        .eq('user_id', userId!)
-        .order('created_at', { ascending: false })
-        .limit(5);
-      lines.push(`Transactions: ${JSON.stringify(txRows)}`);
-      lines.push(`Tx err: ${JSON.stringify(tErr)}`);
-    } catch (e: any) {
-      lines.push(`Tx exception: ${e.message}`);
+      lines.push(`RPC transactions error: ${e.message}`);
     }
 
     const result = lines.join('\n');
