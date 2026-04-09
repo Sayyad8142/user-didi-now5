@@ -3,8 +3,6 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useProfile } from '@/contexts/ProfileContext';
 import { supabase } from '@/integrations/supabase/client';
 import {
-  fetchWalletBalanceRow,
-  fetchWalletTransactions,
   walletBalanceQueryKey,
   walletTransactionsQueryKey,
 } from '@/lib/wallet';
@@ -24,25 +22,13 @@ export function WalletRealtimeProvider({ children }: { children: React.ReactNode
   const refetchWalletData = useCallback(async (source: string) => {
     if (!userId) return;
 
-    console.info('[WalletRT] Refetching wallet data', { source, userId });
+    console.info('[WalletRT] Invalidating + refetching wallet data', { source, userId });
 
-    const [balanceResult, txResult] = await Promise.allSettled([
-      qc.fetchQuery({
-        queryKey: walletBalanceQueryKey(userId),
-        queryFn: () => fetchWalletBalanceRow(),
-      }),
-      qc.fetchQuery({
-        queryKey: walletTransactionsQueryKey(userId),
-        queryFn: () => fetchWalletTransactions(50),
-      }),
+    // invalidateQueries forces cache bust + triggers refetch in all active useQuery subscribers
+    await Promise.allSettled([
+      qc.invalidateQueries({ queryKey: walletBalanceQueryKey(userId) }),
+      qc.invalidateQueries({ queryKey: walletTransactionsQueryKey(userId) }),
     ]);
-
-    if (balanceResult.status === 'rejected') {
-      console.error('[WalletRT] Balance refetch failed', balanceResult.reason);
-    }
-    if (txResult.status === 'rejected') {
-      console.error('[WalletRT] Transactions refetch failed', txResult.reason);
-    }
   }, [qc, userId]);
 
   // Initial fetch
@@ -118,6 +104,15 @@ export function WalletRealtimeProvider({ children }: { children: React.ReactNode
       document.removeEventListener('visibilitychange', handleVisibility);
       capacitorCleanup?.();
     };
+  }, [refetchWalletData, userId]);
+
+  // 3. Polling fallback every 30s — safety net if realtime publication is not enabled
+  useEffect(() => {
+    if (!userId) return;
+    const interval = setInterval(() => {
+      void refetchWalletData('wallet-poll-30s');
+    }, 30_000);
+    return () => clearInterval(interval);
   }, [refetchWalletData, userId]);
 
   return <>{children}</>;
