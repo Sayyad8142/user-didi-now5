@@ -7,6 +7,7 @@ import {
   clearResolvedUrl,
   BACKEND_CANDIDATES,
 } from "@/lib/backendResolver";
+import { getFirebaseIdToken } from "@/lib/firebase";
 
 const SUPABASE_PUBLISHABLE_KEY =
   import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
@@ -42,14 +43,19 @@ const customStorage = {
 
 function buildClientOptions() {
   return {
+    accessToken: async () => {
+      const token = await getFirebaseIdToken();
+      if (token) {
+        console.debug('[Supabase] Using Firebase ID token for auth');
+        return token;
+      }
+      console.debug('[Supabase] No Firebase token, using anon key');
+      return SUPABASE_PUBLISHABLE_KEY;
+    },
     auth: {
-      persistSession: true,
-      autoRefreshToken: true,
-      detectSessionInUrl: true,
-      storageKey: "sb-paywwbuqycovjopryele-auth-token",
-      storage: customStorage,
-      flowType: "pkce" as const,
-      debug: false,
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
     },
     realtime: {
       params: {
