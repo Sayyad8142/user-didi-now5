@@ -485,9 +485,9 @@ export async function executePaymentFlowForNewBooking(
       };
 
       console.log('📝 [WalletOnly] Inserting booking directly:', JSON.stringify({
-        service_type: bookingInsertData.service_type,
-        booking_type: bookingInsertData.booking_type,
-        price_inr: bookingInsertData.price_inr,
+        service_type: sanitized.service_type,
+        booking_type: sanitized.booking_type,
+        price_inr: sanitized.price_inr,
       }));
 
       const { data: newBooking, error: insertErr } = await supabase
