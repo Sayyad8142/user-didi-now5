@@ -135,6 +135,8 @@ export default function Wallet() {
 
       <section className="flex-1 pb-24">
         <div className="max-w-md mx-auto px-4 py-4 space-y-5">
+          {/* Diagnostics panel */}
+          {showDiag && <DiagnosticsPanel balanceQuery={balanceQuery} txQuery={txQuery} />}
           {/* Balance card */}
           <div className="bg-gradient-to-br from-[#ff007a] to-[#e6006a] rounded-2xl p-5 text-white shadow-lg relative overflow-hidden">
             <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
