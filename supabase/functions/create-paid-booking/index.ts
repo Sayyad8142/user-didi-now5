@@ -209,6 +209,35 @@ Deno.serve(async (req) => {
       return json({ error: "User ID mismatch" }, 403);
     }
 
+    // 4b. Mandatory rating check — block booking if user has unrated completed bookings
+    const MANDATORY_RATING_ROLLOUT = '2025-07-11T00:00:00Z';
+    const { data: unratedBookings } = await supabase
+      .from("bookings")
+      .select("id")
+      .eq("user_id", profile.id)
+      .eq("status", "completed")
+      .gte("completed_at", MANDATORY_RATING_ROLLOUT)
+      .limit(10);
+
+    if (unratedBookings && unratedBookings.length > 0) {
+      const bookingIds = unratedBookings.map((b: any) => b.id);
+      const { data: ratings } = await supabase
+        .from("worker_ratings")
+        .select("booking_id")
+        .in("booking_id", bookingIds);
+
+      const ratedIds = new Set((ratings || []).map((r: any) => r.booking_id));
+      const hasUnrated = bookingIds.some((id: string) => !ratedIds.has(id));
+
+      if (hasUnrated) {
+        console.log("[create-paid-booking] ❌ Blocked: user has unrated completed bookings");
+        return json({
+          error: "Please rate your last completed service before booking again.",
+          code: "RATING_REQUIRED",
+        }, 403);
+      }
+    }
+
     // 5. Verify payment
     if (payment_type === "razorpay" || payment_type === "wallet_and_razorpay") {
       if (qr_recovery) {
