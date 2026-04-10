@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Wallet as WalletIcon, ArrowDownCircle, ArrowUpCircle, RefreshCw, Receipt } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useWalletBalance, useWalletTransactions, useWalletRefresh, formatWalletReason } from '@/hooks/useWallet';
-import { useAuth } from '@/components/auth/AuthProvider';
-import { useProfile } from '@/contexts/ProfileContext';
+import { format } from 'date-fns';
 import { format } from 'date-fns';
 
 function TransactionItem({ tx }: { tx: any }) {
