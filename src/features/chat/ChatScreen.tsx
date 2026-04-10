@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Send, Smile } from 'lucide-react';
+import { ArrowLeft, Send } from 'lucide-react';
 import { useKeyboardPadding } from '@/hooks/useKeyboardPadding';
 import { useSupportChat } from '@/hooks/useSupportChat';
 import { useUnseenMessages } from '@/hooks/useUnseenMessages';
@@ -184,10 +184,6 @@ export const ChatScreen: React.FC = () => {
         }}
       >
         <div className="flex items-end gap-2 px-2 py-2">
-          {/* Emoji button (decorative) */}
-          <button className="p-2 text-neutral-500 hover:text-neutral-700 transition-colors">
-            <Smile className="w-6 h-6" />
-          </button>
 
           {/* Input field */}
           <div className="flex-1 relative">
