@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Phone, MessageCircle, Star } from 'lucide-react';
@@ -22,17 +22,22 @@ export function HomeScreen() {
   const { hasUnseenMessages, markMessagesAsSeen } = useUnseenMessages();
   const { counts, loading, isServiceAvailable } = useOnlineWorkerCounts();
   const { unratedBooking, hasUnratedBooking, invalidate: refreshUnrated } = useUnratedBooking();
+  const [ratingDismissed, setRatingDismissed] = useState(false);
 
   const handleServiceSelect = (service: 'maid' | 'bathroom_cleaning') => {
     navigate(`/book/${service}`);
   };
 
-  // Show full-screen mandatory rating if pending
-  if (unratedBooking) {
-    return <MandatoryRatingScreen booking={unratedBooking} onRated={refreshUnrated} />;
-  }
-
   return <div className="min-h-screen gradient-bg pb-24">
+      {/* Mandatory rating popup */}
+      {unratedBooking && !ratingDismissed && (
+        <MandatoryRatingScreen
+          booking={unratedBooking}
+          onRated={refreshUnrated}
+          onDismiss={() => setRatingDismissed(true)}
+        />
+      )}
+
       <header className="sticky top-0 z-50 bg-slate-50">
         <div className="max-w-md mx-auto px-4 bg-slate-50">
           <HomeHeader />
