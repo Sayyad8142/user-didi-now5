@@ -1,20 +1,13 @@
 /**
- * Wallet data layer — reads wallet data through a backend function.
+ * Wallet data layer — reads wallet data through a production edge function.
  *
- * This bypasses the legacy custom wallet API domains, which can fail SSL
- * negotiation in some browsers/webviews and prevent admin-added money from
- * appearing in the app.
+ * Uses the same production backend (api.didisnow.com) as the rest of the app.
+ * The wallet-read edge function must be deployed to the production Supabase project.
  */
 import { getFirebaseIdToken, getCurrentUser, getNativeCurrentUser, shouldUseNativeAuth } from '@/lib/firebase';
 import { log } from '@/lib/logger';
-
-// The wallet-read edge function is deployed on Lovable Cloud,
-// NOT the production custom domain (api.didisnow.com).
-const LOVABLE_CLOUD_URL = 'https://wvuuyrovdfydubmvsfxl.supabase.co';
-const LOVABLE_CLOUD_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind2dXV5cm92ZGZ5ZHVibXZzZnhsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM0MjMzODEsImV4cCI6MjA4ODk5OTM4MX0.1VCD3wwpfKYhpnldAUQArRYALDPr8kwxESU_paJxCgk';
-
-const WALLET_FUNCTION_URL = `${LOVABLE_CLOUD_URL}/functions/v1/wallet-read`;
-const WALLET_FUNCTION_KEY = LOVABLE_CLOUD_ANON_KEY;
+import { resolveBackendUrl, getResolvedUrl } from '@/lib/backendResolver';
+import { PRODUCTION_ANON_KEY } from '@/lib/constants';
 
 // ─── Types ───────────────────────────────────────────────────────────
 
@@ -45,6 +38,15 @@ export const walletBalanceQueryKey = (userId: string | null | undefined) =>
 export const walletTransactionsQueryKey = (userId: string | null | undefined) =>
   ['wallet-transactions', userId] as const;
 
+// ─── Diagnostics helper (exported for DiagnosticsPanel) ──────────────
+
+/** Returns the wallet endpoint URL currently being used */
+export function getWalletEndpointUrl(): string {
+  const resolved = getResolvedUrl();
+  if (resolved) return `${resolved}/functions/v1/wallet-read`;
+  return '(resolving…)';
+}
+
 // ─── Authenticated fetch helper ───────────────────────────────────────
 
 async function getWalletToken(forceRefresh = false): Promise<string> {
@@ -65,19 +67,28 @@ async function getWalletToken(forceRefresh = false): Promise<string> {
 }
 
 async function walletRead<T>(action: 'get_balance' | 'get_transactions', body: Record<string, unknown> = {}): Promise<T> {
-  if (!WALLET_FUNCTION_URL || !WALLET_FUNCTION_KEY) {
-    throw new Error('Wallet backend is not configured');
+  // Resolve the production backend URL (same as rest of the app)
+  const backendUrl = await resolveBackendUrl();
+  if (!backendUrl) {
+    throw new Error('No reachable backend — wallet request failed');
   }
+
+  const functionUrl = `${backendUrl}/functions/v1/wallet-read`;
+
+  log.info(`[Wallet] walletRead ${action}`, {
+    endpoint: functionUrl,
+    backendUrl,
+  });
 
   const request = async (forceRefresh = false) => {
     const token = await getWalletToken(forceRefresh);
 
-    return fetch(WALLET_FUNCTION_URL, {
+    return fetch(functionUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        apikey: WALLET_FUNCTION_KEY,
-        Authorization: `Bearer ${WALLET_FUNCTION_KEY}`,
+        apikey: PRODUCTION_ANON_KEY,
+        Authorization: `Bearer ${PRODUCTION_ANON_KEY}`,
         'x-firebase-token': token,
       },
       body: JSON.stringify({ action, ...body }),
@@ -87,6 +98,7 @@ async function walletRead<T>(action: 'get_balance' | 'get_transactions', body: R
   let res = await request(false);
 
   if ((res.status === 401 || res.status === 403) && !res.ok) {
+    log.warn(`[Wallet] ${action} got ${res.status}, retrying with fresh token…`);
     res = await request(true);
   }
 
@@ -95,6 +107,7 @@ async function walletRead<T>(action: 'get_balance' | 'get_transactions', body: R
   if (!res.ok) {
     log.error(`[Wallet] wallet-read ${action} failed`, {
       status: res.status,
+      endpoint: functionUrl,
       error: data,
     });
     throw new Error(
@@ -103,9 +116,9 @@ async function walletRead<T>(action: 'get_balance' | 'get_transactions', body: R
     );
   }
 
-  log.info(`[Wallet] wallet-read ${action} response`, {
-    dataType: typeof data,
-    isArray: Array.isArray(data),
+  log.info(`[Wallet] wallet-read ${action} success`, {
+    endpoint: functionUrl,
+    dataKeys: Object.keys(data),
   });
 
   return data as T;
@@ -114,15 +127,14 @@ async function walletRead<T>(action: 'get_balance' | 'get_transactions', body: R
 // ─── Public API ──────────────────────────────────────────────────────
 
 /**
- * Fetch wallet balance via RPC.
- * Returns the full row shape for compatibility with existing UI.
+ * Fetch wallet balance via the production wallet-read edge function.
  */
 export async function fetchWalletBalanceRow(): Promise<WalletBalanceRow | null> {
   try {
     const data = await walletRead<{ balance?: number; updated_at?: string; user_id?: string | null }>('get_balance');
     const balanceNum = typeof data?.balance === 'number' ? data.balance : 0;
 
-    log.info('[Wallet] Balance fetched via wallet-read', { balance: balanceNum });
+    log.info('[Wallet] Balance fetched', { balance: balanceNum });
 
     return {
       user_id: data?.user_id || 'wallet-read',
@@ -148,7 +160,7 @@ export async function fetchWalletBalanceValue(): Promise<number> {
 }
 
 /**
- * Fetch wallet transactions via RPC.
+ * Fetch wallet transactions via the production wallet-read edge function.
  */
 export async function fetchWalletTransactions(limit = 50): Promise<WalletTransactionRow[]> {
   try {
