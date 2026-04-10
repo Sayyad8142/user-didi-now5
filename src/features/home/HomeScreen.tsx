@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Phone, MessageCircle } from 'lucide-react';
+import { Phone, MessageCircle, Star } from 'lucide-react';
 import { useUnseenMessages } from '@/hooks/useUnseenMessages';
 import { HomeHeader } from './HomeHeader';
 import { HeroCarousel } from './HeroCarousel';
@@ -13,16 +13,24 @@ import { ActiveBookingCard } from './ActiveBookingCard';
 import { openExternalUrl } from '@/lib/nativeOpen';
 import FaqSection from './FaqSection';
 import { useOnlineWorkerCounts } from '@/hooks/useOnlineWorkerCounts';
+import { useUnratedBooking } from '@/hooks/useUnratedBooking';
+import { MandatoryRatingScreen } from '@/features/bookings/MandatoryRatingScreen';
 
 
 export function HomeScreen() {
   const navigate = useNavigate();
   const { hasUnseenMessages, markMessagesAsSeen } = useUnseenMessages();
   const { counts, loading, isServiceAvailable } = useOnlineWorkerCounts();
+  const { unratedBooking, hasUnratedBooking, invalidate: refreshUnrated } = useUnratedBooking();
 
   const handleServiceSelect = (service: 'maid' | 'bathroom_cleaning') => {
     navigate(`/book/${service}`);
   };
+
+  // Show full-screen mandatory rating if pending
+  if (unratedBooking) {
+    return <MandatoryRatingScreen booking={unratedBooking} onRated={refreshUnrated} />;
+  }
 
   return <div className="min-h-screen gradient-bg pb-24">
       <header className="sticky top-0 z-50 bg-slate-50">

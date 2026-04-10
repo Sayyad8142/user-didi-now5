@@ -21,6 +21,7 @@ import { PaymentMethodSelector, type PaymentMethod } from '@/components/PaymentM
 import { PaymentRetrySheet } from '@/components/PaymentRetrySheet';
 import { trackPaymentEvent } from '@/lib/paymentAnalytics';
 import { useWalletBalance } from '@/hooks/useWallet';
+import { useUnratedBooking } from '@/hooks/useUnratedBooking';
 
 export function InstantCheckoutScreen() {
   const navigate = useNavigate();

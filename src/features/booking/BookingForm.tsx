@@ -34,6 +34,7 @@ import { PaymentRetrySheet } from '@/components/PaymentRetrySheet';
 import { trackPaymentEvent } from '@/lib/paymentAnalytics';
 import { CreditCard, HandCoins } from 'lucide-react';
 import { useWalletBalance } from '@/hooks/useWallet';
+import { useUnratedBooking } from '@/hooks/useUnratedBooking';
 
 // Maid task types and constants
 type MaidTask = "floor_cleaning" | "dish_washing";
