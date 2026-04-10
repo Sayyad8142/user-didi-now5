@@ -121,7 +121,15 @@ export default function Wallet() {
           >
             <ArrowLeft className="w-5 h-5" />
           </Button>
-          <h1 className="text-xl font-bold text-primary">Didi Now Wallet</h1>
+          <h1 className="text-xl font-bold text-primary flex-1">Didi Now Wallet</h1>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setShowDiag((v) => !v)}
+            className="h-9 w-9 rounded-full"
+          >
+            <Bug className="w-4 h-4" />
+          </Button>
         </div>
       </header>
 
