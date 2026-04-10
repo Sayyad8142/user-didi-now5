@@ -10,7 +10,7 @@ import { useProfile } from '@/contexts/ProfileContext';
 
 // Rollout date: only bookings completed after this date require mandatory rating.
 // Set to the deployment date of this feature.
-export const MANDATORY_RATING_ROLLOUT = '2025-07-11T00:00:00Z';
+export const MANDATORY_RATING_ROLLOUT = '2026-04-10T00:00:00Z';
 
 export interface UnratedBooking {
   id: string;
