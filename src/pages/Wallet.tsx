@@ -67,12 +67,12 @@ function DiagnosticsPanel({ balanceQuery, txQuery }: { balanceQuery: any; txQuer
     check();
   }, []);
 
-  const walletFnUrl = import.meta.env.VITE_SUPABASE_URL
-    ? `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/wallet-read`
-    : '(not configured)';
+  const walletFnUrl = getWalletEndpointUrl();
+  const resolvedBackend = getResolvedUrl() ?? '(resolving…)';
 
   const rows: [string, string][] = [
-    ['Backend URL', walletFnUrl],
+    ['Resolved backend', resolvedBackend],
+    ['Wallet endpoint', walletFnUrl],
     ['Auth method', authMethod],
     ['Firebase UID', firebaseUid ?? '(none)'],
     ['Profile ID', profile?.id ?? '(none)'],
