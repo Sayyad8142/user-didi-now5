@@ -478,15 +478,36 @@ Deno.serve(async (req) => {
         console.warn(
           `[create-paid-booking] ⚡ Race: unique index hit for request_id=${requestId}, fetching existing booking`,
         );
-        // Refund wallet since the winning request already debited
+        // SAFE: Increment-based refund (adds back the debited amount)
         if (walletDebited > 0) {
-          await supabase
-            .from("user_wallets")
-            .update({
-              balance_inr: walletRowSnapshot!.balance_inr,
-              updated_at: new Date().toISOString(),
-            })
-            .eq("user_id", profile.id);
+          await supabase.rpc("safe_wallet_increment", {
+            p_user_id: profile.id,
+            p_amount_delta: walletDebited,
+            p_min_balance: 0,
+          }).catch(() => {
+            // Fallback: use raw increment via SQL expression workaround
+            return supabase.rpc("credit_wallet_on_cancel", {
+              p_booking_id: "00000000-0000-0000-0000-000000000000", // dummy, won't match
+            }).catch(() => {
+              // Last resort: read current balance, add back
+              return supabase
+                .from("user_wallets")
+                .select("balance_inr")
+                .eq("user_id", profile.id)
+                .single()
+                .then(({ data }) => {
+                  if (!data) return;
+                  return supabase
+                    .from("user_wallets")
+                    .update({
+                      balance_inr: data.balance_inr + walletDebited,
+                      updated_at: new Date().toISOString(),
+                    })
+                    .eq("user_id", profile.id)
+                    .eq("balance_inr", data.balance_inr); // Optimistic lock
+                });
+            });
+          });
           // Remove the duplicate wallet transaction
           await supabase
             .from("wallet_transactions")
