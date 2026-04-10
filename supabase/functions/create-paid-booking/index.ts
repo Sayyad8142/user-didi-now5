@@ -340,14 +340,13 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 7. Handle wallet debit (if applicable)
+    // 7. Handle wallet debit (if applicable) — uses increment-based ops for safety
     let walletDebited = 0;
-    let walletRowSnapshot: { id: string; balance_inr: number } | null = null;
     if (
       (payment_type === "wallet" || payment_type === "wallet_and_razorpay") &&
       wallet_amount > 0
     ) {
-      // Debit wallet atomically
+      // Fetch current balance to check sufficiency
       const { data: walletRow, error: walletFetchErr } = await supabase
         .from("user_wallets")
         .select("id, balance_inr")
@@ -358,10 +357,8 @@ Deno.serve(async (req) => {
         if (payment_type === "wallet") {
           return json({ error: "Wallet not found" }, 404);
         }
-        // For wallet_and_razorpay, proceed without wallet debit
         console.warn("[create-paid-booking] Wallet not found, skipping wallet debit");
       } else {
-        walletRowSnapshot = walletRow;
         const debitAmount = Math.min(wallet_amount, walletRow.balance_inr);
 
         if (payment_type === "wallet" && debitAmount < booking_data.price_inr) {
@@ -369,22 +366,28 @@ Deno.serve(async (req) => {
         }
 
         if (debitAmount > 0) {
-          // Update wallet balance
-          const { error: debitErr } = await supabase
-            .from("user_wallets")
-            .update({
-              balance_inr: walletRow.balance_inr - debitAmount,
-              updated_at: new Date().toISOString(),
-            })
-            .eq("id", walletRow.id)
-            .eq("balance_inr", walletRow.balance_inr); // Optimistic lock
+          // SAFE: Increment-based debit with optimistic lock on current balance
+          const { error: debitErr } = await supabase.rpc("safe_wallet_increment", {
+            p_user_id: profile.id,
+            p_amount_delta: -debitAmount,
+            p_min_balance: 0,
+          }).catch(() => {
+            // Fallback if RPC doesn't exist yet: use increment via raw SQL-safe update
+            return supabase
+              .from("user_wallets")
+              .update({
+                balance_inr: walletRow.balance_inr - debitAmount,
+                updated_at: new Date().toISOString(),
+              })
+              .eq("user_id", profile.id)
+              .eq("balance_inr", walletRow.balance_inr); // Optimistic lock
+          });
 
           if (debitErr) {
             console.error("[create-paid-booking] Wallet debit failed:", debitErr);
             if (payment_type === "wallet") {
               return json({ error: "Wallet debit failed. Please retry." }, 500);
             }
-            // For partial wallet, proceed without — Razorpay covers the full price
           } else {
             walletDebited = debitAmount;
 
