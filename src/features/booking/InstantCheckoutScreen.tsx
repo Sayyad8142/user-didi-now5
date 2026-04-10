@@ -103,6 +103,17 @@ export function InstantCheckoutScreen() {
     setShowPaymentPicker(false);
     if (!profile || !service_type || !user) return;
 
+    // Block if mandatory rating is pending
+    if (hasUnratedBooking) {
+      toast({
+        title: "Rating Required",
+        description: "Please rate your last completed service before booking again.",
+        variant: "destructive"
+      });
+      navigate('/home');
+      return;
+    }
+
     // Server-side supply check
     if (profile.community) {
       const available = await checkInstantBookingAvailability(profile.community);
