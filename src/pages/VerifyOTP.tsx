@@ -80,6 +80,7 @@ export default function VerifyOTP() {
   const [resendLoading, setResendLoading] = useState(false);
   const [countdown, setCountdown] = useState(30);
   const [error, setError] = useState('');
+  const autoSubmitTriggered = useRef(false);
 
   // Countdown timer
   useEffect(() => {
