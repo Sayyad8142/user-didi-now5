@@ -618,16 +618,6 @@ const ActiveBookingCard = memo(() => {
 
       {/* Action buttons */}
       <div className="space-y-2 mb-4">
-        {/* Pay Now Button - shows when assigned and has UPI */}
-        {paymentReady && (
-          <Button 
-            onClick={handlePayWorker}
-            className="w-full h-10 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-semibold rounded-lg shadow-sm"
-          >
-            <CreditCard className="h-4 w-4 mr-2" />
-            Pay to worker {activeBooking.worker_name || 'Worker'}
-          </Button>
-        )}
 
         {/* Rate Worker - show for assigned/completed bookings */}
         {(activeBooking.status === 'assigned' || activeBooking.status === 'completed') && activeBooking.worker_id && (
