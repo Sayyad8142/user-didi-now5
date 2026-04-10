@@ -67,6 +67,7 @@ export interface WalletPayResult {
 
 export type PaymentFlowStatus =
   | 'debiting_wallet'
+  | 'processing_wallet_booking'
   | 'creating_order'
   | 'opening_checkout'
   | 'verifying_payment'
