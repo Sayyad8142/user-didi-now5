@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useWalletBalance, useWalletTransactions, useWalletRefresh, formatWalletReason } from '@/hooks/useWallet';
 import { format } from 'date-fns';
-import { format } from 'date-fns';
 
 function TransactionItem({ tx }: { tx: any }) {
   const isCredit = tx.type === 'credit';
