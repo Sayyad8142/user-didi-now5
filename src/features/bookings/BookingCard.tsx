@@ -534,16 +534,6 @@ export function BookingCard({
 
         {/* Action buttons */}
         <div className="space-y-2">
-          {/* Pay Now Button - shows after 30 minutes from assignment */}
-          {paymentReady && (
-            <Button 
-              onClick={handlePayWorker}
-              className="w-full h-10 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-semibold rounded-lg shadow-sm"
-            >
-              <CreditCard className="h-4 w-4 mr-2" />
-              Pay to worker {row.worker_name || assignedWorker?.worker?.full_name || 'Worker'}
-            </Button>
-          )}
 
           {/* Rate Worker - show for assigned/accepted/on_the_way/started/completed bookings */}
           {['assigned', 'accepted', 'on_the_way', 'started', 'completed'].includes(row.status) && row.worker_id && (
