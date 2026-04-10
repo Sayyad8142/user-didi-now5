@@ -472,7 +472,7 @@ export async function executePaymentFlowForNewBooking(
   // Step 2: If wallet fully covers the price
   if (razorpayAmount <= 0 && walletCanCover >= priceInr) {
     console.log('✅ Wallet fully covers ₹' + priceInr);
-    onStatusChange('verifying_payment');
+    onStatusChange('processing_wallet_booking');
 
     // Generate idempotency key to prevent duplicate bookings on retries
     const requestId = crypto.randomUUID();
