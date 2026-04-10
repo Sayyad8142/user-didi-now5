@@ -1,14 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Wallet as WalletIcon, ArrowDownCircle, ArrowUpCircle, RefreshCw, Receipt, Bug } from 'lucide-react';
+import { ArrowLeft, Wallet as WalletIcon, ArrowDownCircle, ArrowUpCircle, RefreshCw, Receipt } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useWalletBalance, useWalletTransactions, useWalletRefresh, formatWalletReason } from '@/hooks/useWallet';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useProfile } from '@/contexts/ProfileContext';
-import { getCurrentUser, shouldUseNativeAuth, getNativeCurrentUser } from '@/lib/firebase';
-import { getWalletEndpointUrl } from '@/lib/wallet';
-import { getResolvedUrl } from '@/lib/backendResolver';
 import { format } from 'date-fns';
 
 function TransactionItem({ tx }: { tx: any }) {
@@ -51,59 +48,14 @@ function TransactionSkeleton() {
   );
 }
 
-function DiagnosticsPanel({ balanceQuery, txQuery }: { balanceQuery: any; txQuery: any }) {
-  const { user } = useAuth();
-  const { profile } = useProfile();
-  const [firebaseUid, setFirebaseUid] = useState<string | null>(null);
-  const [authMethod, setAuthMethod] = useState('unknown');
 
-  useEffect(() => {
-    const check = async () => {
-      const isNative = shouldUseNativeAuth();
-      setAuthMethod(isNative ? 'native' : 'web');
-      const fbUser = isNative ? await getNativeCurrentUser() : getCurrentUser();
-      setFirebaseUid(fbUser?.uid ?? null);
-    };
-    check();
-  }, []);
-
-  const walletFnUrl = getWalletEndpointUrl();
-  const resolvedBackend = getResolvedUrl() ?? '(resolving…)';
-
-  const rows: [string, string][] = [
-    ['Resolved backend', resolvedBackend],
-    ['Wallet endpoint', walletFnUrl],
-    ['Auth method', authMethod],
-    ['Firebase UID', firebaseUid ?? '(none)'],
-    ['Profile ID', profile?.id ?? '(none)'],
-    ['Balance status', balanceQuery.status],
-    ['Balance fetched', balanceQuery.dataUpdatedAt ? new Date(balanceQuery.dataUpdatedAt).toLocaleTimeString() : 'never'],
-    ['Balance value', balanceQuery.data?.balance_inr?.toString() ?? '(null)'],
-    ['Balance error', balanceQuery.error?.message ?? '(none)'],
-    ['Txn status', txQuery.status],
-    ['Txn count', txQuery.data?.length?.toString() ?? '(null)'],
-    ['Txn error', txQuery.error?.message ?? '(none)'],
-  ];
-
-  return (
-    <div className="bg-gray-900 text-gray-200 rounded-xl p-4 text-[11px] font-mono space-y-1 overflow-x-auto">
-      <p className="text-xs font-semibold text-amber-400 mb-2">🔧 Wallet Diagnostics</p>
-      {rows.map(([label, value]) => (
-        <div key={label} className="flex gap-2">
-          <span className="text-gray-500 shrink-0 w-28">{label}</span>
-          <span className="break-all">{value}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
 
 export default function Wallet() {
   const navigate = useNavigate();
   const balanceQuery = useWalletBalance();
   const txQuery = useWalletTransactions();
   const { refreshWallet } = useWalletRefresh();
-  const [showDiag, setShowDiag] = useState(false);
+  
 
   const { data: wallet, isLoading: balanceLoading, isError: balanceError } = balanceQuery;
   const { data: transactions, isLoading: txLoading, isError: txError } = txQuery;
@@ -124,21 +76,11 @@ export default function Wallet() {
             <ArrowLeft className="w-5 h-5" />
           </Button>
           <h1 className="text-xl font-bold text-primary flex-1">Didi Now Wallet</h1>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setShowDiag((v) => !v)}
-            className="h-9 w-9 rounded-full"
-          >
-            <Bug className="w-4 h-4" />
-          </Button>
         </div>
       </header>
 
       <section className="flex-1 pb-24">
         <div className="max-w-md mx-auto px-4 py-4 space-y-5">
-          {/* Diagnostics panel */}
-          {showDiag && <DiagnosticsPanel balanceQuery={balanceQuery} txQuery={txQuery} />}
           {/* Balance card */}
           <div className="bg-gradient-to-br from-[#ff007a] to-[#e6006a] rounded-2xl p-5 text-white shadow-lg relative overflow-hidden">
             <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
