@@ -210,6 +210,17 @@ export function ScheduleScreen() {
     if (service_type !== 'bathroom_cleaning' && !flatSize) return;
     if (service_type === 'bathroom_cleaning' && !bathroomCount) return;
 
+    // Block if mandatory rating is pending
+    if (hasUnratedBooking) {
+      toast({
+        title: "Rating Required",
+        description: "Please rate your last completed service before booking again.",
+        variant: "destructive"
+      });
+      navigate('/home');
+      return;
+    }
+
     const isThirtyMinuteSlot = /^\d{1,2}:(00|30)$/.test(selectedTime);
     const isSelectedSlotAvailable = availableSlots !== null && availableSlots.has(selectedTime);
 
