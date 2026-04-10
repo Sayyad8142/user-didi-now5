@@ -376,7 +376,9 @@ export function BookingForm() {
       return;
     }
 
-    if (service_type === 'maid') {
+    // Build query parameters for ScheduleScreen
+    const params = new URLSearchParams();
+
       if (!selectedFlatSize || selectedTasks.length === 0) {
         toast({
           title: "Please complete maid booking details",
