@@ -396,10 +396,10 @@ export function BookingCard({
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setShowChangeWorkerSheet(true)}
+            onClick={() => openExternalUrl('tel:8008180018')}
             className="w-full h-8 text-xs border-dashed border-muted-foreground/30 text-muted-foreground hover:text-foreground hover:border-foreground/40"
           >
-            <RefreshCw className="w-3 h-3 mr-1.5" />
+            <PhoneCall className="w-3 h-3 mr-1.5" />
             Change Worker
           </Button>
         )}
