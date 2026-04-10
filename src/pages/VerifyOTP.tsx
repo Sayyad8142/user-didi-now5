@@ -90,19 +90,6 @@ export default function VerifyOTP() {
     }
   }, [countdown]);
 
-  // Auto-submit when 6 digits are entered
-  const handleVerifyOTPRef = useRef(handleVerifyOTP);
-  handleVerifyOTPRef.current = handleVerifyOTP;
-  
-  useEffect(() => {
-    if (otp.length === 6 && !loading && !autoSubmitTriggered.current && !pendingRedirect) {
-      autoSubmitTriggered.current = true;
-      handleVerifyOTPRef.current();
-    }
-    if (otp.length < 6) {
-      autoSubmitTriggered.current = false;
-    }
-  }, [otp, loading, pendingRedirect]);
 
   // Ensure profile exists after Firebase auth
   const ensureFirebaseProfile = async (firebaseUid: string, phoneNumber: string) => {
