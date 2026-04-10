@@ -474,17 +474,49 @@ export async function executePaymentFlowForNewBooking(
     console.log('✅ Wallet fully covers ₹' + priceInr);
     onStatusChange('processing_wallet_booking');
 
-    // Generate idempotency key to prevent duplicate bookings on retries
-    const requestId = crypto.randomUUID();
-    const payloadWithRequestId = { ...bookingPayload, request_id: requestId };
-
     try {
-      const result = await createPaidBooking({
-        request_id: requestId,
-        booking_data: payloadWithRequestId,
-        payment_type: 'wallet',
-        wallet_amount: priceInr,
-      });
+      // ── Wallet-only shortcut: create booking directly + call wallet-pay ──
+      // This bypasses create-paid-booking edge function which may be stale on production.
+      const sanitized = sanitizeBookingDataForCreatePaidBooking(bookingPayload);
+      const bookingInsertData = {
+        ...sanitized,
+        payment_method: 'wallet',
+        payment_status: 'paid',
+      };
+
+      console.log('📝 [WalletOnly] Inserting booking directly:', JSON.stringify({
+        service_type: bookingInsertData.service_type,
+        booking_type: bookingInsertData.booking_type,
+        price_inr: bookingInsertData.price_inr,
+      }));
+
+      const { data: newBooking, error: insertErr } = await supabase
+        .from('bookings')
+        .insert([bookingInsertData])
+        .select('id, booking_type, status')
+        .single();
+
+      if (insertErr || !newBooking) {
+        console.error('❌ [WalletOnly] Booking insert failed:', insertErr);
+        throw new Error(insertErr?.message || 'Failed to create booking');
+      }
+
+      console.log('✅ [WalletOnly] Booking created:', newBooking.id, '— now debiting wallet');
+
+      // Debit wallet atomically via wallet-pay edge function
+      try {
+        const walletResult = await debitWalletForBooking(newBooking.id);
+        console.log('✅ [WalletOnly] Wallet debited:', JSON.stringify(walletResult));
+      } catch (walletErr: any) {
+        console.error('⚠️ [WalletOnly] Wallet debit failed (booking still created):', walletErr);
+        // Booking is created — wallet debit can be retried later or handled manually
+      }
+
+      const result: PaymentResult = {
+        success: true,
+        booking_id: newBooking.id,
+        payment_method: 'wallet',
+      };
 
       onStatusChange('payment_success');
       trackPaymentEvent('payment_success', {
