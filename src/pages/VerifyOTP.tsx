@@ -390,6 +390,18 @@ export default function VerifyOTP() {
     navigate('/auth');
   };
 
+  // Auto-submit when 6 digits are entered
+  useEffect(() => {
+    if (otp.length === 6 && !loading && !autoSubmitTriggered.current && !pendingRedirect) {
+      autoSubmitTriggered.current = true;
+      handleVerifyOTP();
+    }
+    if (otp.length < 6) {
+      autoSubmitTriggered.current = false;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [otp]);
+
   if (!phone) {
     return null;
   }
