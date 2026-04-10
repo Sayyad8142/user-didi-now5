@@ -1,9 +1,12 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Wallet as WalletIcon, ArrowDownCircle, ArrowUpCircle, RefreshCw, Receipt } from 'lucide-react';
+import { ArrowLeft, Wallet as WalletIcon, ArrowDownCircle, ArrowUpCircle, RefreshCw, Receipt, Bug } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useWalletBalance, useWalletTransactions, useWalletRefresh, formatWalletReason } from '@/hooks/useWallet';
+import { useAuth } from '@/components/auth/AuthProvider';
+import { useProfile } from '@/contexts/ProfileContext';
+import { getCurrentUser, shouldUseNativeAuth, getNativeCurrentUser } from '@/lib/firebase';
 import { format } from 'date-fns';
 
 function TransactionItem({ tx }: { tx: any }) {
