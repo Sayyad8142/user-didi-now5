@@ -33,7 +33,7 @@ export function HomeScreen() {
       {unratedBooking && !ratingDismissed && (
         <MandatoryRatingScreen
           booking={unratedBooking}
-          onRated={refreshUnrated}
+          onRated={() => { setRatingDismissed(true); refreshUnrated(); }}
           onDismiss={() => setRatingDismissed(true)}
         />
       )}
