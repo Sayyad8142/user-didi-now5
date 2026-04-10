@@ -54,6 +54,7 @@ export function ScheduleScreen() {
   const { flatSize: autoFlatSize } = useFlatSize();
   const { data: walletData } = useWalletBalance();
   const walletBalance = walletData?.balance_inr ?? 0;
+  const { hasUnratedBooking } = useUnratedBooking();
 
   const [selectedDate, setSelectedDate] = useState<Date>(() => {
     // Auto-select the first date that has available (non-past) slots
