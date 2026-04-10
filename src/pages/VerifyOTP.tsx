@@ -80,6 +80,7 @@ export default function VerifyOTP() {
   const [resendLoading, setResendLoading] = useState(false);
   const [countdown, setCountdown] = useState(30);
   const [error, setError] = useState('');
+  const autoSubmitTriggered = useRef(false);
 
   // Countdown timer
   useEffect(() => {
@@ -88,6 +89,7 @@ export default function VerifyOTP() {
       return () => clearTimeout(timer);
     }
   }, [countdown]);
+
 
   // Ensure profile exists after Firebase auth
   const ensureFirebaseProfile = async (firebaseUid: string, phoneNumber: string) => {
@@ -387,6 +389,18 @@ export default function VerifyOTP() {
   const handleBack = () => {
     navigate('/auth');
   };
+
+  // Auto-submit when 6 digits are entered
+  useEffect(() => {
+    if (otp.length === 6 && !loading && !autoSubmitTriggered.current && !pendingRedirect) {
+      autoSubmitTriggered.current = true;
+      handleVerifyOTP();
+    }
+    if (otp.length < 6) {
+      autoSubmitTriggered.current = false;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [otp]);
 
   if (!phone) {
     return null;
