@@ -49,11 +49,62 @@ function TransactionSkeleton() {
   );
 }
 
+function DiagnosticsPanel({ balanceQuery, txQuery }: { balanceQuery: any; txQuery: any }) {
+  const { user } = useAuth();
+  const { profile } = useProfile();
+  const [firebaseUid, setFirebaseUid] = useState<string | null>(null);
+  const [authMethod, setAuthMethod] = useState('unknown');
+
+  useEffect(() => {
+    const check = async () => {
+      const isNative = shouldUseNativeAuth();
+      setAuthMethod(isNative ? 'native' : 'web');
+      const fbUser = isNative ? await getNativeCurrentUser() : getCurrentUser();
+      setFirebaseUid(fbUser?.uid ?? null);
+    };
+    check();
+  }, []);
+
+  const walletFnUrl = import.meta.env.VITE_SUPABASE_URL
+    ? `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/wallet-read`
+    : '(not configured)';
+
+  const rows: [string, string][] = [
+    ['Backend URL', walletFnUrl],
+    ['Auth method', authMethod],
+    ['Firebase UID', firebaseUid ?? '(none)'],
+    ['Profile ID', profile?.id ?? '(none)'],
+    ['Balance status', balanceQuery.status],
+    ['Balance fetched', balanceQuery.dataUpdatedAt ? new Date(balanceQuery.dataUpdatedAt).toLocaleTimeString() : 'never'],
+    ['Balance value', balanceQuery.data?.balance_inr?.toString() ?? '(null)'],
+    ['Balance error', balanceQuery.error?.message ?? '(none)'],
+    ['Txn status', txQuery.status],
+    ['Txn count', txQuery.data?.length?.toString() ?? '(null)'],
+    ['Txn error', txQuery.error?.message ?? '(none)'],
+  ];
+
+  return (
+    <div className="bg-gray-900 text-gray-200 rounded-xl p-4 text-[11px] font-mono space-y-1 overflow-x-auto">
+      <p className="text-xs font-semibold text-amber-400 mb-2">🔧 Wallet Diagnostics</p>
+      {rows.map(([label, value]) => (
+        <div key={label} className="flex gap-2">
+          <span className="text-gray-500 shrink-0 w-28">{label}</span>
+          <span className="break-all">{value}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function Wallet() {
   const navigate = useNavigate();
-  const { data: wallet, isLoading: balanceLoading, isError: balanceError } = useWalletBalance();
-  const { data: transactions, isLoading: txLoading, isError: txError } = useWalletTransactions();
+  const balanceQuery = useWalletBalance();
+  const txQuery = useWalletTransactions();
   const { refreshWallet } = useWalletRefresh();
+  const [showDiag, setShowDiag] = useState(false);
+
+  const { data: wallet, isLoading: balanceLoading, isError: balanceError } = balanceQuery;
+  const { data: transactions, isLoading: txLoading, isError: txError } = txQuery;
 
   const balance = wallet?.balance_inr ?? 0;
 
