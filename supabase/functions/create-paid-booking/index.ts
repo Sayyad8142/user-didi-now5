@@ -347,18 +347,34 @@ Deno.serve(async (req) => {
       wallet_amount > 0
     ) {
       // Fetch current balance to check sufficiency
-      const { data: walletRow, error: walletFetchErr } = await supabase
+      let { data: walletRow, error: walletFetchErr } = await supabase
         .from("user_wallets")
         .select("id, balance_inr")
         .eq("user_id", profile.id)
         .single();
 
+      // Lazy wallet initialization: create wallet with ₹0 if it doesn't exist
       if (walletFetchErr || !walletRow) {
-        if (payment_type === "wallet") {
-          return json({ error: "Wallet not found" }, 404);
+        console.log("[create-paid-booking] Wallet not found, creating one for user:", profile.id);
+        const { data: newWallet, error: createErr } = await supabase
+          .from("user_wallets")
+          .upsert({ user_id: profile.id, balance_inr: 0 }, { onConflict: "user_id" })
+          .select("id, balance_inr")
+          .single();
+
+        if (createErr || !newWallet) {
+          console.error("[create-paid-booking] Failed to create wallet:", createErr);
+          if (payment_type === "wallet") {
+            return json({ error: "Wallet not found and could not be created" }, 404);
+          }
+          console.warn("[create-paid-booking] Skipping wallet debit");
+        } else {
+          walletRow = newWallet;
+          walletFetchErr = null;
         }
-        console.warn("[create-paid-booking] Wallet not found, skipping wallet debit");
-      } else {
+      }
+
+      if (walletRow) {
         const debitAmount = Math.min(wallet_amount, walletRow.balance_inr);
 
         if (payment_type === "wallet" && debitAmount < booking_data.price_inr) {
