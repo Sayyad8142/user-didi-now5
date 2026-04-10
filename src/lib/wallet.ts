@@ -8,11 +8,13 @@
 import { getFirebaseIdToken, getCurrentUser, getNativeCurrentUser, shouldUseNativeAuth } from '@/lib/firebase';
 import { log } from '@/lib/logger';
 
-const WALLET_FUNCTION_URL = import.meta.env.VITE_SUPABASE_URL
-  ? `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/wallet-read`
-  : '';
+// The wallet-read edge function is deployed on Lovable Cloud,
+// NOT the production custom domain (api.didisnow.com).
+const LOVABLE_CLOUD_URL = 'https://wvuuyrovdfydubmvsfxl.supabase.co';
+const LOVABLE_CLOUD_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind2dXV5cm92ZGZ5ZHVibXZzZnhsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM0MjMzODEsImV4cCI6MjA4ODk5OTM4MX0.1VCD3wwpfKYhpnldAUQArRYALDPr8kwxESU_paJxCgk';
 
-const WALLET_FUNCTION_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || '';
+const WALLET_FUNCTION_URL = `${LOVABLE_CLOUD_URL}/functions/v1/wallet-read`;
+const WALLET_FUNCTION_KEY = LOVABLE_CLOUD_ANON_KEY;
 
 // ─── Types ───────────────────────────────────────────────────────────
 
