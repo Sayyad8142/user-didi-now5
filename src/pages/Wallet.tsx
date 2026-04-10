@@ -7,6 +7,8 @@ import { useWalletBalance, useWalletTransactions, useWalletRefresh, formatWallet
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useProfile } from '@/contexts/ProfileContext';
 import { getCurrentUser, shouldUseNativeAuth, getNativeCurrentUser } from '@/lib/firebase';
+import { getWalletEndpointUrl } from '@/lib/wallet';
+import { getResolvedUrl } from '@/lib/backendResolver';
 import { format } from 'date-fns';
 
 function TransactionItem({ tx }: { tx: any }) {
