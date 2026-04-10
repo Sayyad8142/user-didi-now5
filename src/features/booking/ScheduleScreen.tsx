@@ -12,6 +12,7 @@ import { PaymentMethodSelector, type PaymentMethod } from '@/components/PaymentM
 import { PaymentRetrySheet } from '@/components/PaymentRetrySheet';
 import { trackPaymentEvent } from '@/lib/paymentAnalytics';
 import { useWalletBalance } from '@/hooks/useWallet';
+import { useUnratedBooking } from '@/hooks/useUnratedBooking';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useProfile } from '@/contexts/ProfileContext';
 import { prettyServiceName, isValidServiceType, getPricingMap } from './pricing';

@@ -49,6 +49,7 @@ export function InstantCheckoutScreen() {
   const { flatSize: autoFlatSize } = useFlatSize();
   const { data: walletData } = useWalletBalance();
   const walletBalance = walletData?.balance_inr ?? 0;
+  const { hasUnratedBooking } = useUnratedBooking();
 
   const priceParam = searchParams.get('price');
   const price = priceParam ? Number(priceParam) : 0;
@@ -86,6 +87,15 @@ export function InstantCheckoutScreen() {
   }, []);
 
   const handleBookNow = () => {
+    if (hasUnratedBooking) {
+      toast({
+        title: "Rating Required",
+        description: "Please rate your last completed service before booking again.",
+        variant: "destructive"
+      });
+      navigate('/home');
+      return;
+    }
     setShowPaymentPicker(true);
   };
 
