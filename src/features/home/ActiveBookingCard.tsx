@@ -311,41 +311,17 @@ const ActiveBookingCard = memo(() => {
   const handleChangeWorker = async () => {
     setChangeWorkerLoading(true);
     try {
-      const { error: cancelErr } = await supabase
-        .from('assignments')
-        .update({ status: 'cancelled' })
-        .eq('booking_id', activeBooking.id)
-        .eq('status', 'assigned');
-      if (cancelErr) throw cancelErr;
-
-      const { error: bookingErr } = await supabase
-        .from('bookings')
-        .update({
-          status: 'pending',
-          worker_id: null,
-          worker_name: null,
-          worker_phone: null,
-          worker_photo_url: null,
-          worker_upi: null,
-          assigned_at: null,
-        })
-        .eq('id', activeBooking.id);
-      if (bookingErr) throw bookingErr;
-
-      const { error: dispatchErr } = await supabase.functions.invoke('scheduled-dispatch', {
+      const { data, error } = await supabase.functions.invoke('reassign-worker', {
         body: { booking_id: activeBooking.id },
       });
-      if (dispatchErr) throw dispatchErr;
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
-      toast.success('Looking for another worker…');
+      toast.success(data?.warning || 'Looking for another worker…');
       setShowChangeWorkerSheet(false);
     } catch (err: any) {
       console.error('Change worker error:', err);
-      if (err?.message?.includes('No') || err?.message?.includes('no')) {
-        toast.error('No alternate worker available right now.');
-      } else {
-        toast.error('Could not change worker. Try again.');
-      }
+      toast.error(err?.message || 'Could not change worker. Try again.');
     } finally {
       setChangeWorkerLoading(false);
     }
