@@ -539,22 +539,31 @@ Deno.serve(async (req) => {
 
       console.error("[create-paid-booking] ❌ Booking insert failed:", insertErr);
 
-      // If wallet was debited but insert failed, refund wallet
+      // If wallet was debited but insert failed, refund wallet — SAFE increment-based
       if (walletDebited > 0) {
-        console.log("[create-paid-booking] 🔄 Refunding wallet due to insert failure");
-        await supabase.rpc("credit_wallet", {
+        console.log("[create-paid-booking] 🔄 Refunding wallet due to insert failure, amount:", walletDebited);
+        await supabase.rpc("safe_wallet_increment", {
           p_user_id: profile.id,
-          p_amount: walletDebited,
-          p_description: "Refund: booking creation failed",
-        }).catch((refundErr: any) => {
-          console.error("[create-paid-booking] credit_wallet RPC failed, trying manual:", refundErr);
-          return supabase
+          p_amount_delta: walletDebited,
+          p_min_balance: 0,
+        }).catch(async (refundErr: any) => {
+          console.error("[create-paid-booking] safe_wallet_increment RPC failed, trying read+increment:", refundErr);
+          // Fallback: read current balance, add back with optimistic lock
+          const { data: currentWallet } = await supabase
             .from("user_wallets")
-            .update({
-              balance_inr: walletRowSnapshot?.balance_inr ?? 0,
-              updated_at: new Date().toISOString(),
-            })
-            .eq("user_id", profile.id);
+            .select("balance_inr")
+            .eq("user_id", profile.id)
+            .single();
+          if (currentWallet) {
+            return supabase
+              .from("user_wallets")
+              .update({
+                balance_inr: currentWallet.balance_inr + walletDebited,
+                updated_at: new Date().toISOString(),
+              })
+              .eq("user_id", profile.id)
+              .eq("balance_inr", currentWallet.balance_inr); // Optimistic lock
+          }
         });
       }
 
