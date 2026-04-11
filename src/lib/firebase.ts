@@ -323,13 +323,11 @@ async function sendOtpWeb(phoneNumber: string): Promise<{ success: boolean; erro
   }
 
   try {
-    // Always ensure we have a fresh, rendered verifier
-    if (!recaptchaVerifier) {
-      console.log('[auth] sendOtpWeb: no verifier, creating one...');
-      const verifier = await setupRecaptcha();
-      if (!verifier) {
-        return { success: false, error: 'Failed to setup reCAPTCHA. Please refresh and try again.' };
-      }
+    // Always recreate the verifier to avoid stale/expired instances
+    console.log('[auth] sendOtpWeb: ensuring fresh reCAPTCHA verifier...');
+    const verifier = await setupRecaptcha();
+    if (!verifier) {
+      return { success: false, error: 'Failed to setup reCAPTCHA. Please refresh and try again.' };
     }
 
     console.log('🌐 Web: Sending OTP to:', phoneNumber);
