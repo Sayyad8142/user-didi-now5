@@ -13,7 +13,7 @@ import { normalizePhone } from '@/features/profile/ensureProfile';
 import { isDemoCredentials, setDemoSession, clearDemoSession } from '@/lib/demo';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useAuth } from '@/components/auth/AuthProvider';
-import { verifyOtp, sendOtp, getCurrentUser, setupRecaptcha, shouldUseNativeAuth, isWeb } from '@/lib/firebase';
+import { verifyOtp, sendOtp, shouldUseNativeAuth } from '@/lib/firebase';
 
 interface LocationState {
   phone: string;
@@ -349,17 +349,7 @@ export default function VerifyOTP() {
     setError('');
 
     try {
-      // Setup reCAPTCHA for resend — ONLY on web
-      if (!shouldUseNativeAuth()) {
-        const verifier = await setupRecaptcha('recaptcha-container-verify');
-        if (!verifier) {
-          setError('Failed to setup reCAPTCHA. Please refresh the page.');
-          setResendLoading(false);
-          return;
-        }
-      }
-      
-      const result = await sendOtp(phone);
+      const result = await sendOtp(phone, shouldUseNativeAuth() ? 'recaptcha-container' : 'recaptcha-container-verify');
 
       if (!result.success) {
         setError(result.error || 'Failed to resend OTP');

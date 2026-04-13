@@ -316,22 +316,24 @@ export const setupRecaptcha = async (containerId: string = 'recaptcha-container'
   }
 };
 
-async function sendOtpWeb(phoneNumber: string): Promise<{ success: boolean; error?: string }> {
+async function sendOtpWeb(
+  phoneNumber: string,
+  containerId: string = 'recaptcha-container'
+): Promise<{ success: boolean; error?: string }> {
   const authInstance = getFirebaseAuth();
   if (!authInstance) {
     return { success: false, error: 'Firebase Auth not initialized' };
   }
 
   try {
-    // Always recreate the verifier to avoid stale/expired instances
-    console.log('[auth] sendOtpWeb: ensuring fresh reCAPTCHA verifier...');
-    const verifier = await setupRecaptcha();
+    console.log('[auth] sendOtpWeb: ensuring fresh reCAPTCHA verifier for', containerId);
+    const verifier = await setupRecaptcha(containerId);
     if (!verifier) {
       return { success: false, error: 'Failed to setup reCAPTCHA. Please refresh and try again.' };
     }
 
     console.log('🌐 Web: Sending OTP to:', phoneNumber);
-    confirmationResult = await signInWithPhoneNumber(authInstance, phoneNumber, recaptchaVerifier!);
+    confirmationResult = await signInWithPhoneNumber(authInstance, phoneNumber, verifier);
     console.log('✅ Web: OTP sent successfully');
 
     return { success: true };
@@ -395,7 +397,10 @@ function verifyOtpWeb(code: string): Promise<{ success: boolean; user?: User; er
 
 // Send OTP — Android native uses plugin, everything else uses web reCAPTCHA.
 // iOS native currently falls back to web OTP because the plugin is not implemented.
-export const sendOtp = async (phoneNumber: string): Promise<{ success: boolean; error?: string }> => {
+export const sendOtp = async (
+  phoneNumber: string,
+  containerId: string = 'recaptcha-container'
+): Promise<{ success: boolean; error?: string }> => {
   const platform = Capacitor.getPlatform();
   const useNative = await isNativeAuthAvailable();
   console.log(`📲 sendOtp — platform: ${platform}, useNative: ${useNative}, phone: ${phoneNumber}`);
@@ -406,7 +411,7 @@ export const sendOtp = async (phoneNumber: string): Promise<{ success: boolean; 
   }
 
   console.log(`🌐 Using WEB OTP flow (reCAPTCHA) — platform: ${platform}`);
-  return sendOtpWeb(phoneNumber);
+  return sendOtpWeb(phoneNumber, containerId);
 };
 
 // Verify OTP — matches the flow chosen by sendOtp

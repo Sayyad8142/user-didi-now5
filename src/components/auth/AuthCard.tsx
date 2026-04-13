@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -18,7 +18,7 @@ import { useBuildings } from '@/hooks/useBuildings';
 import { useFlats } from '@/hooks/useFlats';
 import { isDemoCredentials, setDemoSession, setGuestSession, clearDemoSession } from '@/lib/demo';
 import { FlatSearchInput } from './FlatSearchInput';
-import { sendOtp, setupRecaptcha, signOut as firebaseSignOut, shouldUseNativeAuth, isWeb } from '@/lib/firebase';
+import { sendOtp, signOut as firebaseSignOut, shouldUseNativeAuth } from '@/lib/firebase';
 
 export function AuthCard() {
   const navigate = useNavigate();
@@ -59,19 +59,6 @@ export function AuthCard() {
 
   // Validation errors
   const [errors, setErrors] = useState<Record<string, string>>({});
-
-  // Setup reCAPTCHA on mount — ONLY on web (not needed on native)
-  useEffect(() => {
-    if (shouldUseNativeAuth()) {
-      console.log('📱 AuthCard: skipping reCAPTCHA on Android native');
-      return;
-    }
-    const timer = setTimeout(() => {
-      console.log('🌐 AuthCard: initializing reCAPTCHA');
-      setupRecaptcha('recaptcha-container');
-    }, 500);
-    return () => clearTimeout(timer);
-  }, []);
 
   const validateSignIn = () => {
     const newErrors: Record<string, string> = {};
@@ -179,7 +166,7 @@ export function AuthCard() {
       }
 
       // Send OTP via Firebase
-      const result = await sendOtp(formattedPhone);
+      const result = await sendOtp(formattedPhone, 'recaptcha-container');
       
       if (!result.success) {
         setErrors({ phone: result.error || 'Failed to send OTP' });
