@@ -6,10 +6,10 @@ import { useAuth } from '@/components/auth/AuthProvider';
 import { Navigate } from 'react-router-dom';
 
 export default function Auth() {
-  const { user, firebaseUser, loading } = useAuth();
+  const { user, firebaseUser, loading, isGuest } = useAuth();
 
-  // If user is already authenticated, redirect away from auth
-  if (!loading && (user || firebaseUser)) {
+  // If user is already authenticated (and not a guest), redirect away from auth
+  if (!loading && (user || firebaseUser) && !isGuest) {
     console.log('🔄 Auth page: user already authenticated, redirecting to /home');
     return <Navigate to="/home" replace />;
   }
