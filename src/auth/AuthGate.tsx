@@ -22,13 +22,10 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
     if (authEntryRoutes.some(r => location.pathname.startsWith(r))) {
       setReady(true);
 
-      // Demo mode shortcut
+      // Demo/guest users should be allowed to reach the auth page
+      // (they clicked "Create Account") — skip the redirect
       if (isDemoMode()) {
-        const demoSession = getDemoSession();
-        if (demoSession) {
-          nav('/home', { replace: true });
-          return;
-        }
+        return;
       }
 
       if (native) {
