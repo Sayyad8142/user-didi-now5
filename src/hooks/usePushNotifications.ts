@@ -155,12 +155,12 @@ export function usePushNotifications({ userId }: UsePushNotificationsOptions) {
   }, []);
 
   const registerTokenInSupabase = useCallback(
-    async (token: string, deviceInfo: DeviceInfo) => {
+    async (token: string, deviceInfo: DeviceInfo, force = false) => {
       if (!userId) return;
 
-      // Skip if token hasn't changed for same user
+      // Skip only if token AND user are identical AND not forced
       const stored = getStoredToken();
-      if (stored === token && registeredForRef.current === userId) {
+      if (!force && stored === token && registeredForRef.current === userId) {
         console.log('[Push] Token unchanged, skipping re-registration');
         setIsRegistered(true);
         return;
@@ -174,7 +174,7 @@ export function usePushNotifications({ userId }: UsePushNotificationsOptions) {
           return;
         }
 
-        console.log('[Push] Registering FCM token for user:', userId);
+        console.log('[Push] Registering FCM token for user:', userId, force ? '(forced)' : '');
 
         const { error } = await supabase.functions.invoke('register-user-fcm-token', {
           body: { token, device_info: deviceInfo },
@@ -200,7 +200,7 @@ export function usePushNotifications({ userId }: UsePushNotificationsOptions) {
   );
 
   // ── Web push ────────────────────────────────────────────────────────────
-  const registerWebPush = useCallback(async () => {
+  const registerWebPush = useCallback(async (force = false) => {
     if (!userId) return;
 
     try {
@@ -228,7 +228,7 @@ export function usePushNotifications({ userId }: UsePushNotificationsOptions) {
 
       console.log('[Push] 🌐 Web FCM token:', token.substring(0, 20) + '...');
 
-      await registerTokenInSupabase(token, { platform: 'web', model: navigator.userAgent });
+      await registerTokenInSupabase(token, { platform: 'web', model: navigator.userAgent }, force);
 
       // Foreground listener — store unsubscribe
       const unsub = onForegroundMessage((payload) => {
@@ -254,7 +254,7 @@ export function usePushNotifications({ userId }: UsePushNotificationsOptions) {
   }, [userId, registerTokenInSupabase]);
 
   // ── Native push ─────────────────────────────────────────────────────────
-  const registerNativePush = useCallback(async () => {
+  const registerNativePush = useCallback(async (force = false) => {
     if (!userId) return;
 
     try {
@@ -281,7 +281,7 @@ export function usePushNotifications({ userId }: UsePushNotificationsOptions) {
         await registerTokenInSupabase(token.value, {
           platform: Capacitor.getPlatform(),
           model: navigator.userAgent,
-        });
+        }, force);
       });
       listenerHandlesRef.current.push(h1);
 
@@ -323,26 +323,29 @@ export function usePushNotifications({ userId }: UsePushNotificationsOptions) {
   }, [userId, registerTokenInSupabase, removeAllOwnListeners]);
 
   // ── Register entry point ────────────────────────────────────────────────
-  const register = useCallback(async () => {
+  const register = useCallback(async (force = false) => {
     if (!userId) {
       console.log('[Push] No userId, skipping registration');
       return;
     }
-    if (registeredForRef.current === userId) {
+    if (!force && registeredForRef.current === userId) {
       console.log('[Push] Already registered for user:', userId);
       return;
     }
 
-    console.log('[Push] Starting registration for user:', userId);
+    console.log('[Push] Starting registration for user:', userId, force ? '(forced)' : '');
 
     if (Capacitor.isNativePlatform()) {
-      await registerNativePush();
+      await registerNativePush(force);
     } else {
-      await registerWebPush();
+      await registerWebPush(force);
     }
 
     registeredForRef.current = userId;
   }, [userId, registerNativePush, registerWebPush]);
+
+  // ── Force register on every login (handles device change) ────────────
+  const forceRegister = useCallback(() => register(true), [register]);
 
   // ── Lifecycle ───────────────────────────────────────────────────────────
   useEffect(() => {
@@ -351,10 +354,12 @@ export function usePushNotifications({ userId }: UsePushNotificationsOptions) {
       removeAllOwnListeners();
       registeredForRef.current = null;
       setIsRegistered(false);
+      clearStoredToken(); // Clear cached token so next login always re-registers
       return;
     }
 
-    register();
+    // Force register on login to ensure new device token is always sent
+    register(true);
 
     return () => {
       removeAllOwnListeners();
@@ -365,5 +370,6 @@ export function usePushNotifications({ userId }: UsePushNotificationsOptions) {
     isRegistered,
     lastError,
     registerManually: register,
+    forceRegister,
   };
 }
