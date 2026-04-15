@@ -200,7 +200,7 @@ export function usePushNotifications({ userId }: UsePushNotificationsOptions) {
   );
 
   // ── Web push ────────────────────────────────────────────────────────────
-  const registerWebPush = useCallback(async () => {
+  const registerWebPush = useCallback(async (force = false) => {
     if (!userId) return;
 
     try {
@@ -228,7 +228,7 @@ export function usePushNotifications({ userId }: UsePushNotificationsOptions) {
 
       console.log('[Push] 🌐 Web FCM token:', token.substring(0, 20) + '...');
 
-      await registerTokenInSupabase(token, { platform: 'web', model: navigator.userAgent });
+      await registerTokenInSupabase(token, { platform: 'web', model: navigator.userAgent }, force);
 
       // Foreground listener — store unsubscribe
       const unsub = onForegroundMessage((payload) => {
@@ -254,7 +254,7 @@ export function usePushNotifications({ userId }: UsePushNotificationsOptions) {
   }, [userId, registerTokenInSupabase]);
 
   // ── Native push ─────────────────────────────────────────────────────────
-  const registerNativePush = useCallback(async () => {
+  const registerNativePush = useCallback(async (force = false) => {
     if (!userId) return;
 
     try {
