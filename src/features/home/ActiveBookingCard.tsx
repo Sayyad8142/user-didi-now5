@@ -532,6 +532,7 @@ const ActiveBookingCard = memo(() => {
               </Button>
             </div>
           )}
+          </div>
         </div>
       )}
 
