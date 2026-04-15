@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Star, Send, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { WorkerAvatar } from '@/components/WorkerAvatar';
 import { supabase } from '@/integrations/supabase/client';
 import { useProfile } from '@/contexts/ProfileContext';
 import { toast } from 'sonner';
@@ -115,14 +115,11 @@ export function MandatoryRatingScreen({ booking, onRated, onDismiss }: Mandatory
           </div>
 
           <div className="flex items-center gap-3">
-            <Avatar className="w-12 h-12 border-2 border-primary/20 shrink-0">
-              {booking.worker_photo_url ? (
-                <AvatarImage src={booking.worker_photo_url} alt={booking.worker_name || ''} />
-              ) : null}
-              <AvatarFallback className="text-lg font-bold bg-primary/10 text-primary">
-                {(booking.worker_name || 'W').charAt(0)}
-              </AvatarFallback>
-            </Avatar>
+            <WorkerAvatar
+              photoUrl={booking.worker_photo_url}
+              name={booking.worker_name}
+              size="lg"
+            />
             <div className="min-w-0">
               <p className="font-semibold text-sm text-foreground truncate">
                 {booking.worker_name || 'Your Worker'}
