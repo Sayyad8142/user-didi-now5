@@ -4,7 +4,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Sparkles, ChefHat, ShowerHead, ArrowRight, X, CreditCard, PhoneCall, MessageCircle, Star, CheckCircle, XCircle, RefreshCw, KeyRound, User } from 'lucide-react';
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { WorkerAvatar } from '@/components/WorkerAvatar';
 import { supabase } from '@/integrations/supabase/client';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { useProfile } from '@/contexts/ProfileContext';
@@ -495,12 +495,12 @@ const ActiveBookingCard = memo(() => {
 
       {activeBooking.worker_name && (
         <div className="mb-3 p-2 bg-blue-50 rounded-lg flex items-start gap-2">
-          <Avatar className="w-8 h-8 mt-0.5 shrink-0">
-            <AvatarImage src={activeBooking.worker_photo_url || undefined} />
-            <AvatarFallback className="bg-primary/10 text-primary">
-              <User className="w-4 h-4" />
-            </AvatarFallback>
-          </Avatar>
+          <WorkerAvatar
+            photoUrl={activeBooking.worker_photo_url}
+            name={activeBooking.worker_name}
+            size="sm"
+            className="mt-0.5"
+          />
           <div className="flex-1 min-w-0">
           <p className="text-xs font-medium text-blue-600 uppercase tracking-wide">Worker</p>
           <p className="text-sm font-semibold text-blue-900">{activeBooking.worker_name}</p>
