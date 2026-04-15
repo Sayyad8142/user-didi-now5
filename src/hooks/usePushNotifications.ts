@@ -344,6 +344,9 @@ export function usePushNotifications({ userId }: UsePushNotificationsOptions) {
     registeredForRef.current = userId;
   }, [userId, registerNativePush, registerWebPush]);
 
+  // ── Force register on every login (handles device change) ────────────
+  const forceRegister = useCallback(() => register(true), [register]);
+
   // ── Lifecycle ───────────────────────────────────────────────────────────
   useEffect(() => {
     if (!userId) {
@@ -351,10 +354,12 @@ export function usePushNotifications({ userId }: UsePushNotificationsOptions) {
       removeAllOwnListeners();
       registeredForRef.current = null;
       setIsRegistered(false);
+      clearStoredToken(); // Clear cached token so next login always re-registers
       return;
     }
 
-    register();
+    // Force register on login to ensure new device token is always sent
+    register(true);
 
     return () => {
       removeAllOwnListeners();
@@ -365,5 +370,6 @@ export function usePushNotifications({ userId }: UsePushNotificationsOptions) {
     isRegistered,
     lastError,
     registerManually: register,
+    forceRegister,
   };
 }
