@@ -63,7 +63,7 @@
         <!-- Set custom default icon for FCM notifications -->
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_icon"
-            android:resource="@drawable/app_icon" />
+            android:resource="@drawable/ic_notification" />
 
         <!-- Set color used with incoming notification messages -->
         <meta-data
