@@ -281,7 +281,7 @@ export function usePushNotifications({ userId }: UsePushNotificationsOptions) {
         await registerTokenInSupabase(token.value, {
           platform: Capacitor.getPlatform(),
           model: navigator.userAgent,
-        });
+        }, force);
       });
       listenerHandlesRef.current.push(h1);
 
