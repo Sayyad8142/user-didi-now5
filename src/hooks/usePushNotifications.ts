@@ -323,22 +323,22 @@ export function usePushNotifications({ userId }: UsePushNotificationsOptions) {
   }, [userId, registerTokenInSupabase, removeAllOwnListeners]);
 
   // ── Register entry point ────────────────────────────────────────────────
-  const register = useCallback(async () => {
+  const register = useCallback(async (force = false) => {
     if (!userId) {
       console.log('[Push] No userId, skipping registration');
       return;
     }
-    if (registeredForRef.current === userId) {
+    if (!force && registeredForRef.current === userId) {
       console.log('[Push] Already registered for user:', userId);
       return;
     }
 
-    console.log('[Push] Starting registration for user:', userId);
+    console.log('[Push] Starting registration for user:', userId, force ? '(forced)' : '');
 
     if (Capacitor.isNativePlatform()) {
-      await registerNativePush();
+      await registerNativePush(force);
     } else {
-      await registerWebPush();
+      await registerWebPush(force);
     }
 
     registeredForRef.current = userId;
