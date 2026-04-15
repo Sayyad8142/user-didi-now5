@@ -1,14 +1,27 @@
 import React, { memo } from 'react';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useWalletBalance } from '@/hooks/useWallet';
+import { useCommunities } from '@/hooks/useCommunities';
 import { Wallet } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { OptimizedLoadingCard } from '@/components/ui/optimized-loading';
 const HomeHeader = memo(() => {
   const { profile, loading } = useProfile();
   const { data: wallet } = useWalletBalance();
+  const { communities } = useCommunities();
   const navigate = useNavigate();
   const balance = wallet?.balance_inr ?? 0;
+
+  // Resolve community display name from community_id or slug
+  const communityName = (() => {
+    if (!profile) return '';
+    // Try matching by community_id first, then by slug value
+    const match = communities.find(
+      c => c.id === profile.community_id || c.value === profile.community
+    );
+    return match?.name || profile.community || '';
+  })();
+
   if (loading) {
     return <OptimizedLoadingCard />;
   }
@@ -27,10 +40,10 @@ const HomeHeader = memo(() => {
             ₹{balance}
           </button>
           <div className="text-xs sm:text-sm font-semibold text-gray-900 truncate">
-            {profile?.community || "Prestige High Fields"}
+            {communityName || '—'}
           </div>
           <div className="text-xs text-gray-500 font-medium">
-            {profile?.flat_no || "9899"}
+            {profile?.flat_no || '—'}
           </div>
         </div>
       </div>
