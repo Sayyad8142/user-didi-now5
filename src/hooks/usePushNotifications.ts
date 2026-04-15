@@ -155,12 +155,12 @@ export function usePushNotifications({ userId }: UsePushNotificationsOptions) {
   }, []);
 
   const registerTokenInSupabase = useCallback(
-    async (token: string, deviceInfo: DeviceInfo) => {
+    async (token: string, deviceInfo: DeviceInfo, force = false) => {
       if (!userId) return;
 
-      // Skip if token hasn't changed for same user
+      // Skip only if token AND user are identical AND not forced
       const stored = getStoredToken();
-      if (stored === token && registeredForRef.current === userId) {
+      if (!force && stored === token && registeredForRef.current === userId) {
         console.log('[Push] Token unchanged, skipping re-registration');
         setIsRegistered(true);
         return;
@@ -174,7 +174,7 @@ export function usePushNotifications({ userId }: UsePushNotificationsOptions) {
           return;
         }
 
-        console.log('[Push] Registering FCM token for user:', userId);
+        console.log('[Push] Registering FCM token for user:', userId, force ? '(forced)' : '');
 
         const { error } = await supabase.functions.invoke('register-user-fcm-token', {
           body: { token, device_info: deviceInfo },
