@@ -63,9 +63,9 @@ export function InstantCheckoutScreen() {
 
   const { data: workers, isLoading } = useFavoriteWorkers(service_type, profile?.community);
 
-  const filtered = (workers || []).filter((w) =>
-    w.full_name.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = (workers || [])
+    .filter((w) => w.full_name.toLowerCase().includes(search.toLowerCase()))
+    .sort((a, b) => Number(b.is_online) - Number(a.is_online));
 
   const handleSelect = (worker: FavoriteWorker) => {
     if (!worker.is_online) {
