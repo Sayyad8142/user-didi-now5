@@ -3,12 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { WorkerAvatar } from '@/components/WorkerAvatar';
 import { prettyServiceName } from '@/features/booking/utils';
 import { formatDateTime } from '@/features/bookings/dt';
 import { format } from 'date-fns';
 import { formatWalletReason } from '@/hooks/useWallet';
-import { PhoneCall, Sparkles, ChefHat, ShowerHead, Clock, User, MapPin, Timer, CreditCard, Star, MessageCircle, RefreshCw, Shield, Wallet, KeyRound } from 'lucide-react';
+import { PhoneCall, Sparkles, ChefHat, ShowerHead, Clock, MapPin, Timer, CreditCard, Star, MessageCircle, RefreshCw, Shield, Wallet, KeyRound } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { supabase } from '@/integrations/supabase/client';
 import AssigningProgress from '@/features/bookings/AssigningProgress';
@@ -348,12 +348,12 @@ export function BookingCard({
         {/* Worker info */}
         {(assignedWorker?.worker || row.worker_name) && (
           <div className="flex items-start gap-2 p-2 bg-blue-50 rounded-lg">
-            <Avatar className="w-8 h-8 mt-0.5">
-              <AvatarImage src={assignedWorker?.worker?.photo_url || row.worker_photo_url || undefined} />
-              <AvatarFallback>
-                <User className="w-4 h-4" />
-              </AvatarFallback>
-            </Avatar>
+            <WorkerAvatar
+              photoUrl={assignedWorker?.worker?.photo_url || row.worker_photo_url}
+              name={assignedWorker?.worker?.full_name || row.worker_name}
+              size="sm"
+              className="mt-0.5"
+            />
             <div className="flex-1 min-w-0">
               <p className="text-xs font-medium text-blue-600 uppercase tracking-wide">Worker</p>
               <p className="font-semibold text-blue-900 text-sm">
