@@ -478,10 +478,13 @@ export async function executePaymentFlowForNewBooking(
       // ── Wallet-only shortcut: create booking directly + call wallet-pay ──
       // This bypasses create-paid-booking edge function which may be stale on production.
       const sanitized = sanitizeBookingDataForCreatePaidBooking(bookingPayload);
+      // Generate a 3-digit completion OTP (same logic as create-paid-booking edge function)
+      const completionOtp = String(Math.floor(100 + Math.random() * 900));
       const bookingInsertData = {
         ...sanitized,
         payment_method: 'wallet',
         payment_status: 'paid',
+        completion_otp: completionOtp,
       };
 
       console.log('📝 [WalletOnly] Inserting booking directly:', JSON.stringify({
