@@ -605,12 +605,12 @@ const ActiveBookingCard = memo(() => {
           </div>
         )}
 
-        {/* D. Bottom CTAs — primary View Details + ghost Call Support */}
-        <div className="mt-4 ml-1 flex items-center gap-2">
+        {/* D. Bottom CTAs — primary Track Booking + ghost Call Support */}
+        <div className="mt-6 ml-1 flex items-center gap-2.5">
           {isCancelled ? (
             <Button
               onClick={() => openExternalUrl('tel:+918008180018')}
-              className="flex-1 h-10 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
+              className="flex-1 h-12 rounded-2xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-[15px] shadow-md shadow-primary/25"
             >
               <PhoneCall className="h-4 w-4 mr-2" /> Call Manager
             </Button>
@@ -618,7 +618,7 @@ const ActiveBookingCard = memo(() => {
             <>
               <Button
                 onClick={handleViewDetails}
-                className="flex-1 h-11 rounded-2xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-sm shadow-primary/20"
+                className="flex-1 h-12 rounded-2xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-[15px] tracking-tight shadow-md shadow-primary/25"
               >
                 Track Booking
                 <ArrowRight className="w-4 h-4 ml-1.5" />
@@ -627,7 +627,7 @@ const ActiveBookingCard = memo(() => {
                 variant="outline"
                 onClick={() => openExternalUrl('tel:+918008180018')}
                 aria-label="Call Support"
-                className="h-11 w-11 p-0 rounded-2xl border-primary/20 text-primary hover:bg-primary/5 shrink-0"
+                className="h-12 w-12 p-0 rounded-2xl border-primary/20 text-primary hover:bg-primary/5 shrink-0"
               >
                 <PhoneCall className="h-4 w-4" />
               </Button>
