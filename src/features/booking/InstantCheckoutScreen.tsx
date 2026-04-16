@@ -557,7 +557,7 @@ export function InstantCheckoutScreen() {
               setPendingCheckout(null);
               sessionStorage.removeItem(`preferred_worker_${service_type}`);
               toast({ title: "Booking confirmed!", description: "Your booking is confirmed. Worker will arrive in ~10 minutes." });
-              navigate('/bookings');
+              navigate('/home', { replace: true });
               return;
             }
             // Legacy retry: existing booking
@@ -566,7 +566,7 @@ export function InstantCheckoutScreen() {
             setRetrySheetOpen(false);
             sessionStorage.removeItem(`preferred_worker_${service_type}`);
             toast({ title: "Payment successful!", description: "Your booking is confirmed." });
-            navigate('/bookings');
+            navigate('/home', { replace: true });
           } catch (err: any) {
             const errType = err instanceof PaymentError ? err.type : 'payment_failed';
             setRetryErrorType(errType as PaymentErrorType);
@@ -583,12 +583,12 @@ export function InstantCheckoutScreen() {
           await supabase.from('bookings').update({ payment_method: 'pay_after_service', payment_status: 'pay_after_service' }).eq('id', retryBookingId);
           setRetrySheetOpen(false);
           toast({ title: "Booking confirmed!", description: "Pay after service is done." });
-          navigate('/bookings');
+          navigate('/home', { replace: true });
         }}
         onVerificationResolved={() => {
           setRetrySheetOpen(false);
           toast({ title: "Payment being verified", description: "Your booking will update automatically." });
-          navigate('/bookings');
+          navigate('/home', { replace: true });
         }}
       />
     </div>
