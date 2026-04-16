@@ -451,7 +451,7 @@ const ActiveBookingCard = memo(() => {
             </div>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
-            <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-semibold ${pill.className}`}>
+            <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-semibold transition-colors ${pill.className} ${isFindingActive ? 'animate-soft-pulse' : ''}`}>
               {pill.icon}
               <span>{pill.label}</span>
             </span>
