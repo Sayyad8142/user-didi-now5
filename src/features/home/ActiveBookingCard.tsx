@@ -306,6 +306,17 @@ const ActiveBookingCard = memo(() => {
     return () => clearInterval(id);
   }, [isFindingActive, findingMessages.length]);
 
+  // Auto-close OTP sheet if the OTP row becomes unavailable (status change, verified, etc.)
+  // Prevents Radix portal teardown race that throws `removeChild` errors.
+  useEffect(() => {
+    const shouldShow =
+      !!activeBooking?.completion_otp &&
+      (activeBooking?.payment_status === 'paid' || activeBooking?.payment_status === 'pay_after_service') &&
+      !activeBooking?.otp_verified_at &&
+      (activeBooking?.status === 'on_the_way' || activeBooking?.status === 'started');
+    if (!shouldShow && showOtpSheet) setShowOtpSheet(false);
+  }, [activeBooking?.completion_otp, activeBooking?.payment_status, activeBooking?.otp_verified_at, activeBooking?.status, showOtpSheet]);
+
   const workerChangeUsed = assignmentCount >= 2;
 
   if (loading || !activeBooking) return null;
@@ -464,21 +475,7 @@ const ActiveBookingCard = memo(() => {
           </div>
         </div>
 
-        {/* B. Info line — with live shimmer for "Finding worker" */}
-        {infoLine && (
-          <div className="mt-3 pl-1 flex items-center gap-2">
-            <p className="text-[15px] font-semibold text-foreground tracking-tight">{infoLine}</p>
-            {isFinding && (
-              <span className="inline-flex gap-1" aria-hidden>
-                <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-bounce" style={{ animationDelay: '0ms' }} />
-                <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-bounce" style={{ animationDelay: '150ms' }} />
-                <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-bounce" style={{ animationDelay: '300ms' }} />
-              </span>
-            )}
-          </div>
-        )}
-
-        {/* B. Info line — rotating shimmer text for "Finding worker" */}
+        {/* B. Info line — rotating shimmer text for "Finding worker", static otherwise */}
         {infoLine && (
           <div className="mt-3 pl-1 flex items-center gap-2 min-h-[22px]">
             {isFindingActive ? (
