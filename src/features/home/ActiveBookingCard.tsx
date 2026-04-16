@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Sparkles, ChefHat, ShowerHead, ArrowRight, X, CreditCard, PhoneCall, MessageCircle, Star, CheckCircle, XCircle, RefreshCw, KeyRound } from 'lucide-react';
+import { Sparkles, ChefHat, ShowerHead, ArrowRight, X, CreditCard, PhoneCall, MessageCircle, Star, CheckCircle, XCircle, RefreshCw, KeyRound, Loader2 } from 'lucide-react';
+import { getAuth } from 'firebase/auth';
 import { WorkerAvatar } from '@/components/WorkerAvatar';
 import { supabase } from '@/integrations/supabase/client';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
@@ -377,60 +378,21 @@ const ActiveBookingCard = memo(() => {
 
   const handleReachConfirmation = async (reached: boolean) => {
     if (updatingReachStatus) return;
+    // Prevent duplicate if already confirmed
+    if (activeBooking.reach_status && activeBooking.reach_status !== 'pending') return;
     
     setUpdatingReachStatus(true);
     try {
-      const { error } = await supabase
-        .from('bookings')
-        .update({
-          reach_status: reached ? 'reached' : 'not_reached',
-          reach_confirmed_at: new Date().toISOString(),
-          reach_confirmed_by: 'user',
-        })
-        .eq('id', activeBooking.id);
+      const auth = getAuth();
+      const token = await auth.currentUser?.getIdToken();
+      
+      const { data, error } = await supabase.functions.invoke('confirm-worker-reach', {
+        body: { booking_id: activeBooking.id, reached },
+        headers: token ? { 'x-firebase-token': token } : undefined,
+      });
 
       if (error) throw error;
-
-      // Send push notification to admins when worker not reached
-      if (!reached) {
-        const workerName = activeBooking.worker_name || 'Worker';
-        const flatNo = activeBooking.flat_no || 'Unknown';
-        const community = activeBooking.community || '';
-        const serviceType = activeBooking.service_type || 'Service';
-        
-        // Fire and forget - don't block UI for notification
-        supabase.functions.invoke('send-admin-fcm', {
-          body: {
-            title: '⚠️ Worker Not Reached',
-            body: `${workerName} has not reached Flat ${flatNo} (${community}) for ${serviceType}. Action needed!`,
-            notification_type: 'worker_not_reached',
-            data: {
-              booking_id: activeBooking.id,
-              worker_name: workerName,
-              flat_no: flatNo,
-              community: community,
-              service_type: serviceType,
-            },
-          },
-        }).then(res => {
-          if (res.error) {
-            console.error('[ReachStatus] Admin notification error:', res.error);
-          } else {
-            console.log('[ReachStatus] Admin notification sent:', res.data);
-          }
-        }).catch(err => {
-          console.error('[ReachStatus] Admin notification failed:', err);
-        });
-
-        // Also send Telegram alert for worker not reached
-        supabase.functions.invoke('send-telegram-alert', {
-          body: {
-            message: `⚠️ WORKER NOT REACHED\nWorker: ${workerName}\nFlat: ${flatNo} (${community})\nService: ${serviceType}\nBooking ID: ${activeBooking.id}\nAction needed immediately!`,
-          },
-        }).catch(err => {
-          console.error('[ReachStatus] Telegram notification failed:', err);
-        });
-      }
+      if (data?.error) throw new Error(data.error);
 
       if (reached) {
         toast.success("Thanks for confirming. Worker has reached.");
@@ -438,12 +400,16 @@ const ActiveBookingCard = memo(() => {
         toast.info("Thanks. Our team will take action immediately.");
       }
       
-      // Update local state to hide buttons
+      // Update local state immediately
       setActiveBooking(prev => prev ? { 
         ...prev, 
-        reach_status: reached ? 'reached' : 'not_reached' 
+        reach_status: reached ? 'reached' : 'not_reached',
+        reach_confirmed_at: new Date().toISOString(),
       } : null);
       setReachButtonsVisible(false);
+      
+      // Refetch to ensure consistency
+      fetchActiveBooking();
     } catch (error) {
       console.error('[ReachStatus] Error:', error);
       toast.error("Could not update status. Please try again.");
@@ -455,6 +421,18 @@ const ActiveBookingCard = memo(() => {
     return (
     <>
       {/* Worker Reach Confirmation - shown above the booking card */}
+      {activeBooking.reach_status === 'reached' && (
+        <div className="p-3 bg-green-50 border border-green-200 rounded-xl shadow-sm flex items-center gap-2">
+          <CheckCircle className="h-4 w-4 text-green-600 shrink-0" />
+          <p className="text-sm font-medium text-green-800">You confirmed worker reached</p>
+        </div>
+      )}
+      {activeBooking.reach_status === 'not_reached' && (
+        <div className="p-3 bg-red-50 border border-red-200 rounded-xl shadow-sm flex items-center gap-2">
+          <XCircle className="h-4 w-4 text-red-600 shrink-0" />
+          <p className="text-sm font-medium text-red-800">You marked worker as not reached</p>
+        </div>
+      )}
       {reachButtonsVisible && (
         <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl shadow-sm">
           <p className="text-sm font-medium text-amber-900 mb-3">
@@ -466,7 +444,7 @@ const ActiveBookingCard = memo(() => {
               disabled={updatingReachStatus}
               className="flex-1 h-10 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg"
             >
-              <CheckCircle className="h-4 w-4 mr-2" />
+              {updatingReachStatus ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CheckCircle className="h-4 w-4 mr-2" />}
               Reached
             </Button>
             <Button
@@ -475,7 +453,7 @@ const ActiveBookingCard = memo(() => {
               variant="destructive"
               className="flex-1 h-10 font-semibold rounded-lg"
             >
-              <XCircle className="h-4 w-4 mr-2" />
+              {updatingReachStatus ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <XCircle className="h-4 w-4 mr-2" />}
               Not Reached
             </Button>
           </div>
