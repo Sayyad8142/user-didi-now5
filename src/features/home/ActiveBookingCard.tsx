@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Sparkles, ChefHat, ShowerHead, ArrowRight, X, PhoneCall, Star, CheckCircle, XCircle, KeyRound, Loader2, ChevronRight } from 'lucide-react';
+import { Sparkles, ChefHat, ShowerHead, ArrowRight, X, PhoneCall, Star, CheckCircle, XCircle, KeyRound, Loader2, ChevronRight, Calendar, Navigation, PlayCircle, Loader, MapPin } from 'lucide-react';
 import { getAuth } from 'firebase/auth';
 import { WorkerAvatar } from '@/components/WorkerAvatar';
 import { supabase } from '@/integrations/supabase/client';
@@ -63,31 +63,59 @@ const getServiceIcon = (serviceType: string) => {
   }
 };
 
-// Premium status pill styles — soft pastel pills
-const getStatusPill = (booking: Booking): { label: string; className: string } => {
+// Premium status pill — soft pastel, with icon and live animation when relevant
+const getStatusPill = (booking: Booking): { label: string; className: string; icon: React.ReactNode } => {
   const { status, booking_type } = booking;
   if (status === 'cancelled') {
-    return { label: 'Cancelled', className: 'bg-rose-50 text-rose-700 ring-1 ring-rose-200' };
+    return {
+      label: 'Cancelled',
+      className: 'bg-rose-50 text-rose-700 ring-1 ring-rose-200',
+      icon: <XCircle className="w-3 h-3" />,
+    };
   }
   if (status === 'pending') {
     if (booking_type === 'scheduled') {
-      return { label: 'Scheduled', className: 'bg-sky-50 text-sky-700 ring-1 ring-sky-200' };
+      return {
+        label: 'Scheduled',
+        className: 'bg-sky-50 text-sky-700 ring-1 ring-sky-200',
+        icon: <Calendar className="w-3 h-3" />,
+      };
     }
-    return { label: 'Finding Worker', className: 'bg-amber-50 text-amber-700 ring-1 ring-amber-200' };
+    return {
+      label: 'Finding worker',
+      className: 'bg-amber-50 text-amber-700 ring-1 ring-amber-200',
+      icon: <Loader className="w-3 h-3 animate-spin" />,
+    };
   }
   if (status === 'assigned' || status === 'accepted') {
-    return { label: 'Worker Assigned', className: 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200' };
+    return {
+      label: 'Assigned',
+      className: 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200',
+      icon: <CheckCircle className="w-3 h-3" />,
+    };
   }
   if (status === 'on_the_way') {
-    return { label: 'On The Way', className: 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200' };
+    return {
+      label: 'On the way',
+      className: 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200',
+      icon: <Navigation className="w-3 h-3" />,
+    };
   }
   if (status === 'started') {
-    return { label: 'In Progress', className: 'bg-primary/10 text-primary ring-1 ring-primary/20' };
+    return {
+      label: 'In progress',
+      className: 'bg-primary/10 text-primary ring-1 ring-primary/20',
+      icon: <PlayCircle className="w-3 h-3" />,
+    };
   }
-  return { label: status, className: 'bg-muted text-muted-foreground ring-1 ring-border' };
+  return {
+    label: status,
+    className: 'bg-muted text-muted-foreground ring-1 ring-border',
+    icon: <MapPin className="w-3 h-3" />,
+  };
 };
 
-// Build a single short info line
+// Build a single short info line — sharp & concise
 const getInfoLine = (booking: Booking): string | null => {
   if (booking.status === 'cancelled') return null;
 
@@ -96,29 +124,29 @@ const getInfoLine = (booking: Booking): string | null => {
     const sched = new Date(`${booking.scheduled_date}T${booking.scheduled_time.slice(0,5)}:00`);
     const sameDay = sched.toDateString() === today.toDateString();
     const time = sched.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true });
-    if (sameDay) return `Scheduled for today, ${time}`;
+    if (sameDay) return `Today at ${time}`;
     const dayLabel = sched.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
-    return `Scheduled for ${dayLabel}, ${time}`;
+    return `${dayLabel} · ${time}`;
   }
 
   if (booking.status === 'on_the_way') return 'Worker is on the way';
   if (booking.status === 'started') return 'Service in progress';
   if (booking.status === 'assigned' || booking.status === 'accepted') return 'Worker will arrive soon';
-  if (booking.status === 'pending') return 'Looking for the best worker for you';
+  if (booking.status === 'pending') return 'Finding a worker near you';
   return null;
 };
 
-// Helpful microcopy
+// Helpful microcopy — short & sharp
 const getHelperLine = (booking: Booking): string | null => {
   if (booking.status === 'cancelled') return null;
-  if (booking.completion_otp && (booking.payment_status === 'paid' || booking.payment_status === 'pay_after_service') && !booking.otp_verified_at) {
-    return 'Share OTP only after work is fully completed';
-  }
   if (booking.booking_type === 'scheduled' && booking.status === 'pending') {
-    return 'We will assign your worker before the scheduled time';
+    return 'Worker will be assigned before time';
   }
   if (booking.status === 'pending') {
-    return 'You will be notified the moment a worker accepts';
+    return "We'll notify you the moment a worker accepts";
+  }
+  if (booking.status === 'on_the_way' || booking.status === 'started') {
+    return 'Share OTP only after work is fully completed';
   }
   return null;
 };
@@ -336,12 +364,14 @@ const ActiveBookingCard = memo(() => {
   const pill = getStatusPill(activeBooking);
   const infoLine = getInfoLine(activeBooking);
   const helperLine = getHelperLine(activeBooking);
+  // OTP only when worker is actively traveling/working — not for pending/scheduled
   const showOtpRow =
     !!activeBooking.completion_otp &&
     (activeBooking.payment_status === 'paid' || activeBooking.payment_status === 'pay_after_service') &&
     !activeBooking.otp_verified_at &&
-    activeBooking.status !== 'cancelled';
+    (activeBooking.status === 'on_the_way' || activeBooking.status === 'started');
   const isCancelled = activeBooking.status === 'cancelled';
+  const isFinding = activeBooking.status === 'pending' && activeBooking.booking_type !== 'scheduled';
 
   return (
     <>
@@ -383,29 +413,32 @@ const ActiveBookingCard = memo(() => {
         </div>
       )}
 
-      {/* MAIN CARD — premium, minimal */}
-      <Card className="relative overflow-hidden p-4 bg-card border border-primary/15 rounded-2xl shadow-[0_2px_12px_-4px_hsl(var(--primary)/0.15)]">
+      {/* MAIN CARD — premium, animated entry */}
+      <Card className="relative overflow-hidden p-5 bg-card border border-primary/15 rounded-3xl shadow-[0_8px_24px_-12px_hsl(var(--primary)/0.25)] animate-fade-in">
         {/* Subtle accent stripe */}
         <span aria-hidden className="absolute left-0 top-0 h-full w-1 bg-gradient-to-b from-primary to-primary/40" />
+        {/* Soft top-right glow */}
+        <span aria-hidden className="absolute -top-16 -right-16 h-40 w-40 rounded-full bg-primary/5 blur-2xl pointer-events-none" />
 
         {/* A. Top row — service + price + status pill + dismiss */}
-        <div className="flex items-start justify-between gap-3 pl-1">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="p-2 rounded-xl bg-primary/10 text-primary shrink-0">
+        <div className="relative flex items-start justify-between gap-3 pl-1">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="p-2.5 rounded-2xl bg-primary/10 text-primary shrink-0 ring-1 ring-primary/10">
               {getServiceIcon(activeBooking.service_type)}
             </div>
             <div className="min-w-0">
-              <h3 className="font-semibold text-[15px] leading-tight text-foreground truncate">
+              <h3 className="font-bold text-base leading-tight text-foreground tracking-tight truncate">
                 {prettyServiceName(activeBooking.service_type)}
               </h3>
               {activeBooking.price_inr != null && !isCancelled && (
-                <p className="text-xs text-muted-foreground mt-0.5">₹{activeBooking.price_inr}</p>
+                <p className="text-xs font-medium text-muted-foreground mt-0.5">₹{activeBooking.price_inr}</p>
               )}
             </div>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
-            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold ${pill.className}`}>
-              {pill.label}
+            <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-semibold ${pill.className}`}>
+              {pill.icon}
+              <span>{pill.label}</span>
             </span>
             <button
               onClick={handleDismiss}
@@ -417,9 +450,18 @@ const ActiveBookingCard = memo(() => {
           </div>
         </div>
 
-        {/* B. Info line */}
+        {/* B. Info line — with live shimmer for "Finding worker" */}
         {infoLine && (
-          <p className="mt-3 pl-1 text-sm font-medium text-foreground">{infoLine}</p>
+          <div className="mt-3 pl-1 flex items-center gap-2">
+            <p className="text-[15px] font-semibold text-foreground tracking-tight">{infoLine}</p>
+            {isFinding && (
+              <span className="inline-flex gap-1" aria-hidden>
+                <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-bounce" style={{ animationDelay: '0ms' }} />
+                <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-bounce" style={{ animationDelay: '150ms' }} />
+                <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-bounce" style={{ animationDelay: '300ms' }} />
+              </span>
+            )}
+          </div>
         )}
 
         {/* Pending — slim progress (kept; it gives confidence) */}
@@ -429,7 +471,7 @@ const ActiveBookingCard = memo(() => {
           </div>
         )}
 
-        {/* C. Helper microcopy */}
+        {/* C. Helper microcopy — tertiary */}
         {helperLine && (
           <p className="mt-2 pl-1 text-xs text-muted-foreground">{helperLine}</p>
         )}
@@ -519,16 +561,16 @@ const ActiveBookingCard = memo(() => {
             <>
               <Button
                 onClick={handleViewDetails}
-                className="flex-1 h-10 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
+                className="flex-1 h-11 rounded-2xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-sm shadow-primary/20"
               >
-                View Details
+                Track Booking
                 <ArrowRight className="w-4 h-4 ml-1.5" />
               </Button>
               <Button
                 variant="outline"
                 onClick={() => openExternalUrl('tel:+918008180018')}
                 aria-label="Call Support"
-                className="h-10 w-10 p-0 rounded-xl border-primary/20 text-primary hover:bg-primary/5 shrink-0"
+                className="h-11 w-11 p-0 rounded-2xl border-primary/20 text-primary hover:bg-primary/5 shrink-0"
               >
                 <PhoneCall className="h-4 w-4" />
               </Button>
