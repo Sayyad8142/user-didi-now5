@@ -14,11 +14,20 @@ export function useOnlineWorkerCounts() {
 
   useEffect(() => {
     const community = profile?.community;
-    if (!community || community === 'other') {
+
+    // Profile not yet hydrated → keep loading, do NOT resolve as empty
+    if (!community) {
+      setLoading(true);
+      return;
+    }
+
+    if (community === 'other') {
       setCounts({});
       setLoading(false);
       return;
     }
+
+    console.log('[useOnlineWorkerCounts] fetching for community:', community);
 
     if (!isOpenNow()) {
       setCounts({ maid: 0, bathroom_cleaning: 0 });
