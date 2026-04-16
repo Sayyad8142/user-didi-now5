@@ -253,10 +253,8 @@ export function BookingCard({
   
   // Build a single short info line — sharp & concise (matches ActiveBookingCard)
   const getInfoLine = (): string | null => {
-    if (row.status === 'cancelled') return null;
-    if (row.status === 'completed') {
-      return `Completed · ${format(new Date(row.created_at), 'dd MMM, hh:mm a')}`;
-    }
+    if (row.status === 'cancelled') return 'Booking cancelled';
+    if (row.status === 'completed') return 'Service completed successfully';
     if (booking.booking_type === 'scheduled' && booking.scheduled_date && booking.scheduled_time) {
       const today = new Date(); today.setHours(0,0,0,0);
       const sched = new Date(`${booking.scheduled_date}T${booking.scheduled_time.slice(0,5)}:00`);
