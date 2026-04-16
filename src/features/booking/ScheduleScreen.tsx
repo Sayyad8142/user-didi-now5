@@ -334,11 +334,12 @@ export function ScheduleScreen() {
           return;
         }
 
+        console.log('✅ [Schedule] pay-after booking scheduled → navigating to /home');
         toast({
           title: "Booking scheduled!",
           description: "Worker will be assigned before the scheduled time. Pay after service is done."
         });
-        navigate('/bookings');
+        navigate('/home', { replace: true });
         return;
       }
 
@@ -349,12 +350,12 @@ export function ScheduleScreen() {
           setPaymentStatus(status);
         });
 
-        console.log('✅ Payment-first booking created:', result.booking_id);
+        console.log('✅ [Schedule] payment-first booking created:', result.booking_id, '→ navigating to /home');
         toast({
           title: "Payment successful!",
           description: "Your booking has been scheduled and paid. Worker will be assigned before the scheduled time."
         });
-        navigate('/bookings');
+        navigate('/home', { replace: true });
       } catch (payErr: any) {
         console.error('❌ Payment error:', payErr);
         const errType = payErr instanceof PaymentError ? payErr.type : 'payment_failed';
@@ -691,7 +692,7 @@ export function ScheduleScreen() {
                 setRetrySheetOpen(false);
                 setPendingCheckout(null);
                 toast({ title: "Booking confirmed!", description: "Your scheduled booking is confirmed." });
-                navigate('/bookings');
+                navigate('/home', { replace: true });
                 return;
               }
               // Legacy retry: existing booking
@@ -699,7 +700,7 @@ export function ScheduleScreen() {
               await executePaymentFlow(retryBookingId, setPaymentStatus);
               setRetrySheetOpen(false);
               toast({ title: "Payment successful!", description: "Your scheduled booking is confirmed." });
-              navigate('/bookings');
+              navigate('/home', { replace: true });
             } catch (err: any) {
               const errType = err instanceof PaymentError ? err.type : 'payment_failed';
               setRetryErrorType(errType as PaymentErrorType);
@@ -716,12 +717,12 @@ export function ScheduleScreen() {
             await supabase.from('bookings').update({ payment_method: 'pay_after_service', payment_status: 'pay_after_service' }).eq('id', retryBookingId);
             setRetrySheetOpen(false);
             toast({ title: "Booking scheduled!", description: "Pay after service is done." });
-            navigate('/bookings');
+            navigate('/home', { replace: true });
           }}
           onVerificationResolved={() => {
             setRetrySheetOpen(false);
             toast({ title: "Payment being verified", description: "Your booking will update automatically." });
-            navigate('/bookings');
+            navigate('/home', { replace: true });
           }}
         />
       </div>

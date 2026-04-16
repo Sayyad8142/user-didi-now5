@@ -521,7 +521,7 @@ export function BookingForm() {
           return;
         }
 
-        console.log('✅ Booking created successfully:', data);
+        console.log('✅ [BookingForm] booking created successfully → navigating to /home', data);
         trackPaymentEvent('booking_created', { booking_id: data?.[0]?.id, user_id: profile.id, amount: price });
 
         toast({
@@ -532,7 +532,7 @@ export function BookingForm() {
         });
         setScheduleSheetOpen(false);
         clearPreferredWorker();
-        navigate(bookingType === 'instant' ? '/bookings' : '/home');
+        navigate('/home', { replace: true });
         return;
       }
 
@@ -543,13 +543,13 @@ export function BookingForm() {
           setPaymentStatus(status);
         });
 
-        console.log('✅ Payment-first booking created:', result.booking_id);
+        console.log('✅ [BookingForm] payment-first booking created:', result.booking_id, '→ navigating to /home');
         toast({
           title: "Payment successful!",
           description: "Your booking is confirmed. Worker will arrive in ~10 minutes."
         });
         clearPreferredWorker();
-        navigate('/bookings');
+        navigate('/home', { replace: true });
       } catch (payErr: any) {
         console.error('❌ Payment error:', payErr);
         const errType = payErr instanceof PaymentError ? payErr.type : 'payment_failed';
@@ -1270,7 +1270,7 @@ export function BookingForm() {
               setRetrySheetOpen(false);
               clearPreferredWorker();
               toast({ title: "Payment successful!", description: "Your booking is confirmed." });
-              navigate('/bookings');
+              navigate('/home', { replace: true });
             } catch (err: any) {
               const errType = err instanceof PaymentError ? err.type : 'payment_failed';
               setRetryErrorType(errType as PaymentErrorType);
@@ -1284,12 +1284,12 @@ export function BookingForm() {
             await supabase.from('bookings').update({ payment_method: 'pay_after_service', payment_status: 'pay_after_service' }).eq('id', retryBookingId);
             setRetrySheetOpen(false);
             toast({ title: "Booking confirmed!", description: "Pay after service is done." });
-            navigate('/bookings');
+            navigate('/home', { replace: true });
           }}
           onVerificationResolved={() => {
             setRetrySheetOpen(false);
             toast({ title: "Payment being verified", description: "Your booking will update automatically." });
-            navigate('/bookings');
+            navigate('/home', { replace: true });
           }}
         />
       </div>
