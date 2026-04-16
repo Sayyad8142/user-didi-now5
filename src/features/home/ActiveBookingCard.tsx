@@ -452,12 +452,41 @@ const ActiveBookingCard = memo(() => {
     }
   };
 
-  return (
-    <Card className={`p-4 border-2 ${
-      activeBooking.status === 'assigned' 
-        ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-200' 
-        : 'bg-gradient-to-r from-primary/5 to-primary/10 border-primary/20'
-    }`}>
+    return (
+    <>
+      {/* Worker Reach Confirmation - shown above the booking card */}
+      {reachButtonsVisible && (
+        <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl shadow-sm">
+          <p className="text-sm font-medium text-amber-900 mb-3">
+            Did the worker reach your location?
+          </p>
+          <div className="flex gap-3">
+            <Button
+              onClick={() => handleReachConfirmation(true)}
+              disabled={updatingReachStatus}
+              className="flex-1 h-10 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg"
+            >
+              <CheckCircle className="h-4 w-4 mr-2" />
+              Reached
+            </Button>
+            <Button
+              onClick={() => handleReachConfirmation(false)}
+              disabled={updatingReachStatus}
+              variant="destructive"
+              className="flex-1 h-10 font-semibold rounded-lg"
+            >
+              <XCircle className="h-4 w-4 mr-2" />
+              Not Reached
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <Card className={`p-4 border-2 ${
+        activeBooking.status === 'assigned' 
+          ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-200' 
+          : 'bg-gradient-to-r from-primary/5 to-primary/10 border-primary/20'
+      }`}>
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-3">
           <div className={`p-2 rounded-lg ${
@@ -578,34 +607,6 @@ const ActiveBookingCard = memo(() => {
             <PhoneCall className="h-4 w-4 mr-2" />
             Call Manager
           </Button>
-        </div>
-      )}
-
-      {/* Worker Reach Confirmation Buttons */}
-      {reachButtonsVisible && (
-        <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-          <p className="text-sm font-medium text-amber-900 mb-3">
-            Did the worker reach your location?
-          </p>
-          <div className="flex gap-3">
-            <Button
-              onClick={() => handleReachConfirmation(true)}
-              disabled={updatingReachStatus}
-              className="flex-1 h-10 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg"
-            >
-              <CheckCircle className="h-4 w-4 mr-2" />
-              Reached
-            </Button>
-            <Button
-              onClick={() => handleReachConfirmation(false)}
-              disabled={updatingReachStatus}
-              variant="destructive"
-              className="flex-1 h-10 font-semibold rounded-lg"
-            >
-              <XCircle className="h-4 w-4 mr-2" />
-              Not Reached
-            </Button>
-          </div>
         </div>
       )}
 
@@ -756,6 +757,8 @@ const ActiveBookingCard = memo(() => {
         </SheetContent>
       </Sheet>
     </Card>
+    </>
+
   );
 });
 
