@@ -292,6 +292,21 @@ const ActiveBookingCard = memo(() => {
       .then(({ count }) => setAssignmentCount(count ?? 0));
   }, [activeBooking?.id, activeBooking?.worker_id]);
 
+  // Rotating "Finding worker" copy — cycles every 3.5s while pending instant
+  const findingMessages = useMemo(() => [
+    'Finding a worker near you',
+    'Trying nearby workers',
+    'Matching the best fit for you',
+    'Almost there, hang tight',
+  ], []);
+  const [findingIdx, setFindingIdx] = useState(0);
+  const isFindingActive = activeBooking?.status === 'pending' && activeBooking?.booking_type !== 'scheduled';
+  useEffect(() => {
+    if (!isFindingActive) { setFindingIdx(0); return; }
+    const id = setInterval(() => setFindingIdx(i => (i + 1) % findingMessages.length), 3500);
+    return () => clearInterval(id);
+  }, [isFindingActive, findingMessages.length]);
+
   const workerChangeUsed = assignmentCount >= 2;
 
   if (loading || !activeBooking) return null;
