@@ -306,6 +306,17 @@ const ActiveBookingCard = memo(() => {
     return () => clearInterval(id);
   }, [isFindingActive, findingMessages.length]);
 
+  // Auto-close OTP sheet if the OTP row becomes unavailable (status change, verified, etc.)
+  // Prevents Radix portal teardown race that throws `removeChild` errors.
+  useEffect(() => {
+    const shouldShow =
+      !!activeBooking?.completion_otp &&
+      (activeBooking?.payment_status === 'paid' || activeBooking?.payment_status === 'pay_after_service') &&
+      !activeBooking?.otp_verified_at &&
+      (activeBooking?.status === 'on_the_way' || activeBooking?.status === 'started');
+    if (!shouldShow && showOtpSheet) setShowOtpSheet(false);
+  }, [activeBooking?.completion_otp, activeBooking?.payment_status, activeBooking?.otp_verified_at, activeBooking?.status, showOtpSheet]);
+
   const workerChangeUsed = assignmentCount >= 2;
 
   if (loading || !activeBooking) return null;
