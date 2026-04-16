@@ -72,7 +72,17 @@ export function WorkerAvailabilityCard({ counts, loading }: WorkerAvailabilityCa
   }
 
   if (workerCounts.length === 0) {
-    return null;
+    return (
+      <Card className="relative overflow-hidden border border-border/50 bg-card rounded-3xl shadow-sm">
+        <CardContent className="p-6 text-center">
+          <div className="w-12 h-12 mx-auto rounded-2xl bg-primary/10 flex items-center justify-center mb-3">
+            <Users className="w-6 h-6 text-primary" />
+          </div>
+          <h3 className="text-base font-semibold text-foreground mb-1">No workers online</h3>
+          <p className="text-sm text-muted-foreground">Try scheduling for a later time</p>
+        </CardContent>
+      </Card>
+    );
   }
 
   return (
