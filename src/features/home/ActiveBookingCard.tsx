@@ -609,21 +609,7 @@ const ActiveBookingCard = memo(() => {
         </div>
       )}
 
-      {/* Completion OTP */}
-      {activeBooking.completion_otp && (activeBooking.payment_status === 'paid' || activeBooking.payment_status === 'pay_after_service') && !activeBooking.otp_verified_at && activeBooking.status !== 'cancelled' && (
-        <div className="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-          <div className="flex items-center gap-2 mb-1">
-            <KeyRound className="w-4 h-4 text-amber-700" />
-            <p className="text-xs font-semibold text-amber-800 uppercase tracking-wide">Completion OTP</p>
-          </div>
-          <p className="text-2xl font-bold text-amber-900 tracking-[0.3em] text-center">
-            {activeBooking.completion_otp}
-          </p>
-          <p className="text-[10px] text-amber-600 text-center mt-1">
-            Share this OTP only after the work is fully completed
-          </p>
-        </div>
-      )}
+      {/* Completion OTP - moved below action buttons */}
 
       {/* Action buttons */}
       <div className="space-y-2 mb-4">
@@ -689,6 +675,28 @@ const ActiveBookingCard = memo(() => {
           <ArrowRight className="w-4 h-4 ml-1" />
         </Button>
       </div>
+
+      {/* Completion OTP - positioned at the bottom, above nav bar */}
+      {activeBooking.completion_otp && (activeBooking.payment_status === 'paid' || activeBooking.payment_status === 'pay_after_service') && !activeBooking.otp_verified_at && activeBooking.status !== 'cancelled' && (
+        <div className="mt-3 p-4 bg-white border-2 border-green-300 rounded-xl shadow-sm">
+          <p className="text-[10px] font-semibold text-green-700 uppercase tracking-widest text-center mb-2">
+            🔑 Completion OTP
+          </p>
+          <div className="flex items-center justify-center gap-2">
+            {activeBooking.completion_otp.split('').map((digit, i) => (
+              <span
+                key={i}
+                className="w-10 h-12 flex items-center justify-center bg-green-50 border border-green-200 rounded-lg text-xl font-bold text-green-900"
+              >
+                {digit}
+              </span>
+            ))}
+          </div>
+          <p className="text-[10px] text-gray-500 text-center mt-2">
+            Share only after work is fully completed
+          </p>
+        </div>
+      )}
 
       <ChatSheet 
         open={openChat} 
