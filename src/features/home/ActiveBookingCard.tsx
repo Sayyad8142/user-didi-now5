@@ -296,8 +296,7 @@ const ActiveBookingCard = memo(() => {
   const findingMessages = useMemo(() => [
     'Finding a worker near you',
     'Trying nearby workers',
-    'Matching the best fit for you',
-    'Almost there, hang tight',
+    'Assigning shortly',
   ], []);
   const [findingIdx, setFindingIdx] = useState(0);
   const isFindingActive = activeBooking?.status === 'pending' && activeBooking?.booking_type !== 'scheduled';
