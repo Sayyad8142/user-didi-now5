@@ -603,66 +603,59 @@ export function BookingCard({
         </div>
       )}
     </Card>
-  );
-}
-      <ChatSheet
-        open={openChat} 
-        onOpenChange={setOpenChat} 
-        booking={row} 
-        mode="user" 
+
+    <ChatSheet open={openChat} onOpenChange={setOpenChat} booking={row} mode="user" />
+
+    {/* Pay Worker Manual Sheet */}
+    <PayWorkerManualSheet
+      open={showPaySheet}
+      onOpenChange={setShowPaySheet}
+      bookingId={row.id}
+      workerName={row.worker_name || assignedWorker?.worker?.full_name || workerPaymentInfo?.full_name || undefined}
+      amount={row.price_inr ?? undefined}
+      upiId={upiId}
+      qrImageUrl={qrImageUrl}
+      paymentStatus={paymentStatus}
+    />
+
+    {/* Worker Ratings Modal */}
+    {row.worker_id && row.worker_name && (
+      <WorkerRatingsModal
+        open={showWorkerRatings}
+        onOpenChange={setShowWorkerRatings}
+        workerId={row.worker_id}
+        workerName={row.worker_name}
       />
+    )}
 
-      {/* Pay Worker Manual Sheet */}
-      <PayWorkerManualSheet
-        open={showPaySheet}
-        onOpenChange={setShowPaySheet}
-        bookingId={row.id}
-        workerName={row.worker_name || assignedWorker?.worker?.full_name || workerPaymentInfo?.full_name || undefined}
-        amount={row.price_inr ?? undefined}
-        upiId={upiId}
-        qrImageUrl={qrImageUrl}
-        paymentStatus={paymentStatus}
-      />
-
-      {/* Worker Ratings Modal */}
-      {row.worker_id && row.worker_name && (
-        <WorkerRatingsModal
-          open={showWorkerRatings}
-          onOpenChange={setShowWorkerRatings}
-          workerId={row.worker_id}
-          workerName={row.worker_name}
-        />
-      )}
-
-
-      {/* Change Worker Confirmation Sheet */}
-      <Sheet open={showChangeWorkerSheet} onOpenChange={setShowChangeWorkerSheet}>
-        <SheetContent side="bottom" className="rounded-t-2xl px-6 pb-8">
-          <SheetHeader className="text-left">
-            <SheetTitle>Change Worker?</SheetTitle>
-            <SheetDescription>
-              We'll try to assign another available worker. Current worker will be notified.
-            </SheetDescription>
-          </SheetHeader>
-          <div className="flex gap-3 mt-6">
-            <Button
-              variant="outline"
-              className="flex-1"
-              onClick={() => setShowChangeWorkerSheet(false)}
-              disabled={changeWorkerLoading}
-            >
-              Cancel
-            </Button>
-            <Button
-              className="flex-1 bg-[#ff007a] hover:bg-[#e6006a] text-white"
-              onClick={handleChangeWorker}
-              disabled={changeWorkerLoading}
-            >
-              {changeWorkerLoading ? 'Reassigning…' : 'Confirm'}
-            </Button>
-          </div>
-        </SheetContent>
-      </Sheet>
-    </Card>
+    {/* Change Worker Confirmation Sheet */}
+    <Sheet open={showChangeWorkerSheet} onOpenChange={setShowChangeWorkerSheet}>
+      <SheetContent side="bottom" className="rounded-t-2xl px-6 pb-8">
+        <SheetHeader className="text-left">
+          <SheetTitle>Change Worker?</SheetTitle>
+          <SheetDescription>
+            We'll try to assign another available worker. Current worker will be notified.
+          </SheetDescription>
+        </SheetHeader>
+        <div className="flex gap-3 mt-6">
+          <Button
+            variant="outline"
+            className="flex-1"
+            onClick={() => setShowChangeWorkerSheet(false)}
+            disabled={changeWorkerLoading}
+          >
+            Cancel
+          </Button>
+          <Button
+            className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground"
+            onClick={handleChangeWorker}
+            disabled={changeWorkerLoading}
+          >
+            {changeWorkerLoading ? 'Reassigning…' : 'Confirm'}
+          </Button>
+        </div>
+      </SheetContent>
+    </Sheet>
+    </>
   );
 }
