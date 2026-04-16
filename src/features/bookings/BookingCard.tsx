@@ -251,25 +251,26 @@ export function BookingCard({
 
   const title = prettyServiceName(booking.service_type);
   
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'pending':
-        return <LoadingWorkerBadge variant="simple" size="sm" />;
-      case 'assigned':
-        return <Badge variant="secondary" className="bg-emerald-100 text-emerald-800 border-emerald-200">
-          Assigned
-        </Badge>;
-       case 'completed':
-         return <Badge variant="secondary" className="bg-green-100 text-green-800 border-green-200">
-           Completed
-         </Badge>;
-       case 'cancelled':
-         return <Badge variant="secondary" className="bg-red-100 text-red-800 border-red-200">
-           Cancelled
-         </Badge>;
-       default:
-         return <Badge variant="outline">{status}</Badge>;
+  // Build a single short info line — sharp & concise (matches ActiveBookingCard)
+  const getInfoLine = (): string | null => {
+    if (row.status === 'cancelled') return null;
+    if (row.status === 'completed') {
+      return `Completed · ${format(new Date(row.created_at), 'dd MMM, hh:mm a')}`;
     }
+    if (booking.booking_type === 'scheduled' && booking.scheduled_date && booking.scheduled_time) {
+      const today = new Date(); today.setHours(0,0,0,0);
+      const sched = new Date(`${booking.scheduled_date}T${booking.scheduled_time.slice(0,5)}:00`);
+      const sameDay = sched.toDateString() === today.toDateString();
+      const time = sched.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true });
+      if (sameDay) return `Today at ${time}`;
+      const dayLabel = sched.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
+      return `${dayLabel} · ${time}`;
+    }
+    if (row.status === 'on_the_way') return 'Worker is on the way';
+    if (row.status === 'started') return 'Service in progress';
+    if (row.status === 'assigned' || row.status === 'accepted') return 'Worker will arrive soon';
+    if (row.status === 'pending') return 'Finding a worker near you';
+    return format(new Date(booking.created_at), 'dd MMM, hh:mm a');
   };
 
   // Check if payment should be enabled (show for assigned/accepted/on_the_way/started)
