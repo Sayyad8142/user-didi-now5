@@ -421,6 +421,18 @@ const ActiveBookingCard = memo(() => {
     return (
     <>
       {/* Worker Reach Confirmation - shown above the booking card */}
+      {activeBooking.reach_status === 'reached' && (
+        <div className="p-3 bg-green-50 border border-green-200 rounded-xl shadow-sm flex items-center gap-2">
+          <CheckCircle className="h-4 w-4 text-green-600 shrink-0" />
+          <p className="text-sm font-medium text-green-800">You confirmed worker reached</p>
+        </div>
+      )}
+      {activeBooking.reach_status === 'not_reached' && (
+        <div className="p-3 bg-red-50 border border-red-200 rounded-xl shadow-sm flex items-center gap-2">
+          <XCircle className="h-4 w-4 text-red-600 shrink-0" />
+          <p className="text-sm font-medium text-red-800">You marked worker as not reached</p>
+        </div>
+      )}
       {reachButtonsVisible && (
         <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl shadow-sm">
           <p className="text-sm font-medium text-amber-900 mb-3">
@@ -432,7 +444,7 @@ const ActiveBookingCard = memo(() => {
               disabled={updatingReachStatus}
               className="flex-1 h-10 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg"
             >
-              <CheckCircle className="h-4 w-4 mr-2" />
+              {updatingReachStatus ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CheckCircle className="h-4 w-4 mr-2" />}
               Reached
             </Button>
             <Button
@@ -441,7 +453,7 @@ const ActiveBookingCard = memo(() => {
               variant="destructive"
               className="flex-1 h-10 font-semibold rounded-lg"
             >
-              <XCircle className="h-4 w-4 mr-2" />
+              {updatingReachStatus ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <XCircle className="h-4 w-4 mr-2" />}
               Not Reached
             </Button>
           </div>
