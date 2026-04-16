@@ -397,21 +397,21 @@ export function BookingCard({
         </div>
       )}
 
-      {/* Location — compact secondary line */}
-      <div className="mt-1 pl-1 flex items-center gap-1.5 text-xs text-muted-foreground">
-        <MapPin className="w-3 h-3 shrink-0" />
+      {/* Location — muted, secondary, very compact */}
+      <div className="mt-1.5 pl-1 flex items-center gap-1 text-[11px] text-muted-foreground/80">
+        <MapPin className="w-3 h-3 shrink-0 opacity-70" />
         <span className="truncate">{booking.community} · Flat {booking.flat_no}</span>
       </div>
 
-      {/* Pending — slim progress */}
+      {/* Pending — slim progress (priority block #1: status) */}
       {row.status === 'pending' && (
         <div className="mt-3 pl-1">
           <AssigningProgress booking={row} />
         </div>
       )}
 
-      {/* Worker mini-card — labeled, tinted */}
-      {workerDisplayName && !isCancelled && (
+      {/* Worker mini-card (priority block #2: worker) */}
+      {workerDisplayName && !isCancelled && !isCompleted && (
         <div className="mt-4 ml-1 mr-1">
           <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 pl-0.5">
             Assigned worker
@@ -440,62 +440,7 @@ export function BookingCard({
         </div>
       )}
 
-      {/* Assigned ETA + auto-complete countdown — compact */}
-      {row.status === 'assigned' && row.auto_complete_at && (
-        <div className="mt-3 ml-1 flex items-center justify-between gap-2 px-3 py-2 rounded-xl bg-emerald-50 ring-1 ring-emerald-200">
-          <div className="flex items-center gap-2 min-w-0">
-            <Timer className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
-            <span className="text-[12px] font-semibold text-emerald-800 truncate">Reaching in ~10 min</span>
-          </div>
-          <AutoCompleteCountdown autoCompleteAt={row.auto_complete_at} />
-        </div>
-      )}
-
-      {/* OTP compact row — only for on_the_way / started */}
-      {showOtpBlock && (
-        <div className="mt-3 ml-1 mr-1 px-3 py-3 rounded-xl bg-emerald-50 ring-1 ring-emerald-200">
-          <div className="flex items-center gap-1.5 mb-2">
-            <KeyRound className="w-3.5 h-3.5 text-emerald-700" />
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-emerald-800">
-              Completion OTP
-            </span>
-          </div>
-          <div className="flex items-center justify-center gap-2">
-            {row.completion_otp!.split('').map((digit, i) => (
-              <span
-                key={i}
-                className="w-10 h-12 flex items-center justify-center bg-card ring-1 ring-emerald-200 rounded-xl text-xl font-bold text-emerald-900"
-              >
-                {digit}
-              </span>
-            ))}
-          </div>
-          <p className="text-[10px] text-muted-foreground text-center mt-2">
-            Share only after work is fully completed
-          </p>
-        </div>
-      )}
-
-      {/* Discount badge — compact */}
-      {row.discount_inr != null && row.discount_inr > 0 && !isCancelled && (
-        <div className="mt-3 ml-1 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 ring-1 ring-emerald-200">
-          <CreditCard className="w-3 h-3 text-emerald-700" />
-          <span className="text-[11px] font-semibold text-emerald-800">-₹{row.discount_inr} off-peak savings</span>
-        </div>
-      )}
-
-      {/* Wallet refund banner — calm, compact */}
-      {row.wallet_refund_status === 'credited' && row.wallet_refund_amount && (
-        <div className="mt-3 ml-1 mr-1 px-3 py-2 rounded-xl bg-emerald-50 ring-1 ring-emerald-200 flex items-center gap-2">
-          <Wallet className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
-          <div className="flex-1 min-w-0">
-            <p className="text-[12px] font-semibold text-emerald-800">₹{row.wallet_refund_amount} refunded to wallet</p>
-            <p className="text-[10px] text-emerald-700/80 truncate">{formatWalletReason(row.wallet_refund_reason)}</p>
-          </div>
-        </div>
-      )}
-
-      {/* Payment retry — focused, single CTA */}
+      {/* Payment retry (priority block #3: payment issue) — focused, single CTA */}
       {needsPaymentRetry && (
         <div className="mt-3 ml-1 mr-1 px-3 py-3 rounded-xl bg-amber-50 ring-1 ring-amber-200">
           <p className="text-[12px] font-semibold text-amber-900 mb-2 flex items-center gap-1.5">
@@ -513,26 +458,6 @@ export function BookingCard({
               <>{row.payment_status === 'failed' ? 'Retry Payment' : 'Complete Payment'} · ₹{row.price_inr || 0}</>
             )}
           </Button>
-        </div>
-      )}
-
-      {/* Cancellation message — calm, muted */}
-      {isCancelled && (
-        <div className="mt-3 ml-1 mr-1 px-3 py-2.5 rounded-xl bg-muted/60 ring-1 ring-border">
-          <p className="text-[12px] text-muted-foreground">
-            {row.cancel_source === 'user'
-              ? 'Cancelled by you. You can book again anytime.'
-              : row.cancel_source === 'admin'
-                ? "Cancelled by admin — we couldn't provide a worker this time."
-                : 'All workers were busy. Please try again in a few minutes.'}
-          </p>
-        </div>
-      )}
-
-      {/* Rate Worker prompt */}
-      {['assigned', 'accepted', 'on_the_way', 'started', 'completed'].includes(row.status) && row.worker_id && (
-        <div className="mt-3 ml-1 mr-1">
-          <RateWorker bookingId={row.id} workerId={row.worker_id} onSubmit={handleSubmitRating} />
         </div>
       )}
 
