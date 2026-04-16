@@ -557,11 +557,12 @@ const ActiveBookingCard = memo(() => {
               ) : (
                 <p className="text-[11px] text-muted-foreground mt-0.5">Your assigned worker</p>
               )}
-            </div>
-            {workerStats && workerStats.avg_rating > 0 && (
-              <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
-            )}
-          </button>
+              </div>
+              {workerStats && workerStats.avg_rating > 0 && (
+                <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
+              )}
+            </button>
+          </div>
         )}
 
         {/* OTP compact row — opens bottom sheet */}
