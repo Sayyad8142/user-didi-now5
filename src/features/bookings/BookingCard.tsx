@@ -343,6 +343,8 @@ export function BookingCard({
     !isCancelled && !isCompleted;
 
   return (
+    <>
+
     <Card
       className={`relative overflow-hidden p-5 rounded-3xl animate-fade-in transition-all ${
         isCancelled
