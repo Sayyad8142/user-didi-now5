@@ -507,24 +507,50 @@ export function BookingCard({
         )}
       </div>
 
-      {/* Secondary actions row — only when relevant for pending/assigned */}
-      {(row.status === 'pending' || row.status === 'assigned') && (
-        <div className="mt-3 ml-1 mr-1 flex items-center gap-3 text-[12px]">
-          <button
-            type="button"
-            onClick={() => { markMessagesAsSeen(); navigate('/chat'); }}
-            className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors relative"
-          >
-            <MessageCircle className="w-3.5 h-3.5" />
-            <span>Chat support</span>
-            {hasUnseenMessages && (
-              <span className="absolute -top-1 -right-2 w-1.5 h-1.5 bg-rose-500 rounded-full animate-pulse" />
-            )}
-          </button>
-          <span className="text-border">·</span>
-          <CancelAction booking={row} onCancel={() => {}} />
-        </div>
-      )}
+      {/* Contextual action chip — single quick action per state */}
+      {(() => {
+        // Priority: payment issue > status-based action
+        if (needsPaymentRetry) {
+          // Pay Now chip is redundant — full retry block already shown above
+          return null;
+        }
+        if (row.status === 'pending') {
+          return (
+            <div className="mt-3 ml-1 mr-1 flex justify-end animate-fade-in">
+              <CancelAction booking={row} onCancel={() => {}} />
+            </div>
+          );
+        }
+        if ((row.status === 'assigned' || row.status === 'accepted' || row.status === 'on_the_way') && row.worker_phone) {
+          return (
+            <div className="mt-3 ml-1 mr-1 flex justify-end animate-fade-in">
+              <button
+                type="button"
+                onClick={() => openExternalUrl(`tel:${row.worker_phone}`)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-secondary text-secondary-foreground hover:bg-secondary/80 ring-1 ring-border text-[12px] font-medium transition-colors"
+              >
+                <PhoneCall className="w-3.5 h-3.5" />
+                Call Worker
+              </button>
+            </div>
+          );
+        }
+        if (isCompleted) {
+          return (
+            <div className="mt-3 ml-1 mr-1 flex justify-end animate-fade-in">
+              <button
+                type="button"
+                onClick={() => navigate('/')}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-secondary text-secondary-foreground hover:bg-secondary/80 ring-1 ring-border text-[12px] font-medium transition-colors"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                Rebook
+              </button>
+            </div>
+          );
+        }
+        return null;
+      })()}
     </Card>
 
     <ChatSheet open={openChat} onOpenChange={setOpenChat} booking={row} mode="user" />
