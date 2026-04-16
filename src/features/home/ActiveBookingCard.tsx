@@ -675,6 +675,7 @@ const ActiveBookingCard = memo(() => {
           </p>
         </SheetContent>
       </Sheet>
+      )}
 
       <ChatSheet open={openChat} onOpenChange={setOpenChat} booking={activeBooking} mode="user" />
 
