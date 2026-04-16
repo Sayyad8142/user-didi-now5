@@ -570,7 +570,7 @@ const ActiveBookingCard = memo(() => {
                 variant="outline"
                 onClick={() => openExternalUrl('tel:+918008180018')}
                 aria-label="Call Support"
-                className="h-10 w-10 p-0 rounded-xl border-primary/20 text-primary hover:bg-primary/5 shrink-0"
+                className="h-11 w-11 p-0 rounded-2xl border-primary/20 text-primary hover:bg-primary/5 shrink-0"
               >
                 <PhoneCall className="h-4 w-4" />
               </Button>
