@@ -1,4 +1,4 @@
-import React, { useEffect, useState, memo, useCallback } from 'react';
+import React, { useEffect, useState, memo, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -292,6 +292,21 @@ const ActiveBookingCard = memo(() => {
       .then(({ count }) => setAssignmentCount(count ?? 0));
   }, [activeBooking?.id, activeBooking?.worker_id]);
 
+  // Rotating "Finding worker" copy — cycles every 3.5s while pending instant
+  const findingMessages = useMemo(() => [
+    'Finding a worker near you',
+    'Trying nearby workers',
+    'Matching the best fit for you',
+    'Almost there, hang tight',
+  ], []);
+  const [findingIdx, setFindingIdx] = useState(0);
+  const isFindingActive = activeBooking?.status === 'pending' && activeBooking?.booking_type !== 'scheduled';
+  useEffect(() => {
+    if (!isFindingActive) { setFindingIdx(0); return; }
+    const id = setInterval(() => setFindingIdx(i => (i + 1) % findingMessages.length), 3500);
+    return () => clearInterval(id);
+  }, [isFindingActive, findingMessages.length]);
+
   const workerChangeUsed = assignmentCount >= 2;
 
   if (loading || !activeBooking) return null;
@@ -436,7 +451,7 @@ const ActiveBookingCard = memo(() => {
             </div>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
-            <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-semibold ${pill.className}`}>
+            <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-semibold transition-colors ${pill.className} ${isFindingActive ? 'animate-soft-pulse' : ''}`}>
               {pill.icon}
               <span>{pill.label}</span>
             </span>
@@ -464,32 +479,74 @@ const ActiveBookingCard = memo(() => {
           </div>
         )}
 
-        {/* Pending — slim progress (kept; it gives confidence) */}
-        {activeBooking.status === 'pending' && !isCancelled && (
-          <div className="pl-1">
-            <AssigningProgress booking={activeBooking} />
+        {/* B. Info line — rotating shimmer text for "Finding worker" */}
+        {infoLine && (
+          <div className="mt-3 pl-1 flex items-center gap-2 min-h-[22px]">
+            {isFindingActive ? (
+              <p
+                key={findingIdx}
+                className="text-[15px] font-semibold tracking-tight bg-clip-text text-transparent bg-[linear-gradient(110deg,hsl(var(--foreground))_30%,hsl(var(--primary))_50%,hsl(var(--foreground))_70%)] bg-[length:200%_100%] animate-shimmer animate-fade-in"
+              >
+                {findingMessages[findingIdx]}…
+              </p>
+            ) : (
+              <p key={infoLine} className="text-[15px] font-semibold text-foreground tracking-tight animate-fade-in">
+                {infoLine}
+              </p>
+            )}
+            {isFindingActive && (
+              <span className="inline-flex gap-1" aria-hidden>
+                <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-bounce" style={{ animationDelay: '0ms' }} />
+                <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-bounce" style={{ animationDelay: '150ms' }} />
+                <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-bounce" style={{ animationDelay: '300ms' }} />
+              </span>
+            )}
           </div>
         )}
 
-        {/* C. Helper microcopy — tertiary */}
-        {helperLine && (
-          <p className="mt-2 pl-1 text-xs text-muted-foreground">{helperLine}</p>
+        {/* Pending — slim progress with shimmer overlay */}
+        {activeBooking.status === 'pending' && !isCancelled && (
+          <div className="pl-1 relative">
+            <AssigningProgress booking={activeBooking} />
+            <span
+              aria-hidden
+              className="pointer-events-none absolute left-0 right-0 bottom-0 h-2 rounded-full overflow-hidden"
+            >
+              <span className="absolute inset-0 bg-[linear-gradient(110deg,transparent_30%,hsl(var(--primary)/0.35)_50%,transparent_70%)] bg-[length:200%_100%] animate-shimmer" />
+            </span>
+          </div>
         )}
 
-        {/* Worker mini row — compact */}
+        {/* Reassurance line — only for pending instant */}
+        {isFindingActive && (
+          <p className="mt-2 pl-1 text-xs text-muted-foreground animate-fade-in">
+            We're actively finding the best worker for you
+          </p>
+        )}
+
+        {/* C. Helper microcopy — tertiary (skip for finding state to avoid duplication) */}
+        {helperLine && !isFindingActive && (
+          <p key={helperLine} className="mt-2 pl-1 text-xs text-muted-foreground animate-fade-in">{helperLine}</p>
+        )}
+
+        {/* Worker mini-card — labeled, tinted, feels like a card-in-card */}
         {activeBooking.worker_name && !isCancelled && (
-          <button
-            type="button"
-            onClick={() => workerStats && setShowWorkerRatings(true)}
-            className="mt-3 ml-1 w-[calc(100%-0.25rem)] flex items-center gap-2.5 p-2 rounded-xl bg-muted/40 hover:bg-muted/60 transition-colors text-left"
-          >
-            <WorkerAvatar
-              photoUrl={activeBooking.worker_photo_url}
-              name={activeBooking.worker_name}
-              size="sm"
-            />
-            <div className="flex-1 min-w-0">
-              <p className="text-[13px] font-semibold text-foreground truncate">{activeBooking.worker_name}</p>
+          <div className="mt-4 ml-1 mr-1">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 pl-0.5">
+              Assigned worker
+            </p>
+            <button
+              type="button"
+              onClick={() => workerStats && setShowWorkerRatings(true)}
+              className="w-full flex items-center gap-3 p-2.5 rounded-2xl bg-primary/5 hover:bg-primary/10 ring-1 ring-primary/10 transition-colors text-left animate-fade-in"
+            >
+              <WorkerAvatar
+                photoUrl={activeBooking.worker_photo_url}
+                name={activeBooking.worker_name}
+                size="sm"
+              />
+              <div className="flex-1 min-w-0">
+                <p className="text-[14px] font-semibold text-foreground truncate">{activeBooking.worker_name}</p>
               {workerStats && workerStats.avg_rating > 0 ? (
                 <div className="flex items-center gap-1 mt-0.5">
                   <Star className="w-3 h-3 text-amber-500" fill="currentColor" />
@@ -500,11 +557,12 @@ const ActiveBookingCard = memo(() => {
               ) : (
                 <p className="text-[11px] text-muted-foreground mt-0.5">Your assigned worker</p>
               )}
-            </div>
-            {workerStats && workerStats.avg_rating > 0 && (
-              <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
-            )}
-          </button>
+              </div>
+              {workerStats && workerStats.avg_rating > 0 && (
+                <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
+              )}
+            </button>
+          </div>
         )}
 
         {/* OTP compact row — opens bottom sheet */}
