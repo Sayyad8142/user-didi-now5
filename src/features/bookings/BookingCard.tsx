@@ -441,17 +441,22 @@ export function BookingCard({
 
         {/* Completion OTP - show for paid or pay_after_service active bookings */}
         {row.completion_otp && (row.payment_status === 'paid' || row.payment_status === 'pay_after_service') && !row.otp_verified_at && row.status !== 'cancelled' && (
-          <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
-            <div className="flex items-center gap-2 mb-1">
-              <KeyRound className="h-4 w-4 text-amber-600" />
-              <p className="text-xs font-semibold text-amber-800 uppercase tracking-wide">Completion OTP</p>
-            </div>
-            <p className="text-3xl font-bold text-amber-900 tracking-[0.3em] text-center my-1">
-              {row.completion_otp}
+          <div className="p-4 bg-white border-2 border-green-300 rounded-xl shadow-sm">
+            <p className="text-[10px] font-semibold text-green-700 uppercase tracking-widest text-center mb-2">
+              🔑 Completion OTP
             </p>
-            <p className="text-[11px] text-amber-700 text-center flex items-center justify-center gap-1">
-              <Shield className="h-3 w-3" />
-              Share this OTP only after the work is fully completed
+            <div className="flex items-center justify-center gap-2">
+              {row.completion_otp.split('').map((digit, i) => (
+                <span
+                  key={i}
+                  className="w-10 h-12 flex items-center justify-center bg-green-50 border border-green-200 rounded-lg text-xl font-bold text-green-900"
+                >
+                  {digit}
+                </span>
+              ))}
+            </div>
+            <p className="text-[10px] text-gray-500 text-center mt-2">
+              Share only after work is fully completed
             </p>
           </div>
         )}
