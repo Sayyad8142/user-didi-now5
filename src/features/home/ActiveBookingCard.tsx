@@ -610,34 +610,6 @@ const ActiveBookingCard = memo(() => {
         </div>
       )}
 
-      {/* Worker Reach Confirmation Buttons */}
-      {reachButtonsVisible && (
-        <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-          <p className="text-sm font-medium text-amber-900 mb-3">
-            Did the worker reach your location?
-          </p>
-          <div className="flex gap-3">
-            <Button
-              onClick={() => handleReachConfirmation(true)}
-              disabled={updatingReachStatus}
-              className="flex-1 h-10 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg"
-            >
-              <CheckCircle className="h-4 w-4 mr-2" />
-              Reached
-            </Button>
-            <Button
-              onClick={() => handleReachConfirmation(false)}
-              disabled={updatingReachStatus}
-              variant="destructive"
-              className="flex-1 h-10 font-semibold rounded-lg"
-            >
-              <XCircle className="h-4 w-4 mr-2" />
-              Not Reached
-            </Button>
-          </div>
-        </div>
-      )}
-
       {/* Completion OTP - moved below action buttons */}
 
       {/* Action buttons */}
