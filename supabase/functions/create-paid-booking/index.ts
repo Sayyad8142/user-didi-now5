@@ -53,7 +53,7 @@ async function hmacSha256Verify(
 }
 
 function generateOtp(): string {
-  return String(Math.floor(1000 + Math.random() * 9000));
+  return String(Math.floor(100 + Math.random() * 900));
 }
 
 const OPTIONAL_BOOKING_INSERT_COLUMNS = new Set([
