@@ -334,11 +334,12 @@ export function ScheduleScreen() {
           return;
         }
 
+        console.log('✅ [Schedule] pay-after booking scheduled → navigating to /home');
         toast({
           title: "Booking scheduled!",
           description: "Worker will be assigned before the scheduled time. Pay after service is done."
         });
-        navigate('/bookings');
+        navigate('/home', { replace: true });
         return;
       }
 
@@ -349,12 +350,12 @@ export function ScheduleScreen() {
           setPaymentStatus(status);
         });
 
-        console.log('✅ Payment-first booking created:', result.booking_id);
+        console.log('✅ [Schedule] payment-first booking created:', result.booking_id, '→ navigating to /home');
         toast({
           title: "Payment successful!",
           description: "Your booking has been scheduled and paid. Worker will be assigned before the scheduled time."
         });
-        navigate('/bookings');
+        navigate('/home', { replace: true });
       } catch (payErr: any) {
         console.error('❌ Payment error:', payErr);
         const errType = payErr instanceof PaymentError ? payErr.type : 'payment_failed';

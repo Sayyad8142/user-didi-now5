@@ -203,11 +203,12 @@ export function InstantCheckoutScreen() {
         }
 
         sessionStorage.removeItem(`preferred_worker_${service_type}`);
+        console.log('✅ [InstantCheckout] pay-after booking created → navigating to /home');
         toast({
           title: "Booking confirmed!",
           description: "Worker will arrive in ~10 minutes. Pay after service is done."
         });
-        navigate('/bookings');
+        navigate('/home', { replace: true });
         return;
       }
 
@@ -218,13 +219,13 @@ export function InstantCheckoutScreen() {
           setPaymentStatus(status);
         });
 
-        console.log('✅ Payment-first instant booking created:', result.booking_id);
+        console.log('✅ [InstantCheckout] payment-first booking created:', result.booking_id, '→ navigating to /home');
         sessionStorage.removeItem(`preferred_worker_${service_type}`);
         toast({
           title: "Payment successful!",
           description: "Your booking is confirmed. Worker will arrive in ~10 minutes."
         });
-        navigate('/bookings');
+        navigate('/home', { replace: true });
       } catch (payErr: any) {
         console.error('❌ Payment error:', payErr);
         const errType = payErr instanceof PaymentError ? payErr.type : 'payment_failed';
