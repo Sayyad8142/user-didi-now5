@@ -62,14 +62,40 @@ interface BookingCardProps {
 const getServiceIcon = (serviceType: string) => {
   switch (serviceType) {
     case 'maid':
-      return <Sparkles className="w-5 h-5" />;
+      return <Sparkles className="w-4 h-4" />;
     case 'cook':
-      return <ChefHat className="w-5 h-5" />;
+      return <ChefHat className="w-4 h-4" />;
     case 'bathroom_cleaning':
-      return <ShowerHead className="w-5 h-5" />;
+      return <ShowerHead className="w-4 h-4" />;
     default:
-      return <Sparkles className="w-5 h-5" />;
+      return <Sparkles className="w-4 h-4" />;
   }
+};
+
+// Premium status pill — matches ActiveBookingCard language
+const getStatusPill = (status: string, bookingType: string): { label: string; className: string; icon: React.ReactNode } => {
+  if (status === 'cancelled') {
+    return { label: 'Cancelled', className: 'bg-muted text-muted-foreground ring-1 ring-border', icon: <XCircle className="w-3 h-3" /> };
+  }
+  if (status === 'completed') {
+    return { label: 'Completed', className: 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200', icon: <CheckCircle className="w-3 h-3" /> };
+  }
+  if (status === 'pending') {
+    if (bookingType === 'scheduled') {
+      return { label: 'Scheduled', className: 'bg-sky-50 text-sky-700 ring-1 ring-sky-200', icon: <Calendar className="w-3 h-3" /> };
+    }
+    return { label: 'Finding worker', className: 'bg-amber-50 text-amber-700 ring-1 ring-amber-200', icon: <Loader className="w-3 h-3 animate-spin" /> };
+  }
+  if (status === 'assigned' || status === 'accepted') {
+    return { label: 'Assigned', className: 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200', icon: <CheckCircle className="w-3 h-3" /> };
+  }
+  if (status === 'on_the_way') {
+    return { label: 'On the way', className: 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200', icon: <Navigation className="w-3 h-3" /> };
+  }
+  if (status === 'started') {
+    return { label: 'In progress', className: 'bg-primary/10 text-primary ring-1 ring-primary/20', icon: <PlayCircle className="w-3 h-3" /> };
+  }
+  return { label: status, className: 'bg-muted text-muted-foreground ring-1 ring-border', icon: <MapPin className="w-3 h-3" /> };
 };
 export function BookingCard({
   booking
