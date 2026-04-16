@@ -364,12 +364,14 @@ const ActiveBookingCard = memo(() => {
   const pill = getStatusPill(activeBooking);
   const infoLine = getInfoLine(activeBooking);
   const helperLine = getHelperLine(activeBooking);
+  // OTP only when worker is actively traveling/working — not for pending/scheduled
   const showOtpRow =
     !!activeBooking.completion_otp &&
     (activeBooking.payment_status === 'paid' || activeBooking.payment_status === 'pay_after_service') &&
     !activeBooking.otp_verified_at &&
-    activeBooking.status !== 'cancelled';
+    (activeBooking.status === 'on_the_way' || activeBooking.status === 'started');
   const isCancelled = activeBooking.status === 'cancelled';
+  const isFinding = activeBooking.status === 'pending' && activeBooking.booking_type !== 'scheduled';
 
   return (
     <>
