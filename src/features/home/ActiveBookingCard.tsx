@@ -475,21 +475,7 @@ const ActiveBookingCard = memo(() => {
           </div>
         </div>
 
-        {/* B. Info line — with live shimmer for "Finding worker" */}
-        {infoLine && (
-          <div className="mt-3 pl-1 flex items-center gap-2">
-            <p className="text-[15px] font-semibold text-foreground tracking-tight">{infoLine}</p>
-            {isFinding && (
-              <span className="inline-flex gap-1" aria-hidden>
-                <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-bounce" style={{ animationDelay: '0ms' }} />
-                <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-bounce" style={{ animationDelay: '150ms' }} />
-                <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-bounce" style={{ animationDelay: '300ms' }} />
-              </span>
-            )}
-          </div>
-        )}
-
-        {/* B. Info line — rotating shimmer text for "Finding worker" */}
+        {/* B. Info line — rotating shimmer text for "Finding worker", static otherwise */}
         {infoLine && (
           <div className="mt-3 pl-1 flex items-center gap-2 min-h-[22px]">
             {isFindingActive ? (
