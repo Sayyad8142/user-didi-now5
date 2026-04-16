@@ -503,15 +503,15 @@ const ActiveBookingCard = memo(() => {
           </div>
         )}
 
-        {/* Pending — slim progress with shimmer overlay */}
+        {/* Pending — slim progress with very subtle shimmer */}
         {activeBooking.status === 'pending' && !isCancelled && (
           <div className="pl-1 relative">
             <AssigningProgress booking={activeBooking} />
             <span
               aria-hidden
-              className="pointer-events-none absolute left-0 right-0 bottom-0 h-2 rounded-full overflow-hidden"
+              className="pointer-events-none absolute left-0 right-0 bottom-0 h-2 rounded-full overflow-hidden opacity-40"
             >
-              <span className="absolute inset-0 bg-[linear-gradient(110deg,transparent_30%,hsl(var(--primary)/0.35)_50%,transparent_70%)] bg-[length:200%_100%] animate-shimmer" />
+              <span className="absolute inset-0 bg-[linear-gradient(110deg,transparent_40%,hsl(var(--primary)/0.18)_50%,transparent_60%)] bg-[length:200%_100%] animate-shimmer" />
             </span>
           </div>
         )}
