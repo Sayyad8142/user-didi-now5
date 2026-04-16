@@ -15,14 +15,24 @@ import FaqSection from './FaqSection';
 import { useOnlineWorkerCounts } from '@/hooks/useOnlineWorkerCounts';
 import { useUnratedBooking } from '@/hooks/useUnratedBooking';
 import { MandatoryRatingScreen } from '@/features/bookings/MandatoryRatingScreen';
+import { useProfile } from '@/contexts/ProfileContext';
+import { HomeSkeleton } from './HomeSkeleton';
 
 
 export function HomeScreen() {
   const navigate = useNavigate();
+  const { profile, loading: profileLoading } = useProfile();
   const { hasUnseenMessages, markMessagesAsSeen } = useUnseenMessages();
   const { counts, loading, isServiceAvailable } = useOnlineWorkerCounts();
   const { unratedBooking, hasUnratedBooking, invalidate: refreshUnrated } = useUnratedBooking();
   const [ratingDismissed, setRatingDismissed] = useState(false);
+
+  console.log('[HomeScreen] mounted, profile:', profile?.id, 'community:', profile?.community);
+
+  // Wait for profile before rendering any partial UI
+  if (profileLoading || !profile) {
+    return <HomeSkeleton />;
+  }
 
   const handleServiceSelect = (service: 'maid' | 'bathroom_cleaning') => {
     navigate(`/book/${service}`);
