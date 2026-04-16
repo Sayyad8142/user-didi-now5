@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Sparkles, ChefHat, ShowerHead, ArrowRight, X, CreditCard, PhoneCall, MessageCircle, Star, CheckCircle, XCircle, RefreshCw, KeyRound, Loader2 } from 'lucide-react';
+import { Sparkles, ChefHat, ShowerHead, ArrowRight, X, PhoneCall, Star, CheckCircle, XCircle, KeyRound, Loader2, ChevronRight } from 'lucide-react';
 import { getAuth } from 'firebase/auth';
 import { WorkerAvatar } from '@/components/WorkerAvatar';
 import { supabase } from '@/integrations/supabase/client';
@@ -53,60 +53,94 @@ interface Booking {
 const getServiceIcon = (serviceType: string) => {
   switch (serviceType) {
     case 'maid':
-      return <Sparkles className="w-5 h-5" />;
+      return <Sparkles className="w-4 h-4" />;
     case 'cook':
-      return <ChefHat className="w-5 h-5" />;
+      return <ChefHat className="w-4 h-4" />;
     case 'bathroom_cleaning':
-      return <ShowerHead className="w-5 h-5" />;
+      return <ShowerHead className="w-4 h-4" />;
     default:
-      return <Sparkles className="w-5 h-5" />;
+      return <Sparkles className="w-4 h-4" />;
   }
 };
 
-const getStatusColor = (status: string) => {
-  switch (status) {
-    case 'pending':
-      return 'bg-yellow-100 text-yellow-800';
-    case 'assigned':
-      return 'bg-green-100 text-green-800';
-    case 'cancelled':
-      return 'bg-red-100 text-red-800';
-    default:
-      return 'bg-gray-100 text-gray-800';
+// Premium status pill styles — soft pastel pills
+const getStatusPill = (booking: Booking): { label: string; className: string } => {
+  const { status, booking_type } = booking;
+  if (status === 'cancelled') {
+    return { label: 'Cancelled', className: 'bg-rose-50 text-rose-700 ring-1 ring-rose-200' };
   }
+  if (status === 'pending') {
+    if (booking_type === 'scheduled') {
+      return { label: 'Scheduled', className: 'bg-sky-50 text-sky-700 ring-1 ring-sky-200' };
+    }
+    return { label: 'Finding Worker', className: 'bg-amber-50 text-amber-700 ring-1 ring-amber-200' };
+  }
+  if (status === 'assigned' || status === 'accepted') {
+    return { label: 'Worker Assigned', className: 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200' };
+  }
+  if (status === 'on_the_way') {
+    return { label: 'On The Way', className: 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200' };
+  }
+  if (status === 'started') {
+    return { label: 'In Progress', className: 'bg-primary/10 text-primary ring-1 ring-primary/20' };
+  }
+  return { label: status, className: 'bg-muted text-muted-foreground ring-1 ring-border' };
+};
+
+// Build a single short info line
+const getInfoLine = (booking: Booking): string | null => {
+  if (booking.status === 'cancelled') return null;
+
+  if (booking.booking_type === 'scheduled' && booking.scheduled_date && booking.scheduled_time) {
+    const today = new Date(); today.setHours(0,0,0,0);
+    const sched = new Date(`${booking.scheduled_date}T${booking.scheduled_time.slice(0,5)}:00`);
+    const sameDay = sched.toDateString() === today.toDateString();
+    const time = sched.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true });
+    if (sameDay) return `Scheduled for today, ${time}`;
+    const dayLabel = sched.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
+    return `Scheduled for ${dayLabel}, ${time}`;
+  }
+
+  if (booking.status === 'on_the_way') return 'Worker is on the way';
+  if (booking.status === 'started') return 'Service in progress';
+  if (booking.status === 'assigned' || booking.status === 'accepted') return 'Worker will arrive soon';
+  if (booking.status === 'pending') return 'Looking for the best worker for you';
+  return null;
+};
+
+// Helpful microcopy
+const getHelperLine = (booking: Booking): string | null => {
+  if (booking.status === 'cancelled') return null;
+  if (booking.completion_otp && (booking.payment_status === 'paid' || booking.payment_status === 'pay_after_service') && !booking.otp_verified_at) {
+    return 'Share OTP only after work is fully completed';
+  }
+  if (booking.booking_type === 'scheduled' && booking.status === 'pending') {
+    return 'We will assign your worker before the scheduled time';
+  }
+  if (booking.status === 'pending') {
+    return 'You will be notified the moment a worker accepts';
+  }
+  return null;
 };
 
 // Check if reach confirmation buttons should be shown
 const shouldShowReachButtons = (booking: Booking): boolean => {
-  // Only show for active statuses
   const activeStatuses = ['assigned', 'dispatched', 'on_the_way', 'accepted', 'started'];
   if (!activeStatuses.includes(booking.status)) return false;
-  
-  // Only show if reach_status is pending
   if (booking.reach_status && booking.reach_status !== 'pending') return false;
-  
+
   const now = Date.now();
   const FIFTEEN_MINUTES = 15 * 60 * 1000;
-  
-  // Compute reference time based on booking type
   let referenceTime: number;
-  
+
   if (booking.booking_type === 'scheduled' && booking.scheduled_date) {
-    // For scheduled: use scheduled_date + scheduled_time
     const timeStr = booking.scheduled_time ? booking.scheduled_time.slice(0, 5) : '00:00';
     const scheduledDateTime = new Date(`${booking.scheduled_date}T${timeStr}:00`);
     referenceTime = scheduledDateTime.getTime();
-    
-    // Fallback to created_at if scheduled time is invalid
-    if (isNaN(referenceTime)) {
-      referenceTime = new Date(booking.created_at).getTime();
-    }
+    if (isNaN(referenceTime)) referenceTime = new Date(booking.created_at).getTime();
   } else {
-    // For instant: use created_at
     referenceTime = new Date(booking.created_at).getTime();
   }
-  
-  // Show buttons only after 15 minutes from reference time
   return now >= referenceTime + FIFTEEN_MINUTES;
 };
 
@@ -121,6 +155,7 @@ const ActiveBookingCard = memo(() => {
   const [workerStats, setWorkerStats] = useState<{ avg_rating: number; ratings_count: number } | null>(null);
   const [showWorkerRatings, setShowWorkerRatings] = useState(false);
   const [showPaySheet, setShowPaySheet] = useState(false);
+  const [showOtpSheet, setShowOtpSheet] = useState(false);
   const [reachButtonsVisible, setReachButtonsVisible] = useState(false);
   const [updatingReachStatus, setUpdatingReachStatus] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState<string>('pending');
@@ -136,14 +171,12 @@ const ActiveBookingCard = memo(() => {
 
   const fetchActiveBooking = useCallback(async () => {
     if (!profile?.id) return;
-
     try {
       const today = new Date().toISOString().split('T')[0];
       const startOfToday = new Date();
       startOfToday.setHours(0, 0, 0, 0);
       const todayStart = startOfToday.toISOString();
-      
-      // Fetch all matching bookings with worker's current UPI and prioritize active ones over cancelled
+
       const { data: allBookings, error } = await supabase
         .from('bookings')
         .select('*, workers:workers!bookings_worker_id_fkey(upi_id)')
@@ -151,36 +184,22 @@ const ActiveBookingCard = memo(() => {
         .or(`and(status.in.(pending,assigned,accepted,on_the_way,started),booking_type.eq.instant),and(status.in.(pending,assigned,accepted,on_the_way,started),booking_type.eq.scheduled,scheduled_date.gte.${today}),and(status.eq.cancelled,cancelled_at.gte.${todayStart})`)
         .order('created_at', { ascending: false });
 
-      // Prioritize active bookings over cancelled ones
       let bookingToShow = null;
       if (allBookings && allBookings.length > 0) {
-        // First priority: show active bookings (pending, assigned, etc.) that haven't been dismissed
-        const activeBooking = allBookings.find(b => 
-          b.status !== 'cancelled' && !dismissedBookings.has(b.id)
-        );
-        
-        // Second priority: show cancelled bookings from today (if no active booking)
-        const cancelledBooking = allBookings.find(b => 
-          b.status === 'cancelled' && !dismissedBookings.has(b.id)
-        );
-        
+        const activeBooking = allBookings.find(b => b.status !== 'cancelled' && !dismissedBookings.has(b.id));
+        const cancelledBooking = allBookings.find(b => b.status === 'cancelled' && !dismissedBookings.has(b.id));
         const rawBooking = activeBooking || cancelledBooking;
         if (rawBooking) {
-          // Use worker's current UPI if booking snapshot is missing it
           const workerData = rawBooking.workers as { upi_id: string | null } | null;
           bookingToShow = {
             ...rawBooking,
             worker_upi: rawBooking.worker_upi || workerData?.upi_id || null,
-            workers: undefined // Remove the join data
+            workers: undefined,
           };
         }
       }
-
-      if (error) {
-        console.error('Error fetching active booking:', error);
-      } else {
-        setActiveBooking(bookingToShow || null);
-      }
+      if (error) console.error('Error fetching active booking:', error);
+      else setActiveBooking(bookingToShow || null);
     } catch (err) {
       console.error('Error:', err);
     } finally {
@@ -188,137 +207,73 @@ const ActiveBookingCard = memo(() => {
     }
   }, [profile?.id]);
 
-  // Load dismissed bookings from localStorage
   useEffect(() => {
     const dismissed = localStorage.getItem('dismissedBookings');
-    if (dismissed) {
-      setDismissedBookings(new Set(JSON.parse(dismissed)));
-    }
+    if (dismissed) setDismissedBookings(new Set(JSON.parse(dismissed)));
   }, []);
 
   useEffect(() => {
-    if (profile?.id) {
-      fetchActiveBooking();
-    } else {
-      setLoading(false);
-      setActiveBooking(null);
-    }
+    if (profile?.id) fetchActiveBooking();
+    else { setLoading(false); setActiveBooking(null); }
   }, [profile?.id]);
 
-  // Load worker rating stats
   useEffect(() => {
-    if (!activeBooking?.worker_id) {
-      setWorkerStats(null);
-      return;
-    }
-    
-    supabase
-      .from('worker_rating_stats')
-      .select('avg_rating, ratings_count')
-      .eq('worker_id', activeBooking.worker_id)
-      .maybeSingle()
+    if (!activeBooking?.worker_id) { setWorkerStats(null); return; }
+    supabase.from('worker_rating_stats').select('avg_rating, ratings_count')
+      .eq('worker_id', activeBooking.worker_id).maybeSingle()
       .then(({ data }) => setWorkerStats(data ?? null));
   }, [activeBooking?.worker_id]);
 
-  // Load worker payment info (QR data)
   useEffect(() => {
-    if (!activeBooking?.worker_id) {
-      setWorkerPaymentInfo(null);
-      return;
-    }
-    
-    supabase
-      .from('workers')
-      .select('upi_id, upi_qr_payload, upi_qr_url, full_name')
-      .eq('id', activeBooking.worker_id)
-      .maybeSingle()
+    if (!activeBooking?.worker_id) { setWorkerPaymentInfo(null); return; }
+    supabase.from('workers').select('upi_id, upi_qr_payload, upi_qr_url, full_name')
+      .eq('id', activeBooking.worker_id).maybeSingle()
       .then(({ data }) => setWorkerPaymentInfo(data ?? null));
   }, [activeBooking?.worker_id]);
 
-  // Load payment status
   useEffect(() => {
     if (!activeBooking?.id) return;
-    
-    supabase
-      .from('bookings')
-      .select('payment_status')
-      .eq('id', activeBooking.id)
-      .maybeSingle()
-      .then(({ data }) => {
-        setPaymentStatus(data?.payment_status || 'pending');
-      });
+    supabase.from('bookings').select('payment_status').eq('id', activeBooking.id).maybeSingle()
+      .then(({ data }) => setPaymentStatus(data?.payment_status || 'pending'));
   }, [activeBooking?.id]);
 
-  // Set up real-time updates
   useEffect(() => {
     if (!profile?.id) return;
-
     const channel = supabase
       .channel(`active-booking-updates-${profile.id}`)
-      .on("postgres_changes", 
-        { 
-          event: "UPDATE", 
-          schema: "public", 
-          table: "bookings",
-          filter: `user_id=eq.${profile.id}`
-        },
-        (payload) => {
-          // Refetch whenever any booking changes to catch new cancellations
-          fetchActiveBooking();
-        }
+      .on("postgres_changes",
+        { event: "UPDATE", schema: "public", table: "bookings", filter: `user_id=eq.${profile.id}` },
+        () => fetchActiveBooking()
       )
       .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => { supabase.removeChannel(channel); };
   }, [profile?.id, fetchActiveBooking]);
 
-  // Check reach buttons visibility with interval
   useEffect(() => {
-    if (!activeBooking) {
-      setReachButtonsVisible(false);
-      return;
-    }
-
-    const checkVisibility = () => {
-      setReachButtonsVisible(shouldShowReachButtons(activeBooking));
-    };
-
+    if (!activeBooking) { setReachButtonsVisible(false); return; }
+    const checkVisibility = () => setReachButtonsVisible(shouldShowReachButtons(activeBooking));
     checkVisibility();
-    // Re-check every 30 seconds to update when 15 minutes pass
     const interval = setInterval(checkVisibility, 30000);
-
     return () => clearInterval(interval);
   }, [activeBooking]);
 
-  // Fetch assignment count for change worker limit
   useEffect(() => {
     if (!activeBooking?.id) return;
-    supabase
-      .from('assignments')
-      .select('id', { count: 'exact', head: true })
+    supabase.from('assignments').select('id', { count: 'exact', head: true })
       .eq('booking_id', activeBooking.id)
-      .then(({ count }) => {
-        setAssignmentCount(count ?? 0);
-      });
+      .then(({ count }) => setAssignmentCount(count ?? 0));
   }, [activeBooking?.id, activeBooking?.worker_id]);
 
   const workerChangeUsed = assignmentCount >= 2;
 
-  if (loading || !activeBooking) {
-    return null;
-  }
+  if (loading || !activeBooking) return null;
 
   const handleChangeWorker = async () => {
     setChangeWorkerLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('reassign-worker', {
-        body: { booking_id: activeBooking.id },
-      });
+      const { data, error } = await supabase.functions.invoke('reassign-worker', { body: { booking_id: activeBooking.id } });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-
       toast.success(data?.warning || 'Looking for another worker…');
       setShowChangeWorkerSheet(false);
     } catch (err: any) {
@@ -329,86 +284,46 @@ const ActiveBookingCard = memo(() => {
     }
   };
 
-  const handleViewDetails = () => {
-    navigate('/bookings');
-  };
+  const handleViewDetails = () => navigate('/bookings');
 
   const handleDismiss = () => {
     const newDismissed = new Set(dismissedBookings);
     newDismissed.add(activeBooking.id);
     setDismissedBookings(newDismissed);
     localStorage.setItem('dismissedBookings', JSON.stringify([...newDismissed]));
-    // Immediately hide the card
     setActiveBooking(null);
   };
 
-  // Check if payment should be enabled (show immediately when assigned)
   const isAssigned = activeBooking.status === 'assigned';
-  const paymentReady = isAssigned;
-
-  // QR payment details
   const upiId = workerPaymentInfo?.upi_id || undefined;
   const qrImageUrl = workerPaymentInfo?.upi_qr_url || undefined;
-  const hasPaymentInfo = !!upiId || !!qrImageUrl;
-
-  const handlePayWorker = () => {
-    setShowPaySheet(true);
-  };
 
   const handleSubmitRating = async (rating: number, comment?: string) => {
-    if (!profile?.id) {
-      throw new Error('Not authenticated');
-    }
-
-    const { error } = await supabase
-      .from('worker_ratings')
-      .upsert(
-        {
-          booking_id: activeBooking.id,
-          worker_id: activeBooking.worker_id,
-          user_id: profile.id,
-          rating,
-          comment: comment ?? null,
-        },
-        { onConflict: 'booking_id' }
-      );
-
+    if (!profile?.id) throw new Error('Not authenticated');
+    const { error } = await supabase.from('worker_ratings').upsert(
+      { booking_id: activeBooking.id, worker_id: activeBooking.worker_id, user_id: profile.id, rating, comment: comment ?? null },
+      { onConflict: 'booking_id' }
+    );
     if (error) throw error;
   };
 
   const handleReachConfirmation = async (reached: boolean) => {
     if (updatingReachStatus) return;
-    // Prevent duplicate if already confirmed
     if (activeBooking.reach_status && activeBooking.reach_status !== 'pending') return;
-    
     setUpdatingReachStatus(true);
     try {
       const auth = getAuth();
       const token = await auth.currentUser?.getIdToken();
-      
       const { data, error } = await supabase.functions.invoke('confirm-worker-reach', {
         body: { booking_id: activeBooking.id, reached },
         headers: token ? { 'x-firebase-token': token } : undefined,
       });
-
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-
-      if (reached) {
-        toast.success("Thanks for confirming. Worker has reached.");
-      } else {
-        toast.info("Thanks. Our team will take action immediately.");
-      }
-      
-      // Update local state immediately
-      setActiveBooking(prev => prev ? { 
-        ...prev, 
-        reach_status: reached ? 'reached' : 'not_reached',
-        reach_confirmed_at: new Date().toISOString(),
-      } : null);
+      if (reached) toast.success("Thanks for confirming. Worker has reached.");
+      else toast.info("Thanks. Our team will take action immediately.");
+      setActiveBooking(prev => prev ? { ...prev, reach_status: reached ? 'reached' : 'not_reached', reach_confirmed_at: new Date().toISOString() } : null);
       setReachButtonsVisible(false);
-      
-      // Refetch to ensure consistency
       fetchActiveBooking();
     } catch (error) {
       console.error('[ReachStatus] Error:', error);
@@ -418,31 +333,39 @@ const ActiveBookingCard = memo(() => {
     }
   };
 
-    return (
+  const pill = getStatusPill(activeBooking);
+  const infoLine = getInfoLine(activeBooking);
+  const helperLine = getHelperLine(activeBooking);
+  const showOtpRow =
+    !!activeBooking.completion_otp &&
+    (activeBooking.payment_status === 'paid' || activeBooking.payment_status === 'pay_after_service') &&
+    !activeBooking.otp_verified_at &&
+    activeBooking.status !== 'cancelled';
+  const isCancelled = activeBooking.status === 'cancelled';
+
+  return (
     <>
-      {/* Worker Reach Confirmation - shown above the booking card */}
+      {/* Reach status confirmations — kept as separate banners above card */}
       {activeBooking.reach_status === 'reached' && (
-        <div className="p-3 bg-green-50 border border-green-200 rounded-xl shadow-sm flex items-center gap-2">
-          <CheckCircle className="h-4 w-4 text-green-600 shrink-0" />
-          <p className="text-sm font-medium text-green-800">You confirmed worker reached</p>
+        <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center gap-2">
+          <CheckCircle className="h-4 w-4 text-emerald-600 shrink-0" />
+          <p className="text-sm font-medium text-emerald-800">You confirmed worker reached</p>
         </div>
       )}
       {activeBooking.reach_status === 'not_reached' && (
-        <div className="p-3 bg-red-50 border border-red-200 rounded-xl shadow-sm flex items-center gap-2">
-          <XCircle className="h-4 w-4 text-red-600 shrink-0" />
-          <p className="text-sm font-medium text-red-800">You marked worker as not reached</p>
+        <div className="p-3 bg-rose-50 border border-rose-200 rounded-2xl flex items-center gap-2">
+          <XCircle className="h-4 w-4 text-rose-600 shrink-0" />
+          <p className="text-sm font-medium text-rose-800">You marked worker as not reached</p>
         </div>
       )}
       {reachButtonsVisible && (
-        <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl shadow-sm">
-          <p className="text-sm font-medium text-amber-900 mb-3">
-            Did the worker reach your location?
-          </p>
-          <div className="flex gap-3">
+        <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl">
+          <p className="text-sm font-medium text-amber-900 mb-3">Did the worker reach your location?</p>
+          <div className="flex gap-2">
             <Button
               onClick={() => handleReachConfirmation(true)}
               disabled={updatingReachStatus}
-              className="flex-1 h-10 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg"
+              className="flex-1 h-10 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl"
             >
               {updatingReachStatus ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CheckCircle className="h-4 w-4 mr-2" />}
               Reached
@@ -451,7 +374,7 @@ const ActiveBookingCard = memo(() => {
               onClick={() => handleReachConfirmation(false)}
               disabled={updatingReachStatus}
               variant="destructive"
-              className="flex-1 h-10 font-semibold rounded-lg"
+              className="flex-1 h-10 font-semibold rounded-xl"
             >
               {updatingReachStatus ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <XCircle className="h-4 w-4 mr-2" />}
               Not Reached
@@ -460,231 +383,201 @@ const ActiveBookingCard = memo(() => {
         </div>
       )}
 
-      <Card className={`p-4 border-2 ${
-        activeBooking.status === 'assigned' 
-          ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-200' 
-          : 'bg-gradient-to-r from-primary/5 to-primary/10 border-primary/20'
-      }`}>
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex items-center gap-3">
-          <div className={`p-2 rounded-lg ${
-            activeBooking.status === 'assigned' ? 'bg-green-100' : 'bg-primary/10'
-          }`}>
-            {getServiceIcon(activeBooking.service_type)}
-          </div>
-          <div>
-            <h3 className="font-semibold text-sm">
-              {prettyServiceName(activeBooking.service_type)}
-            </h3>
-            {activeBooking.price_inr != null && (
-              <p className="text-xs font-semibold text-green-700">₹{activeBooking.price_inr}</p>
-            )}
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          {activeBooking.status === 'pending' ? (
-            <LoadingWorkerBadge variant="simple" size="sm" />
-          ) : (
-            <Badge className={`text-xs ${getStatusColor(activeBooking.status)}`}>
-              {activeBooking.status === 'assigned' ? '✓ Worker Assigned' : activeBooking.status}
-            </Badge>
-          )}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleDismiss}
-            className="p-1 h-6 w-6 text-muted-foreground hover:text-foreground"
-          >
-            <X className="w-4 h-4" />
-          </Button>
-        </div>
-      </div>
+      {/* MAIN CARD — premium, minimal */}
+      <Card className="relative overflow-hidden p-4 bg-card border border-primary/15 rounded-2xl shadow-[0_2px_12px_-4px_hsl(var(--primary)/0.15)]">
+        {/* Subtle accent stripe */}
+        <span aria-hidden className="absolute left-0 top-0 h-full w-1 bg-gradient-to-b from-primary to-primary/40" />
 
-      {activeBooking.worker_name && (
-        <div className="mb-3 p-2 bg-blue-50 rounded-lg flex items-start gap-2">
-          <WorkerAvatar
-            photoUrl={activeBooking.worker_photo_url}
-            name={activeBooking.worker_name}
-            size="sm"
-            className="mt-0.5"
-          />
-          <div className="flex-1 min-w-0">
-          <p className="text-xs font-medium text-blue-600 uppercase tracking-wide">Worker</p>
-          <p className="text-sm font-semibold text-blue-900">{activeBooking.worker_name}</p>
-          
-          {/* Worker rating display */}
-          {workerStats && workerStats.avg_rating > 0 && (
-            <div className="flex items-center justify-between mt-1">
-              <div className="flex items-center gap-1">
-                <div className="flex">
-                  {[1, 2, 3, 4, 5].map((i) => (
-                    <Star
-                      key={i}
-                      className={`w-3 h-3 ${i <= Math.round(workerStats.avg_rating) ? 'text-yellow-500' : 'text-gray-300'}`}
-                      fill={i <= Math.round(workerStats.avg_rating) ? 'currentColor' : 'none'}
-                    />
-                  ))}
-                </div>
-                <span className="text-xs text-gray-600">
-                  {workerStats.avg_rating.toFixed(1)} ({workerStats.ratings_count})
-                </span>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowWorkerRatings(true)}
-                className="h-6 px-2 text-xs text-blue-600 hover:text-blue-800 hover:bg-blue-50"
-              >
-                View Ratings
-              </Button>
+        {/* A. Top row — service + price + status pill + dismiss */}
+        <div className="flex items-start justify-between gap-3 pl-1">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="p-2 rounded-xl bg-primary/10 text-primary shrink-0">
+              {getServiceIcon(activeBooking.service_type)}
             </div>
-          )}
+            <div className="min-w-0">
+              <h3 className="font-semibold text-[15px] leading-tight text-foreground truncate">
+                {prettyServiceName(activeBooking.service_type)}
+              </h3>
+              {activeBooking.price_inr != null && !isCancelled && (
+                <p className="text-xs text-muted-foreground mt-0.5">₹{activeBooking.price_inr}</p>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold ${pill.className}`}>
+              {pill.label}
+            </span>
+            <button
+              onClick={handleDismiss}
+              aria-label="Dismiss"
+              className="p-1 rounded-full text-muted-foreground/60 hover:text-foreground hover:bg-muted transition-colors"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
           </div>
         </div>
-      )}
 
-      {/* Change Worker Button */}
-      {activeBooking.worker_name && ['assigned', 'accepted', 'on_the_way'].includes(activeBooking.status) && !workerChangeUsed && (
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => openExternalUrl('tel:8008180018')}
-          className="w-full h-8 text-xs border-dashed border-muted-foreground/30 text-muted-foreground hover:text-foreground hover:border-foreground/40 mb-3"
-        >
-          <PhoneCall className="w-3 h-3 mr-1.5" />
-          Change Worker
-        </Button>
-      )}
+        {/* B. Info line */}
+        {infoLine && (
+          <p className="mt-3 pl-1 text-sm font-medium text-foreground">{infoLine}</p>
+        )}
 
-      {activeBooking.status === 'pending' && (
-        <AssigningProgress booking={activeBooking} />
-      )}
+        {/* Pending — slim progress (kept; it gives confidence) */}
+        {activeBooking.status === 'pending' && !isCancelled && (
+          <div className="pl-1">
+            <AssigningProgress booking={activeBooking} />
+          </div>
+        )}
 
-      {/* Cancellation messages */}
-      {activeBooking.status === "cancelled" && (
-        <div className="space-y-3 mb-3">
-          <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-            {activeBooking.cancel_source === "user" ? (
-              <p className="text-red-800 font-medium text-sm">
-                Booking cancelled by you. You can book again anytime.
-              </p>
-            ) : activeBooking.cancel_source === "admin" ? (
-              <p className="text-red-800 font-medium text-sm">
-                Booking cancelled by admin - we are unable to provide helper this time. Please try again next time.
-              </p>
+        {/* C. Helper microcopy */}
+        {helperLine && (
+          <p className="mt-2 pl-1 text-xs text-muted-foreground">{helperLine}</p>
+        )}
+
+        {/* Worker mini row — compact */}
+        {activeBooking.worker_name && !isCancelled && (
+          <button
+            type="button"
+            onClick={() => workerStats && setShowWorkerRatings(true)}
+            className="mt-3 ml-1 w-[calc(100%-0.25rem)] flex items-center gap-2.5 p-2 rounded-xl bg-muted/40 hover:bg-muted/60 transition-colors text-left"
+          >
+            <WorkerAvatar
+              photoUrl={activeBooking.worker_photo_url}
+              name={activeBooking.worker_name}
+              size="sm"
+            />
+            <div className="flex-1 min-w-0">
+              <p className="text-[13px] font-semibold text-foreground truncate">{activeBooking.worker_name}</p>
+              {workerStats && workerStats.avg_rating > 0 ? (
+                <div className="flex items-center gap-1 mt-0.5">
+                  <Star className="w-3 h-3 text-amber-500" fill="currentColor" />
+                  <span className="text-[11px] text-muted-foreground">
+                    {workerStats.avg_rating.toFixed(1)} · {workerStats.ratings_count} ratings
+                  </span>
+                </div>
+              ) : (
+                <p className="text-[11px] text-muted-foreground mt-0.5">Your assigned worker</p>
+              )}
+            </div>
+            {workerStats && workerStats.avg_rating > 0 && (
+              <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
+            )}
+          </button>
+        )}
+
+        {/* OTP compact row — opens bottom sheet */}
+        {showOtpRow && (
+          <button
+            type="button"
+            onClick={() => setShowOtpSheet(true)}
+            className="mt-3 ml-1 w-[calc(100%-0.25rem)] flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 ring-1 ring-emerald-200 transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              <KeyRound className="w-4 h-4 text-emerald-700" />
+              <span className="text-[13px] font-semibold text-emerald-800">Completion OTP available</span>
+            </div>
+            <span className="text-[12px] font-semibold text-emerald-700 inline-flex items-center gap-0.5">
+              View OTP <ChevronRight className="w-3.5 h-3.5" />
+            </span>
+          </button>
+        )}
+
+        {/* Rate worker prompt — keep when assigned/completed */}
+        {(activeBooking.status === 'assigned' || activeBooking.status === 'completed') && activeBooking.worker_id && (
+          <div className="mt-3 ml-1">
+            <RateWorker
+              bookingId={activeBooking.id}
+              workerId={activeBooking.worker_id}
+              onSubmit={handleSubmitRating}
+            />
+          </div>
+        )}
+
+        {/* Cancellation message */}
+        {isCancelled && (
+          <div className="mt-3 ml-1 p-3 bg-rose-50 border border-rose-200 rounded-xl">
+            {activeBooking.cancel_source === 'user' ? (
+              <p className="text-rose-800 text-sm">Booking cancelled by you. You can book again anytime.</p>
+            ) : activeBooking.cancel_source === 'admin' ? (
+              <p className="text-rose-800 text-sm">Cancelled by admin — we couldn't provide a helper this time.</p>
             ) : (
-              <p className="text-red-800 font-medium text-sm">
-                All workers busy in work, Book again after sometime.
-              </p>
+              <p className="text-rose-800 text-sm">All workers are busy. Please try again in a few minutes.</p>
             )}
           </div>
-          <Button 
-            onClick={() => openExternalUrl("tel:+918008180018")}
-            className="w-full h-10 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold rounded-lg shadow-sm"
-          >
-            <PhoneCall className="h-4 w-4 mr-2" />
-            Call Manager
-          </Button>
+        )}
+
+        {/* D. Bottom CTAs — primary View Details + ghost Call Support */}
+        <div className="mt-4 ml-1 flex items-center gap-2">
+          {isCancelled ? (
+            <Button
+              onClick={() => openExternalUrl('tel:+918008180018')}
+              className="flex-1 h-10 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
+            >
+              <PhoneCall className="h-4 w-4 mr-2" /> Call Manager
+            </Button>
+          ) : (
+            <>
+              <Button
+                onClick={handleViewDetails}
+                className="flex-1 h-10 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
+              >
+                View Details
+                <ArrowRight className="w-4 h-4 ml-1.5" />
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => openExternalUrl('tel:+918008180018')}
+                aria-label="Call Support"
+                className="h-10 w-10 p-0 rounded-xl border-primary/20 text-primary hover:bg-primary/5 shrink-0"
+              >
+                <PhoneCall className="h-4 w-4" />
+              </Button>
+            </>
+          )}
         </div>
-      )}
 
-      {/* Completion OTP - moved below action buttons */}
-
-      {/* Action buttons */}
-      <div className="space-y-2 mb-4">
-
-        {/* Rate Worker - show for assigned/completed bookings */}
-        {(activeBooking.status === 'assigned' || activeBooking.status === 'completed') && activeBooking.worker_id && (
-          <RateWorker 
-            bookingId={activeBooking.id}
-            workerId={activeBooking.worker_id}
-            onSubmit={handleSubmitRating}
-          />
+        {/* Hidden: Change worker action — kept reachable via Bookings details for less clutter.
+            Quietly preserved when worker assigned and not yet exhausted. */}
+        {activeBooking.worker_name && ['assigned', 'accepted', 'on_the_way'].includes(activeBooking.status) && !workerChangeUsed && (
+          <button
+            onClick={() => openExternalUrl('tel:8008180018')}
+            className="mt-2 ml-1 text-[11px] text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
+          >
+            Need a different worker? Call us
+          </button>
         )}
+      </Card>
 
-        {/* Scheduled booking info */}
-        {activeBooking.booking_type === 'scheduled' && (activeBooking.status === 'pending' || activeBooking.status === 'assigned') && (
-          <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-            <p className="text-xs text-blue-800">
-              For scheduled bookings, we will assign worker 15 mins before scheduled time, don't worry
-            </p>
-          </div>
-        )}
-
-        {/* Support buttons - side by side */}
-        {(activeBooking.status === 'pending' || activeBooking.status === 'assigned') && (
-          <div className="flex gap-2">
-            <Button 
-              onClick={() => openExternalUrl("tel:+918008180018")}
-              className="flex-1 h-10 bg-gradient-to-r from-[#ff007a] to-[#e6006a] hover:from-[#e6006a] hover:to-[#cc005f] text-white font-semibold rounded-lg shadow-sm text-xs"
-            >
-              <PhoneCall className="h-4 w-4 mr-1.5" />
-              Call Support
-            </Button>
-            <Button 
-              onClick={() => {
-                markMessagesAsSeen();
-                navigate('/chat');
-              }}
-              variant="outline"
-              className="flex-1 h-10 border-[#ff007a] text-[#ff007a] hover:bg-[#ff007a] hover:text-white font-semibold rounded-lg shadow-sm text-xs relative"
-            >
-              <MessageCircle className="h-4 w-4 mr-1.5" />
-              Chat Support
-              {hasUnseenMessages && (
-                <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse" />
-              )}
-            </Button>
-          </div>
-        )}
-
-      </div>
-
-      <div className="flex items-center justify-between mt-4">
-        <p className="text-xs text-muted-foreground">
-          {activeBooking.booking_type === 'instant' ? 'Instant Booking' : 'Scheduled Booking'}
-        </p>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleViewDetails}
-          className="text-primary hover:text-primary/80"
-        >
-          View Details
-          <ArrowRight className="w-4 h-4 ml-1" />
-        </Button>
-      </div>
-
-      {/* Completion OTP - positioned at the bottom, above nav bar */}
-      {activeBooking.completion_otp && (activeBooking.payment_status === 'paid' || activeBooking.payment_status === 'pay_after_service') && !activeBooking.otp_verified_at && activeBooking.status !== 'cancelled' && (
-        <div className="mt-3 p-4 bg-white border-2 border-green-300 rounded-xl shadow-sm">
-          <p className="text-[10px] font-semibold text-green-700 uppercase tracking-widest text-center mb-2">
-            🔑 Completion OTP
-          </p>
-          <div className="flex items-center justify-center gap-2">
-            {activeBooking.completion_otp.split('').map((digit, i) => (
+      {/* OTP Bottom Sheet */}
+      <Sheet open={showOtpSheet} onOpenChange={setShowOtpSheet}>
+        <SheetContent side="bottom" className="rounded-t-3xl px-6 pb-10 pt-6">
+          <SheetHeader className="text-center sm:text-center">
+            <div className="mx-auto mb-2 p-3 rounded-2xl bg-emerald-50 w-fit">
+              <KeyRound className="w-5 h-5 text-emerald-700" />
+            </div>
+            <SheetTitle className="text-center">Completion OTP</SheetTitle>
+            <SheetDescription className="text-center">
+              Share this OTP with your worker only after the work is fully completed.
+            </SheetDescription>
+          </SheetHeader>
+          <div className="mt-6 flex items-center justify-center gap-3">
+            {(activeBooking.completion_otp || '').split('').map((digit, i) => (
               <span
                 key={i}
-                className="w-10 h-12 flex items-center justify-center bg-green-50 border border-green-200 rounded-lg text-xl font-bold text-green-900"
+                className="w-14 h-16 flex items-center justify-center bg-emerald-50 ring-1 ring-emerald-200 rounded-2xl text-3xl font-bold text-emerald-900"
               >
                 {digit}
               </span>
             ))}
           </div>
-          <p className="text-[10px] text-gray-500 text-center mt-2">
-            Share only after work is fully completed
+          <p className="mt-6 text-center text-xs text-muted-foreground">
+            Sharing OTP early may complete the booking before the work is done.
           </p>
-        </div>
-      )}
+        </SheetContent>
+      </Sheet>
 
-      <ChatSheet 
-        open={openChat} 
-        onOpenChange={setOpenChat} 
-        booking={activeBooking} 
-        mode="user" 
-      />
+      <ChatSheet open={openChat} onOpenChange={setOpenChat} booking={activeBooking} mode="user" />
 
-      {/* Pay Worker Manual Sheet */}
       <PayWorkerManualSheet
         open={showPaySheet}
         onOpenChange={setShowPaySheet}
@@ -696,7 +589,6 @@ const ActiveBookingCard = memo(() => {
         paymentStatus={paymentStatus}
       />
 
-      {/* Worker Ratings Modal */}
       {activeBooking.worker_id && activeBooking.worker_name && (
         <WorkerRatingsModal
           open={showWorkerRatings}
@@ -706,7 +598,6 @@ const ActiveBookingCard = memo(() => {
         />
       )}
 
-      {/* Change Worker Confirmation Sheet */}
       <Sheet open={showChangeWorkerSheet} onOpenChange={setShowChangeWorkerSheet}>
         <SheetContent side="bottom" className="rounded-t-2xl px-6 pb-8">
           <SheetHeader className="text-left">
@@ -716,27 +607,19 @@ const ActiveBookingCard = memo(() => {
             </SheetDescription>
           </SheetHeader>
           <div className="flex gap-3 mt-6">
-            <Button
-              variant="outline"
-              className="flex-1"
-              onClick={() => setShowChangeWorkerSheet(false)}
-              disabled={changeWorkerLoading}
-            >
+            <Button variant="outline" className="flex-1" onClick={() => setShowChangeWorkerSheet(false)} disabled={changeWorkerLoading}>
               Cancel
             </Button>
-            <Button
-              className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground"
-              onClick={handleChangeWorker}
-              disabled={changeWorkerLoading}
-            >
+            <Button className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground" onClick={handleChangeWorker} disabled={changeWorkerLoading}>
               {changeWorkerLoading ? 'Reassigning…' : 'Confirm'}
             </Button>
           </div>
         </SheetContent>
       </Sheet>
-    </Card>
-    </>
 
+      {/* unseen badge keeps unseen state warm even though chat moved to details */}
+      {hasUnseenMessages && false && <span onClick={markMessagesAsSeen} />}
+    </>
   );
 });
 
