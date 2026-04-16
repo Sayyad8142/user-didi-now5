@@ -647,7 +647,8 @@ const ActiveBookingCard = memo(() => {
         )}
       </Card>
 
-      {/* OTP Bottom Sheet */}
+      {/* OTP Bottom Sheet — only mount when relevant to avoid portal teardown races */}
+      {showOtpRow && (
       <Sheet open={showOtpSheet} onOpenChange={setShowOtpSheet}>
         <SheetContent side="bottom" className="rounded-t-3xl px-6 pb-10 pt-6">
           <SheetHeader className="text-center sm:text-center">
