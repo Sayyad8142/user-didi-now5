@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Sparkles, ChefHat, ShowerHead, ArrowRight, X, PhoneCall, Star, CheckCircle, XCircle, KeyRound, Loader2, ChevronRight } from 'lucide-react';
+import { Sparkles, ChefHat, ShowerHead, ArrowRight, X, PhoneCall, Star, CheckCircle, XCircle, KeyRound, Loader2, ChevronRight, Calendar, Navigation, PlayCircle, Loader, MapPin } from 'lucide-react';
 import { getAuth } from 'firebase/auth';
 import { WorkerAvatar } from '@/components/WorkerAvatar';
 import { supabase } from '@/integrations/supabase/client';
