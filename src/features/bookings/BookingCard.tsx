@@ -8,7 +8,7 @@ import { prettyServiceName } from '@/features/booking/utils';
 import { formatDateTime } from '@/features/bookings/dt';
 import { format } from 'date-fns';
 import { formatWalletReason } from '@/hooks/useWallet';
-import { PhoneCall, Sparkles, ChefHat, ShowerHead, Clock, MapPin, Timer, CreditCard, Star, MessageCircle, RefreshCw, Shield, Wallet, KeyRound } from 'lucide-react';
+import { PhoneCall, Sparkles, ChefHat, ShowerHead, Clock, MapPin, Timer, CreditCard, Star, MessageCircle, RefreshCw, Shield, Wallet, KeyRound, Calendar, Navigation, PlayCircle, Loader, CheckCircle, XCircle, ChevronRight, ArrowRight, Loader2 } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { supabase } from '@/integrations/supabase/client';
 import AssigningProgress from '@/features/bookings/AssigningProgress';
@@ -62,14 +62,40 @@ interface BookingCardProps {
 const getServiceIcon = (serviceType: string) => {
   switch (serviceType) {
     case 'maid':
-      return <Sparkles className="w-5 h-5" />;
+      return <Sparkles className="w-4 h-4" />;
     case 'cook':
-      return <ChefHat className="w-5 h-5" />;
+      return <ChefHat className="w-4 h-4" />;
     case 'bathroom_cleaning':
-      return <ShowerHead className="w-5 h-5" />;
+      return <ShowerHead className="w-4 h-4" />;
     default:
-      return <Sparkles className="w-5 h-5" />;
+      return <Sparkles className="w-4 h-4" />;
   }
+};
+
+// Premium status pill — matches ActiveBookingCard language
+const getStatusPill = (status: string, bookingType: string): { label: string; className: string; icon: React.ReactNode } => {
+  if (status === 'cancelled') {
+    return { label: 'Cancelled', className: 'bg-muted text-muted-foreground ring-1 ring-border', icon: <XCircle className="w-3 h-3" /> };
+  }
+  if (status === 'completed') {
+    return { label: 'Completed', className: 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200', icon: <CheckCircle className="w-3 h-3" /> };
+  }
+  if (status === 'pending') {
+    if (bookingType === 'scheduled') {
+      return { label: 'Scheduled', className: 'bg-sky-50 text-sky-700 ring-1 ring-sky-200', icon: <Calendar className="w-3 h-3" /> };
+    }
+    return { label: 'Finding worker', className: 'bg-amber-50 text-amber-700 ring-1 ring-amber-200', icon: <Loader className="w-3 h-3 animate-spin" /> };
+  }
+  if (status === 'assigned' || status === 'accepted') {
+    return { label: 'Assigned', className: 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200', icon: <CheckCircle className="w-3 h-3" /> };
+  }
+  if (status === 'on_the_way') {
+    return { label: 'On the way', className: 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200', icon: <Navigation className="w-3 h-3" /> };
+  }
+  if (status === 'started') {
+    return { label: 'In progress', className: 'bg-primary/10 text-primary ring-1 ring-primary/20', icon: <PlayCircle className="w-3 h-3" /> };
+  }
+  return { label: status, className: 'bg-muted text-muted-foreground ring-1 ring-border', icon: <MapPin className="w-3 h-3" /> };
 };
 export function BookingCard({
   booking
@@ -225,25 +251,26 @@ export function BookingCard({
 
   const title = prettyServiceName(booking.service_type);
   
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'pending':
-        return <LoadingWorkerBadge variant="simple" size="sm" />;
-      case 'assigned':
-        return <Badge variant="secondary" className="bg-emerald-100 text-emerald-800 border-emerald-200">
-          Assigned
-        </Badge>;
-       case 'completed':
-         return <Badge variant="secondary" className="bg-green-100 text-green-800 border-green-200">
-           Completed
-         </Badge>;
-       case 'cancelled':
-         return <Badge variant="secondary" className="bg-red-100 text-red-800 border-red-200">
-           Cancelled
-         </Badge>;
-       default:
-         return <Badge variant="outline">{status}</Badge>;
+  // Build a single short info line — sharp & concise (matches ActiveBookingCard)
+  const getInfoLine = (): string | null => {
+    if (row.status === 'cancelled') return null;
+    if (row.status === 'completed') {
+      return `Completed · ${format(new Date(row.created_at), 'dd MMM, hh:mm a')}`;
     }
+    if (booking.booking_type === 'scheduled' && booking.scheduled_date && booking.scheduled_time) {
+      const today = new Date(); today.setHours(0,0,0,0);
+      const sched = new Date(`${booking.scheduled_date}T${booking.scheduled_time.slice(0,5)}:00`);
+      const sameDay = sched.toDateString() === today.toDateString();
+      const time = sched.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true });
+      if (sameDay) return `Today at ${time}`;
+      const dayLabel = sched.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
+      return `${dayLabel} · ${time}`;
+    }
+    if (row.status === 'on_the_way') return 'Worker is on the way';
+    if (row.status === 'started') return 'Service in progress';
+    if (row.status === 'assigned' || row.status === 'accepted') return 'Worker will arrive soon';
+    if (row.status === 'pending') return 'Finding a worker near you';
+    return format(new Date(booking.created_at), 'dd MMM, hh:mm a');
   };
 
   // Check if payment should be enabled (show for assigned/accepted/on_the_way/started)
@@ -300,357 +327,335 @@ export function BookingCard({
   const ratingsCount = workerStats?.ratings_count ?? 0;
   const stars = Math.round(avgRating);
 
+  const pill = getStatusPill(row.status, booking.booking_type);
+  const infoLine = getInfoLine();
+  const isCancelled = row.status === 'cancelled';
+  const isCompleted = row.status === 'completed';
+  const isPendingInstant = row.status === 'pending' && booking.booking_type !== 'scheduled';
+  const workerDisplayName = assignedWorker?.worker?.full_name || row.worker_name;
+  const workerPhotoUrl = assignedWorker?.worker?.photo_url || row.worker_photo_url;
+  const showOtpBlock = !!row.completion_otp &&
+    (row.payment_status === 'paid' || row.payment_status === 'pay_after_service') &&
+    !row.otp_verified_at &&
+    (row.status === 'on_the_way' || row.status === 'started');
+  const needsPaymentRetry =
+    (row.payment_status === 'unpaid' || row.payment_status === 'failed' || row.payment_status === 'order_created' || row.payment_status === 'pending') &&
+    !isCancelled && !isCompleted;
+
   return (
-    <Card className="overflow-hidden border-0 shadow-md hover:shadow-lg transition-all duration-300">
-      {/* Header with service and status */}
-      <div className="bg-gradient-to-r from-pink-50 to-purple-50 p-3 border-b border-gray-100">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-[#ff007a] to-[#e6006a] text-white flex items-center justify-center shadow-sm">
-              {getServiceIcon(booking.service_type)}
-            </div>
-            <div>
-              <h3 className="font-semibold text-gray-900 text-base">{title}</h3>
-              <p className="text-xs text-gray-600">
-                {booking.booking_type === 'instant' ? 'Instant' : 'Scheduled'}
-                {' · '}
-                {format(new Date(booking.created_at), 'dd MMM, hh:mm a')}
-              </p>
-            </div>
-          </div>
-          {getStatusBadge(row.status)}
-        </div>
-      </div>
+    <>
 
-      {/* Main content */}
-      <div className="p-3 space-y-3">
-        {/* Location */}
-        <div className="flex items-start gap-2 p-2 bg-gray-50 rounded-lg">
-          <MapPin className="h-4 w-4 text-gray-600 mt-0.5 flex-shrink-0" />
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Location</p>
-            <p className="font-semibold text-gray-900 text-sm">{booking.community}</p>
-            <p className="text-xs text-gray-600">Flat {booking.flat_no}</p>
-            {booking.booking_type === 'instant' ? (
-              <p className="text-xs text-gray-600 mt-0.5">
-                <Clock className="h-3 w-3 inline mr-1" />
-                {format(new Date(booking.created_at), 'dd MMM yyyy, hh:mm a')}
-              </p>
-            ) : booking.scheduled_date && booking.scheduled_time ? (
-              <p className="text-xs text-gray-600 mt-0.5">
-                <Clock className="h-3 w-3 inline mr-1" />
-                {formatDateTime(booking.scheduled_date, booking.scheduled_time)}
-              </p>
-            ) : null}
-          </div>
-        </div>
-
-        {/* Worker info */}
-        {(assignedWorker?.worker || row.worker_name) && (
-          <div className="flex items-start gap-2 p-2 bg-blue-50 rounded-lg">
-            <WorkerAvatar
-              photoUrl={assignedWorker?.worker?.photo_url || row.worker_photo_url}
-              name={assignedWorker?.worker?.full_name || row.worker_name}
-              size="sm"
-              className="mt-0.5"
-            />
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium text-blue-600 uppercase tracking-wide">Worker</p>
-              <p className="font-semibold text-blue-900 text-sm">
-                {assignedWorker?.worker?.full_name || row.worker_name}
-              </p>
-              
-              {/* Rating display */}
-              {stars > 0 && (
-                <div className="flex items-center justify-between mt-0.5">
-                  <div className="flex items-center gap-1">
-                    <div className="flex">
-                      {[1, 2, 3, 4, 5].map((i) => (
-                        <Star
-                          key={i}
-                          className={`w-3 h-3 ${i <= stars ? 'text-yellow-500' : 'text-gray-300'}`}
-                          fill={i <= stars ? 'currentColor' : 'none'}
-                        />
-                      ))}
-                    </div>
-                    <span className="text-xs text-gray-600">
-                      {avgRating.toFixed(1)} ({ratingsCount})
-                    </span>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setShowWorkerRatings(true)}
-                    className="h-6 px-2 text-xs text-blue-600 hover:text-blue-800 hover:bg-blue-50"
-                  >
-                    View Ratings
-                  </Button>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Request different worker */}
-        {(assignedWorker?.worker || row.worker_name) && ['assigned', 'accepted', 'on_the_way'].includes(row.status) && !workerChangeUsed && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => openExternalUrl('tel:8008180018')}
-            className="w-full h-8 text-xs border-dashed border-muted-foreground/30 text-muted-foreground hover:text-foreground hover:border-foreground/40"
-          >
-            <PhoneCall className="w-3 h-3 mr-1.5" />
-            Change Worker
-          </Button>
-        )}
-
-        {row.status === 'assigned' && (
-          <div className="flex items-center gap-2 p-2 bg-emerald-50 rounded-lg border border-emerald-100">
-            <Timer className="h-4 w-4 text-emerald-600" />
-            <div className="flex-1">
-              <p className="text-xs font-medium text-emerald-600 uppercase tracking-wide">Status</p>
-              <p className="font-semibold text-emerald-900 text-sm">Worker assigned reaching in 10mins</p>
-            </div>
-            <AutoCompleteCountdown autoCompleteAt={row.auto_complete_at} />
-          </div>
-        )}
-
-        {/* Scheduled time */}
-        {booking.scheduled_date && booking.scheduled_time && (
-          <div className="flex items-start gap-2 p-2 bg-blue-50 rounded-lg">
-            <Clock className="h-4 w-4 text-blue-600 mt-0.5" />
-            <div>
-              <p className="text-xs font-medium text-blue-600 uppercase tracking-wide">Scheduled</p>
-              <p className="font-semibold text-blue-900 text-sm">
-                {formatDateTime(booking.scheduled_date, booking.scheduled_time)}
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* Discount info */}
-        {row.discount_inr != null && row.discount_inr > 0 && (
-          <div className="flex items-center gap-2 p-2 bg-emerald-50 rounded-lg border border-emerald-100">
-            <CreditCard className="h-4 w-4 text-emerald-600" />
-            <div className="flex-1">
-              <p className="text-xs font-medium text-emerald-600">Off-peak discount applied</p>
-              <p className="font-semibold text-emerald-800 text-sm">-₹{row.discount_inr} saved</p>
-            </div>
-          </div>
-        )}
-
-        {/* Completion OTP - show for paid or pay_after_service active bookings */}
-        {row.completion_otp && (row.payment_status === 'paid' || row.payment_status === 'pay_after_service') && !row.otp_verified_at && row.status !== 'cancelled' && (
-          <div className="p-4 bg-white border-2 border-green-300 rounded-xl shadow-sm">
-            <p className="text-[10px] font-semibold text-green-700 uppercase tracking-widest text-center mb-2">
-              🔑 Completion OTP
-            </p>
-            <div className="flex items-center justify-center gap-2">
-              {row.completion_otp.split('').map((digit, i) => (
-                <span
-                  key={i}
-                  className="w-10 h-12 flex items-center justify-center bg-green-50 border border-green-200 rounded-lg text-xl font-bold text-green-900"
-                >
-                  {digit}
-                </span>
-              ))}
-            </div>
-            <p className="text-[10px] text-gray-500 text-center mt-2">
-              Share only after work is fully completed
-            </p>
-          </div>
-        )}
-
-        {/* Payment status - unpaid/failed/pending booking with retry button */}
-        {(row.payment_status === 'unpaid' || row.payment_status === 'failed' || row.payment_status === 'order_created' || row.payment_status === 'pending') && row.status !== 'cancelled' && (
-          <div className="p-3 bg-orange-50 border border-orange-200 rounded-lg space-y-2">
-            <div className="flex items-center gap-2">
-              <CreditCard className="h-4 w-4 text-orange-600" />
-              <p className="text-xs font-medium text-orange-800 flex-1">
-                {row.payment_status === 'failed' ? 'Payment failed — tap to retry' : 'Payment pending'}
-              </p>
-            </div>
-            <Button
-              onClick={handleRetryPayment}
-              disabled={retryingPayment}
-              className="w-full h-9 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-semibold rounded-lg text-xs"
-            >
-              {retryingPayment ? (
-                <div className="flex items-center gap-2">
-                  <div className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                  <span>Processing...</span>
-                </div>
-              ) : (
-                <>
-                  <CreditCard className="h-3.5 w-3.5 mr-1.5" />
-                  {row.payment_status === 'failed' ? 'Retry Payment' : 'Complete Payment'} · ₹{row.price_inr || 0}
-                </>
-              )}
-            </Button>
-          </div>
-        )}
-
-        {/* Wallet refund banner */}
-        {row.wallet_refund_status === 'credited' && row.wallet_refund_amount && (
-          <div className="p-2 bg-emerald-50 border border-emerald-200 rounded-lg flex items-center gap-2">
-            <Wallet className="h-4 w-4 text-emerald-600" />
-            <div className="flex-1">
-              <p className="text-xs font-semibold text-emerald-800">₹{row.wallet_refund_amount} added to wallet</p>
-              <p className="text-[10px] text-emerald-600">
-                {formatWalletReason(row.wallet_refund_reason)}
-              </p>
-            </div>
-          </div>
-        )}
-
-        {row.status === "pending" && (
-          <div className="bg-amber-50 border border-amber-100 rounded-lg p-3">
-            <AssigningProgress booking={row} />
-          </div>
-        )}
-
-        {/* Cancellation messages */}
-        {row.status === "cancelled" && (
-          <div className="space-y-2">
-            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-              {row.cancel_source === "user" ? (
-                <p className="text-red-800 font-medium text-sm">
-                  Booking cancelled by you. You can book again anytime.
-                </p>
-              ) : row.cancel_source === "admin" ? (
-                <p className="text-red-800 font-medium text-sm">
-                  Booking cancelled by admin - we are unable to provide helper this time. Please try again next time.
-                </p>
-              ) : (
-                <p className="text-red-800 font-medium text-sm">
-                  All workers busy in work, Book again after sometime.
-                </p>
-              )}
-            </div>
-            <Button 
-              onClick={() => openExternalUrl("tel:+918008180018")}
-              className="w-full h-10 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold rounded-lg shadow-sm"
-            >
-              <PhoneCall className="h-4 w-4 mr-2" />
-              Call Manager
-            </Button>
-          </div>
-        )}
-
-        {/* Action buttons */}
-        <div className="space-y-2">
-
-          {/* Rate Worker - show for assigned/accepted/on_the_way/started/completed bookings */}
-          {['assigned', 'accepted', 'on_the_way', 'started', 'completed'].includes(row.status) && row.worker_id && (
-            <RateWorker 
-              bookingId={row.id}
-              workerId={row.worker_id}
-              onSubmit={handleSubmitRating}
-            />
-          )}
-
-
-          {/* Support button */}
-          {(row.status === 'pending' || row.status === 'assigned') && (
-            <Button 
-              onClick={() => openExternalUrl("tel:+918008180018")}
-              className="w-full h-10 bg-gradient-to-r from-[#ff007a] to-[#e6006a] hover:from-[#e6006a] hover:to-[#cc005f] text-white font-semibold rounded-lg shadow-sm"
-            >
-              <PhoneCall className="h-4 w-4 mr-2" />
-              Need Help? Call Support
-            </Button>
-          )}
-
-        {/* Chat Support button */}
-        {(row.status === 'pending' || row.status === 'assigned') && (
-          <Button 
-            onClick={() => {
-              markMessagesAsSeen();
-              navigate('/chat');
-            }}
-            variant="outline"
-            className="w-full h-10 border-[#ff007a] text-[#ff007a] hover:bg-[#ff007a] hover:text-white font-semibold rounded-lg shadow-sm relative"
-          >
-            <MessageCircle className="h-4 w-4 mr-2" />
-            Chat Support
-            {hasUnseenMessages && (
-              <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse" />
-            )}
-          </Button>
-        )}
-
-          {/* Cancellation component for pending/assigned bookings */}
-          {(row.status === 'pending' || row.status === 'assigned') && (
-            <CancelAction 
-              booking={row} 
-              onCancel={() => {
-                // The real-time subscription will update the booking status
-                // No need for manual refresh
-              }} 
-            />
-          )}
-        </div>
-
-      </div>
-
-      <ChatSheet
-        open={openChat} 
-        onOpenChange={setOpenChat} 
-        booking={row} 
-        mode="user" 
+    <Card
+      className={`relative overflow-hidden p-5 rounded-3xl animate-fade-in transition-all ${
+        isCancelled
+          ? 'bg-card border border-border/60 shadow-sm opacity-95'
+          : isCompleted
+            ? 'bg-card border border-emerald-200/60 shadow-[0_4px_16px_-8px_hsl(var(--primary)/0.15)]'
+            : 'bg-card border border-primary/15 shadow-[0_8px_24px_-12px_hsl(var(--primary)/0.25)]'
+      }`}
+    >
+      {/* Accent stripe + soft glow — muted for cancelled/completed */}
+      <span
+        aria-hidden
+        className={`absolute left-0 top-0 h-full w-1 ${
+          isCancelled ? 'bg-muted-foreground/20' : isCompleted ? 'bg-gradient-to-b from-emerald-500 to-emerald-300' : 'bg-gradient-to-b from-primary to-primary/40'
+        }`}
       />
-
-      {/* Pay Worker Manual Sheet */}
-      <PayWorkerManualSheet
-        open={showPaySheet}
-        onOpenChange={setShowPaySheet}
-        bookingId={row.id}
-        workerName={row.worker_name || assignedWorker?.worker?.full_name || workerPaymentInfo?.full_name || undefined}
-        amount={row.price_inr ?? undefined}
-        upiId={upiId}
-        qrImageUrl={qrImageUrl}
-        paymentStatus={paymentStatus}
-      />
-
-      {/* Worker Ratings Modal */}
-      {row.worker_id && row.worker_name && (
-        <WorkerRatingsModal
-          open={showWorkerRatings}
-          onOpenChange={setShowWorkerRatings}
-          workerId={row.worker_id}
-          workerName={row.worker_name}
-        />
+      {!isCancelled && (
+        <span aria-hidden className="absolute -top-16 -right-16 h-40 w-40 rounded-full bg-primary/5 blur-2xl pointer-events-none" />
       )}
 
+      {/* A. TOP — service icon + title + status pill */}
+      <div className="relative flex items-start justify-between gap-3 pl-1">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className={`p-2.5 rounded-2xl shrink-0 ring-1 ${
+            isCancelled
+              ? 'bg-muted text-muted-foreground ring-border'
+              : 'bg-primary/10 text-primary ring-primary/10'
+          }`}>
+            {getServiceIcon(booking.service_type)}
+          </div>
+          <div className="min-w-0">
+            <h3 className="font-bold text-base leading-tight text-foreground tracking-tight truncate">
+              {title}
+            </h3>
+            <p className="text-[11px] font-medium text-muted-foreground mt-0.5">
+              {booking.booking_type === 'instant' ? 'Instant' : 'Scheduled'} · {format(new Date(booking.created_at), 'dd MMM')}
+            </p>
+          </div>
+        </div>
+        <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-semibold transition-colors shrink-0 ${pill.className}`}>
+          {pill.icon}
+          <span>{pill.label}</span>
+        </span>
+      </div>
 
-      {/* Change Worker Confirmation Sheet */}
-      <Sheet open={showChangeWorkerSheet} onOpenChange={setShowChangeWorkerSheet}>
-        <SheetContent side="bottom" className="rounded-t-2xl px-6 pb-8">
-          <SheetHeader className="text-left">
-            <SheetTitle>Change Worker?</SheetTitle>
-            <SheetDescription>
-              We'll try to assign another available worker. Current worker will be notified.
-            </SheetDescription>
-          </SheetHeader>
-          <div className="flex gap-3 mt-6">
+      {/* B. INFO LINE — primary date/time/status sentence */}
+      {infoLine && (
+        <div className="mt-3 pl-1">
+          <p key={infoLine} className="text-[15px] font-semibold text-foreground tracking-tight animate-fade-in">
+            {infoLine}
+          </p>
+        </div>
+      )}
+
+      {/* Location — compact secondary line */}
+      <div className="mt-1 pl-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+        <MapPin className="w-3 h-3 shrink-0" />
+        <span className="truncate">{booking.community} · Flat {booking.flat_no}</span>
+      </div>
+
+      {/* Pending — slim progress */}
+      {row.status === 'pending' && (
+        <div className="mt-3 pl-1">
+          <AssigningProgress booking={row} />
+        </div>
+      )}
+
+      {/* Worker mini-card — labeled, tinted */}
+      {workerDisplayName && !isCancelled && (
+        <div className="mt-4 ml-1 mr-1">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 pl-0.5">
+            Assigned worker
+          </p>
+          <button
+            type="button"
+            onClick={() => stars > 0 && setShowWorkerRatings(true)}
+            className="w-full flex items-center gap-3 p-2.5 rounded-2xl bg-primary/5 hover:bg-primary/10 ring-1 ring-primary/10 transition-colors text-left animate-fade-in"
+          >
+            <WorkerAvatar photoUrl={workerPhotoUrl} name={workerDisplayName} size="sm" />
+            <div className="flex-1 min-w-0">
+              <p className="text-[14px] font-semibold text-foreground truncate">{workerDisplayName}</p>
+              {stars > 0 ? (
+                <div className="flex items-center gap-1 mt-0.5">
+                  <Star className="w-3 h-3 text-amber-500" fill="currentColor" />
+                  <span className="text-[11px] text-muted-foreground">
+                    {avgRating.toFixed(1)} · {ratingsCount} ratings
+                  </span>
+                </div>
+              ) : (
+                <p className="text-[11px] text-muted-foreground mt-0.5">Your assigned worker</p>
+              )}
+            </div>
+            {stars > 0 && <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />}
+          </button>
+        </div>
+      )}
+
+      {/* Assigned ETA + auto-complete countdown — compact */}
+      {row.status === 'assigned' && row.auto_complete_at && (
+        <div className="mt-3 ml-1 flex items-center justify-between gap-2 px-3 py-2 rounded-xl bg-emerald-50 ring-1 ring-emerald-200">
+          <div className="flex items-center gap-2 min-w-0">
+            <Timer className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+            <span className="text-[12px] font-semibold text-emerald-800 truncate">Reaching in ~10 min</span>
+          </div>
+          <AutoCompleteCountdown autoCompleteAt={row.auto_complete_at} />
+        </div>
+      )}
+
+      {/* OTP compact row — only for on_the_way / started */}
+      {showOtpBlock && (
+        <div className="mt-3 ml-1 mr-1 px-3 py-3 rounded-xl bg-emerald-50 ring-1 ring-emerald-200">
+          <div className="flex items-center gap-1.5 mb-2">
+            <KeyRound className="w-3.5 h-3.5 text-emerald-700" />
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-emerald-800">
+              Completion OTP
+            </span>
+          </div>
+          <div className="flex items-center justify-center gap-2">
+            {row.completion_otp!.split('').map((digit, i) => (
+              <span
+                key={i}
+                className="w-10 h-12 flex items-center justify-center bg-card ring-1 ring-emerald-200 rounded-xl text-xl font-bold text-emerald-900"
+              >
+                {digit}
+              </span>
+            ))}
+          </div>
+          <p className="text-[10px] text-muted-foreground text-center mt-2">
+            Share only after work is fully completed
+          </p>
+        </div>
+      )}
+
+      {/* Discount badge — compact */}
+      {row.discount_inr != null && row.discount_inr > 0 && !isCancelled && (
+        <div className="mt-3 ml-1 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 ring-1 ring-emerald-200">
+          <CreditCard className="w-3 h-3 text-emerald-700" />
+          <span className="text-[11px] font-semibold text-emerald-800">-₹{row.discount_inr} off-peak savings</span>
+        </div>
+      )}
+
+      {/* Wallet refund banner — calm, compact */}
+      {row.wallet_refund_status === 'credited' && row.wallet_refund_amount && (
+        <div className="mt-3 ml-1 mr-1 px-3 py-2 rounded-xl bg-emerald-50 ring-1 ring-emerald-200 flex items-center gap-2">
+          <Wallet className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-[12px] font-semibold text-emerald-800">₹{row.wallet_refund_amount} refunded to wallet</p>
+            <p className="text-[10px] text-emerald-700/80 truncate">{formatWalletReason(row.wallet_refund_reason)}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Payment retry — focused, single CTA */}
+      {needsPaymentRetry && (
+        <div className="mt-3 ml-1 mr-1 px-3 py-3 rounded-xl bg-amber-50 ring-1 ring-amber-200">
+          <p className="text-[12px] font-semibold text-amber-900 mb-2 flex items-center gap-1.5">
+            <CreditCard className="w-3.5 h-3.5" />
+            {row.payment_status === 'failed' ? 'Payment failed — tap to retry' : 'Payment pending'}
+          </p>
+          <Button
+            onClick={handleRetryPayment}
+            disabled={retryingPayment}
+            className="w-full h-10 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-[13px] shadow-sm"
+          >
+            {retryingPayment ? (
+              <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> Processing…</>
+            ) : (
+              <>{row.payment_status === 'failed' ? 'Retry Payment' : 'Complete Payment'} · ₹{row.price_inr || 0}</>
+            )}
+          </Button>
+        </div>
+      )}
+
+      {/* Cancellation message — calm, muted */}
+      {isCancelled && (
+        <div className="mt-3 ml-1 mr-1 px-3 py-2.5 rounded-xl bg-muted/60 ring-1 ring-border">
+          <p className="text-[12px] text-muted-foreground">
+            {row.cancel_source === 'user'
+              ? 'Cancelled by you. You can book again anytime.'
+              : row.cancel_source === 'admin'
+                ? "Cancelled by admin — we couldn't provide a worker this time."
+                : 'All workers were busy. Please try again in a few minutes.'}
+          </p>
+        </div>
+      )}
+
+      {/* Rate Worker prompt */}
+      {['assigned', 'accepted', 'on_the_way', 'started', 'completed'].includes(row.status) && row.worker_id && (
+        <div className="mt-3 ml-1 mr-1">
+          <RateWorker bookingId={row.id} workerId={row.worker_id} onSubmit={handleSubmitRating} />
+        </div>
+      )}
+
+      {/* C. BOTTOM — price + primary CTA */}
+      <div className="mt-5 ml-1 mr-1 flex items-center gap-2.5">
+        {/* Price chip on the left for active/completed bookings */}
+        {row.price_inr != null && !isCancelled && (
+          <div className="flex flex-col leading-none shrink-0">
+            <span className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Total</span>
+            <span className="text-[16px] font-bold text-foreground mt-0.5">₹{row.price_inr}</span>
+          </div>
+        )}
+
+        {/* Primary CTA — varies by state */}
+        {isCancelled ? (
+          <Button
+            onClick={() => navigate('/')}
+            className="flex-1 h-11 rounded-2xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-[14px] shadow-md shadow-primary/25"
+          >
+            Book Again <ArrowRight className="w-4 h-4 ml-1.5" />
+          </Button>
+        ) : isCompleted ? (
+          <Button
+            onClick={() => navigate('/')}
+            className="flex-1 h-11 rounded-2xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-[14px] shadow-md shadow-primary/25"
+          >
+            Rebook <ArrowRight className="w-4 h-4 ml-1.5" />
+          </Button>
+        ) : (
+          <>
+            <Button
+              onClick={() => navigate(`/booking/${row.id}`)}
+              className="flex-1 h-11 rounded-2xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-[14px] tracking-tight shadow-md shadow-primary/25"
+            >
+              {(row.status === 'on_the_way' || row.status === 'started') ? 'Track Booking' : 'View Details'}
+              <ArrowRight className="w-4 h-4 ml-1.5" />
+            </Button>
             <Button
               variant="outline"
-              className="flex-1"
-              onClick={() => setShowChangeWorkerSheet(false)}
-              disabled={changeWorkerLoading}
+              onClick={() => openExternalUrl('tel:+918008180018')}
+              aria-label="Call Support"
+              className="h-11 w-11 p-0 rounded-2xl border-primary/20 text-primary hover:bg-primary/5 shrink-0"
             >
-              Cancel
+              <PhoneCall className="h-4 w-4" />
             </Button>
-            <Button
-              className="flex-1 bg-[#ff007a] hover:bg-[#e6006a] text-white"
-              onClick={handleChangeWorker}
-              disabled={changeWorkerLoading}
-            >
-              {changeWorkerLoading ? 'Reassigning…' : 'Confirm'}
-            </Button>
-          </div>
-        </SheetContent>
-      </Sheet>
+          </>
+        )}
+      </div>
+
+      {/* Secondary actions row — only when relevant for pending/assigned */}
+      {(row.status === 'pending' || row.status === 'assigned') && (
+        <div className="mt-3 ml-1 mr-1 flex items-center gap-3 text-[12px]">
+          <button
+            type="button"
+            onClick={() => { markMessagesAsSeen(); navigate('/chat'); }}
+            className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors relative"
+          >
+            <MessageCircle className="w-3.5 h-3.5" />
+            <span>Chat support</span>
+            {hasUnseenMessages && (
+              <span className="absolute -top-1 -right-2 w-1.5 h-1.5 bg-rose-500 rounded-full animate-pulse" />
+            )}
+          </button>
+          <span className="text-border">·</span>
+          <CancelAction booking={row} onCancel={() => {}} />
+        </div>
+      )}
     </Card>
+
+    <ChatSheet open={openChat} onOpenChange={setOpenChat} booking={row} mode="user" />
+
+    {/* Pay Worker Manual Sheet */}
+    <PayWorkerManualSheet
+      open={showPaySheet}
+      onOpenChange={setShowPaySheet}
+      bookingId={row.id}
+      workerName={row.worker_name || assignedWorker?.worker?.full_name || workerPaymentInfo?.full_name || undefined}
+      amount={row.price_inr ?? undefined}
+      upiId={upiId}
+      qrImageUrl={qrImageUrl}
+      paymentStatus={paymentStatus}
+    />
+
+    {/* Worker Ratings Modal */}
+    {row.worker_id && row.worker_name && (
+      <WorkerRatingsModal
+        open={showWorkerRatings}
+        onOpenChange={setShowWorkerRatings}
+        workerId={row.worker_id}
+        workerName={row.worker_name}
+      />
+    )}
+
+    {/* Change Worker Confirmation Sheet */}
+    <Sheet open={showChangeWorkerSheet} onOpenChange={setShowChangeWorkerSheet}>
+      <SheetContent side="bottom" className="rounded-t-2xl px-6 pb-8">
+        <SheetHeader className="text-left">
+          <SheetTitle>Change Worker?</SheetTitle>
+          <SheetDescription>
+            We'll try to assign another available worker. Current worker will be notified.
+          </SheetDescription>
+        </SheetHeader>
+        <div className="flex gap-3 mt-6">
+          <Button
+            variant="outline"
+            className="flex-1"
+            onClick={() => setShowChangeWorkerSheet(false)}
+            disabled={changeWorkerLoading}
+          >
+            Cancel
+          </Button>
+          <Button
+            className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground"
+            onClick={handleChangeWorker}
+            disabled={changeWorkerLoading}
+          >
+            {changeWorkerLoading ? 'Reassigning…' : 'Confirm'}
+          </Button>
+        </div>
+      </SheetContent>
+    </Sheet>
+    </>
   );
 }
