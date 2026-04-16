@@ -561,9 +561,9 @@ const ActiveBookingCard = memo(() => {
             <>
               <Button
                 onClick={handleViewDetails}
-                className="flex-1 h-10 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
+                className="flex-1 h-11 rounded-2xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-sm shadow-primary/20"
               >
-                View Details
+                Track Booking
                 <ArrowRight className="w-4 h-4 ml-1.5" />
               </Button>
               <Button
