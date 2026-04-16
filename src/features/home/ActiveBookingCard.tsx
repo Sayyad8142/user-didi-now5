@@ -757,6 +757,8 @@ const ActiveBookingCard = memo(() => {
         </SheetContent>
       </Sheet>
     </Card>
+    </>
+
   );
 });
 
