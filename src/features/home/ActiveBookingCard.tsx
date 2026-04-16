@@ -413,29 +413,32 @@ const ActiveBookingCard = memo(() => {
         </div>
       )}
 
-      {/* MAIN CARD — premium, minimal */}
-      <Card className="relative overflow-hidden p-4 bg-card border border-primary/15 rounded-2xl shadow-[0_2px_12px_-4px_hsl(var(--primary)/0.15)]">
+      {/* MAIN CARD — premium, animated entry */}
+      <Card className="relative overflow-hidden p-5 bg-card border border-primary/15 rounded-3xl shadow-[0_8px_24px_-12px_hsl(var(--primary)/0.25)] animate-fade-in">
         {/* Subtle accent stripe */}
         <span aria-hidden className="absolute left-0 top-0 h-full w-1 bg-gradient-to-b from-primary to-primary/40" />
+        {/* Soft top-right glow */}
+        <span aria-hidden className="absolute -top-16 -right-16 h-40 w-40 rounded-full bg-primary/5 blur-2xl pointer-events-none" />
 
         {/* A. Top row — service + price + status pill + dismiss */}
-        <div className="flex items-start justify-between gap-3 pl-1">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="p-2 rounded-xl bg-primary/10 text-primary shrink-0">
+        <div className="relative flex items-start justify-between gap-3 pl-1">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="p-2.5 rounded-2xl bg-primary/10 text-primary shrink-0 ring-1 ring-primary/10">
               {getServiceIcon(activeBooking.service_type)}
             </div>
             <div className="min-w-0">
-              <h3 className="font-semibold text-[15px] leading-tight text-foreground truncate">
+              <h3 className="font-bold text-base leading-tight text-foreground tracking-tight truncate">
                 {prettyServiceName(activeBooking.service_type)}
               </h3>
               {activeBooking.price_inr != null && !isCancelled && (
-                <p className="text-xs text-muted-foreground mt-0.5">₹{activeBooking.price_inr}</p>
+                <p className="text-xs font-medium text-muted-foreground mt-0.5">₹{activeBooking.price_inr}</p>
               )}
             </div>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
-            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold ${pill.className}`}>
-              {pill.label}
+            <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-semibold ${pill.className}`}>
+              {pill.icon}
+              <span>{pill.label}</span>
             </span>
             <button
               onClick={handleDismiss}
@@ -447,9 +450,18 @@ const ActiveBookingCard = memo(() => {
           </div>
         </div>
 
-        {/* B. Info line */}
+        {/* B. Info line — with live shimmer for "Finding worker" */}
         {infoLine && (
-          <p className="mt-3 pl-1 text-sm font-medium text-foreground">{infoLine}</p>
+          <div className="mt-3 pl-1 flex items-center gap-2">
+            <p className="text-[15px] font-semibold text-foreground tracking-tight">{infoLine}</p>
+            {isFinding && (
+              <span className="inline-flex gap-1" aria-hidden>
+                <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-bounce" style={{ animationDelay: '0ms' }} />
+                <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-bounce" style={{ animationDelay: '150ms' }} />
+                <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-bounce" style={{ animationDelay: '300ms' }} />
+              </span>
+            )}
+          </div>
         )}
 
         {/* Pending — slim progress (kept; it gives confidence) */}
@@ -459,7 +471,7 @@ const ActiveBookingCard = memo(() => {
           </div>
         )}
 
-        {/* C. Helper microcopy */}
+        {/* C. Helper microcopy — tertiary */}
         {helperLine && (
           <p className="mt-2 pl-1 text-xs text-muted-foreground">{helperLine}</p>
         )}
