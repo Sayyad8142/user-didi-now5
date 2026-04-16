@@ -378,60 +378,21 @@ const ActiveBookingCard = memo(() => {
 
   const handleReachConfirmation = async (reached: boolean) => {
     if (updatingReachStatus) return;
+    // Prevent duplicate if already confirmed
+    if (activeBooking.reach_status && activeBooking.reach_status !== 'pending') return;
     
     setUpdatingReachStatus(true);
     try {
-      const { error } = await supabase
-        .from('bookings')
-        .update({
-          reach_status: reached ? 'reached' : 'not_reached',
-          reach_confirmed_at: new Date().toISOString(),
-          reach_confirmed_by: 'user',
-        })
-        .eq('id', activeBooking.id);
+      const auth = getAuth();
+      const token = await auth.currentUser?.getIdToken();
+      
+      const { data, error } = await supabase.functions.invoke('confirm-worker-reach', {
+        body: { booking_id: activeBooking.id, reached },
+        headers: token ? { 'x-firebase-token': token } : undefined,
+      });
 
       if (error) throw error;
-
-      // Send push notification to admins when worker not reached
-      if (!reached) {
-        const workerName = activeBooking.worker_name || 'Worker';
-        const flatNo = activeBooking.flat_no || 'Unknown';
-        const community = activeBooking.community || '';
-        const serviceType = activeBooking.service_type || 'Service';
-        
-        // Fire and forget - don't block UI for notification
-        supabase.functions.invoke('send-admin-fcm', {
-          body: {
-            title: '⚠️ Worker Not Reached',
-            body: `${workerName} has not reached Flat ${flatNo} (${community}) for ${serviceType}. Action needed!`,
-            notification_type: 'worker_not_reached',
-            data: {
-              booking_id: activeBooking.id,
-              worker_name: workerName,
-              flat_no: flatNo,
-              community: community,
-              service_type: serviceType,
-            },
-          },
-        }).then(res => {
-          if (res.error) {
-            console.error('[ReachStatus] Admin notification error:', res.error);
-          } else {
-            console.log('[ReachStatus] Admin notification sent:', res.data);
-          }
-        }).catch(err => {
-          console.error('[ReachStatus] Admin notification failed:', err);
-        });
-
-        // Also send Telegram alert for worker not reached
-        supabase.functions.invoke('send-telegram-alert', {
-          body: {
-            message: `⚠️ WORKER NOT REACHED\nWorker: ${workerName}\nFlat: ${flatNo} (${community})\nService: ${serviceType}\nBooking ID: ${activeBooking.id}\nAction needed immediately!`,
-          },
-        }).catch(err => {
-          console.error('[ReachStatus] Telegram notification failed:', err);
-        });
-      }
+      if (data?.error) throw new Error(data.error);
 
       if (reached) {
         toast.success("Thanks for confirming. Worker has reached.");
@@ -439,12 +400,16 @@ const ActiveBookingCard = memo(() => {
         toast.info("Thanks. Our team will take action immediately.");
       }
       
-      // Update local state to hide buttons
+      // Update local state immediately
       setActiveBooking(prev => prev ? { 
         ...prev, 
-        reach_status: reached ? 'reached' : 'not_reached' 
+        reach_status: reached ? 'reached' : 'not_reached',
+        reach_confirmed_at: new Date().toISOString(),
       } : null);
       setReachButtonsVisible(false);
+      
+      // Refetch to ensure consistency
+      fetchActiveBooking();
     } catch (error) {
       console.error('[ReachStatus] Error:', error);
       toast.error("Could not update status. Please try again.");
