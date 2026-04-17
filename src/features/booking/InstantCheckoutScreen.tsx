@@ -19,6 +19,8 @@ import { SupplyFullModal } from '@/components/SupplyFullModal';
 import { executePaymentFlow, executePaymentFlowForNewBooking, retryPendingBookingCreation, PaymentError, type PaymentFlowStatus, type PaymentErrorType, type PendingCheckoutData } from '@/lib/paymentService';
 import { PaymentMethodSelector, type PaymentMethod } from '@/components/PaymentMethodSelector';
 import { PaymentRetrySheet } from '@/components/PaymentRetrySheet';
+import { RatingRequiredDialog } from '@/components/RatingRequiredDialog';
+import { useRatingGate } from '@/hooks/useRatingGate';
 import { trackPaymentEvent } from '@/lib/paymentAnalytics';
 import { useWalletBalance } from '@/hooks/useWallet';
 
@@ -49,7 +51,7 @@ export function InstantCheckoutScreen() {
   const { flatSize: autoFlatSize } = useFlatSize();
   const { data: walletData } = useWalletBalance();
   const walletBalance = walletData?.balance_inr ?? 0;
-  
+  const ratingGate = useRatingGate();
 
   const priceParam = searchParams.get('price');
   const price = priceParam ? Number(priceParam) : 0;
@@ -87,6 +89,11 @@ export function InstantCheckoutScreen() {
   }, []);
 
   const handleBookNow = () => {
+    // Pre-payment rating gate — block before opening payment picker.
+    if (!ratingGate.checkBeforePayment()) {
+      console.warn('[InstantCheckout] Booking blocked: unrated previous booking');
+      return;
+    }
     setShowPaymentPicker(true);
   };
 
