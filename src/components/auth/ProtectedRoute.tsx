@@ -15,7 +15,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
 
   // Don't apply user auth protection to /admin routes - let AdminGate handle it
   if (location.pathname.startsWith("/admin")) {
-    return <>{children}</>;
+    return <div>{children}</div>;
   }
 
   if (loading) {
@@ -34,5 +34,5 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     return <Navigate to="/auth" state={{ from: location }} replace />;
   }
 
-  return <>{children}</>;
+  return <div>{children}</div>;
 }
