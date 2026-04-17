@@ -340,11 +340,21 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 7. Handle wallet debit (if applicable) — uses increment-based ops for safety
+    // 7. Handle wallet debit (if applicable) — uses atomic increment-based ops for safety
     let walletDebited = 0;
+    // For wallet-only payments, derive wallet_amount from price if not provided
+    const effectiveWalletAmount = (() => {
+      if (payment_type === "wallet") {
+        const price = Number(booking_data.price_inr ?? 0);
+        if (!Number.isFinite(price) || price <= 0) return 0;
+        return Number(wallet_amount ?? price);
+      }
+      return Number(wallet_amount ?? 0);
+    })();
+
     if (
       (payment_type === "wallet" || payment_type === "wallet_and_razorpay") &&
-      wallet_amount > 0
+      effectiveWalletAmount > 0
     ) {
       // Fetch current balance to check sufficiency
       let { data: walletRow, error: walletFetchErr } = await supabase
@@ -375,49 +385,55 @@ Deno.serve(async (req) => {
       }
 
       if (walletRow) {
-        const debitAmount = Math.min(wallet_amount, walletRow.balance_inr);
-
-        if (payment_type === "wallet" && debitAmount < booking_data.price_inr) {
-          return json({ error: "Insufficient wallet balance" }, 400);
+        // CRITICAL: For wallet-only payments, balance MUST cover full price.
+        // No booking is created if balance is insufficient.
+        const bookingPrice = Number(booking_data.price_inr ?? 0);
+        if (payment_type === "wallet" && walletRow.balance_inr < bookingPrice) {
+          console.error(
+            `[create-paid-booking] ❌ Insufficient wallet balance: have ₹${walletRow.balance_inr}, need ₹${bookingPrice}`,
+          );
+          return json({
+            error: "Insufficient wallet balance",
+            code: "INSUFFICIENT_BALANCE",
+            balance: walletRow.balance_inr,
+            required: bookingPrice,
+          }, 400);
         }
 
+        const debitAmount = Math.min(effectiveWalletAmount, walletRow.balance_inr);
+
         if (debitAmount > 0) {
-          // SAFE: Increment-based debit with optimistic lock on current balance
-          const { error: debitErr } = await supabase.rpc("safe_wallet_increment", {
+          // SAFE: atomic increment-based debit (FOR UPDATE lock + min_balance guard)
+          const { data: debitResult, error: debitErr } = await supabase.rpc("safe_wallet_increment", {
             p_user_id: profile.id,
             p_amount_delta: -debitAmount,
             p_min_balance: 0,
-          }).catch(() => {
-            // Fallback if RPC doesn't exist yet: use increment via raw SQL-safe update
-            return supabase
-              .from("user_wallets")
-              .update({
-                balance_inr: walletRow.balance_inr - debitAmount,
-                updated_at: new Date().toISOString(),
-              })
-              .eq("user_id", profile.id)
-              .eq("balance_inr", walletRow.balance_inr); // Optimistic lock
           });
 
-          if (debitErr) {
-            console.error("[create-paid-booking] Wallet debit failed:", debitErr);
+          // RPC returns { error: 'insufficient_balance' } on failure
+          const debitFailed = debitErr || (debitResult && typeof debitResult === "object" && (debitResult as any).error);
+
+          if (debitFailed) {
+            console.error("[create-paid-booking] ❌ Atomic wallet debit failed:", debitErr || debitResult);
             if (payment_type === "wallet") {
               return json({ error: "Wallet debit failed. Please retry." }, 500);
             }
+            // For mixed payments, continue without wallet debit
           } else {
             walletDebited = debitAmount;
 
-            // Record wallet transaction
+            // Record wallet transaction (linked to booking after insert)
             await supabase.from("wallet_transactions").insert({
               user_id: profile.id,
-              amount: -debitAmount,
+              amount_inr: debitAmount,
               type: "debit",
-              description: `Payment for ${booking_data.service_type} booking`,
+              reason: "booking_payment",
               reference_type: "booking_payment",
+              notes: `Payment for ${booking_data.service_type} booking`,
             });
 
             console.log(
-              `[create-paid-booking] ✅ Wallet debited ₹${debitAmount}`,
+              `[create-paid-booking] ✅ Wallet debited ₹${debitAmount} (atomic)`,
             );
           }
         }
