@@ -165,6 +165,33 @@ function extractFunctionHttpStatus(error: any): number | null {
   return typeof status === 'number' ? status : null;
 }
 
+/**
+ * supabase.functions.invoke() returns the failure body inside `error.context`
+ * (a Response object) when the function responds with a non-2xx status.
+ * Read it so we can surface the real backend reason instead of the generic
+ * "Edge Function returned a non-2xx status code" SDK message.
+ */
+async function readFunctionErrorBody(error: any): Promise<unknown | null> {
+  const ctx = error?.context;
+  if (!ctx) return null;
+  try {
+    if (typeof ctx.clone === 'function') {
+      const cloned = ctx.clone();
+      const text = await cloned.text();
+      if (!text) return null;
+      try { return JSON.parse(text); } catch { return text; }
+    }
+    if (typeof ctx.text === 'function') {
+      const text = await ctx.text();
+      if (!text) return null;
+      try { return JSON.parse(text); } catch { return text; }
+    }
+  } catch (e) {
+    console.warn('[paymentService] could not read error.context body:', e);
+  }
+  return null;
+}
+
 function formatFunctionErrorMessage(functionName: string, error: any, data: unknown): string {
   if (typeof data === 'string' && data.trim()) return data;
 
@@ -185,7 +212,12 @@ function formatFunctionErrorMessage(functionName: string, error: any, data: unkn
     }
   }
 
-  return error?.message || `${functionName} failed`;
+  // Avoid leaking the unhelpful SDK string to users
+  const raw = error?.message || '';
+  if (raw.includes('non-2xx status code')) {
+    return `${functionName} failed. Please try again.`;
+  }
+  return raw || `${functionName} failed`;
 }
 
 function logCreatePaidBookingDebug(stage: 'request' | 'response' | 'error', details: Record<string, unknown>) {
