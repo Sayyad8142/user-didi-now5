@@ -676,6 +676,13 @@ export async function executePaymentFlowForNewBooking(
     } catch (qrErr: any) {
       console.error('❌ Booking creation failed after QR payment recovery:', qrErr);
       onStatusChange('verification_pending');
+      // RATING_REQUIRED: backend rejected for unrated previous booking.
+      // Surface as a non-retryable rating_required error so the UI can route
+      // the user to the rating screen instead of looping retries.
+      if (isRatingRequiredError(qrErr)) {
+        console.warn('[paymentService] Backend RATING_REQUIRED after QR payment — surfacing rating_required');
+        throw new PaymentError(qrErr?.message || 'RATING_REQUIRED', 'rating_required');
+      }
       throw new PaymentError(
         qrErr?.message || 'Payment received but booking creation is pending. Tap retry to complete.',
         'verification_failed',
@@ -736,6 +743,15 @@ export async function executePaymentFlowForNewBooking(
   } catch (verifyErr: any) {
     console.error('❌ create-paid-booking failed after successful checkout:', verifyErr);
     onStatusChange('verification_pending');
+    // RATING_REQUIRED fallback: do NOT show retry — surface clearly.
+    if (isRatingRequiredError(verifyErr)) {
+      console.warn('[paymentService] Backend RATING_REQUIRED after checkout — surfacing rating_required');
+      trackPaymentEvent('payment_failed', {
+        error_type: 'rating_required',
+        razorpay_payment_id: checkoutResult.payload!.razorpay_payment_id,
+      });
+      throw new PaymentError(verifyErr?.message || 'RATING_REQUIRED', 'rating_required');
+    }
     trackPaymentEvent('payment_failed', {
       error_type: 'verification_failed',
       razorpay_payment_id: checkoutResult.payload!.razorpay_payment_id,
