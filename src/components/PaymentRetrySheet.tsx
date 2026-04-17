@@ -244,7 +244,6 @@ export function PaymentRetrySheet({
 
           <AppVersionDisplay variant="compact" className="pt-1" />
         </div>
-        </div>
       </SheetContent>
     </Sheet>
   );
