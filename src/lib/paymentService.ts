@@ -757,7 +757,18 @@ export async function retryPendingBookingCreation(
   onStatusChange: (status: PaymentFlowStatus) => void,
 ): Promise<PaymentResult> {
   onStatusChange('verifying_payment');
-  console.log('🔄 Retrying create-paid-booking with request_id:', pending.requestId);
+  console.log('CREATE_PAID_BOOKING_RETRY', {
+    request_id: pending.requestId,
+    payment_type: pending.paymentType,
+    razorpay_order_id: pending.checkoutResult.razorpay_order_id,
+    razorpay_payment_id: pending.checkoutResult.razorpay_payment_id,
+    has_signature: !!pending.checkoutResult.razorpay_signature,
+    razorpay_amount_paise: pending.razorpayAmount,
+    wallet_amount: pending.walletCanCover,
+    booking_service_type: (pending.bookingPayload as any)?.service_type,
+    booking_type: (pending.bookingPayload as any)?.booking_type,
+    booking_price_inr: (pending.bookingPayload as any)?.price_inr,
+  });
 
   const createPaidBookingFn = shouldUseQrRecovery(pending.checkoutResult)
     ? createPaidBookingAfterQrPayment
