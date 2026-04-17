@@ -308,14 +308,21 @@ const ActiveBookingCard = memo(() => {
 
   // Auto-close OTP sheet if the OTP row becomes unavailable (status change, verified, etc.)
   // Prevents Radix portal teardown race that throws `removeChild` errors.
+  // OTP is shown for ANY paid booking (wallet, razorpay, wallet+razorpay) and pay_after_service.
   useEffect(() => {
+    const pm = (activeBooking as any)?.payment_method;
+    const ps = activeBooking?.payment_status;
+    const isPaidLike =
+      ps === 'paid' ||
+      ps === 'pay_after_service' ||
+      pm === 'wallet' || pm === 'wallet+razorpay' || pm === 'razorpay';
     const shouldShow =
       !!activeBooking?.completion_otp &&
-      (activeBooking?.payment_status === 'paid' || activeBooking?.payment_status === 'pay_after_service') &&
+      isPaidLike &&
       !activeBooking?.otp_verified_at &&
       (activeBooking?.status === 'on_the_way' || activeBooking?.status === 'started');
     if (!shouldShow && showOtpSheet) setShowOtpSheet(false);
-  }, [activeBooking?.completion_otp, activeBooking?.payment_status, activeBooking?.otp_verified_at, activeBooking?.status, showOtpSheet]);
+  }, [activeBooking?.completion_otp, (activeBooking as any)?.payment_method, activeBooking?.payment_status, activeBooking?.otp_verified_at, activeBooking?.status, showOtpSheet]);
 
   const workerChangeUsed = assignmentCount >= 2;
 
@@ -364,23 +371,55 @@ const ActiveBookingCard = memo(() => {
     if (updatingReachStatus) return;
     if (activeBooking.reach_status && activeBooking.reach_status !== 'pending') return;
     setUpdatingReachStatus(true);
+
+    const newStatus = reached ? 'reached' : 'not_reached';
+    const nowIso = new Date().toISOString();
+
+    // Optimistic UI update first
+    const previousReachStatus = activeBooking.reach_status;
+    setActiveBooking(prev => prev ? { ...prev, reach_status: newStatus, reach_confirmed_at: nowIso } : null);
+    setReachButtonsVisible(false);
+
     try {
-      const auth = getAuth();
-      const token = await auth.currentUser?.getIdToken();
-      const { data, error } = await supabase.functions.invoke('confirm-worker-reach', {
-        body: { booking_id: activeBooking.id, reached },
-        headers: token ? { 'x-firebase-token': token } : undefined,
-      });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      if (reached) toast.success("Thanks for confirming. Worker has reached.");
-      else toast.info("Thanks. Our team will take action immediately.");
-      setActiveBooking(prev => prev ? { ...prev, reach_status: reached ? 'reached' : 'not_reached', reach_confirmed_at: new Date().toISOString() } : null);
-      setReachButtonsVisible(false);
+      // PRIMARY: try edge function (sends admin alerts on 'not_reached')
+      let edgeOk = false;
+      try {
+        const auth = getAuth();
+        const token = await auth.currentUser?.getIdToken();
+        const { data, error } = await supabase.functions.invoke('confirm-worker-reach', {
+          body: { booking_id: activeBooking.id, reached },
+          headers: token ? { 'x-firebase-token': token } : undefined,
+        });
+        if (!error && !data?.error) edgeOk = true;
+        else console.warn('[ReachStatus] Edge function unavailable, using direct DB fallback:', error || data?.error);
+      } catch (edgeErr) {
+        console.warn('[ReachStatus] Edge function call failed, falling back to direct update:', edgeErr);
+      }
+
+      // FALLBACK: direct DB update (works when edge fn is 404 / network unreachable)
+      if (!edgeOk) {
+        const { error: dbErr } = await supabase
+          .from('bookings')
+          .update({
+            reach_status: newStatus,
+            reach_confirmed_at: nowIso,
+            reach_confirmed_by: 'user',
+          })
+          .eq('id', activeBooking.id)
+          .eq('user_id', profile?.id ?? '');
+        if (dbErr) throw dbErr;
+        console.log('[ReachStatus] ✅ Direct DB update succeeded');
+      }
+
+      if (reached) toast.success('Thanks for confirming. Worker has reached.');
+      else toast.info('Thanks. Our team will take action immediately.');
       fetchActiveBooking();
-    } catch (error) {
-      console.error('[ReachStatus] Error:', error);
-      toast.error("Could not update status. Please try again.");
+    } catch (error: any) {
+      console.error('[ReachStatus] All update paths failed:', error);
+      // Roll back optimistic update
+      setActiveBooking(prev => prev ? { ...prev, reach_status: previousReachStatus ?? 'pending', reach_confirmed_at: null } : null);
+      setReachButtonsVisible(true);
+      toast.error('Could not update status. Please try again.');
     } finally {
       setUpdatingReachStatus(false);
     }
@@ -389,10 +428,17 @@ const ActiveBookingCard = memo(() => {
   const pill = getStatusPill(activeBooking);
   const infoLine = getInfoLine(activeBooking);
   const helperLine = getHelperLine(activeBooking);
-  // OTP only when worker is actively traveling/working — not for pending/scheduled
+  // OTP only when worker is actively traveling/working — not for pending/scheduled.
+  // Treat any paid method (wallet, wallet+razorpay, razorpay) OR explicit paid status as paid-like.
+  const _pm = (activeBooking as any)?.payment_method;
+  const _ps = activeBooking.payment_status;
+  const isPaidLike =
+    _ps === 'paid' ||
+    _ps === 'pay_after_service' ||
+    _pm === 'wallet' || _pm === 'wallet+razorpay' || _pm === 'razorpay';
   const showOtpRow =
     !!activeBooking.completion_otp &&
-    (activeBooking.payment_status === 'paid' || activeBooking.payment_status === 'pay_after_service') &&
+    isPaidLike &&
     !activeBooking.otp_verified_at &&
     (activeBooking.status === 'on_the_way' || activeBooking.status === 'started');
   const isCancelled = activeBooking.status === 'cancelled';

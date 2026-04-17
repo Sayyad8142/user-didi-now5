@@ -52,6 +52,7 @@ interface Booking {
   completion_otp?: string | null;
   otp_verified_at?: string | null;
   payment_status?: string | null;
+  payment_method?: string | null;
   wallet_refund_status?: string | null;
   wallet_refund_amount?: number | null;
   wallet_refund_reason?: string | null;
@@ -332,8 +333,15 @@ export function BookingCard({
   const isPendingInstant = row.status === 'pending' && booking.booking_type !== 'scheduled';
   const workerDisplayName = assignedWorker?.worker?.full_name || row.worker_name;
   const workerPhotoUrl = assignedWorker?.worker?.photo_url || row.worker_photo_url;
+  // OTP shown when booking is fully paid (wallet, razorpay, wallet+razorpay) or pay-after-service.
+  const _isPaidLike =
+    row.payment_status === 'paid' ||
+    row.payment_status === 'pay_after_service' ||
+    row.payment_method === 'wallet' ||
+    row.payment_method === 'wallet+razorpay' ||
+    row.payment_method === 'razorpay';
   const showOtpBlock = !!row.completion_otp &&
-    (row.payment_status === 'paid' || row.payment_status === 'pay_after_service') &&
+    _isPaidLike &&
     !row.otp_verified_at &&
     (row.status === 'on_the_way' || row.status === 'started');
   const needsPaymentRetry =
