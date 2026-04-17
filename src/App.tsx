@@ -205,6 +205,7 @@ const App = () => {
   if (nativeGate.status === 'force_update') {
     return (
       <NativeUpdateRequiredScreen
+        title={nativeGate.title}
         message={nativeGate.message}
         storeUrl={nativeGate.storeUrl}
         currentVersion={nativeGate.currentVersion}
