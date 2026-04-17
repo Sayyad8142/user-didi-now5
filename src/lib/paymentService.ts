@@ -802,29 +802,37 @@ export async function retryPendingBookingCreation(
     ? createPaidBookingAfterQrPayment
     : createPaidBooking;
 
-  const result = await createPaidBookingFn({
-    request_id: pending.requestId,
-    booking_data: pending.bookingPayload,
-    payment_type: pending.paymentType,
-    razorpay_order_id: pending.checkoutResult.razorpay_order_id,
-    razorpay_payment_id: pending.checkoutResult.razorpay_payment_id,
-    ...(shouldUseQrRecovery(pending.checkoutResult)
-      ? {}
-      : { razorpay_signature: pending.checkoutResult.razorpay_signature }),
-    razorpay_amount: pending.razorpayAmount,
-    wallet_amount: pending.walletCanCover > 0 ? pending.walletCanCover : undefined,
-  });
+  try {
+    const result = await createPaidBookingFn({
+      request_id: pending.requestId,
+      booking_data: pending.bookingPayload,
+      payment_type: pending.paymentType,
+      razorpay_order_id: pending.checkoutResult.razorpay_order_id,
+      razorpay_payment_id: pending.checkoutResult.razorpay_payment_id,
+      ...(shouldUseQrRecovery(pending.checkoutResult)
+        ? {}
+        : { razorpay_signature: pending.checkoutResult.razorpay_signature }),
+      razorpay_amount: pending.razorpayAmount,
+      wallet_amount: pending.walletCanCover > 0 ? pending.walletCanCover : undefined,
+    });
 
-  onStatusChange('payment_success');
-  trackPaymentEvent('payment_success', {
-    booking_id: result.booking_id,
-    payment_method: pending.paymentType,
-    wallet_used_amount: pending.walletCanCover,
-  });
-  savePreferredMethod('upi');
-  clearLastFailure();
-  logPaymentSummary();
-  return result;
+    onStatusChange('payment_success');
+    trackPaymentEvent('payment_success', {
+      booking_id: result.booking_id,
+      payment_method: pending.paymentType,
+      wallet_used_amount: pending.walletCanCover,
+    });
+    savePreferredMethod('upi');
+    clearLastFailure();
+    logPaymentSummary();
+    return result;
+  } catch (err: any) {
+    if (isRatingRequiredError(err)) {
+      console.warn('[paymentService] RATING_REQUIRED on retry — surfacing rating_required');
+      throw new PaymentError(err?.message || 'RATING_REQUIRED', 'rating_required');
+    }
+    throw err;
+  }
 }
 
 // ══════════════════════════════════════════════════════════════
