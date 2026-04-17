@@ -113,7 +113,7 @@ export function toUserFriendlyPaymentError(err: any): string {
   const raw = (err?.message || '').toString();
   if (!raw) return 'Payment failed. Please try again.';
   if (raw.includes('non-2xx status code')) return 'Payment failed. Please try again.';
-  if (/RATING_REQUIRED|rate your last/i.test(raw)) return 'Please rate your last completed service before booking again.';
+  
   if (/INSUFFICIENT_BALANCE|Insufficient wallet/i.test(raw)) return 'Not enough wallet balance. Please choose another payment method.';
   if (/Payment verification failed|HMAC/i.test(raw)) return 'Payment could not be verified. If money was deducted it will be refunded automatically.';
   if (/Authentication expired|Not authenticated|Profile not found/i.test(raw)) return 'Session expired. Please login again.';

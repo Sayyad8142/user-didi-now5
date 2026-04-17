@@ -34,7 +34,7 @@ import { PaymentRetrySheet } from '@/components/PaymentRetrySheet';
 import { trackPaymentEvent } from '@/lib/paymentAnalytics';
 import { CreditCard, HandCoins } from 'lucide-react';
 import { useWalletBalance } from '@/hooks/useWallet';
-import { useUnratedBooking } from '@/hooks/useUnratedBooking';
+
 
 // Maid task types and constants
 type MaidTask = "floor_cleaning" | "dish_washing";
@@ -100,9 +100,6 @@ export function BookingForm() {
 
   // Combined instant disabled state
   const instantBlocked = instantDisabled || isSupplyFull;
-
-  // Mandatory rating check
-  const { hasUnratedBooking, unratedBooking, invalidate: refreshUnrated } = useUnratedBooking();
 
   // Maid service specific state
   const [selectedTasks, setSelectedTasks] = useState<MaidTask[]>([]); // User selects manually
@@ -286,17 +283,6 @@ export function BookingForm() {
   const handleBookNow = async () => {
     if (!profile || !service_type) return;
 
-    // Block if mandatory rating is pending
-    if (hasUnratedBooking) {
-      toast({
-        title: "Rating Required",
-        description: "Please rate your last completed service before booking again.",
-        variant: "destructive"
-      });
-      navigate('/home');
-      return;
-    }
-
     // Server-side supply check before creating booking
     if (profile.community) {
       const available = await checkInstantBookingAvailability(profile.community);
@@ -364,17 +350,6 @@ export function BookingForm() {
   };
   const handleSchedule = () => {
     if (!profile || !service_type) return;
-
-    // Block if mandatory rating is pending
-    if (hasUnratedBooking) {
-      toast({
-        title: "Rating Required",
-        description: "Please rate your last completed service before booking again.",
-        variant: "destructive"
-      });
-      navigate('/home');
-      return;
-    }
 
     // Build query parameters for ScheduleScreen
     const params = new URLSearchParams();
