@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import {
   Loader2, RotateCcw, CreditCard, HandCoins, WifiOff, XCircle,
-  Clock, ShieldCheck, AlertTriangle
+  Clock, ShieldCheck, AlertTriangle, Star, LifeBuoy
 } from 'lucide-react';
 import { toUserFriendlyPaymentError, type PaymentErrorType } from '@/lib/paymentService';
 import { trackPaymentEvent, getRetrySuggestion } from '@/lib/paymentAnalytics';
@@ -61,6 +61,16 @@ function getErrorConfig(errorType: PaymentErrorType): ErrorConfig {
         showFallback: false,
         showPayAfter: false,
         allowRetry: true,
+      };
+    case 'rating_required':
+      return {
+        title: 'Rating required',
+        message: 'Please rate your last completed service before booking again.',
+        icon: <Star className="w-6 h-6 text-amber-500" fill="currentColor" />,
+        primaryLabel: 'Rate Previous Booking',
+        showFallback: false,
+        showPayAfter: false,
+        allowRetry: false,
       };
   }
 }
