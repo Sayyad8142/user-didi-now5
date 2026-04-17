@@ -77,7 +77,7 @@ export type PaymentFlowStatus =
   | 'verification_pending';
 
 /** Error types for downstream handling */
-export type PaymentErrorType = 'user_cancelled' | 'payment_failed' | 'network_error' | 'verification_failed';
+export type PaymentErrorType = 'user_cancelled' | 'payment_failed' | 'network_error' | 'verification_failed' | 'rating_required';
 
 /** Stored checkout data for retry after verification_failed */
 export interface PendingCheckoutData {
@@ -113,7 +113,8 @@ export function toUserFriendlyPaymentError(err: any): string {
   const raw = (err?.message || '').toString();
   if (!raw) return 'Payment failed. Please try again.';
   if (raw.includes('non-2xx status code')) return 'Payment failed. Please try again.';
-  
+
+  if (/RATING_REQUIRED|rate your last/i.test(raw)) return 'Please rate your last completed service before booking again.';
   if (/INSUFFICIENT_BALANCE|Insufficient wallet/i.test(raw)) return 'Not enough wallet balance. Please choose another payment method.';
   if (/Payment verification failed|HMAC/i.test(raw)) return 'Payment could not be verified. If money was deducted it will be refunded automatically.';
   if (/Authentication expired|Not authenticated|Profile not found/i.test(raw)) return 'Session expired. Please login again.';
@@ -125,6 +126,12 @@ export function toUserFriendlyPaymentError(err: any): string {
   if (/cancelled by user/i.test(raw)) return 'Payment cancelled.';
   if (raw.length <= 140 && !raw.includes('{')) return raw;
   return 'Payment failed. Please try again.';
+}
+
+/** Detect whether a backend error is the mandatory-rating block. */
+export function isRatingRequiredError(err: any): boolean {
+  const raw = (err?.message || '').toString();
+  return /RATING_REQUIRED|rate your last completed/i.test(raw);
 }
 
 
@@ -569,6 +576,11 @@ export async function executePaymentFlowForNewBooking(
       console.error('❌ Wallet booking creation failed:', err);
       onStatusChange('payment_failed');
       const msg = err?.message || 'Wallet payment failed';
+      // Surface RATING_REQUIRED distinctly so the UI can route to rating screen.
+      if (isRatingRequiredError(err)) {
+        console.warn('[paymentService] Backend RATING_REQUIRED on wallet booking — surfacing rating_required');
+        throw new PaymentError(msg, 'rating_required');
+      }
       throw new PaymentError(msg, 'payment_failed');
     }
   }
@@ -669,6 +681,13 @@ export async function executePaymentFlowForNewBooking(
     } catch (qrErr: any) {
       console.error('❌ Booking creation failed after QR payment recovery:', qrErr);
       onStatusChange('verification_pending');
+      // RATING_REQUIRED: backend rejected for unrated previous booking.
+      // Surface as a non-retryable rating_required error so the UI can route
+      // the user to the rating screen instead of looping retries.
+      if (isRatingRequiredError(qrErr)) {
+        console.warn('[paymentService] Backend RATING_REQUIRED after QR payment — surfacing rating_required');
+        throw new PaymentError(qrErr?.message || 'RATING_REQUIRED', 'rating_required');
+      }
       throw new PaymentError(
         qrErr?.message || 'Payment received but booking creation is pending. Tap retry to complete.',
         'verification_failed',
@@ -729,6 +748,15 @@ export async function executePaymentFlowForNewBooking(
   } catch (verifyErr: any) {
     console.error('❌ create-paid-booking failed after successful checkout:', verifyErr);
     onStatusChange('verification_pending');
+    // RATING_REQUIRED fallback: do NOT show retry — surface clearly.
+    if (isRatingRequiredError(verifyErr)) {
+      console.warn('[paymentService] Backend RATING_REQUIRED after checkout — surfacing rating_required');
+      trackPaymentEvent('payment_failed', {
+        error_type: 'rating_required',
+        razorpay_payment_id: checkoutResult.payload!.razorpay_payment_id,
+      });
+      throw new PaymentError(verifyErr?.message || 'RATING_REQUIRED', 'rating_required');
+    }
     trackPaymentEvent('payment_failed', {
       error_type: 'verification_failed',
       razorpay_payment_id: checkoutResult.payload!.razorpay_payment_id,
@@ -774,29 +802,37 @@ export async function retryPendingBookingCreation(
     ? createPaidBookingAfterQrPayment
     : createPaidBooking;
 
-  const result = await createPaidBookingFn({
-    request_id: pending.requestId,
-    booking_data: pending.bookingPayload,
-    payment_type: pending.paymentType,
-    razorpay_order_id: pending.checkoutResult.razorpay_order_id,
-    razorpay_payment_id: pending.checkoutResult.razorpay_payment_id,
-    ...(shouldUseQrRecovery(pending.checkoutResult)
-      ? {}
-      : { razorpay_signature: pending.checkoutResult.razorpay_signature }),
-    razorpay_amount: pending.razorpayAmount,
-    wallet_amount: pending.walletCanCover > 0 ? pending.walletCanCover : undefined,
-  });
+  try {
+    const result = await createPaidBookingFn({
+      request_id: pending.requestId,
+      booking_data: pending.bookingPayload,
+      payment_type: pending.paymentType,
+      razorpay_order_id: pending.checkoutResult.razorpay_order_id,
+      razorpay_payment_id: pending.checkoutResult.razorpay_payment_id,
+      ...(shouldUseQrRecovery(pending.checkoutResult)
+        ? {}
+        : { razorpay_signature: pending.checkoutResult.razorpay_signature }),
+      razorpay_amount: pending.razorpayAmount,
+      wallet_amount: pending.walletCanCover > 0 ? pending.walletCanCover : undefined,
+    });
 
-  onStatusChange('payment_success');
-  trackPaymentEvent('payment_success', {
-    booking_id: result.booking_id,
-    payment_method: pending.paymentType,
-    wallet_used_amount: pending.walletCanCover,
-  });
-  savePreferredMethod('upi');
-  clearLastFailure();
-  logPaymentSummary();
-  return result;
+    onStatusChange('payment_success');
+    trackPaymentEvent('payment_success', {
+      booking_id: result.booking_id,
+      payment_method: pending.paymentType,
+      wallet_used_amount: pending.walletCanCover,
+    });
+    savePreferredMethod('upi');
+    clearLastFailure();
+    logPaymentSummary();
+    return result;
+  } catch (err: any) {
+    if (isRatingRequiredError(err)) {
+      console.warn('[paymentService] RATING_REQUIRED on retry — surfacing rating_required');
+      throw new PaymentError(err?.message || 'RATING_REQUIRED', 'rating_required');
+    }
+    throw err;
+  }
 }
 
 // ══════════════════════════════════════════════════════════════
