@@ -332,26 +332,42 @@ Deno.serve(async (req) => {
         .from("user_wallets")
         .select("id, balance_inr")
         .eq("user_id", profile.id)
-        .single();
+        .maybeSingle();
+
+      if (walletFetchErr) {
+        console.warn("[create-paid-booking] Wallet fetch error:", walletFetchErr);
+      }
 
       // Lazy wallet initialization: create wallet with ₹0 if it doesn't exist
-      if (walletFetchErr || !walletRow) {
+      if (!walletRow) {
         console.log("[create-paid-booking] Wallet not found, creating one for user:", profile.id);
         const { data: newWallet, error: createErr } = await supabase
           .from("user_wallets")
           .upsert({ user_id: profile.id, balance_inr: 0 }, { onConflict: "user_id" })
           .select("id, balance_inr")
-          .single();
+          .maybeSingle();
 
-        if (createErr || !newWallet) {
-          console.error("[create-paid-booking] Failed to create wallet:", createErr);
-          if (payment_type === "wallet") {
-            return json({ error: "Wallet not found and could not be created" }, 404);
-          }
-          console.warn("[create-paid-booking] Skipping wallet debit");
-        } else {
+        if (newWallet) {
           walletRow = newWallet;
           walletFetchErr = null;
+        } else {
+          // Upsert may have returned no row due to RLS — refetch to confirm
+          console.warn("[create-paid-booking] Upsert returned no row, refetching:", createErr);
+          const { data: refetched } = await supabase
+            .from("user_wallets")
+            .select("id, balance_inr")
+            .eq("user_id", profile.id)
+            .maybeSingle();
+
+          if (refetched) {
+            walletRow = refetched;
+            walletFetchErr = null;
+          } else if (payment_type === "wallet") {
+            console.error("[create-paid-booking] Failed to create wallet:", createErr);
+            return json({ error: "Wallet not found and could not be created" }, 404);
+          } else {
+            console.warn("[create-paid-booking] Skipping wallet debit");
+          }
         }
       }
 
