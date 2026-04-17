@@ -105,6 +105,29 @@ export class PaymentError extends Error {
   }
 }
 
+/**
+ * Convert raw backend / SDK errors into a clean, user-safe message.
+ * Full technical detail still goes to console.error in invokeWithFirebaseAuth.
+ */
+export function toUserFriendlyPaymentError(err: any): string {
+  const raw = (err?.message || '').toString();
+  if (!raw) return 'Payment failed. Please try again.';
+  if (raw.includes('non-2xx status code')) return 'Payment failed. Please try again.';
+  if (/RATING_REQUIRED|rate your last/i.test(raw)) return 'Please rate your last completed service before booking again.';
+  if (/INSUFFICIENT_BALANCE|Insufficient wallet/i.test(raw)) return 'Not enough wallet balance. Please choose another payment method.';
+  if (/Payment verification failed|HMAC/i.test(raw)) return 'Payment could not be verified. If money was deducted it will be refunded automatically.';
+  if (/Authentication expired|Not authenticated|Profile not found/i.test(raw)) return 'Session expired. Please login again.';
+  if (/User ID mismatch|not_owner/i.test(raw)) return 'Account mismatch. Please login again.';
+  if (/SUPPLY_FULL|All experts are busy/i.test(raw)) return 'All experts are busy right now. Please try again in a few minutes.';
+  if (/Slot unavailable|Not enough workers/i.test(raw)) return 'No workers are available at this time. Please pick another slot.';
+  if (/Razorpay|Unable to create.*order/i.test(raw)) return 'Payment gateway is unavailable. Please try again in a moment.';
+  if (/Load failed|Failed to fetch|NetworkError|network/i.test(raw)) return 'Network error. Please check your connection and try again.';
+  if (/cancelled by user/i.test(raw)) return 'Payment cancelled.';
+  if (raw.length <= 140 && !raw.includes('{')) return raw;
+  return 'Payment failed. Please try again.';
+}
+
+
 // ─── Helpers ──────────────────────────────────────────────────
 
 function normalizeScheduledTime(value: unknown): string | null {
