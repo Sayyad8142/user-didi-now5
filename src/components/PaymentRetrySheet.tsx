@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import {
   Loader2, RotateCcw, CreditCard, HandCoins, WifiOff, XCircle,
-  Clock, ShieldCheck, AlertTriangle, Star, LifeBuoy
+  Clock, ShieldCheck, AlertTriangle
 } from 'lucide-react';
 import { toUserFriendlyPaymentError, type PaymentErrorType } from '@/lib/paymentService';
 import { trackPaymentEvent, getRetrySuggestion } from '@/lib/paymentAnalytics';
@@ -62,16 +62,6 @@ function getErrorConfig(errorType: PaymentErrorType): ErrorConfig {
         showPayAfter: false,
         allowRetry: true,
       };
-    case 'rating_required':
-      return {
-        title: 'Rating required',
-        message: 'Please rate your last completed service before booking again.',
-        icon: <Star className="w-6 h-6 text-amber-500" fill="currentColor" />,
-        primaryLabel: 'Rate Previous Booking',
-        showFallback: false,
-        showPayAfter: false,
-        allowRetry: false,
-      };
   }
 }
 
@@ -113,10 +103,6 @@ interface PaymentRetrySheetProps {
   retrying: boolean;
   /** auto-poll for verification_failed */
   onVerificationResolved?: () => void;
-  /** Called when user taps "Rate Previous Booking" (rating_required only) */
-  onRateNow?: () => void;
-  /** Called when user taps "Contact Support" (rating_required secondary) */
-  onContactSupport?: () => void;
 }
 
 export function PaymentRetrySheet({
@@ -129,21 +115,15 @@ export function PaymentRetrySheet({
   onPayAfterService,
   retrying,
   onVerificationResolved,
-  onRateNow,
-  onContactSupport,
 }: PaymentRetrySheetProps) {
   const config = getErrorConfig(errorType);
   const { display: timerDisplay, isExpired } = useCountdown(bookingCreatedAt, 10);
   const retrySuggestion = getRetrySuggestion(errorType);
-  const isRatingRequired = errorType === 'rating_required';
 
   // Track retry sheet open
   useEffect(() => {
     if (open) {
       trackPaymentEvent('payment_method_selected', { error_type: errorType });
-      if (errorType === 'rating_required') {
-        console.warn('[PaymentRetrySheet] Backend RATING_REQUIRED fallback shown');
-      }
     }
   }, [open, errorType]);
 
@@ -170,7 +150,6 @@ export function PaymentRetrySheet({
         <div className="flex flex-col items-center text-center gap-2 mb-4">
           <div className={cn(
             "w-14 h-14 rounded-2xl flex items-center justify-center",
-            isRatingRequired ? 'bg-amber-50' :
             errorType === 'verification_failed' ? 'bg-primary/10' :
             errorType === 'user_cancelled' ? 'bg-amber-50' : 'bg-destructive/10'
           )}>
@@ -208,34 +187,8 @@ export function PaymentRetrySheet({
 
         {/* Actions */}
         <div className="space-y-2.5">
-          {/* Rating-required: dedicated CTAs */}
-          {isRatingRequired && (
-            <>
-              <Button
-                className="w-full h-12 text-sm font-semibold rounded-2xl gap-2"
-                onClick={() => {
-                  trackPaymentEvent('payment_retry_clicked', { error_type: errorType });
-                  onRateNow?.();
-                }}
-              >
-                <Star className="w-4 h-4" fill="currentColor" />
-                Rate Previous Booking
-              </Button>
-              {onContactSupport && (
-                <Button
-                  variant="outline"
-                  className="w-full h-11 text-sm rounded-2xl gap-2"
-                  onClick={onContactSupport}
-                >
-                  <LifeBuoy className="w-4 h-4" />
-                  Contact Support
-                </Button>
-              )}
-            </>
-          )}
-
           {/* Primary retry */}
-          {config.allowRetry && !isRatingRequired && (
+          {config.allowRetry && (
             <Button
               className="w-full h-12 text-sm font-semibold rounded-2xl gap-2"
               disabled={retrying || isExpired}
@@ -254,7 +207,7 @@ export function PaymentRetrySheet({
           )}
 
           {/* Smart retry suggestion */}
-          {!isRatingRequired && retrySuggestion && !isExpired && !retrying && (
+          {retrySuggestion && !isExpired && !retrying && (
             <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-muted/50 text-xs text-muted-foreground">
               <CreditCard className="w-3.5 h-3.5 shrink-0" />
               <span>{retrySuggestion}</span>
@@ -262,7 +215,7 @@ export function PaymentRetrySheet({
           )}
 
           {/* Fallback suggestion (when no smart suggestion) */}
-          {!isRatingRequired && config.showFallback && !retrySuggestion && !isExpired && (
+          {config.showFallback && !retrySuggestion && !isExpired && (
             <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-muted/50 text-xs text-muted-foreground">
               <CreditCard className="w-3.5 h-3.5 shrink-0" />
               <span>Try Card or Netbanking if UPI didn't work</span>
@@ -270,7 +223,7 @@ export function PaymentRetrySheet({
           )}
 
           {/* Pay After Service */}
-          {!isRatingRequired && config.showPayAfter && onPayAfterService && !isExpired && (
+          {config.showPayAfter && onPayAfterService && !isExpired && (
             <Button
               variant="outline"
               className="w-full h-11 text-sm rounded-2xl gap-2"

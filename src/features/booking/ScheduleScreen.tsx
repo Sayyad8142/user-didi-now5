@@ -10,8 +10,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { executePaymentFlow, executePaymentFlowForNewBooking, retryPendingBookingCreation, PaymentError, type PaymentFlowStatus, type PaymentErrorType, type PendingCheckoutData } from '@/lib/paymentService';
 import { PaymentMethodSelector, type PaymentMethod } from '@/components/PaymentMethodSelector';
 import { PaymentRetrySheet } from '@/components/PaymentRetrySheet';
-import { RatingRequiredDialog } from '@/components/RatingRequiredDialog';
-import { useRatingGate } from '@/hooks/useRatingGate';
 import { trackPaymentEvent } from '@/lib/paymentAnalytics';
 import { useWalletBalance } from '@/hooks/useWallet';
 
@@ -56,7 +54,7 @@ export function ScheduleScreen() {
   const { flatSize: autoFlatSize } = useFlatSize();
   const { data: walletData } = useWalletBalance();
   const walletBalance = walletData?.balance_inr ?? 0;
-  const ratingGate = useRatingGate();
+  
 
   const [selectedDate, setSelectedDate] = useState<Date>(() => {
     // Auto-select the first date that has available (non-past) slots
@@ -584,11 +582,6 @@ export function ScheduleScreen() {
         <div className="mt-4">
           <Button
             onClick={() => {
-              // Pre-payment rating gate.
-              if (!ratingGate.checkBeforePayment()) {
-                console.warn('[ScheduleScreen] Booking blocked: unrated previous booking');
-                return;
-              }
               setShowPaymentPicker(true);
             }}
             disabled={!canConfirm}
@@ -727,22 +720,6 @@ export function ScheduleScreen() {
             toast({ title: "Payment being verified", description: "Your booking will update automatically." });
             navigate('/home', { replace: true });
           }}
-          onRateNow={() => {
-            setRetrySheetOpen(false);
-            ratingGate.goRateNow();
-          }}
-          onContactSupport={() => {
-            setRetrySheetOpen(false);
-            navigate('/support');
-          }}
-        />
-
-        {/* Pre-payment rating gate */}
-        <RatingRequiredDialog
-          open={ratingGate.dialogOpen}
-          onOpenChange={ratingGate.setDialogOpen}
-          serviceName={ratingGate.unratedServiceType ? prettyServiceName(ratingGate.unratedServiceType) : null}
-          onRateNow={ratingGate.goRateNow}
         />
       </div>
     </div>
