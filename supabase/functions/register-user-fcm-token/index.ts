@@ -174,8 +174,13 @@ serve(async (req) => {
       );
     }
 
+    const platform =
+      (deviceInfo && typeof deviceInfo === 'object' && (deviceInfo as any).platform) ||
+      null;
+
     console.log("📥 Registering user FCM token", {
       profile_id: profile.id,
+      platform: platform || 'unknown',
       token_preview: `${fcmToken.slice(0, 12)}...`,
     });
 
@@ -186,17 +191,30 @@ serve(async (req) => {
       .eq("token", fcmToken)
       .neq("user_id", profile.id);
 
-    // Upsert: one token per user (replace old token)
-    const { error: upsertError } = await supabase
-      .from("fcm_tokens")
-      .upsert(
-        {
-          user_id: profile.id,
-          token: fcmToken,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "user_id" },
-      );
+    // Upsert: one token per user (replace old token). Try with platform; fall back if column missing.
+    const basePayload: Record<string, unknown> = {
+      user_id: profile.id,
+      token: fcmToken,
+      updated_at: new Date().toISOString(),
+    };
+    if (platform) basePayload.platform = String(platform).toLowerCase();
+
+    let upsertError: any = null;
+    {
+      const res = await supabase
+        .from("fcm_tokens")
+        .upsert(basePayload, { onConflict: "user_id" });
+      upsertError = res.error;
+
+      if (upsertError && /column .*platform.* does not exist/i.test(upsertError.message || '')) {
+        console.warn("⚠️ fcm_tokens.platform column missing — retrying without it. Run docs/fcm-tokens-platform-migration.sql.");
+        const { platform: _omit, ...without } = basePayload as any;
+        const retry = await supabase
+          .from("fcm_tokens")
+          .upsert(without, { onConflict: "user_id" });
+        upsertError = retry.error;
+      }
+    }
 
     if (upsertError) {
       console.error("❌ fcm_tokens upsert failed:", upsertError);
@@ -206,7 +224,7 @@ serve(async (req) => {
       );
     }
 
-    console.log("✅ FCM token registered for user:", profile.id);
+    console.log(`✅ FCM token registered for user: ${profile.id} (platform=${platform || 'unknown'})`);
 
     return new Response(
       JSON.stringify({ ok: true }),
