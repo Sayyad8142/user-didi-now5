@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { toUserFriendlyPaymentError, type PaymentErrorType } from '@/lib/paymentService';
 import { trackPaymentEvent, getRetrySuggestion } from '@/lib/paymentAnalytics';
+import { AppVersionDisplay } from '@/components/AppVersionDisplay';
 
 // ─── Error config ─────────────────────────────────────────────
 interface ErrorConfig {
@@ -240,6 +241,8 @@ export function PaymentRetrySheet({
             <ShieldCheck className="w-3 h-3" />
             <span>Secure payment · Support available</span>
           </div>
+
+          <AppVersionDisplay variant="compact" className="pt-1" />
         </div>
       </SheetContent>
     </Sheet>

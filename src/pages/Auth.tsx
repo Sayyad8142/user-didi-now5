@@ -4,6 +4,7 @@ import { Phone } from 'lucide-react';
 import { openExternalUrl } from '@/lib/nativeOpen';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { Navigate } from 'react-router-dom';
+import { AppVersionDisplay } from '@/components/AppVersionDisplay';
 
 export default function Auth() {
   const { user, firebaseUser, loading, isGuest } = useAuth();
@@ -52,6 +53,8 @@ export default function Auth() {
           <Phone className="w-5 h-5" />
           <span>Call Manager</span>
         </Button>
+
+        <AppVersionDisplay className="pt-2" />
       </div>
     </div>
   );
