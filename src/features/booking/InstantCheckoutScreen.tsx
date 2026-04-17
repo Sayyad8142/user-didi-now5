@@ -582,6 +582,22 @@ export function InstantCheckoutScreen() {
           toast({ title: "Payment being verified", description: "Your booking will update automatically." });
           navigate('/home', { replace: true });
         }}
+        onRateNow={() => {
+          setRetrySheetOpen(false);
+          ratingGate.goRateNow();
+        }}
+        onContactSupport={() => {
+          setRetrySheetOpen(false);
+          navigate('/support');
+        }}
+      />
+
+      {/* Pre-payment rating gate */}
+      <RatingRequiredDialog
+        open={ratingGate.dialogOpen}
+        onOpenChange={ratingGate.setDialogOpen}
+        serviceName={ratingGate.unratedServiceType ? prettyServiceName(ratingGate.unratedServiceType) : null}
+        onRateNow={ratingGate.goRateNow}
       />
     </div>
   );
