@@ -582,11 +582,6 @@ export function ScheduleScreen() {
         <div className="mt-4">
           <Button
             onClick={() => {
-              // Pre-payment rating gate.
-              if (!ratingGate.checkBeforePayment()) {
-                console.warn('[ScheduleScreen] Booking blocked: unrated previous booking');
-                return;
-              }
               setShowPaymentPicker(true);
             }}
             disabled={!canConfirm}
