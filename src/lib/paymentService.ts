@@ -237,21 +237,28 @@ async function invokeWithFirebaseAuth<T>(functionName: string, body: Record<stri
 
   const httpStatus = extractFunctionHttpStatus(error);
 
+  // If the function returned non-2xx, the body is in error.context (Response).
+  // Read it so we can show the real backend reason instead of the generic SDK message.
+  let errorBody: unknown = data ?? null;
+  if (error && (errorBody === null || errorBody === undefined)) {
+    errorBody = await readFunctionErrorBody(error);
+  }
+
   if (functionName === 'create-paid-booking') {
     logCreatePaidBookingDebug(error ? 'error' : 'response', {
       functionName,
       httpStatus: httpStatus ?? (error ? null : 200),
-      responseBody: data ?? null,
+      responseBody: errorBody ?? null,
       errorMessage: error?.message ?? null,
     });
   }
 
   if (error) {
-    const backendMessage = formatFunctionErrorMessage(functionName, error, data);
+    const backendMessage = formatFunctionErrorMessage(functionName, error, errorBody);
     console.error(`❌ [${functionName}] Error:`, {
       httpStatus,
       errorMessage: error.message,
-      responseBody: data ?? null,
+      responseBody: errorBody ?? null,
     });
     throw new Error(backendMessage || error.message || `${functionName} failed`);
   }
