@@ -475,51 +475,23 @@ export async function executePaymentFlowForNewBooking(
     onStatusChange('processing_wallet_booking');
 
     try {
-      // ── Wallet-only shortcut: create booking directly + call wallet-pay ──
-      // This bypasses create-paid-booking edge function which may be stale on production.
-      const sanitized = sanitizeBookingDataForCreatePaidBooking(bookingPayload);
-      // Generate a 3-digit completion OTP (same logic as create-paid-booking edge function)
-      const completionOtp = String(Math.floor(100 + Math.random() * 900));
-      const bookingInsertData = {
-        ...sanitized,
-        payment_method: 'wallet',
-        payment_status: 'paid',
-        completion_otp: completionOtp,
-      };
+      // ── SECURE WALLET-ONLY FLOW ──
+      // Backend (create-paid-booking) atomically:
+      //   1. Locks wallet, checks balance >= price
+      //   2. Debits wallet
+      //   3. Generates OTP server-side
+      //   4. Inserts booking with payment_status='paid'
+      //   5. On any failure → refunds wallet, no booking created
+      // Frontend NEVER inserts booking or sets payment_status='paid' directly.
+      const walletRequestId = crypto.randomUUID();
+      const walletPayload = { ...bookingPayload, request_id: walletRequestId };
 
-      console.log('📝 [WalletOnly] Inserting booking directly:', JSON.stringify({
-        service_type: sanitized.service_type,
-        booking_type: sanitized.booking_type,
-        price_inr: sanitized.price_inr,
-      }));
-
-      const { data: newBooking, error: insertErr } = await supabase
-        .from('bookings')
-        .insert([bookingInsertData])
-        .select('id, booking_type, status')
-        .single();
-
-      if (insertErr || !newBooking) {
-        console.error('❌ [WalletOnly] Booking insert failed:', insertErr);
-        throw new Error(insertErr?.message || 'Failed to create booking');
-      }
-
-      console.log('✅ [WalletOnly] Booking created:', newBooking.id, '— now debiting wallet');
-
-      // Debit wallet atomically via wallet-pay edge function
-      try {
-        const walletResult = await debitWalletForBooking(newBooking.id);
-        console.log('✅ [WalletOnly] Wallet debited:', JSON.stringify(walletResult));
-      } catch (walletErr: any) {
-        console.error('⚠️ [WalletOnly] Wallet debit failed (booking still created):', walletErr);
-        // Booking is created — wallet debit can be retried later or handled manually
-      }
-
-      const result: PaymentResult = {
-        success: true,
-        booking_id: newBooking.id,
-        payment_method: 'wallet',
-      };
+      const result = await createPaidBooking({
+        request_id: walletRequestId,
+        booking_data: walletPayload,
+        payment_type: 'wallet',
+        wallet_amount: priceInr,
+      });
 
       onStatusChange('payment_success');
       trackPaymentEvent('payment_success', {
@@ -530,11 +502,12 @@ export async function executePaymentFlowForNewBooking(
       savePreferredMethod('wallet');
       clearLastFailure();
       logPaymentSummary();
-      return result;
+      return { ...result, payment_method: 'wallet' };
     } catch (err: any) {
-      console.error('❌ Wallet-only booking creation failed:', err);
+      console.error('❌ Wallet booking creation failed:', err);
       onStatusChange('payment_failed');
-      throw new PaymentError(err.message || 'Wallet payment failed', 'payment_failed');
+      const msg = err?.message || 'Wallet payment failed';
+      throw new PaymentError(msg, 'payment_failed');
     }
   }
 
