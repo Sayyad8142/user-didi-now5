@@ -576,6 +576,11 @@ export async function executePaymentFlowForNewBooking(
       console.error('❌ Wallet booking creation failed:', err);
       onStatusChange('payment_failed');
       const msg = err?.message || 'Wallet payment failed';
+      // Surface RATING_REQUIRED distinctly so the UI can route to rating screen.
+      if (isRatingRequiredError(err)) {
+        console.warn('[paymentService] Backend RATING_REQUIRED on wallet booking — surfacing rating_required');
+        throw new PaymentError(msg, 'rating_required');
+      }
       throw new PaymentError(msg, 'payment_failed');
     }
   }
