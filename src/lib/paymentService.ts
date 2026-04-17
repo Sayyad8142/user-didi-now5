@@ -77,7 +77,7 @@ export type PaymentFlowStatus =
   | 'verification_pending';
 
 /** Error types for downstream handling */
-export type PaymentErrorType = 'user_cancelled' | 'payment_failed' | 'network_error' | 'verification_failed';
+export type PaymentErrorType = 'user_cancelled' | 'payment_failed' | 'network_error' | 'verification_failed' | 'rating_required';
 
 /** Stored checkout data for retry after verification_failed */
 export interface PendingCheckoutData {
@@ -113,7 +113,8 @@ export function toUserFriendlyPaymentError(err: any): string {
   const raw = (err?.message || '').toString();
   if (!raw) return 'Payment failed. Please try again.';
   if (raw.includes('non-2xx status code')) return 'Payment failed. Please try again.';
-  
+
+  if (/RATING_REQUIRED|rate your last/i.test(raw)) return 'Please rate your last completed service before booking again.';
   if (/INSUFFICIENT_BALANCE|Insufficient wallet/i.test(raw)) return 'Not enough wallet balance. Please choose another payment method.';
   if (/Payment verification failed|HMAC/i.test(raw)) return 'Payment could not be verified. If money was deducted it will be refunded automatically.';
   if (/Authentication expired|Not authenticated|Profile not found/i.test(raw)) return 'Session expired. Please login again.';
@@ -125,6 +126,12 @@ export function toUserFriendlyPaymentError(err: any): string {
   if (/cancelled by user/i.test(raw)) return 'Payment cancelled.';
   if (raw.length <= 140 && !raw.includes('{')) return raw;
   return 'Payment failed. Please try again.';
+}
+
+/** Detect whether a backend error is the mandatory-rating block. */
+export function isRatingRequiredError(err: any): boolean {
+  const raw = (err?.message || '').toString();
+  return /RATING_REQUIRED|rate your last completed/i.test(raw);
 }
 
 
