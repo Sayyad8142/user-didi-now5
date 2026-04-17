@@ -254,68 +254,85 @@ export function usePushNotifications({ userId }: UsePushNotificationsOptions) {
   }, [userId, registerTokenInSupabase]);
 
   // ── Native push ─────────────────────────────────────────────────────────
+  const nativeListenersAttachedRef = useRef(false);
+
   const registerNativePush = useCallback(async (force = false) => {
     if (!userId) return;
 
     try {
       const { PushNotifications } = await import('@capacitor/push-notifications');
 
-      // Remove only our own previous listeners
-      removeAllOwnListeners();
-
+      // iOS-safe: check current permission first; only prompt if 'prompt'.
+      // Avoids re-asking on every app resume — iOS won't re-prompt anyway,
+      // but checking first prevents unnecessary plugin calls and log noise.
       let permStatus = await PushNotifications.checkPermissions();
-      if (permStatus.receive === 'prompt') {
+      if (permStatus.receive === 'prompt' || permStatus.receive === 'prompt-with-rationale') {
+        console.log('[Push] Requesting native push permission…');
         permStatus = await PushNotifications.requestPermissions();
       }
       if (permStatus.receive !== 'granted') {
-        console.log('[Push] Permission not granted:', permStatus);
+        console.log('[Push] Permission not granted:', permStatus.receive);
         setLastError('Notification permission not granted');
         return;
       }
 
+      // Attach listeners ONCE per app session — re-attaching on every
+      // app resume causes redundant teardown/rebuild and can race with
+      // an in-flight registration callback (worse on iOS).
+      if (!nativeListenersAttachedRef.current) {
+        removeAllOwnListeners();
+
+        const h1 = await PushNotifications.addListener('registration', async (token) => {
+          console.log(`[Push] 📱 Native FCM token (${Capacitor.getPlatform()}):`, token.value.substring(0, 20) + '...');
+          await registerTokenInSupabase(token.value, {
+            platform: Capacitor.getPlatform(),
+            model: navigator.userAgent,
+          }, true); // always force on fresh native registration callback
+        });
+        listenerHandlesRef.current.push(h1);
+
+        const h2 = await PushNotifications.addListener('registrationError', (error) => {
+          console.error('[Push] Registration error:', error);
+          setLastError(`Push registration error: ${error?.error || 'unknown'}`);
+        });
+        listenerHandlesRef.current.push(h2);
+
+        const h3 = await PushNotifications.addListener('pushNotificationReceived', (notification) => {
+          if (isDuplicate(notification as any)) {
+            console.log('[Push] Skipping duplicate native foreground notification');
+            return;
+          }
+
+          console.log('[Push] 📩 Native foreground:', notification.data?.type || 'unknown');
+
+          // iOS suppresses the system banner when app is foreground unless
+          // we set `presentationOptions`. Showing an in-app toast keeps UX
+          // consistent across platforms.
+          const title = notification.data?.title || notification.title;
+          const body = notification.data?.body || notification.body;
+          if (title) toast.info(title, { description: body });
+
+          invalidateForType(notification.data?.type, notification.data);
+        });
+        listenerHandlesRef.current.push(h3);
+
+        // Tap handler — deep-link navigation lives in usePushDeepLink (single source of truth).
+        // Here we only invalidate caches so the destination screen has fresh data on arrival.
+        const h4 = await PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
+          console.log('[Push] 🔗 Notification tapped:', action.notification?.data?.type || 'unknown');
+          invalidateForType(action.notification?.data?.type, action.notification?.data);
+        });
+        listenerHandlesRef.current.push(h4);
+
+        nativeListenersAttachedRef.current = true;
+        console.log(`[Push] Attached ${listenerHandlesRef.current.length} native listeners (once per session)`);
+      } else if (force) {
+        console.log('[Push] Listeners already attached — re-running register() to refresh token only');
+      }
+
+      // register() triggers the 'registration' listener with the current device token.
+      // Safe to call on every login / resume; iOS just returns the cached APNs token.
       await PushNotifications.register();
-
-      // Store each handle individually
-      const h1 = await PushNotifications.addListener('registration', async (token) => {
-        console.log('[Push] 📱 Native FCM token:', token.value.substring(0, 20) + '...');
-        await registerTokenInSupabase(token.value, {
-          platform: Capacitor.getPlatform(),
-          model: navigator.userAgent,
-        }, force);
-      });
-      listenerHandlesRef.current.push(h1);
-
-      const h2 = await PushNotifications.addListener('registrationError', (error) => {
-        console.error('[Push] Registration error:', error);
-        setLastError('Push registration error');
-      });
-      listenerHandlesRef.current.push(h2);
-
-      // Foreground notification
-      const h3 = await PushNotifications.addListener('pushNotificationReceived', (notification) => {
-        if (isDuplicate(notification as any)) {
-          console.log('[Push] Skipping duplicate native foreground notification');
-          return;
-        }
-
-        console.log('[Push] 📩 Native foreground:', notification.data?.type || 'unknown');
-
-        const title = notification.data?.title || notification.title;
-        const body = notification.data?.body || notification.body;
-        if (title) toast.info(title, { description: body });
-
-        invalidateForType(notification.data?.type, notification.data);
-      });
-      listenerHandlesRef.current.push(h3);
-
-      // Notification tap — deep link handled by usePushDeepLink
-      const h4 = await PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
-        console.log('[Push] 🔗 Notification tapped:', action.notification?.data?.type || 'unknown');
-        invalidateForType(action.notification?.data?.type, action.notification?.data);
-      });
-      listenerHandlesRef.current.push(h4);
-
-      console.log(`[Push] Attached ${listenerHandlesRef.current.length} native listeners`);
     } catch (err: any) {
       console.error('[Push] Native push registration error:', err);
       setLastError(err?.message ?? 'Native push registration error');
