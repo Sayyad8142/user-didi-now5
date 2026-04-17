@@ -52,6 +52,8 @@ export default function Auth() {
           <Phone className="w-5 h-5" />
           <span>Call Manager</span>
         </Button>
+
+        <AppVersionDisplay className="pt-2" />
       </div>
     </div>
   );
