@@ -171,8 +171,13 @@ export function InstantCheckoutScreen() {
         cust_phone: profile.phone,
         community: profile.community,
         flat_no: profile.flat_no,
+        community_id: profile.community_id ?? null,
+        building_id: profile.building_id ?? null,
+        flat_id: profile.flat_id ?? null,
         preferred_worker_id: selectedWorker?.worker_id || null,
       } as any;
+
+      console.log("FINAL_BOOKING_PAYLOAD", bookingData);
 
       // ── Pay After Service: insert booking directly (existing flow) ──
       if (paymentMethod === 'pay_after_service') {
