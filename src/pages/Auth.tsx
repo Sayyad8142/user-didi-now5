@@ -4,6 +4,7 @@ import { Phone } from 'lucide-react';
 import { openExternalUrl } from '@/lib/nativeOpen';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { Navigate } from 'react-router-dom';
+import { AppVersionDisplay } from '@/components/AppVersionDisplay';
 
 export default function Auth() {
   const { user, firebaseUser, loading, isGuest } = useAuth();
