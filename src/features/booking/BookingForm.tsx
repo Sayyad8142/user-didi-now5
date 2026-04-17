@@ -31,6 +31,8 @@ import { PaymentMethodSelector, type PaymentMethod } from '@/components/PaymentM
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription } from '@/components/ui/alert-dialog';
 import { executePaymentFlow, executePaymentFlowForNewBooking, PaymentError, type PaymentFlowStatus, type PaymentErrorType } from '@/lib/paymentService';
 import { PaymentRetrySheet } from '@/components/PaymentRetrySheet';
+import { RatingRequiredDialog } from '@/components/RatingRequiredDialog';
+import { useRatingGate } from '@/hooks/useRatingGate';
 import { trackPaymentEvent } from '@/lib/paymentAnalytics';
 import { CreditCard, HandCoins } from 'lucide-react';
 import { useWalletBalance } from '@/hooks/useWallet';
@@ -73,6 +75,7 @@ export function BookingForm() {
   const selectedFlatSize = autoFlatSize as FlatSize | null;
   const { data: walletData } = useWalletBalance();
   const walletBalance = walletData?.balance_inr ?? 0;
+  const ratingGate = useRatingGate();
   const [pricingMap, setPricingMap] = useState<PricingMap>({});
   const [loadingPricing, setLoadingPricing] = useState(true);
   const [scheduleSheetOpen, setScheduleSheetOpen] = useState(false);
@@ -283,6 +286,12 @@ export function BookingForm() {
   const handleBookNow = async () => {
     if (!profile || !service_type) return;
 
+    // Pre-payment rating gate.
+    if (!ratingGate.checkBeforePayment()) {
+      console.warn('[BookingForm] Instant booking blocked: unrated previous booking');
+      return;
+    }
+
     // Server-side supply check before creating booking
     if (profile.community) {
       const available = await checkInstantBookingAvailability(profile.community);
@@ -350,6 +359,12 @@ export function BookingForm() {
   };
   const handleSchedule = () => {
     if (!profile || !service_type) return;
+
+    // Pre-payment rating gate.
+    if (!ratingGate.checkBeforePayment()) {
+      console.warn('[BookingForm] Schedule blocked: unrated previous booking');
+      return;
+    }
 
     // Build query parameters for ScheduleScreen
     const params = new URLSearchParams();
