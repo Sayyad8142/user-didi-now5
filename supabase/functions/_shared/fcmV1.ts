@@ -152,100 +152,129 @@ async function getAccessToken(
   return data.access_token;
 }
 
+export interface SendFcmOptions {
+  /** Device platform: 'ios' | 'android' | 'web'. Used for observability and APNs topic selection. */
+  platform?: string;
+  /** iOS bundle id used as `apns-topic`. Falls back to APNS_TOPIC env or 'app.lovable.2edd991f3825445a9485006dde036295'. */
+  apnsTopic?: string;
+  /** Optional badge count for iOS. If omitted, badge is NOT set (recommended for booking-style alerts). */
+  badge?: number;
+  /** Optional user_id for log breadcrumbs. */
+  userId?: string;
+}
+
 /**
- * Sends an FCM push notification using HTTP v1 API
- * 
+ * Sends an FCM push notification using HTTP v1 API.
+ * Produces a cross-platform payload: Android system notification, web push, and iOS APNs alert.
+ *
  * @param token - Device FCM token
- * @param title - Notification title
- * @param body - Notification body
- * @param data - Optional data payload
+ * @param title - Notification title (visible)
+ * @param body  - Notification body (visible)
+ * @param data  - Optional data payload (auto-stringified). `deep_link` is forwarded for tap handling.
+ * @param opts  - Optional platform/badge/topic hints
  */
 export async function sendFcmV1Message(
   token: string,
   title: string,
   body: string,
-  data?: Record<string, string>
+  data?: Record<string, string>,
+  opts: SendFcmOptions = {}
 ): Promise<void> {
   const { projectId, clientEmail, privateKey } = getFcmCredentials();
 
-  console.log('📛 FCM project:', projectId, 'client:', clientEmail?.split('@')?.[0] + '@…');
+  const platform = (opts.platform || data?.platform || 'unknown').toLowerCase();
+  const userId = opts.userId || data?.user_id || 'n/a';
+  const apnsTopic =
+    opts.apnsTopic ||
+    Deno.env.get('APNS_TOPIC') ||
+    'app.lovable.2edd991f3825445a9485006dde036295';
 
-  console.log('🔐 Getting OAuth2 access token...');
+  console.log(
+    `📛 FCM send | project=${projectId} | user=${userId} | platform=${platform} | token=${token.slice(0, 12)}…`
+  );
+
   const accessToken = await getAccessToken(clientEmail, privateKey);
-
   const fcmUrl = `https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`;
 
-  // Build data payload - always include title/body in data for overlay display
+  // Build data payload — title/body mirrored for in-app overlays.
   const dataPayload: Record<string, string> = {
     ...data,
-    title: title,
-    body: body,
+    title,
+    body,
   };
 
+  // Backward-compat: if booking_id present and no deep_link, generate one.
+  if (!dataPayload.deep_link && dataPayload.booking_id) {
+    dataPayload.deep_link = `/booking/${dataPayload.booking_id}`;
+  }
+
+  // iOS aps block — always an alert push (visible). Badge only if explicitly requested.
+  const aps: Record<string, unknown> = {
+    alert: { title, body },
+    sound: 'default',
+    'mutable-content': 1,
+    'content-available': 1, // wakes app for in-app handling without suppressing alert
+  };
+  if (typeof opts.badge === 'number') {
+    aps.badge = opts.badge;
+  }
+
   const message: Record<string, unknown> = {
-    token: token,
+    token,
 
-    // Ensure Android shows a system notification even when the app is background/killed.
-    // (Data-only messages will not display by default.)
-    notification: {
-      title,
-      body,
-    },
+    // Visible notification block — required for Android/iOS system display.
+    notification: { title, body },
 
-    // Keep data payload for deep-linking / in-app handling.
+    // Data payload for deep-linking / in-app handling.
     data: dataPayload,
 
     android: {
       priority: 'high',
       notification: {
-        // If you don't create channels in native code, using the fallback channel is safest.
         channel_id: 'fcm_fallback_notification_channel',
         sound: 'default',
       },
     },
 
-    // Web push needs notification block for browser display
     webpush: {
       notification: {
-        title: title,
-        body: body,
+        title,
+        body,
         icon: '/lovable-uploads/a157d599-7225-4729-88f2-e0a3d7500d7b.png',
         requireInteraction: true,
       },
       fcm_options: {
-        link: '/',
+        link: dataPayload.deep_link || '/',
       },
     },
 
-    // APNS for iOS
+    // APNS — explicit headers for production-safe alert delivery.
     apns: {
       headers: {
+        'apns-push-type': 'alert',
         'apns-priority': '10',
+        'apns-topic': apnsTopic,
+        // Allow OS to coalesce duplicates per booking when applicable.
+        ...(dataPayload.booking_id
+          ? { 'apns-collapse-id': `booking-${dataPayload.booking_id}` }
+          : {}),
       },
       payload: {
-        aps: {
-          alert: {
-            title: title,
-            body: body,
-          },
-          sound: 'default',
-          badge: 1,
-        },
+        aps,
+        // Mirror data fields at top level so iOS userInfo carries them too.
+        ...dataPayload,
       },
     },
   };
 
-  console.log('📤 Sending FCM v1:', { 
-    title, 
-    body, 
-    token_preview: token.substring(0, 20) + '...',
-    has_data: !!data 
-  });
+  console.log(
+    `📤 FCM payload | user=${userId} | platform=${platform} | title="${title}" | deep_link=${dataPayload.deep_link || '—'} | apns-topic=${apnsTopic}`
+  );
 
   const response = await fetch(fcmUrl, {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${accessToken}`,
+      Authorization: `Bearer ${accessToken}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({ message }),
@@ -253,10 +282,14 @@ export async function sendFcmV1Message(
 
   if (!response.ok) {
     const errorText = await response.text();
-    console.error('❌ FCM v1 error:', response.status, errorText);
+    console.error(
+      `❌ FCM v1 error | user=${userId} | platform=${platform} | status=${response.status} | ${errorText}`
+    );
     throw new Error(`FCM v1 failed: ${response.status} - ${errorText}`);
   }
 
   const result = await response.json();
-  console.log('✅ FCM v1 sent successfully:', result.name);
+  console.log(
+    `✅ FCM v1 sent | user=${userId} | platform=${platform} | name=${result.name}`
+  );
 }

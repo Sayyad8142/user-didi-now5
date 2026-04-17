@@ -54,11 +54,29 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Query unified fcm_tokens table
-    const { data: tokens, error: tokenError } = await supabase
-      .from('fcm_tokens')
-      .select('token, user_id')
-      .in('user_id', userIds);
+    // Query unified fcm_tokens table — try with platform column, fallback if missing.
+    let tokens: Array<{ token: string; user_id: string; platform?: string | null }> | null = null;
+    let tokenError: any = null;
+
+    {
+      const res = await supabase
+        .from('fcm_tokens')
+        .select('token, user_id, platform')
+        .in('user_id', userIds);
+      tokens = res.data as any;
+      tokenError = res.error;
+
+      // Graceful fallback if `platform` column doesn't exist yet on this DB.
+      if (tokenError && /column .*platform.* does not exist/i.test(tokenError.message || '')) {
+        console.warn('⚠️ fcm_tokens.platform column missing — falling back without it. Run docs/fcm-tokens-platform-migration.sql.');
+        const fb = await supabase
+          .from('fcm_tokens')
+          .select('token, user_id')
+          .in('user_id', userIds);
+        tokens = fb.data as any;
+        tokenError = fb.error;
+      }
+    }
 
     if (tokenError) {
       console.error('❌ Error fetching tokens from fcm_tokens:', tokenError);
@@ -76,7 +94,12 @@ serve(async (req) => {
       );
     }
 
-    console.log(`📱 Found ${tokens.length} token(s) for ${userIds.length} user(s)`);
+    const platformBreakdown = tokens.reduce<Record<string, number>>((acc, t) => {
+      const p = (t.platform || 'unknown').toLowerCase();
+      acc[p] = (acc[p] || 0) + 1;
+      return acc;
+    }, {});
+    console.log(`📱 Found ${tokens.length} token(s) for ${userIds.length} user(s) | platforms=${JSON.stringify(platformBreakdown)}`);
 
     // Convert data values to strings (FCM v1 requires string values)
     const stringData: Record<string, string> = {};
@@ -96,25 +119,25 @@ serve(async (req) => {
     let failed = 0;
     const errors: string[] = [];
 
-    for (const { token, user_id } of tokens) {
+    for (const { token, user_id, platform } of tokens) {
       try {
         await sendFcmV1Message(
           token,
           title,
           messageBody,
-          Object.keys(stringData).length > 0 ? stringData : undefined
+          Object.keys(stringData).length > 0 ? stringData : undefined,
+          { platform: platform || undefined, userId: user_id }
         );
         sent++;
-        console.log(`✅ Sent to user ${user_id}, token: ${token.substring(0, 20)}...`);
+        console.log(`✅ Sent | user=${user_id} | platform=${platform || 'unknown'} | token=${token.substring(0, 12)}…`);
       } catch (err) {
         failed++;
         const errorMsg = err instanceof Error ? err.message : 'Unknown error';
-        console.error(`❌ Failed to send to user ${user_id}: ${errorMsg}`);
-        errors.push(`${user_id}: ${errorMsg}`);
-        
-        // If token is invalid, remove it from database
+        console.error(`❌ Failed | user=${user_id} | platform=${platform || 'unknown'} | ${errorMsg}`);
+        errors.push(`${user_id}[${platform || '?'}]: ${errorMsg}`);
+
         if (errorMsg.includes('NOT_FOUND') || errorMsg.includes('UNREGISTERED')) {
-          console.log(`🗑️ Removing invalid token for user ${user_id}`);
+          console.log(`🗑️ Removing invalid token for user ${user_id} (platform=${platform || 'unknown'})`);
           await supabase
             .from('fcm_tokens')
             .delete()
