@@ -6,7 +6,7 @@ import {
   Loader2, RotateCcw, CreditCard, HandCoins, WifiOff, XCircle,
   Clock, ShieldCheck, AlertTriangle
 } from 'lucide-react';
-import type { PaymentErrorType } from '@/lib/paymentService';
+import { toUserFriendlyPaymentError, type PaymentErrorType } from '@/lib/paymentService';
 import { trackPaymentEvent, getRetrySuggestion } from '@/lib/paymentAnalytics';
 
 // ─── Error config ─────────────────────────────────────────────
