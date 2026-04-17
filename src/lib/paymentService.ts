@@ -105,6 +105,29 @@ export class PaymentError extends Error {
   }
 }
 
+/**
+ * Convert raw backend / SDK errors into a clean, user-safe message.
+ * Full technical detail still goes to console.error in invokeWithFirebaseAuth.
+ */
+export function toUserFriendlyPaymentError(err: any): string {
+  const raw = (err?.message || '').toString();
+  if (!raw) return 'Payment failed. Please try again.';
+  if (raw.includes('non-2xx status code')) return 'Payment failed. Please try again.';
+  if (/RATING_REQUIRED|rate your last/i.test(raw)) return 'Please rate your last completed service before booking again.';
+  if (/INSUFFICIENT_BALANCE|Insufficient wallet/i.test(raw)) return 'Not enough wallet balance. Please choose another payment method.';
+  if (/Payment verification failed|HMAC/i.test(raw)) return 'Payment could not be verified. If money was deducted it will be refunded automatically.';
+  if (/Authentication expired|Not authenticated|Profile not found/i.test(raw)) return 'Session expired. Please login again.';
+  if (/User ID mismatch|not_owner/i.test(raw)) return 'Account mismatch. Please login again.';
+  if (/SUPPLY_FULL|All experts are busy/i.test(raw)) return 'All experts are busy right now. Please try again in a few minutes.';
+  if (/Slot unavailable|Not enough workers/i.test(raw)) return 'No workers are available at this time. Please pick another slot.';
+  if (/Razorpay|Unable to create.*order/i.test(raw)) return 'Payment gateway is unavailable. Please try again in a moment.';
+  if (/Load failed|Failed to fetch|NetworkError|network/i.test(raw)) return 'Network error. Please check your connection and try again.';
+  if (/cancelled by user/i.test(raw)) return 'Payment cancelled.';
+  if (raw.length <= 140 && !raw.includes('{')) return raw;
+  return 'Payment failed. Please try again.';
+}
+
+
 // ─── Helpers ──────────────────────────────────────────────────
 
 function normalizeScheduledTime(value: unknown): string | null {
@@ -165,6 +188,33 @@ function extractFunctionHttpStatus(error: any): number | null {
   return typeof status === 'number' ? status : null;
 }
 
+/**
+ * supabase.functions.invoke() returns the failure body inside `error.context`
+ * (a Response object) when the function responds with a non-2xx status.
+ * Read it so we can surface the real backend reason instead of the generic
+ * "Edge Function returned a non-2xx status code" SDK message.
+ */
+async function readFunctionErrorBody(error: any): Promise<unknown | null> {
+  const ctx = error?.context;
+  if (!ctx) return null;
+  try {
+    if (typeof ctx.clone === 'function') {
+      const cloned = ctx.clone();
+      const text = await cloned.text();
+      if (!text) return null;
+      try { return JSON.parse(text); } catch { return text; }
+    }
+    if (typeof ctx.text === 'function') {
+      const text = await ctx.text();
+      if (!text) return null;
+      try { return JSON.parse(text); } catch { return text; }
+    }
+  } catch (e) {
+    console.warn('[paymentService] could not read error.context body:', e);
+  }
+  return null;
+}
+
 function formatFunctionErrorMessage(functionName: string, error: any, data: unknown): string {
   if (typeof data === 'string' && data.trim()) return data;
 
@@ -185,7 +235,12 @@ function formatFunctionErrorMessage(functionName: string, error: any, data: unkn
     }
   }
 
-  return error?.message || `${functionName} failed`;
+  // Avoid leaking the unhelpful SDK string to users
+  const raw = error?.message || '';
+  if (raw.includes('non-2xx status code')) {
+    return `${functionName} failed. Please try again.`;
+  }
+  return raw || `${functionName} failed`;
 }
 
 function logCreatePaidBookingDebug(stage: 'request' | 'response' | 'error', details: Record<string, unknown>) {
@@ -205,21 +260,28 @@ async function invokeWithFirebaseAuth<T>(functionName: string, body: Record<stri
 
   const httpStatus = extractFunctionHttpStatus(error);
 
+  // If the function returned non-2xx, the body is in error.context (Response).
+  // Read it so we can show the real backend reason instead of the generic SDK message.
+  let errorBody: unknown = data ?? null;
+  if (error && (errorBody === null || errorBody === undefined)) {
+    errorBody = await readFunctionErrorBody(error);
+  }
+
   if (functionName === 'create-paid-booking') {
     logCreatePaidBookingDebug(error ? 'error' : 'response', {
       functionName,
       httpStatus: httpStatus ?? (error ? null : 200),
-      responseBody: data ?? null,
+      responseBody: errorBody ?? null,
       errorMessage: error?.message ?? null,
     });
   }
 
   if (error) {
-    const backendMessage = formatFunctionErrorMessage(functionName, error, data);
+    const backendMessage = formatFunctionErrorMessage(functionName, error, errorBody);
     console.error(`❌ [${functionName}] Error:`, {
       httpStatus,
       errorMessage: error.message,
-      responseBody: data ?? null,
+      responseBody: errorBody ?? null,
     });
     throw new Error(backendMessage || error.message || `${functionName} failed`);
   }
