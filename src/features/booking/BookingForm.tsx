@@ -1281,6 +1281,22 @@ export function BookingForm() {
             toast({ title: "Payment being verified", description: "Your booking will update automatically." });
             navigate('/home', { replace: true });
           }}
+          onRateNow={() => {
+            setRetrySheetOpen(false);
+            ratingGate.goRateNow();
+          }}
+          onContactSupport={() => {
+            setRetrySheetOpen(false);
+            navigate('/support');
+          }}
+        />
+
+        {/* Pre-payment rating gate */}
+        <RatingRequiredDialog
+          open={ratingGate.dialogOpen}
+          onOpenChange={ratingGate.setDialogOpen}
+          serviceName={service_type ? prettyServiceName(service_type) : null}
+          onRateNow={ratingGate.goRateNow}
         />
       </div>
     </div>;
