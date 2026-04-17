@@ -159,11 +159,16 @@ export function PaymentRetrySheet({
           <p className="text-sm text-muted-foreground leading-snug max-w-[260px]">
             {config.message}
           </p>
-          {errorMessage && (
-            <p className="mt-1 max-w-[280px] break-words text-xs font-mono text-destructive/80">
-              Error: {errorMessage}
-            </p>
-          )}
+          {(() => {
+            const friendly = errorMessage ? toUserFriendlyPaymentError({ message: errorMessage }) : '';
+            // Hide if empty, identical to the generic config copy, or still raw "non-2xx"
+            if (!friendly || friendly === config.message || /non-2xx/i.test(friendly)) return null;
+            return (
+              <p className="mt-1 max-w-[280px] break-words text-xs text-muted-foreground">
+                {friendly}
+              </p>
+            );
+          })()}
         </div>
 
         {/* Timer */}
