@@ -41,10 +41,23 @@ Deno.serve(async (req) => {
 
     if (!profile) return json({ error: "Profile not found" }, 404);
 
-    // 4. Call the atomic RPC — all money logic is in the DB
+    // 3b. Resolve booking price (DB function may rely on it; passing 0 was a footgun)
+    const { data: bookingForPrice } = await supabase
+      .from("bookings")
+      .select("price_inr, user_id")
+      .eq("id", booking_id)
+      .single();
+
+    if (!bookingForPrice) return json({ error: "booking_not_found" }, 404);
+    if (bookingForPrice.user_id !== profile.id) return json({ error: "not_owner" }, 403);
+
+    const bookingPrice = Number(bookingForPrice.price_inr ?? 0);
+    console.log(`[wallet-pay] booking ${booking_id} price=₹${bookingPrice}`);
+
+    // 4. Call the atomic RPC — pass real price so DB can debit & verify correctly
     const { data: result, error: rpcErr } = await supabase.rpc(
       "debit_wallet_for_booking",
-      { p_user_id: profile.id, p_booking_id: booking_id, p_amount: 0 },
+      { p_user_id: profile.id, p_booking_id: booking_id, p_amount: bookingPrice },
     );
 
     if (rpcErr) {
