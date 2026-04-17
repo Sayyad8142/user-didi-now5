@@ -12,7 +12,7 @@ import { PaymentMethodSelector, type PaymentMethod } from '@/components/PaymentM
 import { PaymentRetrySheet } from '@/components/PaymentRetrySheet';
 import { trackPaymentEvent } from '@/lib/paymentAnalytics';
 import { useWalletBalance } from '@/hooks/useWallet';
-import { useUnratedBooking } from '@/hooks/useUnratedBooking';
+
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useProfile } from '@/contexts/ProfileContext';
 import { prettyServiceName, isValidServiceType, getPricingMap } from './pricing';
@@ -54,7 +54,7 @@ export function ScheduleScreen() {
   const { flatSize: autoFlatSize } = useFlatSize();
   const { data: walletData } = useWalletBalance();
   const walletBalance = walletData?.balance_inr ?? 0;
-  const { hasUnratedBooking } = useUnratedBooking();
+  
 
   const [selectedDate, setSelectedDate] = useState<Date>(() => {
     // Auto-select the first date that has available (non-past) slots
@@ -209,17 +209,6 @@ export function ScheduleScreen() {
     }
     if (service_type !== 'bathroom_cleaning' && !flatSize) return;
     if (service_type === 'bathroom_cleaning' && !bathroomCount) return;
-
-    // Block if mandatory rating is pending
-    if (hasUnratedBooking) {
-      toast({
-        title: "Rating Required",
-        description: "Please rate your last completed service before booking again.",
-        variant: "destructive"
-      });
-      navigate('/home');
-      return;
-    }
 
     const isThirtyMinuteSlot = /^\d{1,2}:(00|30)$/.test(selectedTime);
     const isSelectedSlotAvailable = availableSlots !== null && availableSlots.has(selectedTime);

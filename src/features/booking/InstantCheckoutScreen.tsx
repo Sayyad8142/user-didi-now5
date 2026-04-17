@@ -21,7 +21,7 @@ import { PaymentMethodSelector, type PaymentMethod } from '@/components/PaymentM
 import { PaymentRetrySheet } from '@/components/PaymentRetrySheet';
 import { trackPaymentEvent } from '@/lib/paymentAnalytics';
 import { useWalletBalance } from '@/hooks/useWallet';
-import { useUnratedBooking } from '@/hooks/useUnratedBooking';
+
 
 export function InstantCheckoutScreen() {
   const navigate = useNavigate();
@@ -49,7 +49,7 @@ export function InstantCheckoutScreen() {
   const { flatSize: autoFlatSize } = useFlatSize();
   const { data: walletData } = useWalletBalance();
   const walletBalance = walletData?.balance_inr ?? 0;
-  const { hasUnratedBooking } = useUnratedBooking();
+  
 
   const priceParam = searchParams.get('price');
   const price = priceParam ? Number(priceParam) : 0;
@@ -87,32 +87,12 @@ export function InstantCheckoutScreen() {
   }, []);
 
   const handleBookNow = () => {
-    if (hasUnratedBooking) {
-      toast({
-        title: "Rating Required",
-        description: "Please rate your last completed service before booking again.",
-        variant: "destructive"
-      });
-      navigate('/home');
-      return;
-    }
     setShowPaymentPicker(true);
   };
 
   const confirmBooking = async () => {
     setShowPaymentPicker(false);
     if (!profile || !service_type || !user) return;
-
-    // Block if mandatory rating is pending
-    if (hasUnratedBooking) {
-      toast({
-        title: "Rating Required",
-        description: "Please rate your last completed service before booking again.",
-        variant: "destructive"
-      });
-      navigate('/home');
-      return;
-    }
 
     // Server-side supply check
     if (profile.community) {
