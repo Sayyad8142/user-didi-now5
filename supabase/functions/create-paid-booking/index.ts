@@ -63,6 +63,11 @@ const OPTIONAL_BOOKING_INSERT_COLUMNS = new Set([
   "razorpay_paid_amount",
   "request_id",
   "wallet_used_amount",
+  // Newer location columns — may not exist in older schemas
+  "building_id",
+  "community_id",
+  "flat_id",
+  "preferred_worker_id",
 ]);
 
 function extractMissingColumnName(message?: string): string | null {
