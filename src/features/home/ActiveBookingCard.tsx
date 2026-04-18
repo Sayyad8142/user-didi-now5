@@ -145,7 +145,7 @@ const getHelperLine = (booking: Booking): string | null => {
   if (booking.status === 'pending') {
     return "We'll notify you the moment a worker accepts";
   }
-  if (booking.status === 'on_the_way' || booking.status === 'started') {
+  if (booking.status === 'assigned' || booking.status === 'accepted' || booking.status === 'on_the_way' || booking.status === 'started') {
     return 'Share OTP only after work is fully completed';
   }
   return null;
