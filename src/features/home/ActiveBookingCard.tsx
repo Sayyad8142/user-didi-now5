@@ -320,7 +320,7 @@ const ActiveBookingCard = memo(() => {
       !!activeBooking?.completion_otp &&
       isPaidLike &&
       !activeBooking?.otp_verified_at &&
-      (activeBooking?.status === 'on_the_way' || activeBooking?.status === 'started');
+      ['assigned', 'accepted', 'on_the_way', 'started'].includes(activeBooking?.status ?? '');
     if (!shouldShow && showOtpSheet) setShowOtpSheet(false);
   }, [activeBooking?.completion_otp, (activeBooking as any)?.payment_method, activeBooking?.payment_status, activeBooking?.otp_verified_at, activeBooking?.status, showOtpSheet]);
 
