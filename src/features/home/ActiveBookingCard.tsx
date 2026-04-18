@@ -440,7 +440,7 @@ const ActiveBookingCard = memo(() => {
     !!activeBooking.completion_otp &&
     isPaidLike &&
     !activeBooking.otp_verified_at &&
-    (activeBooking.status === 'on_the_way' || activeBooking.status === 'started');
+    ['assigned', 'accepted', 'on_the_way', 'started'].includes(activeBooking.status);
   const isCancelled = activeBooking.status === 'cancelled';
   const isFinding = activeBooking.status === 'pending' && activeBooking.booking_type !== 'scheduled';
 
