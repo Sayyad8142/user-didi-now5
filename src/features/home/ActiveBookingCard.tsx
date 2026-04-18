@@ -723,7 +723,7 @@ const ActiveBookingCard = memo(() => {
             {(activeBooking.completion_otp || '').split('').map((digit, i) => (
               <span
                 key={i}
-                className="w-14 h-16 flex items-center justify-center bg-emerald-50 ring-1 ring-emerald-200 rounded-2xl text-3xl font-bold text-emerald-900"
+                className="w-20 h-24 flex items-center justify-center bg-emerald-50 ring-2 ring-emerald-200 rounded-2xl text-5xl font-extrabold text-emerald-900 tabular-nums shadow-sm"
               >
                 {digit}
               </span>
