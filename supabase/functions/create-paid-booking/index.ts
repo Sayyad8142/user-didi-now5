@@ -358,7 +358,7 @@ Deno.serve(async (req) => {
         const { data: newWallet, error: createErr } = await supabase
           .from("user_wallets")
           .upsert({ user_id: profile.id, balance_inr: 0 }, { onConflict: "user_id" })
-          .select("id, balance_inr")
+          .select("balance_inr")
           .maybeSingle();
 
         if (createErr) {
@@ -372,7 +372,7 @@ Deno.serve(async (req) => {
           console.warn("[create-paid-booking] Upsert returned no row, refetching…");
           const { data: refetched, error: refetchErr } = await supabase
             .from("user_wallets")
-            .select("id, balance_inr")
+            .select("balance_inr")
             .eq("user_id", profile.id)
             .maybeSingle();
 
