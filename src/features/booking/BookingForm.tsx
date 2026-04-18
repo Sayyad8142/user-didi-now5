@@ -476,7 +476,7 @@ export function BookingForm() {
         };
 
         console.log('📤 Sending booking data to database:', insertData);
-        const { data, error } = await supabase.from('bookings').insert([insertData]).select();
+        const { data, error } = await insertBookingWithCompat(insertData);
 
         if (error) {
           console.error('❌ Booking error:', error);

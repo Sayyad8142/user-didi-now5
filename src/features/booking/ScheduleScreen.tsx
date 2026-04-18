@@ -309,7 +309,7 @@ export function ScheduleScreen() {
         };
 
         console.log('📤 Sending pay-after-service scheduled booking to database:', payAfterData);
-        const { data, error } = await supabase.from('bookings').insert([payAfterData]).select();
+        const { data, error } = await insertBookingWithCompat(payAfterData);
 
         if (error) {
           console.error('❌ Scheduled booking error:', error);
