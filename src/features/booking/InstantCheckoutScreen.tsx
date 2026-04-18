@@ -8,6 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { insertBookingWithCompat } from './insertBookingCompat';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { cn } from '@/lib/utils';
@@ -167,7 +168,7 @@ export function InstantCheckoutScreen() {
           payment_status: 'pay_after_service',
         };
 
-        const { data, error } = await supabase.from('bookings').insert([payAfterData]).select();
+        const { data, error } = await insertBookingWithCompat(payAfterData);
 
         if (error) {
           console.error('❌ Booking error:', error);

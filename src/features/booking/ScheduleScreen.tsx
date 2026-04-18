@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { insertBookingWithCompat } from './insertBookingCompat';
 import { executePaymentFlow, executePaymentFlowForNewBooking, retryPendingBookingCreation, PaymentError, type PaymentFlowStatus, type PaymentErrorType, type PendingCheckoutData } from '@/lib/paymentService';
 import { PaymentMethodSelector, type PaymentMethod } from '@/components/PaymentMethodSelector';
 import { PaymentRetrySheet } from '@/components/PaymentRetrySheet';
@@ -309,7 +310,7 @@ export function ScheduleScreen() {
         };
 
         console.log('📤 Sending pay-after-service scheduled booking to database:', payAfterData);
-        const { data, error } = await supabase.from('bookings').insert([payAfterData]).select();
+        const { data, error } = await insertBookingWithCompat(payAfterData);
 
         if (error) {
           console.error('❌ Scheduled booking error:', error);
