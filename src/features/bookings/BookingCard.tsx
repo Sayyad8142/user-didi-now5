@@ -340,10 +340,15 @@ export function BookingCard({
     row.payment_method === 'wallet' ||
     row.payment_method === 'wallet+razorpay' ||
     row.payment_method === 'razorpay';
+  // OTP visible from booking creation. Hidden only when cancelled,
+  // or completed AND already verified.
+  const _otpHidden =
+    row.status === 'cancelled' ||
+    (row.status === 'completed' && !!row.otp_verified_at);
   const showOtpBlock = !!row.completion_otp &&
     _isPaidLike &&
     !row.otp_verified_at &&
-    (row.status === 'on_the_way' || row.status === 'started');
+    !_otpHidden;
   const _paymentMethod = (row as any).payment_method as string | undefined;
   const _isWalletPaid = _paymentMethod === 'wallet' || _paymentMethod === 'wallet+razorpay';
   const _isPaid = row.payment_status === 'paid' || row.payment_status === 'pay_after_service' || _isWalletPaid;

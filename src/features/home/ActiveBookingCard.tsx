@@ -316,11 +316,17 @@ const ActiveBookingCard = memo(() => {
       ps === 'paid' ||
       ps === 'pay_after_service' ||
       pm === 'wallet' || pm === 'wallet+razorpay' || pm === 'razorpay';
+    // Show OTP from booking creation onwards. Only hide when cancelled,
+    // or when completed AND already verified.
+    const status = activeBooking?.status ?? '';
+    const isHiddenState =
+      status === 'cancelled' ||
+      (status === 'completed' && !!activeBooking?.otp_verified_at);
     const shouldShow =
       !!activeBooking?.completion_otp &&
       isPaidLike &&
       !activeBooking?.otp_verified_at &&
-      ['assigned', 'accepted', 'on_the_way', 'started'].includes(activeBooking?.status ?? '');
+      !isHiddenState;
     if (!shouldShow && showOtpSheet) setShowOtpSheet(false);
   }, [activeBooking?.completion_otp, (activeBooking as any)?.payment_method, activeBooking?.payment_status, activeBooking?.otp_verified_at, activeBooking?.status, showOtpSheet]);
 
@@ -436,11 +442,16 @@ const ActiveBookingCard = memo(() => {
     _ps === 'paid' ||
     _ps === 'pay_after_service' ||
     _pm === 'wallet' || _pm === 'wallet+razorpay' || _pm === 'razorpay';
+  // OTP visible from creation (pending/scheduled/accepted/on_the_way/started/assigned).
+  // Hidden only when cancelled, or completed+verified.
+  const _otpHiddenState =
+    activeBooking.status === 'cancelled' ||
+    (activeBooking.status === 'completed' && !!activeBooking.otp_verified_at);
   const showOtpRow =
     !!activeBooking.completion_otp &&
     isPaidLike &&
     !activeBooking.otp_verified_at &&
-    ['assigned', 'accepted', 'on_the_way', 'started'].includes(activeBooking.status);
+    !_otpHiddenState;
   const isCancelled = activeBooking.status === 'cancelled';
   const isFinding = activeBooking.status === 'pending' && activeBooking.booking_type !== 'scheduled';
 
@@ -623,7 +634,7 @@ const ActiveBookingCard = memo(() => {
                   Completion OTP
                 </p>
                 <p className="text-[11px] text-emerald-700/70 mt-1 leading-tight">
-                  Share only after work is done
+                  Share this OTP only after service completion
                 </p>
               </div>
             </div>
