@@ -607,20 +607,36 @@ const ActiveBookingCard = memo(() => {
           </div>
         )}
 
-        {/* OTP compact row — opens bottom sheet */}
+        {/* OTP prominent row — large digits at-a-glance, tap to open sheet */}
         {showOtpRow && (
           <button
             type="button"
             onClick={() => setShowOtpSheet(true)}
-            className="mt-3 ml-1 w-[calc(100%-0.25rem)] flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 ring-1 ring-emerald-200 transition-colors"
+            className="mt-3 ml-1 w-[calc(100%-0.25rem)] flex items-center justify-between gap-3 px-4 py-3 rounded-2xl bg-emerald-50 hover:bg-emerald-100 ring-1 ring-emerald-200 transition-colors text-left"
           >
-            <div className="flex items-center gap-2">
-              <KeyRound className="w-4 h-4 text-emerald-700" />
-              <span className="text-[13px] font-semibold text-emerald-800">Completion OTP available</span>
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="p-2 rounded-xl bg-emerald-100 ring-1 ring-emerald-200 shrink-0">
+                <KeyRound className="w-4 h-4 text-emerald-700" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-emerald-700/80 leading-none">
+                  Completion OTP
+                </p>
+                <p className="text-[11px] text-emerald-700/70 mt-1 leading-tight">
+                  Share only after work is done
+                </p>
+              </div>
             </div>
-            <span className="text-[12px] font-semibold text-emerald-700 inline-flex items-center gap-0.5">
-              View OTP <ChevronRight className="w-3.5 h-3.5" />
-            </span>
+            <div className="flex items-center gap-1.5 shrink-0">
+              {(activeBooking.completion_otp || '').split('').map((digit, i) => (
+                <span
+                  key={i}
+                  className="w-9 h-11 flex items-center justify-center bg-white ring-1 ring-emerald-300 rounded-lg text-2xl font-extrabold text-emerald-900 tabular-nums shadow-sm"
+                >
+                  {digit}
+                </span>
+              ))}
+            </div>
           </button>
         )}
 
