@@ -145,7 +145,7 @@ const getHelperLine = (booking: Booking): string | null => {
   if (booking.status === 'pending') {
     return "We'll notify you the moment a worker accepts";
   }
-  if (booking.status === 'on_the_way' || booking.status === 'started') {
+  if (booking.status === 'assigned' || booking.status === 'accepted' || booking.status === 'on_the_way' || booking.status === 'started') {
     return 'Share OTP only after work is fully completed';
   }
   return null;
@@ -320,7 +320,7 @@ const ActiveBookingCard = memo(() => {
       !!activeBooking?.completion_otp &&
       isPaidLike &&
       !activeBooking?.otp_verified_at &&
-      (activeBooking?.status === 'on_the_way' || activeBooking?.status === 'started');
+      ['assigned', 'accepted', 'on_the_way', 'started'].includes(activeBooking?.status ?? '');
     if (!shouldShow && showOtpSheet) setShowOtpSheet(false);
   }, [activeBooking?.completion_otp, (activeBooking as any)?.payment_method, activeBooking?.payment_status, activeBooking?.otp_verified_at, activeBooking?.status, showOtpSheet]);
 
@@ -440,7 +440,7 @@ const ActiveBookingCard = memo(() => {
     !!activeBooking.completion_otp &&
     isPaidLike &&
     !activeBooking.otp_verified_at &&
-    (activeBooking.status === 'on_the_way' || activeBooking.status === 'started');
+    ['assigned', 'accepted', 'on_the_way', 'started'].includes(activeBooking.status);
   const isCancelled = activeBooking.status === 'cancelled';
   const isFinding = activeBooking.status === 'pending' && activeBooking.booking_type !== 'scheduled';
 
