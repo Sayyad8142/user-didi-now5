@@ -426,9 +426,18 @@ Deno.serve(async (req) => {
           const debitFailed = debitErr || (debitResult && typeof debitResult === "object" && (debitResult as any).error);
 
           if (debitFailed) {
-            console.error("[create-paid-booking] ❌ Atomic wallet debit failed:", debitErr || debitResult);
+            const debitDetail = debitErr?.message || (debitResult as any)?.error || "unknown";
+            const debitCode = debitErr?.code || (debitResult as any)?.code;
+            console.error("[create-paid-booking] ❌ Atomic wallet debit failed:", JSON.stringify({ debitErr, debitResult }));
             if (payment_type === "wallet") {
-              return json({ error: "Wallet debit failed. Please retry." }, 500);
+              return json({
+                error: "Wallet debit failed. Please retry.",
+                detail: debitDetail,
+                code: debitCode,
+                rpc_result: debitResult,
+                profile_id: profile.id,
+                amount: debitAmount,
+              }, 500);
             }
             // For mixed payments, continue without wallet debit
           } else {
