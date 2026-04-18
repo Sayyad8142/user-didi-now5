@@ -64,3 +64,9 @@ BEGIN
   );
 END;
 $$;
+
+-- Allow edge functions (service_role) and clients to invoke
+GRANT EXECUTE ON FUNCTION public.safe_wallet_increment(uuid, numeric, numeric) TO service_role, authenticated, anon;
+
+-- Force PostgREST to refresh its schema cache
+NOTIFY pgrst, 'reload schema';
