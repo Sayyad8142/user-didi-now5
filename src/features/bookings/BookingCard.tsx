@@ -344,7 +344,11 @@ export function BookingCard({
     _isPaidLike &&
     !row.otp_verified_at &&
     (row.status === 'on_the_way' || row.status === 'started');
+  const _paymentMethod = (row as any).payment_method as string | undefined;
+  const _isWalletPaid = _paymentMethod === 'wallet' || _paymentMethod === 'wallet+razorpay';
+  const _isPaid = row.payment_status === 'paid' || row.payment_status === 'pay_after_service' || _isWalletPaid;
   const needsPaymentRetry =
+    !_isPaid &&
     (row.payment_status === 'unpaid' || row.payment_status === 'failed' || row.payment_status === 'order_created' || row.payment_status === 'pending') &&
     !isCancelled && !isCompleted;
 
