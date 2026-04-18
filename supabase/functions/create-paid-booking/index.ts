@@ -336,7 +336,7 @@ Deno.serve(async (req) => {
       console.log(`[create-paid-booking] 🔍 Fetching wallet for profile.id=${profile.id} firebase_uid=${firebaseUser.uid}`);
       let { data: walletRow, error: walletFetchErr } = await supabase
         .from("user_wallets")
-        .select("id, balance_inr")
+        .select("balance_inr")
         .eq("user_id", profile.id)
         .maybeSingle();
 
@@ -350,7 +350,7 @@ Deno.serve(async (req) => {
         }, 500);
       }
 
-      console.log(`[create-paid-booking] Wallet fetch result: ${walletRow ? `found id=${walletRow.id} balance=${walletRow.balance_inr}` : "NOT FOUND"}`);
+      console.log(`[create-paid-booking] Wallet fetch result: ${walletRow ? `found balance=${walletRow.balance_inr}` : "NOT FOUND"}`);
 
       // Lazy wallet initialization: create wallet with ₹0 if it doesn't exist
       if (!walletRow) {
@@ -358,7 +358,7 @@ Deno.serve(async (req) => {
         const { data: newWallet, error: createErr } = await supabase
           .from("user_wallets")
           .upsert({ user_id: profile.id, balance_inr: 0 }, { onConflict: "user_id" })
-          .select("id, balance_inr")
+          .select("balance_inr")
           .maybeSingle();
 
         if (createErr) {
@@ -372,7 +372,7 @@ Deno.serve(async (req) => {
           console.warn("[create-paid-booking] Upsert returned no row, refetching…");
           const { data: refetched, error: refetchErr } = await supabase
             .from("user_wallets")
-            .select("id, balance_inr")
+            .select("balance_inr")
             .eq("user_id", profile.id)
             .maybeSingle();
 
