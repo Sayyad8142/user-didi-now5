@@ -336,7 +336,7 @@ Deno.serve(async (req) => {
       console.log(`[create-paid-booking] 🔍 Fetching wallet for profile.id=${profile.id} firebase_uid=${firebaseUser.uid}`);
       let { data: walletRow, error: walletFetchErr } = await supabase
         .from("user_wallets")
-        .select("id, balance_inr")
+        .select("balance_inr")
         .eq("user_id", profile.id)
         .maybeSingle();
 
