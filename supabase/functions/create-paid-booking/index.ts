@@ -333,6 +333,7 @@ Deno.serve(async (req) => {
       effectiveWalletAmount > 0
     ) {
       // Fetch current balance to check sufficiency
+      console.log(`[create-paid-booking] 🔍 Fetching wallet for profile.id=${profile.id} firebase_uid=${firebaseUser.uid}`);
       let { data: walletRow, error: walletFetchErr } = await supabase
         .from("user_wallets")
         .select("id, balance_inr")
@@ -340,36 +341,55 @@ Deno.serve(async (req) => {
         .maybeSingle();
 
       if (walletFetchErr) {
-        console.warn("[create-paid-booking] Wallet fetch error:", walletFetchErr);
+        console.error("[create-paid-booking] ❌ Wallet fetch error:", JSON.stringify(walletFetchErr));
+        return json({
+          error: "Wallet fetch failed",
+          detail: walletFetchErr.message,
+          code: walletFetchErr.code,
+          profile_id: profile.id,
+        }, 500);
       }
+
+      console.log(`[create-paid-booking] Wallet fetch result: ${walletRow ? `found id=${walletRow.id} balance=${walletRow.balance_inr}` : "NOT FOUND"}`);
 
       // Lazy wallet initialization: create wallet with ₹0 if it doesn't exist
       if (!walletRow) {
-        console.log("[create-paid-booking] Wallet not found, creating one for user:", profile.id);
+        console.log("[create-paid-booking] 🆕 Creating wallet for user:", profile.id);
         const { data: newWallet, error: createErr } = await supabase
           .from("user_wallets")
           .upsert({ user_id: profile.id, balance_inr: 0 }, { onConflict: "user_id" })
           .select("id, balance_inr")
           .maybeSingle();
 
+        if (createErr) {
+          console.error("[create-paid-booking] ❌ Upsert error:", JSON.stringify(createErr));
+        }
+
         if (newWallet) {
           walletRow = newWallet;
-          walletFetchErr = null;
         } else {
           // Upsert may have returned no row due to RLS — refetch to confirm
-          console.warn("[create-paid-booking] Upsert returned no row, refetching:", createErr);
-          const { data: refetched } = await supabase
+          console.warn("[create-paid-booking] Upsert returned no row, refetching…");
+          const { data: refetched, error: refetchErr } = await supabase
             .from("user_wallets")
             .select("id, balance_inr")
             .eq("user_id", profile.id)
             .maybeSingle();
 
+          if (refetchErr) {
+            console.error("[create-paid-booking] ❌ Refetch error:", JSON.stringify(refetchErr));
+          }
+
           if (refetched) {
             walletRow = refetched;
-            walletFetchErr = null;
           } else if (payment_type === "wallet") {
-            console.error("[create-paid-booking] Failed to create wallet:", createErr);
-            return json({ error: "Wallet not found and could not be created" }, 404);
+            console.error("[create-paid-booking] ❌ Failed to create wallet. createErr:", createErr, "refetchErr:", refetchErr);
+            return json({
+              error: "Wallet not found and could not be created",
+              detail: createErr?.message || refetchErr?.message || "unknown",
+              code: createErr?.code || refetchErr?.code,
+              profile_id: profile.id,
+            }, 404);
           } else {
             console.warn("[create-paid-booking] Skipping wallet debit");
           }
