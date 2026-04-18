@@ -350,7 +350,7 @@ Deno.serve(async (req) => {
         }, 500);
       }
 
-      console.log(`[create-paid-booking] Wallet fetch result: ${walletRow ? `found id=${walletRow.id} balance=${walletRow.balance_inr}` : "NOT FOUND"}`);
+      console.log(`[create-paid-booking] Wallet fetch result: ${walletRow ? `found balance=${walletRow.balance_inr}` : "NOT FOUND"}`);
 
       // Lazy wallet initialization: create wallet with ₹0 if it doesn't exist
       if (!walletRow) {
