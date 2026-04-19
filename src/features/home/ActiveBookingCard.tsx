@@ -19,6 +19,7 @@ import ChatSheet from '@/features/chat/ChatSheet';
 import { LoadingWorkerBadge } from '@/components/LoadingWorkerBadge';
 import { WorkerRatingsModal } from '@/features/bookings/WorkerRatingsModal';
 import { useUnseenMessages } from '@/hooks/useUnseenMessages';
+import { WorkerReachConfirmationCard } from '@/features/bookings/WorkerReachConfirmationCard';
 
 interface Booking {
   id: string;
