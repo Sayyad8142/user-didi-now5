@@ -621,7 +621,7 @@ const ActiveBookingCard = memo(() => {
               </div>
             </div>
             <div className="flex items-center justify-center gap-2 w-full">
-              {(activeBooking.completion_otp || '').split('').map((digit, i) => (
+              {(activeBooking.completion_otp || '').slice(0, 3).split('').map((digit, i) => (
                 <span
                   key={i}
                   className="flex-1 max-w-[64px] h-12 flex items-center justify-center bg-white ring-1 ring-emerald-300 rounded-lg text-2xl font-extrabold text-emerald-900 tabular-nums shadow-sm"
@@ -713,7 +713,7 @@ const ActiveBookingCard = memo(() => {
             </SheetDescription>
           </SheetHeader>
           <div className="mt-6 flex items-center justify-center gap-3">
-            {(activeBooking.completion_otp || '').split('').map((digit, i) => (
+            {(activeBooking.completion_otp || '').slice(0, 3).split('').map((digit, i) => (
               <span
                 key={i}
                 className="w-20 h-24 flex items-center justify-center bg-emerald-50 ring-2 ring-emerald-200 rounded-2xl text-5xl font-extrabold text-emerald-900 tabular-nums shadow-sm"
