@@ -659,7 +659,7 @@ export function ScheduleScreen() {
                   Availability is limited between 3 PM – 7 PM.
                 </p>
                 <p className="font-medium text-foreground">
-                  Book before 3 PM for guaranteed worker assignment.
+                  Select a slot before 3 PM for guaranteed worker assignment.
                 </p>
               </AlertDialogDescription>
             </AlertDialogHeader>
