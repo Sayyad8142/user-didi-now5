@@ -87,7 +87,7 @@ export const getOffPeakDiscount = (_timeSlot: string): number => 0;
 export const TIME_SEGMENTS = {
   Morning: { start: '07:00', end: '11:45' },
   Afternoon: { start: '12:00', end: '16:45' },
-  Evening: { start: '17:00', end: '19:00' }
+  Evening: { start: '17:00', end: '18:30' }
 } as const;
 
 export const TIME_SEGMENTS_COOK = {
