@@ -19,6 +19,7 @@ import ChatSheet from '@/features/chat/ChatSheet';
 import { LoadingWorkerBadge } from '@/components/LoadingWorkerBadge';
 import { WorkerRatingsModal } from '@/features/bookings/WorkerRatingsModal';
 import { useUnseenMessages } from '@/hooks/useUnseenMessages';
+import { WorkerReachConfirmationCard } from '@/features/bookings/WorkerReachConfirmationCard';
 
 interface Booking {
   id: string;
@@ -439,43 +440,12 @@ const ActiveBookingCard = memo(() => {
 
   return (
     <>
-      {/* Reach status confirmations — kept as separate banners above card */}
-      {activeBooking.reach_status === 'reached' && (
-        <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center gap-2">
-          <CheckCircle className="h-4 w-4 text-emerald-600 shrink-0" />
-          <p className="text-sm font-medium text-emerald-800">You confirmed worker reached</p>
-        </div>
-      )}
-      {activeBooking.reach_status === 'not_reached' && (
-        <div className="p-3 bg-rose-50 border border-rose-200 rounded-2xl flex items-center gap-2">
-          <XCircle className="h-4 w-4 text-rose-600 shrink-0" />
-          <p className="text-sm font-medium text-rose-800">You marked worker as not reached</p>
-        </div>
-      )}
-      {reachButtonsVisible && (
-        <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl">
-          <p className="text-sm font-medium text-amber-900 mb-3">Did the worker reach your location?</p>
-          <div className="flex gap-2">
-            <Button
-              onClick={() => handleReachConfirmation(true)}
-              disabled={updatingReachStatus}
-              className="flex-1 h-10 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl"
-            >
-              {updatingReachStatus ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CheckCircle className="h-4 w-4 mr-2" />}
-              Reached
-            </Button>
-            <Button
-              onClick={() => handleReachConfirmation(false)}
-              disabled={updatingReachStatus}
-              variant="destructive"
-              className="flex-1 h-10 font-semibold rounded-xl"
-            >
-              {updatingReachStatus ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <XCircle className="h-4 w-4 mr-2" />}
-              Not Reached
-            </Button>
-          </div>
-        </div>
-      )}
+      {/* Worker reach confirmation — shared component (handles eligibility, confirmed banners, edge fn + history logging) */}
+      <WorkerReachConfirmationCard
+        booking={activeBooking}
+        onConfirmed={() => fetchActiveBooking()}
+      />
+
 
       {/* MAIN CARD — premium, animated entry */}
       <Card className="relative overflow-hidden p-5 bg-card border border-primary/15 rounded-3xl shadow-[0_8px_24px_-12px_hsl(var(--primary)/0.25)] animate-fade-in">

@@ -47,7 +47,7 @@ Deno.serve(async (req) => {
     // Fetch booking and verify ownership
     const { data: booking, error: fetchErr } = await supabase
       .from("bookings")
-      .select("id, user_id, reach_status, worker_name, flat_no, community, service_type")
+      .select("id, user_id, worker_id, reach_status, worker_name, flat_no, community, service_type")
       .eq("id", booking_id)
       .maybeSingle();
 
@@ -76,7 +76,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Update reach status
+    // Update reach status on booking row (preserves existing UI/realtime contract)
     const newStatus = reached ? "reached" : "not_reached";
     const { error: updateErr } = await supabase
       .from("bookings")
@@ -93,6 +93,32 @@ Deno.serve(async (req) => {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // Append to worker-level history for priority scoring (best-effort, non-blocking).
+    // Backend exposes admin_log_worker_reach(p_booking_id, p_worker_id, p_reached, p_source, p_note).
+    if (booking.worker_id) {
+      try {
+        const { error: rpcErr } = await supabase.rpc("admin_log_worker_reach", {
+          p_booking_id: booking_id,
+          p_worker_id: booking.worker_id,
+          p_reached: reached,
+          p_source: "user",
+          p_note: null,
+        });
+        if (rpcErr) {
+          // Fallback: insert directly into worker_reach_events if RPC name/sig differs.
+          console.warn("admin_log_worker_reach RPC error, trying direct insert:", rpcErr.message);
+          await supabase.from("worker_reach_events").insert({
+            booking_id,
+            worker_id: booking.worker_id,
+            reached,
+            source: "user",
+          });
+        }
+      } catch (histErr) {
+        console.warn("worker_reach_events log skipped:", (histErr as Error).message);
+      }
     }
 
     // Send alerts for "not reached" (fire-and-forget)

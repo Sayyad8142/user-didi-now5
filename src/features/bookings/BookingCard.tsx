@@ -26,6 +26,7 @@ import { LoadingWorkerBadge } from '@/components/LoadingWorkerBadge';
 import { WorkerRatingsModal } from './WorkerRatingsModal';
 import { useUnseenMessages } from '@/hooks/useUnseenMessages';
 import { useProfile } from '@/contexts/ProfileContext';
+import { WorkerReachConfirmationCard } from './WorkerReachConfirmationCard';
 interface Booking {
   id: string;
   service_type: string;
@@ -56,6 +57,8 @@ interface Booking {
   wallet_refund_status?: string | null;
   wallet_refund_amount?: number | null;
   wallet_refund_reason?: string | null;
+  reach_status?: string | null;
+  reach_confirmed_at?: string | null;
 }
 interface BookingCardProps {
   booking: Booking;
@@ -454,6 +457,13 @@ export function BookingCard({
             </div>
             {stars > 0 && <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />}
           </button>
+        </div>
+      )}
+
+      {/* Worker reach confirmation — visible only for active eligible bookings (15-min gate) */}
+      {!isCancelled && !isCompleted && (
+        <div className="mt-3 ml-1 mr-1">
+          <WorkerReachConfirmationCard booking={row} />
         </div>
       )}
 
