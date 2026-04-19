@@ -26,20 +26,27 @@ export const ActiveBookingOtpCard: React.FC = () => {
     if (!profile?.id) { setBooking(null); return; }
     try {
       const today = new Date().toISOString().split('T')[0];
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('bookings')
-        .select('id, status, completion_otp, otp_verified_at, booking_type, scheduled_date')
+        .select('id, status, completion_otp, otp_verified_at, booking_type, scheduled_date, created_at')
         .eq('user_id', profile.id)
-        .or(
-          `and(status.in.(pending,assigned,accepted,on_the_way,started),booking_type.eq.instant),and(status.in.(pending,assigned,accepted,on_the_way,started),booking_type.eq.scheduled,scheduled_date.gte.${today})`
-        )
+        .in('status', ['pending', 'assigned', 'accepted', 'on_the_way', 'started'])
         .order('created_at', { ascending: false })
-        .limit(1);
+        .limit(5);
 
-      const row = data?.[0] as OtpBooking | undefined;
+      console.log('[OtpCard] fetched', { error, count: data?.length, rows: data });
+
+      // Pick first booking that is instant OR scheduled for today/future
+      const row = data?.find((b: any) => {
+        if (b.booking_type === 'instant') return true;
+        if (b.booking_type === 'scheduled' && b.scheduled_date && b.scheduled_date >= today) return true;
+        return false;
+      }) as OtpBooking | undefined;
+
+      console.log('[OtpCard] selected', row);
       setBooking(row ?? null);
     } catch (err) {
-      console.error('OtpCard fetch error:', err);
+      console.error('[OtpCard] fetch error:', err);
     }
   }, [profile?.id]);
 
@@ -57,13 +64,17 @@ export const ActiveBookingOtpCard: React.FC = () => {
     return () => { supabase.removeChannel(channel); };
   }, [profile?.id, fetchBooking]);
 
-  if (!booking) return null;
+  if (!booking) {
+    console.log('[OtpCard] no booking → null render');
+    return null;
+  }
 
   const isHidden =
     booking.status === 'cancelled' ||
     (booking.status === 'completed' && !!booking.otp_verified_at);
 
   const show = !!booking.completion_otp && !booking.otp_verified_at && !isHidden;
+  console.log('[OtpCard] decision', { status: booking.status, otp: booking.completion_otp, verified: booking.otp_verified_at, show });
   if (!show) return null;
 
   const otpDigits = (booking.completion_otp || '').slice(0, 3).split('');
