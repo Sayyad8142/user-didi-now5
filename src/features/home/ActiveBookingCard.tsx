@@ -600,38 +600,7 @@ const ActiveBookingCard = memo(() => {
           </div>
         )}
 
-        {/* OTP prominent block — stacked layout for mobile fit */}
-        {showOtpRow && (
-          <button
-            type="button"
-            onClick={() => setShowOtpSheet(true)}
-            className="mt-3 ml-1 w-[calc(100%-0.25rem)] flex flex-col gap-3 px-4 py-3 rounded-2xl bg-emerald-50 hover:bg-emerald-100 ring-1 ring-emerald-200 transition-colors text-left"
-          >
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="p-2 rounded-xl bg-emerald-100 ring-1 ring-emerald-200 shrink-0">
-                <KeyRound className="w-4 h-4 text-emerald-700" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-emerald-700/80 leading-none">
-                  Completion OTP
-                </p>
-                <p className="text-[11px] text-emerald-700/70 mt-1 leading-tight">
-                  Share only after service completion
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center justify-center gap-2 w-full">
-              {(activeBooking.completion_otp || '').slice(0, 3).split('').map((digit, i) => (
-                <span
-                  key={i}
-                  className="flex-1 max-w-[64px] h-12 flex items-center justify-center bg-white ring-1 ring-emerald-300 rounded-lg text-2xl font-extrabold text-emerald-900 tabular-nums shadow-sm"
-                >
-                  {digit}
-                </span>
-              ))}
-            </div>
-          </button>
-        )}
+        {/* OTP card moved to standalone ActiveBookingOtpCard rendered above this card on Home. */}
 
         {/* Rate worker prompt — keep when assigned/completed */}
         {(activeBooking.status === 'assigned' || activeBooking.status === 'completed') && activeBooking.worker_id && (
