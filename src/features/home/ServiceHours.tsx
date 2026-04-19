@@ -11,7 +11,10 @@ export function ServiceHours({ serviceType }: ServiceHoursProps) {
   const isOpen = isOpenNow(serviceType);
 
   return (
-    <div className="relative overflow-hidden rounded-2xl bg-card border border-border/60 px-4 py-3.5 shadow-sm">
+    <div className={cn(
+      "relative overflow-hidden rounded-2xl bg-card border px-4 py-3.5 shadow-sm transition-colors",
+      isOpen ? "border-emerald-500" : "border-red-500"
+    )}>
       {/* subtle accent stripe */}
       <span
         aria-hidden
