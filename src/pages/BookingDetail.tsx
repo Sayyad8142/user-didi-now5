@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { BookingCard } from '@/features/bookings/BookingCard';
+import { WorkerReachConfirmationCard } from '@/features/bookings/WorkerReachConfirmationCard';
 import { CleaningLoader } from '@/components/ui/cleaning-loader';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, AlertCircle } from 'lucide-react';

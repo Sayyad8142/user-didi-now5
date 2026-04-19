@@ -460,6 +460,13 @@ export function BookingCard({
         </div>
       )}
 
+      {/* Worker reach confirmation — visible only for active eligible bookings (15-min gate) */}
+      {!isCancelled && !isCompleted && (
+        <div className="mt-3 ml-1 mr-1">
+          <WorkerReachConfirmationCard booking={row} />
+        </div>
+      )}
+
       {/* Payment retry (priority block #3: payment issue) — focused, single CTA */}
       {needsPaymentRetry && (
         <div className="mt-3 ml-1 mr-1 px-3 py-3 rounded-xl bg-amber-50 ring-1 ring-amber-200">
