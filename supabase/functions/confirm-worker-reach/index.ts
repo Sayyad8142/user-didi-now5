@@ -47,7 +47,7 @@ Deno.serve(async (req) => {
     // Fetch booking and verify ownership
     const { data: booking, error: fetchErr } = await supabase
       .from("bookings")
-      .select("id, user_id, reach_status, worker_name, flat_no, community, service_type")
+      .select("id, user_id, worker_id, reach_status, worker_name, flat_no, community, service_type")
       .eq("id", booking_id)
       .maybeSingle();
 
