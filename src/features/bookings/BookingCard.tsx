@@ -26,6 +26,7 @@ import { LoadingWorkerBadge } from '@/components/LoadingWorkerBadge';
 import { WorkerRatingsModal } from './WorkerRatingsModal';
 import { useUnseenMessages } from '@/hooks/useUnseenMessages';
 import { useProfile } from '@/contexts/ProfileContext';
+import { WorkerReachConfirmationCard } from './WorkerReachConfirmationCard';
 interface Booking {
   id: string;
   service_type: string;
@@ -56,6 +57,8 @@ interface Booking {
   wallet_refund_status?: string | null;
   wallet_refund_amount?: number | null;
   wallet_refund_reason?: string | null;
+  reach_status?: string | null;
+  reach_confirmed_at?: string | null;
 }
 interface BookingCardProps {
   booking: Booking;
