@@ -307,28 +307,19 @@ const ActiveBookingCard = memo(() => {
   }, [isFindingActive, findingMessages.length]);
 
   // Auto-close OTP sheet if the OTP row becomes unavailable (status change, verified, etc.)
-  // Prevents Radix portal teardown race that throws `removeChild` errors.
-  // OTP is shown for ANY paid booking (wallet, razorpay, wallet+razorpay) and pay_after_service.
+  // OTP shows for ANY active booking with a completion_otp — no payment gating.
+  // Hidden only when cancelled, or completed AND already verified.
   useEffect(() => {
-    const pm = (activeBooking as any)?.payment_method;
-    const ps = activeBooking?.payment_status;
-    const isPaidLike =
-      ps === 'paid' ||
-      ps === 'pay_after_service' ||
-      pm === 'wallet' || pm === 'wallet+razorpay' || pm === 'razorpay';
-    // Show OTP from booking creation onwards. Only hide when cancelled,
-    // or when completed AND already verified.
     const status = activeBooking?.status ?? '';
     const isHiddenState =
       status === 'cancelled' ||
       (status === 'completed' && !!activeBooking?.otp_verified_at);
     const shouldShow =
       !!activeBooking?.completion_otp &&
-      isPaidLike &&
       !activeBooking?.otp_verified_at &&
       !isHiddenState;
     if (!shouldShow && showOtpSheet) setShowOtpSheet(false);
-  }, [activeBooking?.completion_otp, (activeBooking as any)?.payment_method, activeBooking?.payment_status, activeBooking?.otp_verified_at, activeBooking?.status, showOtpSheet]);
+  }, [activeBooking?.completion_otp, activeBooking?.otp_verified_at, activeBooking?.status, showOtpSheet]);
 
   const workerChangeUsed = assignmentCount >= 2;
 
@@ -434,22 +425,13 @@ const ActiveBookingCard = memo(() => {
   const pill = getStatusPill(activeBooking);
   const infoLine = getInfoLine(activeBooking);
   const helperLine = getHelperLine(activeBooking);
-  // OTP only when worker is actively traveling/working — not for pending/scheduled.
-  // Treat any paid method (wallet, wallet+razorpay, razorpay) OR explicit paid status as paid-like.
-  const _pm = (activeBooking as any)?.payment_method;
-  const _ps = activeBooking.payment_status;
-  const isPaidLike =
-    _ps === 'paid' ||
-    _ps === 'pay_after_service' ||
-    _pm === 'wallet' || _pm === 'wallet+razorpay' || _pm === 'razorpay';
-  // OTP visible from creation (pending/scheduled/accepted/on_the_way/started/assigned).
+  // OTP visible for any active booking that has a completion_otp generated.
   // Hidden only when cancelled, or completed+verified.
   const _otpHiddenState =
     activeBooking.status === 'cancelled' ||
     (activeBooking.status === 'completed' && !!activeBooking.otp_verified_at);
   const showOtpRow =
     !!activeBooking.completion_otp &&
-    isPaidLike &&
     !activeBooking.otp_verified_at &&
     !_otpHiddenState;
   const isCancelled = activeBooking.status === 'cancelled';
