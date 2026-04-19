@@ -425,22 +425,13 @@ const ActiveBookingCard = memo(() => {
   const pill = getStatusPill(activeBooking);
   const infoLine = getInfoLine(activeBooking);
   const helperLine = getHelperLine(activeBooking);
-  // OTP only when worker is actively traveling/working — not for pending/scheduled.
-  // Treat any paid method (wallet, wallet+razorpay, razorpay) OR explicit paid status as paid-like.
-  const _pm = (activeBooking as any)?.payment_method;
-  const _ps = activeBooking.payment_status;
-  const isPaidLike =
-    _ps === 'paid' ||
-    _ps === 'pay_after_service' ||
-    _pm === 'wallet' || _pm === 'wallet+razorpay' || _pm === 'razorpay';
-  // OTP visible from creation (pending/scheduled/accepted/on_the_way/started/assigned).
+  // OTP visible for any active booking that has a completion_otp generated.
   // Hidden only when cancelled, or completed+verified.
   const _otpHiddenState =
     activeBooking.status === 'cancelled' ||
     (activeBooking.status === 'completed' && !!activeBooking.otp_verified_at);
   const showOtpRow =
     !!activeBooking.completion_otp &&
-    isPaidLike &&
     !activeBooking.otp_verified_at &&
     !_otpHiddenState;
   const isCancelled = activeBooking.status === 'cancelled';
