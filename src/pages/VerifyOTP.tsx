@@ -250,9 +250,16 @@ export default function VerifyOTP() {
       // IMPORTANT: if user previously used Guest/Demo mode, clear it now so UI doesn't stay "Guest"
       clearDemoSession();
 
-      // Notify AuthProvider of native auth change so it picks up the new user
+      // Notify AuthProvider of native auth change so it picks up the new user.
+      // Pass the verified UID/phone in the event payload so AuthProvider can
+      // apply it immediately, even before the native plugin's internal state syncs.
+      // This is the key fix for "first login on Android APK shows empty data until restart".
       if (shouldUseNativeAuth()) {
-        window.dispatchEvent(new Event('native-auth-changed'));
+        window.dispatchEvent(
+          new CustomEvent('native-auth-changed', {
+            detail: { uid, phoneNumber: userPhone },
+          })
+        );
       }
 
       // Ensure profile exists in Supabase
