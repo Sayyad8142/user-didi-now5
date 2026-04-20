@@ -141,7 +141,7 @@ const getInfoLine = (booking: Booking): string | null => {
 const getHelperLine = (booking: Booking): string | null => {
   if (booking.status === 'cancelled') return null;
   if (booking.booking_type === 'scheduled' && booking.status === 'pending') {
-    return 'Worker will be assigned before time';
+    return "We'll assign your expert about 10 minutes before your scheduled time.";
   }
   if (booking.status === 'pending') {
     return "We'll notify you the moment a worker accepts";
