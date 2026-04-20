@@ -36,6 +36,7 @@ export default function VerifyOTP() {
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const { refresh: refreshProfile } = useProfile();
   const { user: authUser } = useAuth();
   
