@@ -16,6 +16,8 @@ interface PaymentMethodSelectorProps {
 }
 
 export function PaymentMethodSelector({ selected, onChange, disabled, walletBalance = 0, bookingAmount = 0 }: PaymentMethodSelectorProps) {
+  const isNative = isNativeApp();
+  const payNowDisabled = !isNative; // Pay Now only works in native app
   const walletCoversAll = walletBalance > 0 && walletBalance >= bookingAmount && bookingAmount > 0;
   const walletPartial = walletBalance > 0 && !walletCoversAll && bookingAmount > 0;
   const remainingAmount = walletPartial ? bookingAmount - walletBalance : 0;
@@ -27,6 +29,13 @@ export function PaymentMethodSelector({ selected, onChange, disabled, walletBala
       onChange('wallet');
     }
   }, [walletCoversAll]);
+
+  // If user is on web and currently selected pay_now, switch to pay_after_service
+  React.useEffect(() => {
+    if (payNowDisabled && selected === 'pay_now') {
+      onChange(walletCoversAll ? 'wallet' : 'pay_after_service');
+    }
+  }, [payNowDisabled, selected, walletCoversAll]);
 
   return (
     <div className="space-y-3">
