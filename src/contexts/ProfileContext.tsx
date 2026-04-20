@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { getDemoSession, isDemoMode, clearDemoSession } from "@/lib/demo";
@@ -41,11 +42,13 @@ interface ProfileProviderProps {
 
 export function ProfileProvider({ children }: ProfileProviderProps) {
   const { user, firebaseUser } = useAuth();
+  const queryClient = useQueryClient();
 
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastInvalidatedForRef = useRef<string | null>(null);
 
   const fetchProfile = useCallback(async (): Promise<Profile | null> => {
     try {
@@ -97,19 +100,22 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
         return data;
       }
 
-      // No profile found - retry a few times before creating
+      // No profile found - retry several times before falling back.
+      // On first APK login the profile row is being inserted in parallel by
+      // VerifyOTP.ensureFirebaseProfile — give it enough time on slow networks
+      // before we create a generic fallback row.
       console.log('📝 No profile found for:', user.id, '- retrying...');
-      
-      for (let attempt = 0; attempt < 5; attempt++) {
+
+      for (let attempt = 0; attempt < 12; attempt++) {
         await new Promise(r => setTimeout(r, 600));
         const { data: retryData } = await supabase
           .from("profiles")
           .select("id, full_name, phone, community, flat_no, building_id, community_id, flat_id")
           .eq("firebase_uid", user.id)
           .maybeSingle();
-        
+
         if (retryData) {
-          console.log('✅ Profile found on retry:', retryData.id, retryData.full_name);
+          console.log(`✅ Profile found on retry #${attempt + 1}:`, retryData.id, retryData.full_name);
           setProfile(retryData);
           setLoading(false);
           return retryData;
@@ -218,6 +224,25 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
     window.addEventListener('supabase-ready', handleBackendReady);
     return () => window.removeEventListener('supabase-ready', handleBackendReady);
   }, [fetchProfile, user?.id, profile]);
+
+  // When a fresh profile.id becomes available, invalidate every user-scoped
+  // query so screens that mounted with no userId (during the auth bootstrap
+  // race) refetch with the real userId. This is the second half of the
+  // first-login-on-Android-APK fix.
+  useEffect(() => {
+    const pid = profile?.id;
+    if (!pid) return;
+    if (lastInvalidatedForRef.current === pid) return;
+    lastInvalidatedForRef.current = pid;
+    console.log('🔄 Profile ready — invalidating user-scoped queries for', pid);
+    queryClient.invalidateQueries({ queryKey: ['wallet-balance'] });
+    queryClient.invalidateQueries({ queryKey: ['wallet-transactions'] });
+    queryClient.invalidateQueries({ queryKey: ['bookings'] });
+    queryClient.invalidateQueries({ queryKey: ['my-bookings'] });
+    queryClient.invalidateQueries({ queryKey: ['active-booking'] });
+    queryClient.invalidateQueries({ queryKey: ['favorite-workers'] });
+    queryClient.invalidateQueries({ queryKey: ['online-worker-counts'] });
+  }, [profile?.id, queryClient]);
 
   const refresh = async () => fetchProfile();
 

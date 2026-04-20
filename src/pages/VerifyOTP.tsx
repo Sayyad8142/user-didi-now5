@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -35,6 +36,7 @@ export default function VerifyOTP() {
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const { refresh: refreshProfile } = useProfile();
   const { user: authUser } = useAuth();
   
@@ -248,9 +250,16 @@ export default function VerifyOTP() {
       // IMPORTANT: if user previously used Guest/Demo mode, clear it now so UI doesn't stay "Guest"
       clearDemoSession();
 
-      // Notify AuthProvider of native auth change so it picks up the new user
+      // Notify AuthProvider of native auth change so it picks up the new user.
+      // Pass the verified UID/phone in the event payload so AuthProvider can
+      // apply it immediately, even before the native plugin's internal state syncs.
+      // This is the key fix for "first login on Android APK shows empty data until restart".
       if (shouldUseNativeAuth()) {
-        window.dispatchEvent(new Event('native-auth-changed'));
+        window.dispatchEvent(
+          new CustomEvent('native-auth-changed', {
+            detail: { uid, phoneNumber: userPhone },
+          })
+        );
       }
 
       // Ensure profile exists in Supabase
@@ -320,6 +329,22 @@ export default function VerifyOTP() {
         });
       }
 
+      // Invalidate all user-dependent caches so wallet/home/bookings refetch
+      // immediately with the freshly-created profile (no stale empty state).
+      try {
+        await Promise.allSettled([
+          queryClient.invalidateQueries({ queryKey: ['wallet-balance'] }),
+          queryClient.invalidateQueries({ queryKey: ['wallet-transactions'] }),
+          queryClient.invalidateQueries({ queryKey: ['bookings'] }),
+          queryClient.invalidateQueries({ queryKey: ['my-bookings'] }),
+          queryClient.invalidateQueries({ queryKey: ['active-booking'] }),
+          queryClient.invalidateQueries({ queryKey: ['communities'] }),
+          queryClient.invalidateQueries({ queryKey: ['favorite-workers'] }),
+          queryClient.invalidateQueries({ queryKey: ['online-worker-counts'] }),
+        ]);
+      } catch (e) {
+        console.warn('Post-login invalidate failed (non-fatal):', e);
+      }
       if (redirectTo) {
         console.log('🔄 VerifyOTP: OTP verified, waiting for AuthProvider to update before navigating to', redirectTo);
         setPendingRedirect(redirectTo);

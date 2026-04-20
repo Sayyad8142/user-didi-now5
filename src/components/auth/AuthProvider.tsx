@@ -161,18 +161,47 @@ export function AuthProvider({ children }: AuthProviderProps) {
       });
 
       // Listen for native auth changes (native OTP flow)
-      const handleNativeAuthCheck = () => {
-        getNativeCurrentUser().then((nu) => {
+      // Accept an optional `detail` payload so callers (e.g. VerifyOTP) can hand the
+      // freshly-verified native user across without waiting for the plugin's internal sync.
+      const handleNativeAuthCheck = (event?: Event) => {
+        const detail = (event as CustomEvent | undefined)?.detail as
+          | { uid?: string; phoneNumber?: string | null }
+          | undefined;
+
+        // Fast path: caller already has the verified native user — apply immediately.
+        if (detail?.uid) {
+          console.log('📱 native-auth-changed: applying user from event payload', detail.uid);
+          applyNativeUser({ uid: detail.uid, phoneNumber: detail.phoneNumber ?? null });
+        }
+
+        // Always also poll the plugin to confirm/refresh — but retry a few times
+        // because on first APK login the plugin's internal user state syncs
+        // asynchronously after confirmVerificationCode resolves.
+        let attempts = 0;
+        const maxAttempts = 8; // ~4s total
+        const poll = () => {
           if (!mounted) return;
-          if (nu) {
-            applyNativeUser(nu);
-          } else {
-            setUser(null); setFirebaseUser(null); setSession(null);
-            setIsGuest(false); setLoading(false);
-          }
-        });
+          getNativeCurrentUser().then((nu) => {
+            if (!mounted) return;
+            if (nu) {
+              applyNativeUser(nu);
+              return;
+            }
+            attempts += 1;
+            if (attempts < maxAttempts) {
+              setTimeout(poll, 500);
+              return;
+            }
+            // After retries, only clear if we never had a payload AND no current user.
+            if (!detail?.uid) {
+              setUser(null); setFirebaseUser(null); setSession(null);
+              setIsGuest(false); setLoading(false);
+            }
+          });
+        };
+        poll();
       };
-      window.addEventListener('native-auth-changed', handleNativeAuthCheck);
+      window.addEventListener('native-auth-changed', handleNativeAuthCheck as EventListener);
 
       // ALSO listen for web SDK auth state changes (web OTP flow used inside Capacitor)
       const unsubscribeWeb = onFirebaseAuthStateChanged((fbUser) => {
@@ -191,7 +220,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         mounted = false;
         unsubscribeWeb();
         window.removeEventListener('demo-mode-changed', handleDemoModeChange as EventListener);
-        window.removeEventListener('native-auth-changed', handleNativeAuthCheck);
+        window.removeEventListener('native-auth-changed', handleNativeAuthCheck as EventListener);
       };
     }
 
