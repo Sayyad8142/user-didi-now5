@@ -42,11 +42,13 @@ interface ProfileProviderProps {
 
 export function ProfileProvider({ children }: ProfileProviderProps) {
   const { user, firebaseUser } = useAuth();
+  const queryClient = useQueryClient();
 
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastInvalidatedForRef = useRef<string | null>(null);
 
   const fetchProfile = useCallback(async (): Promise<Profile | null> => {
     try {
