@@ -100,19 +100,22 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
         return data;
       }
 
-      // No profile found - retry a few times before creating
+      // No profile found - retry several times before falling back.
+      // On first APK login the profile row is being inserted in parallel by
+      // VerifyOTP.ensureFirebaseProfile — give it enough time on slow networks
+      // before we create a generic fallback row.
       console.log('📝 No profile found for:', user.id, '- retrying...');
-      
-      for (let attempt = 0; attempt < 5; attempt++) {
+
+      for (let attempt = 0; attempt < 12; attempt++) {
         await new Promise(r => setTimeout(r, 600));
         const { data: retryData } = await supabase
           .from("profiles")
           .select("id, full_name, phone, community, flat_no, building_id, community_id, flat_id")
           .eq("firebase_uid", user.id)
           .maybeSingle();
-        
+
         if (retryData) {
-          console.log('✅ Profile found on retry:', retryData.id, retryData.full_name);
+          console.log(`✅ Profile found on retry #${attempt + 1}:`, retryData.id, retryData.full_name);
           setProfile(retryData);
           setLoading(false);
           return retryData;
