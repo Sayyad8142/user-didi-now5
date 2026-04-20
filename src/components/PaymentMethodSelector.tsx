@@ -1,6 +1,7 @@
 import React from 'react';
-import { CreditCard, HandCoins, Wallet, Shield, Zap, Smartphone } from 'lucide-react';
+import { CreditCard, HandCoins, Wallet, Shield, Zap, Smartphone, Smartphone as PhoneIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { isNativeApp } from '@/utils/platform';
 
 export type PaymentMethod = 'pay_now' | 'pay_after_service' | 'wallet';
 
@@ -15,6 +16,8 @@ interface PaymentMethodSelectorProps {
 }
 
 export function PaymentMethodSelector({ selected, onChange, disabled, walletBalance = 0, bookingAmount = 0 }: PaymentMethodSelectorProps) {
+  const isNative = isNativeApp();
+  const payNowDisabled = !isNative; // Pay Now only works in native app
   const walletCoversAll = walletBalance > 0 && walletBalance >= bookingAmount && bookingAmount > 0;
   const walletPartial = walletBalance > 0 && !walletCoversAll && bookingAmount > 0;
   const remainingAmount = walletPartial ? bookingAmount - walletBalance : 0;
@@ -26,6 +29,13 @@ export function PaymentMethodSelector({ selected, onChange, disabled, walletBala
       onChange('wallet');
     }
   }, [walletCoversAll]);
+
+  // If user is on web and currently selected pay_now, switch to pay_after_service
+  React.useEffect(() => {
+    if (payNowDisabled && selected === 'pay_now') {
+      onChange(walletCoversAll ? 'wallet' : 'pay_after_service');
+    }
+  }, [payNowDisabled, selected, walletCoversAll]);
 
   return (
     <div className="space-y-3">
@@ -104,22 +114,28 @@ export function PaymentMethodSelector({ selected, onChange, disabled, walletBala
         </div>
       )}
 
-      {/* Pay Now — UPI / Card */}
+      {/* Pay Now — UPI / Card (native app only) */}
       <button
         type="button"
-        disabled={disabled}
-        onClick={() => onChange('pay_now')}
+        disabled={disabled || payNowDisabled}
+        onClick={() => !payNowDisabled && onChange('pay_now')}
         className={cn(
           "relative w-full flex items-start gap-3 rounded-2xl border-2 px-4 py-3.5 transition-all text-left",
           selected === 'pay_now'
             ? "border-primary bg-primary/5 ring-1 ring-primary/30"
-            : "border-border bg-card hover:border-primary/40",
-          disabled && "opacity-50 pointer-events-none"
+            : "border-border bg-card",
+          !payNowDisabled && selected !== 'pay_now' && "hover:border-primary/40",
+          (disabled || payNowDisabled) && "opacity-60 cursor-not-allowed"
         )}
       >
-        {!walletCoversAll && (
+        {!walletCoversAll && !payNowDisabled && (
           <span className="absolute -top-2.5 left-3 inline-flex items-center gap-1 bg-primary text-primary-foreground text-[10px] font-bold px-2 py-0.5 rounded-full">
             <Zap className="w-3 h-3" /> Recommended
+          </span>
+        )}
+        {payNowDisabled && (
+          <span className="absolute -top-2.5 left-3 inline-flex items-center gap-1 bg-muted text-muted-foreground text-[10px] font-bold px-2 py-0.5 rounded-full border border-border">
+            <PhoneIcon className="w-3 h-3" /> App only
           </span>
         )}
 
@@ -137,19 +153,27 @@ export function PaymentMethodSelector({ selected, onChange, disabled, walletBala
           )}>
             Pay Now — UPI / Card
           </span>
-          <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
-            {walletPartial
-              ? <>₹{walletBalance} wallet + ₹{remainingAmount} via PhonePe / GPay / Card</>
-              : 'PhonePe, Google Pay, Paytm & more'}
-          </p>
-          <div className="flex items-center gap-2.5 mt-1.5">
-            <span className="inline-flex items-center gap-0.5 text-[10px] text-emerald-600 font-medium">
-              <Zap className="w-3 h-3" /> Fastest confirmation
-            </span>
-            <span className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground font-medium">
-              <Shield className="w-3 h-3" /> Secure
-            </span>
-          </div>
+          {payNowDisabled ? (
+            <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
+              Available only on our mobile app. Please install the app to pay online.
+            </p>
+          ) : (
+            <>
+              <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
+                {walletPartial
+                  ? <>₹{walletBalance} wallet + ₹{remainingAmount} via PhonePe / GPay / Card</>
+                  : 'PhonePe, Google Pay, Paytm & more'}
+              </p>
+              <div className="flex items-center gap-2.5 mt-1.5">
+                <span className="inline-flex items-center gap-0.5 text-[10px] text-emerald-600 font-medium">
+                  <Zap className="w-3 h-3" /> Fastest confirmation
+                </span>
+                <span className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground font-medium">
+                  <Shield className="w-3 h-3" /> Secure
+                </span>
+              </div>
+            </>
+          )}
         </div>
 
         <div className={cn(
