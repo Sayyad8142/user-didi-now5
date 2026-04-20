@@ -329,6 +329,22 @@ export default function VerifyOTP() {
         });
       }
 
+      // Invalidate all user-dependent caches so wallet/home/bookings refetch
+      // immediately with the freshly-created profile (no stale empty state).
+      try {
+        await Promise.allSettled([
+          queryClient.invalidateQueries({ queryKey: ['wallet-balance'] }),
+          queryClient.invalidateQueries({ queryKey: ['wallet-transactions'] }),
+          queryClient.invalidateQueries({ queryKey: ['bookings'] }),
+          queryClient.invalidateQueries({ queryKey: ['my-bookings'] }),
+          queryClient.invalidateQueries({ queryKey: ['active-booking'] }),
+          queryClient.invalidateQueries({ queryKey: ['communities'] }),
+          queryClient.invalidateQueries({ queryKey: ['favorite-workers'] }),
+          queryClient.invalidateQueries({ queryKey: ['online-worker-counts'] }),
+        ]);
+      } catch (e) {
+        console.warn('Post-login invalidate failed (non-fatal):', e);
+      }
       if (redirectTo) {
         console.log('🔄 VerifyOTP: OTP verified, waiting for AuthProvider to update before navigating to', redirectTo);
         setPendingRedirect(redirectTo);
