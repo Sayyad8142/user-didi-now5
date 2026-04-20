@@ -220,7 +220,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         mounted = false;
         unsubscribeWeb();
         window.removeEventListener('demo-mode-changed', handleDemoModeChange as EventListener);
-        window.removeEventListener('native-auth-changed', handleNativeAuthCheck);
+        window.removeEventListener('native-auth-changed', handleNativeAuthCheck as EventListener);
       };
     }
 
