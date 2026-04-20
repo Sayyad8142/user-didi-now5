@@ -1,6 +1,7 @@
 import React from 'react';
-import { CreditCard, HandCoins, Wallet, Shield, Zap, Smartphone } from 'lucide-react';
+import { CreditCard, HandCoins, Wallet, Shield, Zap, Smartphone, Smartphone as PhoneIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { isNativeApp } from '@/utils/platform';
 
 export type PaymentMethod = 'pay_now' | 'pay_after_service' | 'wallet';
 
