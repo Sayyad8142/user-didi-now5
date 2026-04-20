@@ -225,6 +225,25 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
     return () => window.removeEventListener('supabase-ready', handleBackendReady);
   }, [fetchProfile, user?.id, profile]);
 
+  // When a fresh profile.id becomes available, invalidate every user-scoped
+  // query so screens that mounted with no userId (during the auth bootstrap
+  // race) refetch with the real userId. This is the second half of the
+  // first-login-on-Android-APK fix.
+  useEffect(() => {
+    const pid = profile?.id;
+    if (!pid) return;
+    if (lastInvalidatedForRef.current === pid) return;
+    lastInvalidatedForRef.current = pid;
+    console.log('🔄 Profile ready — invalidating user-scoped queries for', pid);
+    queryClient.invalidateQueries({ queryKey: ['wallet-balance'] });
+    queryClient.invalidateQueries({ queryKey: ['wallet-transactions'] });
+    queryClient.invalidateQueries({ queryKey: ['bookings'] });
+    queryClient.invalidateQueries({ queryKey: ['my-bookings'] });
+    queryClient.invalidateQueries({ queryKey: ['active-booking'] });
+    queryClient.invalidateQueries({ queryKey: ['favorite-workers'] });
+    queryClient.invalidateQueries({ queryKey: ['online-worker-counts'] });
+  }, [profile?.id, queryClient]);
+
   const refresh = async () => fetchProfile();
 
   return (
