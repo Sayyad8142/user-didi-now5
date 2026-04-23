@@ -668,6 +668,18 @@ const ActiveBookingCard = memo(() => {
             Need a different worker? Call us
           </button>
         )}
+
+        {/* Report Issue — only when a worker is assigned and booking is active */}
+        {!isCancelled && activeBooking.worker_id && (
+          <div className="mt-3 ml-1 flex justify-end">
+            <ReportIssueButton
+              bookingId={activeBooking.id}
+              workerId={activeBooking.worker_id}
+              status={activeBooking.status}
+              hasWorker={!!activeBooking.worker_id}
+            />
+          </div>
+        )}
       </Card>
 
       {/* OTP Bottom Sheet — only mount when relevant to avoid portal teardown races */}
