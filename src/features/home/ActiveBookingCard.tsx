@@ -20,6 +20,7 @@ import { LoadingWorkerBadge } from '@/components/LoadingWorkerBadge';
 import { WorkerRatingsModal } from '@/features/bookings/WorkerRatingsModal';
 import { useUnseenMessages } from '@/hooks/useUnseenMessages';
 import { WorkerReachConfirmationCard } from '@/features/bookings/WorkerReachConfirmationCard';
+import { ReportIssueButton } from '@/features/bookings/ReportIssueSheet';
 
 interface Booking {
   id: string;
