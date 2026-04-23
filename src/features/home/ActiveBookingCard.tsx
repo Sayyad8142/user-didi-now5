@@ -20,6 +20,7 @@ import { LoadingWorkerBadge } from '@/components/LoadingWorkerBadge';
 import { WorkerRatingsModal } from '@/features/bookings/WorkerRatingsModal';
 import { useUnseenMessages } from '@/hooks/useUnseenMessages';
 import { WorkerReachConfirmationCard } from '@/features/bookings/WorkerReachConfirmationCard';
+import { ReportIssueButton } from '@/features/bookings/ReportIssueSheet';
 
 interface Booking {
   id: string;
@@ -666,6 +667,18 @@ const ActiveBookingCard = memo(() => {
           >
             Need a different worker? Call us
           </button>
+        )}
+
+        {/* Report Issue — only when a worker is assigned and booking is active */}
+        {!isCancelled && activeBooking.worker_id && (
+          <div className="mt-3 ml-1 flex justify-end">
+            <ReportIssueButton
+              bookingId={activeBooking.id}
+              workerId={activeBooking.worker_id}
+              status={activeBooking.status}
+              hasWorker={!!activeBooking.worker_id}
+            />
+          </div>
         )}
       </Card>
 

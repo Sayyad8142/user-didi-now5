@@ -27,6 +27,7 @@ import { WorkerRatingsModal } from './WorkerRatingsModal';
 import { useUnseenMessages } from '@/hooks/useUnseenMessages';
 import { useProfile } from '@/contexts/ProfileContext';
 import { WorkerReachConfirmationCard } from './WorkerReachConfirmationCard';
+import { ReportIssueButton } from './ReportIssueSheet';
 interface Booking {
   id: string;
   service_type: string;
@@ -578,6 +579,18 @@ export function BookingCard({
         }
         return null;
       })()}
+
+      {/* Report Issue — only for active bookings with a worker assigned */}
+      {!isCancelled && !isCompleted && row.worker_id && (
+        <div className="mt-3 ml-1 mr-1 flex justify-end">
+          <ReportIssueButton
+            bookingId={row.id}
+            workerId={row.worker_id}
+            status={row.status}
+            hasWorker={!!row.worker_id}
+          />
+        </div>
+      )}
     </Card>
 
     <ChatSheet open={openChat} onOpenChange={setOpenChat} booking={row} mode="user" />
