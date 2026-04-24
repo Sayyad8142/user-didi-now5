@@ -227,6 +227,18 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
     return () => window.removeEventListener('demo-mode-changed', handleDemoModeChange);
   }, [fetchProfile]);
 
+  useEffect(() => {
+    const handleNativeAuthChanged = (event: Event) => {
+      const detail = (event as CustomEvent<{ uid?: string; phoneNumber?: string | null }>).detail;
+      if (!detail?.uid) return;
+      console.log('🔄 Profile: bootstrapping from native-auth-changed event', detail.uid);
+      bootstrapProfile({ id: detail.uid, phone: detail.phoneNumber ?? null });
+    };
+
+    window.addEventListener('native-auth-changed', handleNativeAuthChanged as EventListener);
+    return () => window.removeEventListener('native-auth-changed', handleNativeAuthChanged as EventListener);
+  }, [bootstrapProfile]);
+
   // Listen for backend-ready event (fired after initSupabase completes)
   useEffect(() => {
     const handleBackendReady = () => {
