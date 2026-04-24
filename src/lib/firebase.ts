@@ -260,6 +260,30 @@ async function verifyOtpNative(code: string): Promise<{ success: boolean; user?:
 
 // ─── Web Firebase Auth (reCAPTCHA) ───────────────────────────────────
 
+// Fully purge reCAPTCHA artifacts that Google injects into <body> (badge,
+// challenge iframes, script-injected divs). Without this, calling render()
+// a second time after a failed/stale OTP attempt throws and we surface the
+// generic "Failed to setup reCAPTCHA" error to the user.
+const purgeRecaptchaDom = (containerId: string) => {
+  try {
+    const container = document.getElementById(containerId);
+    if (container) container.innerHTML = '';
+
+    // Google injects these directly into <body> — they are NOT inside our container
+    document.querySelectorAll('.grecaptcha-badge').forEach((n) => n.remove());
+    document.querySelectorAll('iframe[src*="recaptcha"]').forEach((n) => n.remove());
+    document.querySelectorAll('iframe[title*="recaptcha" i]').forEach((n) => n.remove());
+
+    // Reset the global grecaptcha singleton so a fresh widget id can be issued
+    const w = window as any;
+    if (w.___grecaptcha_cfg) {
+      try { delete w.___grecaptcha_cfg; } catch { w.___grecaptcha_cfg = undefined; }
+    }
+  } catch (e) {
+    console.warn('purgeRecaptchaDom warning:', e);
+  }
+};
+
 // Setup invisible reCAPTCHA verifier — works on ALL platforms (web + Capacitor webview)
 export const setupRecaptcha = async (containerId: string = 'recaptcha-container'): Promise<RecaptchaVerifier | null> => {
   const authInstance = getFirebaseAuth();
@@ -268,46 +292,74 @@ export const setupRecaptcha = async (containerId: string = 'recaptcha-container'
     return null;
   }
 
-  try {
-    // Clear any existing verifier
-    if (recaptchaVerifier) {
-      try { recaptchaVerifier.clear(); } catch {}
-      recaptchaVerifier = null;
-    }
+  // Clear any existing verifier
+  if (recaptchaVerifier) {
+    try { recaptchaVerifier.clear(); } catch {}
+    recaptchaVerifier = null;
+  }
 
+  // Remove stale DOM/global artifacts from previous attempts BEFORE we look up the container
+  purgeRecaptchaDom(containerId);
+
+  // Wait one tick to let React re-render the container (it may have been removed
+  // by a previous tab switch and just re-mounted on this attempt).
+  await new Promise((r) => setTimeout(r, 0));
+
+  const tryCreate = async (): Promise<RecaptchaVerifier | null> => {
     const container = document.getElementById(containerId);
     if (!container) {
       console.error('❌ reCAPTCHA container element not found:', containerId);
       return null;
     }
 
-    // Clear stale reCAPTCHA DOM artifacts from previous verifier
     container.innerHTML = '';
+    console.log('[auth] setupRecaptcha start — container found:', containerId);
 
-    console.log('[auth] setupRecaptcha start — container found');
-
-    recaptchaVerifier = new RecaptchaVerifier(authInstance, containerId, {
+    const verifier = new RecaptchaVerifier(authInstance, containerId, {
       size: 'invisible',
       callback: () => {
         console.log('✅ reCAPTCHA solved');
       },
       'expired-callback': () => {
         console.log('⚠️ reCAPTCHA expired, will re-create on next send');
-        // Mark as stale so sendOtpWeb re-creates it
         if (recaptchaVerifier) {
           try { recaptchaVerifier.clear(); } catch {}
           recaptchaVerifier = null;
         }
-      }
+      },
     });
 
-    // Actually render the verifier — without this, signInWithPhoneNumber fails
-    await recaptchaVerifier.render();
-    console.log('✅ reCAPTCHA verifier created and rendered');
-    return recaptchaVerifier;
+    await verifier.render();
+    return verifier;
+  };
+
+  try {
+    recaptchaVerifier = await tryCreate();
+    if (recaptchaVerifier) {
+      console.log('✅ reCAPTCHA verifier created and rendered');
+      return recaptchaVerifier;
+    }
+    return null;
   } catch (error) {
-    console.error('❌ reCAPTCHA setup error:', error);
-    // Clean up on failure
+    console.warn('⚠️ reCAPTCHA first attempt failed, retrying after full purge:', error);
+    // Full purge + one retry handles the case where Google left a half-initialized widget
+    if (recaptchaVerifier) {
+      try { recaptchaVerifier.clear(); } catch {}
+      recaptchaVerifier = null;
+    }
+    purgeRecaptchaDom(containerId);
+    await new Promise((r) => setTimeout(r, 50));
+
+    try {
+      recaptchaVerifier = await tryCreate();
+      if (recaptchaVerifier) {
+        console.log('✅ reCAPTCHA verifier created on retry');
+        return recaptchaVerifier;
+      }
+    } catch (retryErr) {
+      console.error('❌ reCAPTCHA setup error (retry failed):', retryErr);
+    }
+
     if (recaptchaVerifier) {
       try { recaptchaVerifier.clear(); } catch {}
       recaptchaVerifier = null;
