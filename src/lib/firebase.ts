@@ -59,20 +59,35 @@ export const isNativeAuthAvailable = async (): Promise<boolean> => {
   if (_nativeAuthAvailable !== null) return _nativeAuthAvailable;
   if (!isNativePlatform() || !isAndroid()) {
     _nativeAuthAvailable = false;
+    console.log(`[OTP-AUDIT] isNativeAuthAvailable=false (platform=${Capacitor.getPlatform()}, native=${isNativePlatform()})`);
     return false;
   }
   try {
     const { FirebaseAuthentication } = await import('@capacitor-firebase/authentication');
-    // Quick smoke-test: if plugin is a stub this will throw
+    // Verify plugin is actually registered with Capacitor bridge (not the JS stub)
+    // Capacitor.isPluginAvailable returns false when the Android plugin class isn't compiled in.
+    const registered = Capacitor.isPluginAvailable('FirebaseAuthentication');
+    if (!registered) {
+      console.error('❌ [OTP-AUDIT] FirebaseAuthentication plugin NOT registered in Android bridge. APK was built without `npx cap sync android`.');
+      _nativeAuthAvailable = false;
+      return false;
+    }
+    // Smoke-test: if plugin is a stub this throws
     await FirebaseAuthentication.getCurrentUser();
     _nativeAuthAvailable = true;
-    console.log('✅ Native FirebaseAuthentication plugin available');
+    console.log('✅ [OTP-AUDIT] Native FirebaseAuthentication plugin available and registered');
   } catch (e: any) {
-    console.warn('⚠️ Native FirebaseAuthentication not available, falling back to web OTP:', e?.message);
+    console.error('❌ [OTP-AUDIT] Native FirebaseAuthentication not available:', e?.message);
     _nativeAuthAvailable = false;
   }
   return _nativeAuthAvailable;
 };
+
+// Custom error returned when Android APK lacks the native plugin.
+// We refuse to silently fall back to web reCAPTCHA — that opens an external
+// browser/Custom Tab which breaks the in-app OTP UX.
+export const NATIVE_PLUGIN_MISSING_ERROR =
+  'Native Firebase Auth plugin is not available in this build. Please rebuild APK after `npx cap sync android`.';
 
 // Synchronous best-guess: Android native = true, everything else = false.
 // Use this for UI decisions (e.g. hiding reCAPTCHA container).
