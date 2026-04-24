@@ -37,7 +37,7 @@ export default function VerifyOTP() {
   const location = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { refresh: refreshProfile, bootstrapProfile } = useProfile();
+  const { bootstrapProfile } = useProfile();
   const { user: authUser } = useAuth();
   
   const state = location.state as LocationState;
