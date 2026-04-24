@@ -21,6 +21,7 @@ interface ProfileContextType {
   loading: boolean;
   error: string | null;
   refresh: () => Promise<Profile | null>;
+  bootstrapProfile: (authUser: { id: string; phone?: string | null }) => Promise<Profile | null>;
 }
 
 const ProfileContext = createContext<ProfileContextType>({
@@ -28,6 +29,7 @@ const ProfileContext = createContext<ProfileContextType>({
   loading: true,
   error: null,
   refresh: async () => null,
+  bootstrapProfile: async () => null,
 });
 
 export const useProfile = () => {
@@ -50,15 +52,21 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastInvalidatedForRef = useRef<string | null>(null);
 
-  const fetchProfile = useCallback(async (): Promise<Profile | null> => {
+  const loadProfileForAuth = useCallback(async (authUser?: { id: string; phone?: string | null }): Promise<Profile | null> => {
     try {
+      const activeUser = authUser?.id
+        ? authUser
+        : user?.id
+          ? { id: user.id, phone: user.phone ?? null }
+          : null;
+
       // IMPORTANT: If we have a real Firebase user, always clear demo/guest mode first
-      if (firebaseUser) {
+      if (firebaseUser || activeUser?.id) {
         clearDemoSession();
       }
 
       // Only check demo/guest mode if we DON'T have a real Firebase user
-      if (!firebaseUser && isDemoMode()) {
+      if (!firebaseUser && !activeUser?.id && isDemoMode()) {
         const demoSession = getDemoSession();
         if (demoSession?.profile) {
           setProfile(demoSession.profile);
@@ -68,7 +76,7 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
       }
 
       // Firebase-only auth - need a real user to fetch profile
-      if (!user?.id) {
+      if (!activeUser?.id) {
         setProfile(null);
         setLoading(false);
         return null;
@@ -77,12 +85,12 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
       setLoading(true);
       setError(null);
 
-      console.log('🔍 Fetching profile for firebase_uid:', user.id);
+      console.log('🔍 Fetching profile for firebase_uid:', activeUser.id);
 
       const { data, error: fetchError } = await supabase
         .from("profiles")
         .select("id, full_name, phone, community, flat_no, building_id, community_id, flat_id")
-        .eq("firebase_uid", user.id)
+        .eq("firebase_uid", activeUser.id)
         .maybeSingle();
 
       if (fetchError) {
@@ -104,14 +112,14 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
       // On first APK login the profile row is being inserted in parallel by
       // VerifyOTP.ensureFirebaseProfile — give it enough time on slow networks
       // before we create a generic fallback row.
-      console.log('📝 No profile found for:', user.id, '- retrying...');
+      console.log('📝 No profile found for:', activeUser.id, '- retrying...');
 
       for (let attempt = 0; attempt < 12; attempt++) {
         await new Promise(r => setTimeout(r, 600));
         const { data: retryData } = await supabase
           .from("profiles")
           .select("id, full_name, phone, community, flat_no, building_id, community_id, flat_id")
-          .eq("firebase_uid", user.id)
+          .eq("firebase_uid", activeUser.id)
           .maybeSingle();
 
         if (retryData) {
@@ -123,13 +131,13 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
       }
 
       // After retries, create a basic profile as last resort
-      console.log('📝 Creating fallback profile for:', user.id);
-      const phone = normalizePhone(user.phone ?? "");
+      console.log('📝 Creating fallback profile for:', activeUser.id);
+      const phone = normalizePhone(activeUser.phone ?? "");
       
       const { data: created, error: createErr } = await supabase
         .from("profiles")
         .insert({
-          firebase_uid: user.id,
+          firebase_uid: activeUser.id,
           phone: phone || "",
           full_name: phone || "User",
           community: "other",
@@ -143,7 +151,7 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
           const { data: finalData } = await supabase
             .from("profiles")
             .select("id, full_name, phone, community, flat_no, building_id, community_id, flat_id")
-            .eq("firebase_uid", user.id)
+            .eq("firebase_uid", activeUser.id)
             .maybeSingle();
           if (finalData) {
             setProfile(finalData);
@@ -170,6 +178,12 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
       return null;
     }
   }, [user?.id, user?.phone, firebaseUser]);
+
+  const fetchProfile = useCallback(() => loadProfileForAuth(), [loadProfileForAuth]);
+  const bootstrapProfile = useCallback(
+    (authUser: { id: string; phone?: string | null }) => loadProfileForAuth(authUser),
+    [loadProfileForAuth]
+  );
 
   // Primary effect: fetch when auth state changes
   useEffect(() => {
@@ -213,6 +227,18 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
     return () => window.removeEventListener('demo-mode-changed', handleDemoModeChange);
   }, [fetchProfile]);
 
+  useEffect(() => {
+    const handleNativeAuthChanged = (event: Event) => {
+      const detail = (event as CustomEvent<{ uid?: string; phoneNumber?: string | null }>).detail;
+      if (!detail?.uid) return;
+      console.log('🔄 Profile: bootstrapping from native-auth-changed event', detail.uid);
+      bootstrapProfile({ id: detail.uid, phone: detail.phoneNumber ?? null });
+    };
+
+    window.addEventListener('native-auth-changed', handleNativeAuthChanged as EventListener);
+    return () => window.removeEventListener('native-auth-changed', handleNativeAuthChanged as EventListener);
+  }, [bootstrapProfile]);
+
   // Listen for backend-ready event (fired after initSupabase completes)
   useEffect(() => {
     const handleBackendReady = () => {
@@ -247,7 +273,7 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
   const refresh = async () => fetchProfile();
 
   return (
-    <ProfileContext.Provider value={{ profile, loading, error, refresh }}>
+    <ProfileContext.Provider value={{ profile, loading, error, refresh, bootstrapProfile }}>
       {children}
     </ProfileContext.Provider>
   );

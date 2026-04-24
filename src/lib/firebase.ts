@@ -542,9 +542,19 @@ export const getFirebaseIdToken = async (forceRefresh = false): Promise<string |
   if (shouldUseNativeAuth()) {
     try {
       const { FirebaseAuthentication } = await import('@capacitor-firebase/authentication');
-      const result = await FirebaseAuthentication.getIdToken({ forceRefresh });
-      if (result.token) {
-        return result.token;
+
+      for (let attempt = 0; attempt < 8; attempt++) {
+        const result = await FirebaseAuthentication.getIdToken({ forceRefresh: forceRefresh || attempt > 0 });
+        if (result.token) {
+          if (attempt > 0) {
+            console.log(`✅ Native getIdToken succeeded on retry #${attempt}`);
+          }
+          return result.token;
+        }
+
+        if (attempt < 7) {
+          await new Promise((resolve) => setTimeout(resolve, 300));
+        }
       }
     } catch (error) {
       console.error('❌ Native getIdToken error:', error);

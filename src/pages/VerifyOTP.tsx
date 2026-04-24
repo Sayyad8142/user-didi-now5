@@ -37,7 +37,7 @@ export default function VerifyOTP() {
   const location = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { refresh: refreshProfile } = useProfile();
+  const { bootstrapProfile } = useProfile();
   const { user: authUser } = useAuth();
   
   const state = location.state as LocationState;
@@ -264,6 +264,11 @@ export default function VerifyOTP() {
 
       // Ensure profile exists in Supabase
       const profile = await ensureFirebaseProfile(uid, userPhone);
+
+      // Immediately hydrate ProfileContext from the verified native/web auth payload
+      // so Home/Profile/Wallet don't sit in an empty state waiting for the provider
+      // to observe auth on slower Android devices.
+      await bootstrapProfile({ id: uid, phone: userPhone });
       if (state?.mode === 'signup' && state.signupData && profile) {
         console.log('📝 Updating profile with signup data');
 
@@ -313,7 +318,7 @@ export default function VerifyOTP() {
         console.log('✅ Profile updated successfully');
         
         // Wait for profile context to refresh with updated data
-        await refreshProfile();
+        await bootstrapProfile({ id: uid, phone: userPhone });
         
         toast({
           title: 'Welcome to Didi Now!',
@@ -321,7 +326,7 @@ export default function VerifyOTP() {
         });
       } else {
         // For sign-in, also refresh profile to ensure latest data
-        await refreshProfile();
+        await bootstrapProfile({ id: uid, phone: userPhone });
         
         toast({
           title: 'Login Successful',
