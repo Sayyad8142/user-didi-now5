@@ -59,20 +59,35 @@ export const isNativeAuthAvailable = async (): Promise<boolean> => {
   if (_nativeAuthAvailable !== null) return _nativeAuthAvailable;
   if (!isNativePlatform() || !isAndroid()) {
     _nativeAuthAvailable = false;
+    console.log(`[OTP-AUDIT] isNativeAuthAvailable=false (platform=${Capacitor.getPlatform()}, native=${isNativePlatform()})`);
     return false;
   }
   try {
     const { FirebaseAuthentication } = await import('@capacitor-firebase/authentication');
-    // Quick smoke-test: if plugin is a stub this will throw
+    // Verify plugin is actually registered with Capacitor bridge (not the JS stub)
+    // Capacitor.isPluginAvailable returns false when the Android plugin class isn't compiled in.
+    const registered = Capacitor.isPluginAvailable('FirebaseAuthentication');
+    if (!registered) {
+      console.error('❌ [OTP-AUDIT] FirebaseAuthentication plugin NOT registered in Android bridge. APK was built without `npx cap sync android`.');
+      _nativeAuthAvailable = false;
+      return false;
+    }
+    // Smoke-test: if plugin is a stub this throws
     await FirebaseAuthentication.getCurrentUser();
     _nativeAuthAvailable = true;
-    console.log('✅ Native FirebaseAuthentication plugin available');
+    console.log('✅ [OTP-AUDIT] Native FirebaseAuthentication plugin available and registered');
   } catch (e: any) {
-    console.warn('⚠️ Native FirebaseAuthentication not available, falling back to web OTP:', e?.message);
+    console.error('❌ [OTP-AUDIT] Native FirebaseAuthentication not available:', e?.message);
     _nativeAuthAvailable = false;
   }
   return _nativeAuthAvailable;
 };
+
+// Custom error returned when Android APK lacks the native plugin.
+// We refuse to silently fall back to web reCAPTCHA — that opens an external
+// browser/Custom Tab which breaks the in-app OTP UX.
+export const NATIVE_PLUGIN_MISSING_ERROR =
+  'Native Firebase Auth plugin is not available in this build. Please rebuild APK after `npx cap sync android`.';
 
 // Synchronous best-guess: Android native = true, everything else = false.
 // Use this for UI decisions (e.g. hiding reCAPTCHA container).
@@ -447,37 +462,51 @@ function verifyOtpWeb(code: string): Promise<{ success: boolean; user?: User; er
 
 // ─── Unified public API ──────────────────────────────────────────────
 
-// Send OTP — Android native uses plugin, everything else uses web reCAPTCHA.
-// iOS native currently falls back to web OTP because the plugin is not implemented.
+// Send OTP — Android native MUST use plugin, web/iOS uses web reCAPTCHA.
+// On Android native, we refuse to silently fall back to web reCAPTCHA because
+// that opens a Custom Tab/external browser which breaks the in-app OTP UX.
 export const sendOtp = async (
   phoneNumber: string,
   containerId: string = 'recaptcha-container'
 ): Promise<{ success: boolean; error?: string }> => {
   const platform = Capacitor.getPlatform();
+  const native = isNativePlatform();
   const useNative = await isNativeAuthAvailable();
-  console.log(`📲 sendOtp — platform: ${platform}, useNative: ${useNative}, phone: ${phoneNumber}`);
+  console.log(`[OTP-AUDIT] sendOtp — platform=${platform}, isNative=${native}, useNative=${useNative}, phone=${phoneNumber}`);
 
   if (useNative) {
-    console.log('📱 Using NATIVE OTP flow (Android) — no reCAPTCHA');
+    console.log('[OTP-AUDIT] → Using NATIVE OTP flow (Android plugin) — no reCAPTCHA');
     return sendOtpNative(phoneNumber);
   }
 
-  console.log(`🌐 Using WEB OTP flow (reCAPTCHA) — platform: ${platform}`);
+  // Hard guard: Android native APK must NEVER fall through to web reCAPTCHA.
+  if (native && isAndroid()) {
+    console.error('[OTP-AUDIT] ❌ Android native build but plugin unavailable. Refusing web reCAPTCHA fallback.');
+    return { success: false, error: NATIVE_PLUGIN_MISSING_ERROR };
+  }
+
+  console.log(`[OTP-AUDIT] → Using WEB OTP flow (reCAPTCHA) — platform=${platform}`);
   return sendOtpWeb(phoneNumber, containerId);
 };
 
 // Verify OTP — matches the flow chosen by sendOtp
 export const verifyOtp = async (code: string): Promise<{ success: boolean; user?: User; nativeUser?: NativeAuthUser; error?: string }> => {
   const platform = Capacitor.getPlatform();
+  const native = isNativePlatform();
   const useNative = await isNativeAuthAvailable();
-  console.log(`🔐 verifyOtp — platform: ${platform}, useNative: ${useNative}, hasNativeId: ${!!nativeVerificationId}, hasWebCR: ${!!confirmationResult}`);
+  console.log(`[OTP-AUDIT] verifyOtp — platform=${platform}, isNative=${native}, useNative=${useNative}, hasNativeId=${!!nativeVerificationId}, hasWebCR=${!!confirmationResult}`);
 
   if (useNative) {
-    console.log('📱 Using NATIVE verify flow (Android)');
+    console.log('[OTP-AUDIT] → Using NATIVE verify flow (Android plugin)');
     return verifyOtpNative(code);
   }
 
-  console.log(`🌐 Using WEB verify flow — platform: ${platform}`);
+  if (native && isAndroid()) {
+    console.error('[OTP-AUDIT] ❌ Android native verify but plugin unavailable.');
+    return { success: false, error: NATIVE_PLUGIN_MISSING_ERROR };
+  }
+
+  console.log(`[OTP-AUDIT] → Using WEB verify flow — platform=${platform}`);
   return verifyOtpWeb(code);
 };
 
