@@ -349,6 +349,16 @@ async function createPaidBooking(params: CreatePaidBookingParams): Promise<Payme
 
   console.log('📝 Creating paid booking via edge function:', params.payment_type);
   console.log('CREATE_PAID_BOOKING_PAYLOAD', maskedPayload);
+  const sanitizedBookingData = payload.booking_data as Record<string, unknown>;
+  console.log('[SCHEDULED-AUDIT] → create-paid-booking', {
+    booking_type: sanitizedBookingData.booking_type,
+    scheduled_date: sanitizedBookingData.scheduled_date ?? null,
+    scheduled_time: sanitizedBookingData.scheduled_time ?? null,
+    payment_type: params.payment_type,
+    wallet_amount: params.wallet_amount ?? 0,
+    razorpay_payment_id: params.razorpay_payment_id ?? null,
+    request_id: requestId ?? null,
+  });
   logCreatePaidBookingDebug('request', {
     functionName: 'create-paid-booking',
     payload: maskedPayload,

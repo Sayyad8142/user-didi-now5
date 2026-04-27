@@ -299,7 +299,31 @@ export function ScheduleScreen() {
         flat_id: profile.flat_id ?? null,
       };
 
-      console.log("FINAL_BOOKING_PAYLOAD", bookingData);
+      // 🔒 SAFETY: hard-assert this payload is scheduled (not instant)
+      if (bookingData.booking_type !== 'scheduled' || !bookingData.scheduled_date || !bookingData.scheduled_time) {
+        console.error('[SCHEDULED-AUDIT] ❌ Refusing to send: payload is not properly scheduled', bookingData);
+        toast({
+          title: 'Booking error',
+          description: 'Schedule details are missing. Please reselect date and time.',
+          variant: 'destructive',
+        });
+        setSubmitting(false);
+        return;
+      }
+
+      console.log('[SCHEDULED-AUDIT] 🟢 ScheduleScreen → creating SCHEDULED booking', {
+        booking_type: bookingData.booking_type,
+        scheduled_date: bookingData.scheduled_date,
+        scheduled_time: bookingData.scheduled_time,
+        scheduled_at: `${bookingData.scheduled_date}T${bookingData.scheduled_time}`,
+        selected_date: format(selectedDate, 'yyyy-MM-dd'),
+        selected_time: selectedTime,
+        payment_method: paymentMethod,
+        wallet_balance: walletBalance,
+        price_inr: bookingData.price_inr,
+        prealert_sent_default: false,
+      });
+      console.log('FINAL_BOOKING_PAYLOAD', bookingData);
 
       // ── Pay After Service: insert booking directly (existing flow) ──
       if (paymentMethod === 'pay_after_service') {
