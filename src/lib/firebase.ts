@@ -1,10 +1,15 @@
 // Firebase Configuration for Phone Auth and Web Push
+// NOTE: OTP delivery is now handled by Twilio Verify (edge functions twilio-send-otp /
+// twilio-verify-otp). Firebase remains the identity layer — we mint a Firebase
+// Custom Token server-side and exchange it via signInWithCustomToken so the rest of
+// the app (firebase_uid, x-firebase-token, profiles linkage) works unchanged.
 import { initializeApp, FirebaseApp, getApps } from 'firebase/app';
-import { 
-  getAuth, 
+import {
+  getAuth,
   Auth,
-  signInWithPhoneNumber, 
-  RecaptchaVerifier, 
+  signInWithPhoneNumber,
+  signInWithCustomToken,
+  RecaptchaVerifier,
   ConfirmationResult,
   onAuthStateChanged,
   User,
@@ -12,6 +17,7 @@ import {
 } from 'firebase/auth';
 import { getMessaging, Messaging, getToken, onMessage, MessagePayload } from 'firebase/messaging';
 import { Capacitor } from '@capacitor/core';
+import { supabase } from '@/integrations/supabase/client';
 
 // Firebase config
 const firebaseConfig = {
