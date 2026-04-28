@@ -618,10 +618,11 @@ const ActiveBookingCard = memo(() => {
               <Button
                 variant="outline"
                 onClick={() => openExternalUrl('tel:+918008180018')}
-                aria-label="Call Support"
-                className="h-12 w-12 p-0 rounded-2xl border-primary/20 text-primary hover:bg-primary/5 shrink-0"
+                aria-label="Call Manager"
+                className="h-12 px-3 rounded-2xl border-primary/20 text-primary hover:bg-primary/5 shrink-0 font-semibold text-[13px] gap-1.5"
               >
                 <PhoneCall className="h-4 w-4" />
+                Call Manager
               </Button>
             </>
           )}
