@@ -10,6 +10,7 @@ import { ServiceHours } from './ServiceHours';
 import { WorkerAvailabilityCard } from './WorkerAvailabilityCard';
 import { FeatureCarousel } from './FeatureCarousel';
 import { ActiveBookingCard } from './ActiveBookingCard';
+import { HomeOtpCard } from './HomeOtpCard';
 import { openExternalUrl } from '@/lib/nativeOpen';
 import FaqSection from './FaqSection';
 import { useOnlineWorkerCounts } from '@/hooks/useOnlineWorkerCounts';
