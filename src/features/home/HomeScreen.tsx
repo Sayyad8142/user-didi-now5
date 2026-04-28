@@ -10,6 +10,7 @@ import { ServiceHours } from './ServiceHours';
 import { WorkerAvailabilityCard } from './WorkerAvailabilityCard';
 import { FeatureCarousel } from './FeatureCarousel';
 import { ActiveBookingCard } from './ActiveBookingCard';
+import { HomeOtpCard } from './HomeOtpCard';
 import { openExternalUrl } from '@/lib/nativeOpen';
 import FaqSection from './FaqSection';
 import { useOnlineWorkerCounts } from '@/hooks/useOnlineWorkerCounts';
@@ -43,6 +44,7 @@ export function HomeScreen() {
       <div className="max-w-md mx-auto px-4 space-y-4 bg-slate-50">
         <HeroCarousel />
         <ServicesRow onServiceSelect={handleServiceSelect} />
+        <HomeOtpCard />
         <ActiveBookingCard />
         
         <ServiceHours />
