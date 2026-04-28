@@ -509,8 +509,7 @@ export default function VerifyOTP() {
               )}
             </div>
 
-            {/* Invisible reCAPTCHA container for resend — web only */}
-            {!shouldUseNativeAuth() && <div id="recaptcha-container-verify"></div>}
+            {/* reCAPTCHA removed — Twilio Verify handles OTP delivery without captcha. */}
           </CardContent>
         </Card>
       </div>
