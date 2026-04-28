@@ -632,55 +632,85 @@ export const signOut = async (): Promise<void> => {
   }
 };
 
-// Get Firebase ID token for Supabase
-// Since OTP flow now signs into the Firebase Web SDK on every platform (via
-// signInWithCustomToken), we always read from the Web SDK first. The native
-// plugin is only consulted as a fallback for legacy sessions created by the
-// previous Firebase native phone-auth flow.
-export const getFirebaseIdToken = async (forceRefresh = false): Promise<string | null> => {
-  // 1) Primary path — Firebase Web SDK (works on web, Android webview, iOS)
+// Wait for the Firebase Web SDK auth state to hydrate. Used after returning
+// from external activities (e.g. Razorpay) where the WebView may have been
+// briefly backgrounded and currentUser is momentarily null while Firebase
+// rehydrates from IndexedDB / localStorage.
+export const waitForFirebaseAuthReady = async (timeoutMs = 8000): Promise<User | null> => {
   const authInstance = getFirebaseAuth();
+  if (!authInstance) return null;
+  if (authInstance.currentUser) return authInstance.currentUser;
+
+  return new Promise<User | null>((resolve) => {
+    let settled = false;
+    const unsubscribe = onAuthStateChanged(authInstance, (user) => {
+      if (user && !settled) {
+        settled = true;
+        try { unsubscribe(); } catch {}
+        resolve(user);
+      }
+    });
+    setTimeout(() => {
+      if (!settled) {
+        settled = true;
+        try { unsubscribe(); } catch {}
+        resolve(authInstance.currentUser);
+      }
+    }, timeoutMs);
+  });
+};
+
+// Get Firebase ID token for Supabase.
+// Since the Twilio migration, OTP flow signs into the Firebase Web SDK on every
+// platform via signInWithCustomToken — so the Web SDK is the source of truth.
+// We poll briefly to handle the WebView resume race after Razorpay (Android),
+// and only fall back to the legacy native plugin if a real native user exists.
+export const getFirebaseIdToken = async (forceRefresh = false): Promise<string | null> => {
+  const authInstance = getFirebaseAuth();
+
+  // 1) Fast path — Web SDK already hydrated
   if (authInstance?.currentUser) {
     try {
       return await authInstance.currentUser.getIdToken(forceRefresh);
     } catch (error) {
-      console.error('❌ Error getting Web SDK ID token:', error);
+      console.error('❌ Error getting Web SDK ID token (will retry):', error);
     }
   }
 
-  // 2) Wait briefly for Web SDK auth state to hydrate (e.g. just after signIn)
-  if (authInstance) {
-    const webToken = await new Promise<string | null>((resolve) => {
-      const unsubscribe = onAuthStateChanged(authInstance, async (user) => {
-        unsubscribe();
-        if (user) {
-          try {
-            resolve(await user.getIdToken(forceRefresh));
-          } catch (e) {
-            console.error('❌ Error getting ID token after state change:', e);
-            resolve(null);
-          }
-        } else {
-          resolve(null);
-        }
-      });
-      setTimeout(() => {
-        unsubscribe();
-        resolve(null);
-      }, 3000);
-    });
-    if (webToken) return webToken;
+  // 2) Wait for Web SDK to hydrate (handles Razorpay return on Android, where
+  //    the WebView pause briefly clears currentUser before IndexedDB rehydrates).
+  const hydratedUser = await waitForFirebaseAuthReady(8000);
+  if (hydratedUser) {
+    try {
+      const tok = await hydratedUser.getIdToken(forceRefresh);
+      if (tok) return tok;
+    } catch (e) {
+      console.error('❌ Error getting ID token after hydration:', e);
+    }
+    // One more retry without forceRefresh in case the network just blipped
+    try {
+      const tok2 = await hydratedUser.getIdToken(false);
+      if (tok2) return tok2;
+    } catch (e) {
+      console.error('❌ Error getting ID token (retry):', e);
+    }
   }
 
-  // 3) Fallback — legacy native plugin session (only relevant on Android APKs
-  // built before the Twilio migration that still hold a native Firebase user).
+  // 3) Legacy fallback — pre-Twilio APKs may still hold a native Firebase user.
+  //    Skip entirely if the native plugin has no user (Twilio flow case),
+  //    so we don't waste time on a plugin that will return null.
   if (shouldUseNativeAuth()) {
     try {
       const { FirebaseAuthentication } = await import('@capacitor-firebase/authentication');
-      for (let attempt = 0; attempt < 4; attempt++) {
-        const result = await FirebaseAuthentication.getIdToken({ forceRefresh: forceRefresh || attempt > 0 });
-        if (result.token) return result.token;
-        await new Promise((r) => setTimeout(r, 250));
+      const native = await FirebaseAuthentication.getCurrentUser().catch(() => null);
+      if (native?.user) {
+        for (let attempt = 0; attempt < 4; attempt++) {
+          const result = await FirebaseAuthentication.getIdToken({ forceRefresh: forceRefresh || attempt > 0 });
+          if (result.token) return result.token;
+          await new Promise((r) => setTimeout(r, 250));
+        }
+      } else {
+        console.log('[OTP-AUDIT] getFirebaseIdToken: no native user (Twilio session) — skipping native fallback');
       }
     } catch (error) {
       console.error('❌ Native getIdToken fallback error:', error);
