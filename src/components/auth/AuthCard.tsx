@@ -416,8 +416,7 @@ export function AuthCard() {
           Explore services before signing up
         </p>
 
-        {/* Invisible reCAPTCHA container — web only */}
-        {!shouldUseNativeAuth() && <div id="recaptcha-container"></div>}
+        {/* reCAPTCHA removed — OTP is now sent via Twilio Verify (no captcha needed). */}
       </CardContent>
     </Card>
   );

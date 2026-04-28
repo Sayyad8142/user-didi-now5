@@ -60,3 +60,9 @@ verify_jwt = false
 
 [functions.create-paid-booking]
 verify_jwt = false
+
+[functions.twilio-send-otp]
+verify_jwt = false
+
+[functions.twilio-verify-otp]
+verify_jwt = false
