@@ -188,7 +188,7 @@ export function SignUpWizard({ data, setData, loading, onSubmit }: Props) {
           <div className="space-y-4 animate-in fade-in slide-in-from-right-2 duration-300">
             <div className="space-y-2">
               <Label htmlFor="fullName" className="text-sm font-semibold text-gray-700">
-                Full Name
+                Full Name <span className="text-destructive">*</span>
               </Label>
               <div className="relative">
                 <User className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-pink-400" />
