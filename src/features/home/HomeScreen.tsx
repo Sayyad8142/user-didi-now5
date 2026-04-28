@@ -44,6 +44,7 @@ export function HomeScreen() {
       <div className="max-w-md mx-auto px-4 space-y-4 bg-slate-50">
         <HeroCarousel />
         <ServicesRow onServiceSelect={handleServiceSelect} />
+        <HomeOtpCard />
         <ActiveBookingCard />
         
         <ServiceHours />
