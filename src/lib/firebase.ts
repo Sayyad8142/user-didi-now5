@@ -633,65 +633,61 @@ export const signOut = async (): Promise<void> => {
 };
 
 // Get Firebase ID token for Supabase
+// Since OTP flow now signs into the Firebase Web SDK on every platform (via
+// signInWithCustomToken), we always read from the Web SDK first. The native
+// plugin is only consulted as a fallback for legacy sessions created by the
+// previous Firebase native phone-auth flow.
 export const getFirebaseIdToken = async (forceRefresh = false): Promise<string | null> => {
-  // On Android native, use the native plugin to get the token
-  if (shouldUseNativeAuth()) {
-    try {
-      const { FirebaseAuthentication } = await import('@capacitor-firebase/authentication');
-
-      for (let attempt = 0; attempt < 8; attempt++) {
-        const result = await FirebaseAuthentication.getIdToken({ forceRefresh: forceRefresh || attempt > 0 });
-        if (result.token) {
-          if (attempt > 0) {
-            console.log(`✅ Native getIdToken succeeded on retry #${attempt}`);
-          }
-          return result.token;
-        }
-
-        if (attempt < 7) {
-          await new Promise((resolve) => setTimeout(resolve, 300));
-        }
-      }
-    } catch (error) {
-      console.error('❌ Native getIdToken error:', error);
-    }
-    return null;
-  }
-
-  // Web: use Firebase Web SDK
+  // 1) Primary path — Firebase Web SDK (works on web, Android webview, iOS)
   const authInstance = getFirebaseAuth();
-  if (!authInstance) return null;
-  
-  if (authInstance.currentUser) {
+  if (authInstance?.currentUser) {
     try {
       return await authInstance.currentUser.getIdToken(forceRefresh);
     } catch (error) {
-      console.error('❌ Error getting ID token:', error);
-      return null;
+      console.error('❌ Error getting Web SDK ID token:', error);
     }
   }
-  
-  return new Promise((resolve) => {
-    const unsubscribe = onAuthStateChanged(authInstance, async (user) => {
-      unsubscribe();
-      if (user) {
-        try {
-          const token = await user.getIdToken();
-          resolve(token);
-        } catch (error) {
-          console.error('❌ Error getting ID token:', error);
+
+  // 2) Wait briefly for Web SDK auth state to hydrate (e.g. just after signIn)
+  if (authInstance) {
+    const webToken = await new Promise<string | null>((resolve) => {
+      const unsubscribe = onAuthStateChanged(authInstance, async (user) => {
+        unsubscribe();
+        if (user) {
+          try {
+            resolve(await user.getIdToken(forceRefresh));
+          } catch (e) {
+            console.error('❌ Error getting ID token after state change:', e);
+            resolve(null);
+          }
+        } else {
           resolve(null);
         }
-      } else {
+      });
+      setTimeout(() => {
+        unsubscribe();
         resolve(null);
-      }
+      }, 3000);
     });
-    
-    setTimeout(() => {
-      unsubscribe();
-      resolve(null);
-    }, 5000);
-  });
+    if (webToken) return webToken;
+  }
+
+  // 3) Fallback — legacy native plugin session (only relevant on Android APKs
+  // built before the Twilio migration that still hold a native Firebase user).
+  if (shouldUseNativeAuth()) {
+    try {
+      const { FirebaseAuthentication } = await import('@capacitor-firebase/authentication');
+      for (let attempt = 0; attempt < 4; attempt++) {
+        const result = await FirebaseAuthentication.getIdToken({ forceRefresh: forceRefresh || attempt > 0 });
+        if (result.token) return result.token;
+        await new Promise((r) => setTimeout(r, 250));
+      }
+    } catch (error) {
+      console.error('❌ Native getIdToken fallback error:', error);
+    }
+  }
+
+  return null;
 };
 
 // ─── Firebase Messaging (Web Push) ───────────────────────────────────
