@@ -223,8 +223,8 @@ export function PaymentRetrySheet({
             </div>
           )}
 
-          {/* Pay After Service */}
-          {config.showPayAfter && onPayAfterService && !isExpired && (
+          {/* Pay After Service — admin controlled */}
+          {payAfterEnabled && config.showPayAfter && onPayAfterService && !isExpired && (
             <Button
               variant="outline"
               className="w-full h-11 text-sm rounded-2xl gap-2"
