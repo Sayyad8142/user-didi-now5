@@ -1,5 +1,6 @@
 import React from 'react';
 import { CreditCard, HandCoins, Wallet, Shield, Zap, Smartphone, Smartphone as PhoneIcon } from 'lucide-react';
+import { Capacitor } from '@capacitor/core';
 import { cn } from '@/lib/utils';
 import { isNativeApp } from '@/utils/platform';
 
