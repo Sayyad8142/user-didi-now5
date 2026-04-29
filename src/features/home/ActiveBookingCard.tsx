@@ -49,6 +49,7 @@ interface Booking {
   pay_enabled_at?: string | null;
   cancel_source?: string | null;
   cancel_reason?: string | null;
+  cancellation_reason?: string | null;
   cancelled_at?: string | null;
   reach_status?: string | null;
   reach_confirmed_at?: string | null;
@@ -56,6 +57,7 @@ interface Booking {
   completion_otp?: string | null;
   otp_verified_at?: string | null;
   payment_status?: string | null;
+  dispatch_expires_at?: string | null;
 }
 
 const getServiceIcon = (serviceType: string) => {
