@@ -22,9 +22,8 @@ export function PaymentMethodSelector({ selected, onChange, disabled, walletBala
   const isNative = isNativeApp();
   const payNowDisabled = !isNative; // Pay Now only works in native app
   const enablePayAfterService = usePayAfterServiceEnabled();
-  // Pay After Service: always visible on web/browser. Hidden on native apps.
-  // (DB flag retained for telemetry/future toggling, but no longer gates visibility.)
-  const shouldShowPayAfterService = !isNative;
+  // Pay After Service: visible on web and native apps when the admin flag is enabled.
+  const shouldShowPayAfterService = enablePayAfterService;
   const payAfterEnabled = shouldShowPayAfterService;
   const walletCoversAll = walletBalance > 0 && walletBalance >= bookingAmount && bookingAmount > 0;
   const walletPartial = walletBalance > 0 && !walletCoversAll && bookingAmount > 0;
@@ -46,8 +45,7 @@ export function PaymentMethodSelector({ selected, onChange, disabled, walletBala
   }, [walletCoversAll, selected, onChange]);
 
   // If user is on web (Pay Now disabled) and currently selected pay_now, switch to a valid option.
-  // Native: Pay After Service is hidden, so only wallet/pay_now are valid.
-  // Web: fall back to pay_after_service only when admin enabled it.
+  // Web: fall back to pay_after_service when admin enabled it.
   React.useEffect(() => {
     if (payNowDisabled && selected === 'pay_now') {
       if (walletCoversAll) {
@@ -58,8 +56,8 @@ export function PaymentMethodSelector({ selected, onChange, disabled, walletBala
     }
   }, [payNowDisabled, selected, walletCoversAll, payAfterEnabled, onChange]);
 
-  // If currently selected pay_after_service but it's no longer available
-  // (admin disabled OR user is on native), switch to wallet (if covers) else pay_now.
+  // If currently selected pay_after_service but it's no longer available,
+  // switch to wallet (if covers) else pay_now.
   React.useEffect(() => {
     if (!payAfterEnabled && selected === 'pay_after_service') {
       onChange(walletCoversAll ? 'wallet' : 'pay_now');
