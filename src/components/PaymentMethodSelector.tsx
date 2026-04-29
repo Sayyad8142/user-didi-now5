@@ -21,20 +21,20 @@ import { usePayAfterServiceEnabled } from '@/hooks/useAppConfigFlags';
 export function PaymentMethodSelector({ selected, onChange, disabled, walletBalance = 0, bookingAmount = 0 }: PaymentMethodSelectorProps) {
   const isNative = isNativeApp();
   const payNowDisabled = !isNative; // Pay Now only works in native app
-  // Pay After Service is hidden on mobile apps (prepaid only). Web users can still see it if admin enabled.
-  const payAfterEnabled = usePayAfterServiceEnabled() && !isNative;
+  const enablePayAfterService = usePayAfterServiceEnabled();
+  // Pay After Service: visible only in browser/web AND when admin flag is on.
+  const shouldShowPayAfterService = enablePayAfterService && !isNative;
+  const payAfterEnabled = shouldShowPayAfterService;
   const walletCoversAll = walletBalance > 0 && walletBalance >= bookingAmount && bookingAmount > 0;
   const walletPartial = walletBalance > 0 && !walletCoversAll && bookingAmount > 0;
   const remainingAmount = walletPartial ? bookingAmount - walletBalance : 0;
   const walletEmpty = walletBalance <= 0;
 
-  console.log('[PaymentMethodSelector]', {
-    payAfterEnabled,
-    selected,
-    payNowDisabled,
-    walletCoversAll,
-    walletBalance,
-    bookingAmount,
+  console.log('Pay After Service visibility debug', {
+    enable_pay_after_service: enablePayAfterService,
+    isNativeApp: isNative,
+    platform: Capacitor.getPlatform?.(),
+    shouldShowPayAfterService,
   });
 
   // Auto-select wallet if it covers full amount
