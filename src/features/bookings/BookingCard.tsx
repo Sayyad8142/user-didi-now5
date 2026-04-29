@@ -28,6 +28,12 @@ import { useUnseenMessages } from '@/hooks/useUnseenMessages';
 import { useProfile } from '@/contexts/ProfileContext';
 import { WorkerReachConfirmationCard } from './WorkerReachConfirmationCard';
 import { ReportIssueButton } from './ReportIssueSheet';
+import {
+  FindingWorkerCountdown,
+  NoWorkerCancelledBlock,
+  isNoWorkerCancellation,
+  shouldShowDispatchCountdown,
+} from './NoWorkerStateBlock';
 interface Booking {
   id: string;
   service_type: string;
@@ -51,6 +57,8 @@ interface Booking {
   pay_enabled_at?: string | null;
   cancel_source?: string | null;
   cancel_reason?: string | null;
+  cancellation_reason?: string | null;
+  dispatch_expires_at?: string | null;
   completion_otp?: string | null;
   otp_verified_at?: string | null;
   payment_status?: string | null;
@@ -429,6 +437,16 @@ export function BookingCard({
         <div className="mt-3 pl-1">
           <AssigningProgress booking={row} />
         </div>
+      )}
+
+      {/* Auto-cancel countdown when no worker assigned yet */}
+      {shouldShowDispatchCountdown(row) && (
+        <FindingWorkerCountdown booking={row} />
+      )}
+
+      {/* No-worker cancellation block with Book Again */}
+      {isCancelled && isNoWorkerCancellation(row) && (
+        <NoWorkerCancelledBlock booking={row} />
       )}
 
       {/* Worker mini-card (priority block #2: worker) */}
