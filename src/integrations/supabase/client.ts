@@ -116,7 +116,7 @@ function getInitialBackendUrl(): string {
     const cached = typeof localStorage !== "undefined"
       ? localStorage.getItem("DIDI_BACKEND_URL")
       : null;
-    if (cached && BACKEND_CANDIDATES.includes(cached)) return cached;
+    if (cached && (BACKEND_CANDIDATES as readonly string[]).includes(cached)) return cached;
   } catch {}
   return BACKEND_CANDIDATES[0];
 }
