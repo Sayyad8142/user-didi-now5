@@ -26,6 +26,15 @@ export function PaymentMethodSelector({ selected, onChange, disabled, walletBala
   const remainingAmount = walletPartial ? bookingAmount - walletBalance : 0;
   const walletEmpty = walletBalance <= 0;
 
+  console.log('[PaymentMethodSelector]', {
+    payAfterEnabled,
+    selected,
+    payNowDisabled,
+    walletCoversAll,
+    walletBalance,
+    bookingAmount,
+  });
+
   // Auto-select wallet if it covers full amount
   React.useEffect(() => {
     if (walletCoversAll && selected !== 'wallet') {
