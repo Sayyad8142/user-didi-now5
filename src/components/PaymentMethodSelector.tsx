@@ -20,7 +20,8 @@ import { usePayAfterServiceEnabled } from '@/hooks/useAppConfigFlags';
 export function PaymentMethodSelector({ selected, onChange, disabled, walletBalance = 0, bookingAmount = 0 }: PaymentMethodSelectorProps) {
   const isNative = isNativeApp();
   const payNowDisabled = !isNative; // Pay Now only works in native app
-  const payAfterEnabled = usePayAfterServiceEnabled();
+  // Pay After Service is hidden on mobile apps (prepaid only). Web users can still see it if admin enabled.
+  const payAfterEnabled = usePayAfterServiceEnabled() && !isNative;
   const walletCoversAll = walletBalance > 0 && walletBalance >= bookingAmount && bookingAmount > 0;
   const walletPartial = walletBalance > 0 && !walletCoversAll && bookingAmount > 0;
   const remainingAmount = walletPartial ? bookingAmount - walletBalance : 0;
