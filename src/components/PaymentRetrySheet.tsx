@@ -10,6 +10,7 @@ import { toUserFriendlyPaymentError, type PaymentErrorType } from '@/lib/payment
 import { trackPaymentEvent, getRetrySuggestion } from '@/lib/paymentAnalytics';
 import { AppVersionDisplay } from '@/components/AppVersionDisplay';
 import { usePayAfterServiceEnabled } from '@/hooks/useAppConfigFlags';
+import { isNativeApp } from '@/utils/platform';
 
 // ─── Error config ─────────────────────────────────────────────
 interface ErrorConfig {
@@ -121,7 +122,8 @@ export function PaymentRetrySheet({
   const config = getErrorConfig(errorType);
   const { display: timerDisplay, isExpired } = useCountdown(bookingCreatedAt, 10);
   const retrySuggestion = getRetrySuggestion(errorType);
-  const payAfterEnabled = usePayAfterServiceEnabled();
+  // Hide Pay After Service on native mobile apps (prepaid-only launch).
+  const payAfterEnabled = usePayAfterServiceEnabled() && !isNativeApp();
 
   // Track retry sheet open
   useEffect(() => {
