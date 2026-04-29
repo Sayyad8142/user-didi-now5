@@ -13,6 +13,7 @@ import { ActiveBookingCard } from './ActiveBookingCard';
 import { HomeOtpCard } from './HomeOtpCard';
 import { openExternalUrl } from '@/lib/nativeOpen';
 import FaqSection from './FaqSection';
+import { TrustedPartnersSection } from './TrustedPartnersSection';
 import { useOnlineWorkerCounts } from '@/hooks/useOnlineWorkerCounts';
 import { useProfile } from '@/contexts/ProfileContext';
 import { HomeSkeleton } from './HomeSkeleton';
@@ -72,6 +73,8 @@ export function HomeScreen() {
         <FeatureCarousel />
 
         <FaqSection />
+
+        <TrustedPartnersSection />
       </div>
     </div>;
 }
