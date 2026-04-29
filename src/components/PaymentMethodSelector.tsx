@@ -235,6 +235,7 @@ export function PaymentMethodSelector({ selected, onChange, disabled, walletBala
           {selected === 'pay_after_service' && <div className="w-2.5 h-2.5 rounded-full bg-primary" />}
         </div>
       </button>
+      )}
 
       {/* Trust footer */}
       <div className="flex items-center justify-center gap-3 pt-1">
