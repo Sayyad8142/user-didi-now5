@@ -22,8 +22,9 @@ export function PaymentMethodSelector({ selected, onChange, disabled, walletBala
   const isNative = isNativeApp();
   const payNowDisabled = !isNative; // Pay Now only works in native app
   const enablePayAfterService = usePayAfterServiceEnabled();
-  // Pay After Service: visible only in browser/web AND when admin flag is on.
-  const shouldShowPayAfterService = enablePayAfterService && !isNative;
+  // Pay After Service: always visible on web/browser. Hidden on native apps.
+  // (DB flag retained for telemetry/future toggling, but no longer gates visibility.)
+  const shouldShowPayAfterService = !isNative;
   const payAfterEnabled = shouldShowPayAfterService;
   const walletCoversAll = walletBalance > 0 && walletBalance >= bookingAmount && bookingAmount > 0;
   const walletPartial = walletBalance > 0 && !walletCoversAll && bookingAmount > 0;
