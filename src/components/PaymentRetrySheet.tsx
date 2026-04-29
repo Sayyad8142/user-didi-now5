@@ -9,6 +9,7 @@ import {
 import { toUserFriendlyPaymentError, type PaymentErrorType } from '@/lib/paymentService';
 import { trackPaymentEvent, getRetrySuggestion } from '@/lib/paymentAnalytics';
 import { AppVersionDisplay } from '@/components/AppVersionDisplay';
+import { usePayAfterServiceEnabled } from '@/hooks/useAppConfigFlags';
 
 // ─── Error config ─────────────────────────────────────────────
 interface ErrorConfig {
@@ -120,6 +121,7 @@ export function PaymentRetrySheet({
   const config = getErrorConfig(errorType);
   const { display: timerDisplay, isExpired } = useCountdown(bookingCreatedAt, 10);
   const retrySuggestion = getRetrySuggestion(errorType);
+  const payAfterEnabled = usePayAfterServiceEnabled();
 
   // Track retry sheet open
   useEffect(() => {
