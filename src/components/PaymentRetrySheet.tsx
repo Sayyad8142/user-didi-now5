@@ -122,8 +122,8 @@ export function PaymentRetrySheet({
   const config = getErrorConfig(errorType);
   const { display: timerDisplay, isExpired } = useCountdown(bookingCreatedAt, 10);
   const retrySuggestion = getRetrySuggestion(errorType);
-  // Hide Pay After Service on native mobile apps (prepaid-only launch).
-  const payAfterEnabled = usePayAfterServiceEnabled() && !isNativeApp();
+  // Pay After Service is available on web and native apps when the admin flag is enabled.
+  const payAfterEnabled = usePayAfterServiceEnabled();
 
   // Track retry sheet open
   useEffect(() => {
