@@ -439,6 +439,16 @@ export function BookingCard({
         </div>
       )}
 
+      {/* Auto-cancel countdown when no worker assigned yet */}
+      {shouldShowDispatchCountdown(row) && (
+        <FindingWorkerCountdown booking={row} />
+      )}
+
+      {/* No-worker cancellation block with Book Again */}
+      {isCancelled && isNoWorkerCancellation(row) && (
+        <NoWorkerCancelledBlock booking={row} />
+      )}
+
       {/* Worker mini-card (priority block #2: worker) */}
       {workerDisplayName && !isCancelled && !isCompleted && (
         <div className="mt-4 ml-1 mr-1">
