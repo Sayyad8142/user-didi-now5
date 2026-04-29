@@ -17,6 +17,7 @@ export type Database = {
       app_config: {
         Row: {
           created_at: string
+          enable_pay_after_service: boolean
           force_update: boolean
           id: string
           ios_store_url: string | null
@@ -37,6 +38,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          enable_pay_after_service?: boolean
           force_update?: boolean
           id?: string
           ios_store_url?: string | null
@@ -57,6 +59,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          enable_pay_after_service?: boolean
           force_update?: boolean
           id?: string
           ios_store_url?: string | null

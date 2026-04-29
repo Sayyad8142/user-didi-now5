@@ -15,9 +15,12 @@ interface PaymentMethodSelectorProps {
   bookingAmount?: number;
 }
 
+import { usePayAfterServiceEnabled } from '@/hooks/useAppConfigFlags';
+
 export function PaymentMethodSelector({ selected, onChange, disabled, walletBalance = 0, bookingAmount = 0 }: PaymentMethodSelectorProps) {
   const isNative = isNativeApp();
   const payNowDisabled = !isNative; // Pay Now only works in native app
+  const payAfterEnabled = usePayAfterServiceEnabled();
   const walletCoversAll = walletBalance > 0 && walletBalance >= bookingAmount && bookingAmount > 0;
   const walletPartial = walletBalance > 0 && !walletCoversAll && bookingAmount > 0;
   const remainingAmount = walletPartial ? bookingAmount - walletBalance : 0;
@@ -30,12 +33,20 @@ export function PaymentMethodSelector({ selected, onChange, disabled, walletBala
     }
   }, [walletCoversAll]);
 
-  // If user is on web and currently selected pay_now, switch to pay_after_service
+  // If user is on web and currently selected pay_now, switch to a valid option
   React.useEffect(() => {
     if (payNowDisabled && selected === 'pay_now') {
-      onChange(walletCoversAll ? 'wallet' : 'pay_after_service');
+      if (walletCoversAll) onChange('wallet');
+      else if (payAfterEnabled) onChange('pay_after_service');
     }
-  }, [payNowDisabled, selected, walletCoversAll]);
+  }, [payNowDisabled, selected, walletCoversAll, payAfterEnabled]);
+
+  // If currently selected pay_after_service but admin disabled it, switch away
+  React.useEffect(() => {
+    if (!payAfterEnabled && selected === 'pay_after_service') {
+      onChange(walletCoversAll ? 'wallet' : 'pay_now');
+    }
+  }, [payAfterEnabled, selected, walletCoversAll]);
 
   return (
     <div className="space-y-3">
@@ -184,7 +195,8 @@ export function PaymentMethodSelector({ selected, onChange, disabled, walletBala
         </div>
       </button>
 
-      {/* Pay After Service */}
+      {/* Pay After Service — admin controlled */}
+      {payAfterEnabled && (
       <button
         type="button"
         disabled={disabled}
@@ -223,6 +235,7 @@ export function PaymentMethodSelector({ selected, onChange, disabled, walletBala
           {selected === 'pay_after_service' && <div className="w-2.5 h-2.5 rounded-full bg-primary" />}
         </div>
       </button>
+      )}
 
       {/* Trust footer */}
       <div className="flex items-center justify-center gap-3 pt-1">
