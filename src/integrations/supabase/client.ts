@@ -108,7 +108,20 @@ export async function switchBackend(): Promise<boolean> {
 // All 39+ files import { supabase } statically.
 // We use a Proxy so they always reach the live client, even if it's recreated.
 
-const INITIAL_URL = BACKEND_CANDIDATES[0];
+// Prefer the cached backend URL from a prior session so the initial client
+// matches what initSupabase() will resolve to. This prevents creating a
+// second GoTrueClient instance ("Multiple GoTrueClient" warning).
+function getInitialBackendUrl(): string {
+  try {
+    const cached = typeof localStorage !== "undefined"
+      ? localStorage.getItem("DIDI_BACKEND_URL")
+      : null;
+    if (cached && (BACKEND_CANDIDATES as readonly string[]).includes(cached)) return cached;
+  } catch {}
+  return BACKEND_CANDIDATES[0];
+}
+
+const INITIAL_URL = getInitialBackendUrl();
 // Create a default client immediately so imports don't break before init
 createSupabaseClient(INITIAL_URL);
 

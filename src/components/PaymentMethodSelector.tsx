@@ -41,22 +41,28 @@ export function PaymentMethodSelector({ selected, onChange, disabled, walletBala
     if (walletCoversAll && selected !== 'wallet') {
       onChange('wallet');
     }
-  }, [walletCoversAll]);
+  }, [walletCoversAll, selected, onChange]);
 
-  // If user is on web and currently selected pay_now, switch to a valid option
+  // If user is on web (Pay Now disabled) and currently selected pay_now, switch to a valid option.
+  // Native: Pay After Service is hidden, so only wallet/pay_now are valid.
+  // Web: fall back to pay_after_service only when admin enabled it.
   React.useEffect(() => {
     if (payNowDisabled && selected === 'pay_now') {
-      if (walletCoversAll) onChange('wallet');
-      else if (payAfterEnabled) onChange('pay_after_service');
+      if (walletCoversAll) {
+        onChange('wallet');
+      } else if (payAfterEnabled) {
+        onChange('pay_after_service');
+      }
     }
-  }, [payNowDisabled, selected, walletCoversAll, payAfterEnabled]);
+  }, [payNowDisabled, selected, walletCoversAll, payAfterEnabled, onChange]);
 
-  // If currently selected pay_after_service but admin disabled it, switch away
+  // If currently selected pay_after_service but it's no longer available
+  // (admin disabled OR user is on native), switch to wallet (if covers) else pay_now.
   React.useEffect(() => {
     if (!payAfterEnabled && selected === 'pay_after_service') {
       onChange(walletCoversAll ? 'wallet' : 'pay_now');
     }
-  }, [payAfterEnabled, selected, walletCoversAll]);
+  }, [payAfterEnabled, selected, walletCoversAll, onChange]);
 
   return (
     <div className="space-y-3">
