@@ -531,6 +531,11 @@ const ActiveBookingCard = memo(() => {
           </div>
         )}
 
+        {/* Auto-cancel countdown when no worker has been assigned yet */}
+        {shouldShowDispatchCountdown(activeBooking) && (
+          <FindingWorkerCountdown booking={activeBooking} />
+        )}
+
         {/* Reassurance line — only for pending instant */}
         {isFindingActive && (
           <p className="mt-2 pl-1 text-xs text-muted-foreground animate-fade-in">
