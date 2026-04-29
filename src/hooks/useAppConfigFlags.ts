@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { getCurrentBackendUrl } from '@/integrations/supabase/client';
+import { DIRECT_SUPABASE_URL, PRODUCTION_ANON_KEY } from '@/lib/constants';
 
 /**
  * Fetches admin-controlled feature flags from app_config.
