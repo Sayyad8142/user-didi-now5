@@ -599,47 +599,53 @@ const ActiveBookingCard = memo(() => {
 
         {/* Cancellation message */}
         {isCancelled && (
-          <div className="mt-3 ml-1 p-3 bg-rose-50 border border-rose-200 rounded-xl">
-            {activeBooking.cancel_source === 'user' ? (
-              <p className="text-rose-800 text-sm">Booking cancelled by you. You can book again anytime.</p>
-            ) : activeBooking.cancel_source === 'admin' ? (
-              <p className="text-rose-800 text-sm">Cancelled by admin — we couldn't provide a helper this time.</p>
+          isNoWorkerCancellation(activeBooking) ? (
+            <NoWorkerCancelledBlock booking={activeBooking} />
+          ) : (
+            <div className="mt-3 ml-1 p-3 bg-rose-50 border border-rose-200 rounded-xl">
+              {activeBooking.cancel_source === 'user' ? (
+                <p className="text-rose-800 text-sm">Booking cancelled by you. You can book again anytime.</p>
+              ) : activeBooking.cancel_source === 'admin' ? (
+                <p className="text-rose-800 text-sm">Cancelled by admin — we couldn't provide a helper this time.</p>
+              ) : (
+                <p className="text-rose-800 text-sm">All workers are busy. Please try again in a few minutes.</p>
+              )}
+            </div>
+          )
+        )}
+
+        {/* D. Bottom CTAs — hide Call Manager when no-worker block is shown (it has Book Again) */}
+        {!(isCancelled && isNoWorkerCancellation(activeBooking)) && (
+          <div className="mt-6 ml-1 flex items-center gap-2.5">
+            {isCancelled ? (
+              <Button
+                onClick={() => openExternalUrl('tel:+918008180018')}
+                className="flex-1 h-12 rounded-2xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-[15px] shadow-md shadow-primary/25"
+              >
+                <PhoneCall className="h-4 w-4 mr-2" /> Call Manager
+              </Button>
             ) : (
-              <p className="text-rose-800 text-sm">All workers are busy. Please try again in a few minutes.</p>
+              <>
+                <Button
+                  onClick={handleViewDetails}
+                  className="flex-1 h-12 rounded-2xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-[15px] tracking-tight shadow-md shadow-primary/25"
+                >
+                  Track Booking
+                  <ArrowRight className="w-4 h-4 ml-1.5" />
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => openExternalUrl('tel:+918008180018')}
+                  aria-label="Call Manager"
+                  className="h-12 px-3 rounded-2xl border-primary/20 text-primary hover:bg-primary/5 shrink-0 font-semibold text-[13px] gap-1.5"
+                >
+                  <PhoneCall className="h-4 w-4" />
+                  Call Manager
+                </Button>
+              </>
             )}
           </div>
         )}
-
-        {/* D. Bottom CTAs — primary Track Booking + ghost Call Support */}
-        <div className="mt-6 ml-1 flex items-center gap-2.5">
-          {isCancelled ? (
-            <Button
-              onClick={() => openExternalUrl('tel:+918008180018')}
-              className="flex-1 h-12 rounded-2xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-[15px] shadow-md shadow-primary/25"
-            >
-              <PhoneCall className="h-4 w-4 mr-2" /> Call Manager
-            </Button>
-          ) : (
-            <>
-              <Button
-                onClick={handleViewDetails}
-                className="flex-1 h-12 rounded-2xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-[15px] tracking-tight shadow-md shadow-primary/25"
-              >
-                Track Booking
-                <ArrowRight className="w-4 h-4 ml-1.5" />
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => openExternalUrl('tel:+918008180018')}
-                aria-label="Call Manager"
-                className="h-12 px-3 rounded-2xl border-primary/20 text-primary hover:bg-primary/5 shrink-0 font-semibold text-[13px] gap-1.5"
-              >
-                <PhoneCall className="h-4 w-4" />
-                Call Manager
-              </Button>
-            </>
-          )}
-        </div>
 
         {/* Hidden: Change worker action — kept reachable via Bookings details for less clutter.
             Quietly preserved when worker assigned and not yet exhausted. */}
