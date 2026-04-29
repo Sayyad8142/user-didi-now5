@@ -57,6 +57,8 @@ interface Booking {
   pay_enabled_at?: string | null;
   cancel_source?: string | null;
   cancel_reason?: string | null;
+  cancellation_reason?: string | null;
+  dispatch_expires_at?: string | null;
   completion_otp?: string | null;
   otp_verified_at?: string | null;
   payment_status?: string | null;
