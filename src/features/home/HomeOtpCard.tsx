@@ -7,11 +7,12 @@ interface OtpBooking {
   id: string;
   status: string;
   completion_otp: string | null;
-  otp_verified_at: string | null;
+  completed_at: string | null;
   created_at: string;
 }
 
 const OTP_VISIBLE_STATUSES = ['assigned', 'on_the_way', 'started'];
+const HIDDEN_STATUSES = ['completed', 'cancelled'];
 
 /**
  * HomeOtpCard
