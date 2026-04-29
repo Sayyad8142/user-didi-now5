@@ -31,10 +31,10 @@ export function HomeOtpCard() {
     }
     const { data, error } = await supabase
       .from('bookings')
-      .select('id, status, completion_otp, otp_verified_at, created_at')
+      .select('id, status, completion_otp, completed_at, created_at')
       .eq('user_id', profile.id)
       .in('status', OTP_VISIBLE_STATUSES)
-      .is('otp_verified_at', null)
+      .is('completed_at', null)
       .not('completion_otp', 'is', null)
       .order('created_at', { ascending: false })
       .limit(1)
@@ -68,7 +68,8 @@ export function HomeOtpCard() {
 
   if (!booking || !booking.completion_otp) return null;
   if (!OTP_VISIBLE_STATUSES.includes(booking.status)) return null;
-  if (booking.otp_verified_at) return null;
+  if (HIDDEN_STATUSES.includes(booking.status)) return null;
+  if (booking.completed_at) return null;
 
   const digits = booking.completion_otp.split('');
 
