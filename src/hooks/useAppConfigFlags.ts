@@ -18,28 +18,68 @@ export function usePayAfterServiceEnabled(): boolean {
   const { data } = useQuery({
     queryKey: ['app_config', 'enable_pay_after_service'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('app_config')
-        .select('*')
-        .order('updated_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      // Read directly from Supabase (bypass any custom-domain proxy that may
+      // strip unknown columns or serve cached responses). This flag is a public
+      // read-only feature flag, so the anon key is sufficient.
+      let raw: any = undefined;
+      let rowId: string | undefined;
+      let rowUpdatedAt: string | undefined;
+      let source = 'direct';
+      let fetchError: any = null;
 
-      const row: any = data || {};
-      const raw = row.enable_pay_after_service;
-      // Be tolerant of boolean / "true" string / 1 just in case
+      try {
+        const res = await fetch(
+          `${DIRECT_SUPABASE_URL}/rest/v1/app_config?select=*&order=updated_at.desc&limit=1`,
+          {
+            headers: {
+              apikey: PRODUCTION_ANON_KEY,
+              Authorization: `Bearer ${PRODUCTION_ANON_KEY}`,
+              'Cache-Control': 'no-cache',
+            },
+          },
+        );
+        if (res.ok) {
+          const rows = await res.json();
+          const row = Array.isArray(rows) && rows[0] ? rows[0] : {};
+          raw = row.enable_pay_after_service;
+          rowId = row.id;
+          rowUpdatedAt = row.updated_at;
+        } else {
+          fetchError = `HTTP ${res.status}`;
+        }
+      } catch (e) {
+        fetchError = e;
+      }
+
+      // Fallback to the proxied client if direct read failed
+      if (raw === undefined) {
+        source = 'proxy';
+        const { data: proxyData, error: proxyError } = await supabase
+          .from('app_config')
+          .select('*')
+          .order('updated_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        const row: any = proxyData || {};
+        raw = row.enable_pay_after_service;
+        rowId = row?.id;
+        rowUpdatedAt = row?.updated_at;
+        if (proxyError) fetchError = proxyError;
+      }
+
       const enabled = raw === true || raw === 'true' || raw === 1;
 
       console.log('[PayAfterServiceFlag]', {
+        source,
         backendUrl: getCurrentBackendUrl(),
+        directUrl: DIRECT_SUPABASE_URL,
         enabled,
         rawValue: raw,
-        rowId: row?.id,
-        rowUpdatedAt: row?.updated_at,
-        error,
+        rowId,
+        rowUpdatedAt,
+        fetchError,
       });
 
-      if (error) return false;
       return enabled;
     },
     staleTime: 5 * 60 * 1000,
