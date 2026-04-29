@@ -3,7 +3,8 @@ import { supabase } from '@/integrations/supabase/client';
 
 /**
  * Fetches admin-controlled feature flags from app_config.
- * Cached for the session; safe defaults if missing/null.
+ * No cache — always reads latest config so admin toggles propagate immediately.
+ * Safe default: false (hidden).
  */
 export function usePayAfterServiceEnabled(): boolean {
   const { data } = useQuery({
@@ -11,19 +12,26 @@ export function usePayAfterServiceEnabled(): boolean {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('app_config')
-        .select('enable_pay_after_service' as any)
+        .select('enable_pay_after_service, updated_at' as any)
+        .order('updated_at', { ascending: false })
         .limit(1)
         .maybeSingle();
-      if (error) {
-        console.warn('[appConfig] failed to read enable_pay_after_service', error);
-        return false;
-      }
-      return (data as any)?.enable_pay_after_service === true;
+
+      const enabled = (data as any)?.enable_pay_after_service === true;
+      console.log('[PayAfterServiceFlag]', {
+        enabled,
+        data,
+        error,
+      });
+
+      if (error) return false;
+      return enabled;
     },
-    staleTime: 5 * 60 * 1000,
-    gcTime: 30 * 60 * 1000,
+    staleTime: 0,
+    gcTime: 60 * 1000,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
     retry: 1,
   });
-  // Safe default: hidden
   return data === true;
 }
