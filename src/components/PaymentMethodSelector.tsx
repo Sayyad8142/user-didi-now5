@@ -16,33 +16,42 @@ interface PaymentMethodSelectorProps {
   bookingAmount?: number;
 }
 
-import { usePayAfterServiceEnabled } from '@/hooks/useAppConfigFlags';
+import { usePayAfterServiceEnabled, useDisableOnlinePayments } from '@/hooks/useAppConfigFlags';
 
 export function PaymentMethodSelector({ selected, onChange, disabled, walletBalance = 0, bookingAmount = 0 }: PaymentMethodSelectorProps) {
   const isNative = isNativeApp();
-  const payNowDisabled = !isNative; // Pay Now only works in native app
+  const codOnly = useDisableOnlinePayments();
+  const payNowDisabled = !isNative || codOnly; // Pay Now only works in native app, and never in COD-only mode
   const enablePayAfterService = usePayAfterServiceEnabled();
-  // Pay After Service: visible on web and native apps when the admin flag is enabled.
-  const shouldShowPayAfterService = enablePayAfterService;
+  // In COD-only mode, Pay After Service is the ONLY option (force visible regardless of admin flag).
+  const shouldShowPayAfterService = codOnly || enablePayAfterService;
   const payAfterEnabled = shouldShowPayAfterService;
-  const walletCoversAll = walletBalance > 0 && walletBalance >= bookingAmount && bookingAmount > 0;
-  const walletPartial = walletBalance > 0 && !walletCoversAll && bookingAmount > 0;
+  const walletCoversAll = !codOnly && walletBalance > 0 && walletBalance >= bookingAmount && bookingAmount > 0;
+  const walletPartial = !codOnly && walletBalance > 0 && !walletCoversAll && bookingAmount > 0;
   const remainingAmount = walletPartial ? bookingAmount - walletBalance : 0;
   const walletEmpty = walletBalance <= 0;
 
   console.log('Pay After Service visibility debug', {
     enable_pay_after_service: enablePayAfterService,
+    disable_online_payments: codOnly,
     isNativeApp: isNative,
     platform: Capacitor.getPlatform?.(),
     shouldShowPayAfterService,
   });
 
-  // Auto-select wallet if it covers full amount
+  // COD-only: force pay_after_service selection.
   React.useEffect(() => {
-    if (walletCoversAll && selected !== 'wallet') {
+    if (codOnly && selected !== 'pay_after_service') {
+      onChange('pay_after_service');
+    }
+  }, [codOnly, selected, onChange]);
+
+  // Auto-select wallet if it covers full amount (skip in COD-only mode)
+  React.useEffect(() => {
+    if (!codOnly && walletCoversAll && selected !== 'wallet') {
       onChange('wallet');
     }
-  }, [walletCoversAll, selected, onChange]);
+  }, [codOnly, walletCoversAll, selected, onChange]);
 
   // If user is on web (Pay Now disabled) and currently selected pay_now, switch to a valid option.
   // Web: fall back to pay_after_service when admin enabled it.
@@ -63,6 +72,41 @@ export function PaymentMethodSelector({ selected, onChange, disabled, walletBala
       onChange(walletCoversAll ? 'wallet' : 'pay_now');
     }
   }, [payAfterEnabled, selected, walletCoversAll, onChange]);
+
+  // ── COD-only mode: render ONLY Pay After Service ──
+  if (codOnly) {
+    return (
+      <div className="space-y-3">
+        <div
+          className="relative w-full flex items-start gap-3 rounded-2xl border-2 border-primary bg-primary/5 ring-1 ring-primary/30 px-4 py-3.5 text-left"
+        >
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5 bg-primary/15">
+            <HandCoins className="w-5 h-5 text-primary" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <span className="text-sm font-bold leading-tight text-primary">
+              Pay After Service (Cash)
+            </span>
+            <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
+              Pay in cash directly to the worker after the service is done.
+            </p>
+          </div>
+          <div className="w-5 h-5 rounded-full border-2 border-primary shrink-0 mt-1 flex items-center justify-center">
+            <div className="w-2.5 h-2.5 rounded-full bg-primary" />
+          </div>
+        </div>
+        <div className="flex items-center justify-center gap-3 pt-1">
+          <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
+            <Shield className="w-3 h-3" /> 100% Secure
+          </span>
+          <span className="text-muted-foreground/30">•</span>
+          <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
+            <Zap className="w-3 h-3" /> Instant Booking
+          </span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-3">
