@@ -91,3 +91,58 @@ export function usePayAfterServiceEnabled(): boolean {
   });
   return data === true;
 }
+
+/**
+ * COD-only kill-switch. When TRUE:
+ * - Hide Pay Now / Wallet / Razorpay UI
+ * - Force payment_method = 'pay_after_service', payment_status = 'pending'
+ * - Skip create-razorpay-order and create-paid-booking edge calls
+ * Reads the same app_config row (single source of truth) and uses the same
+ * direct → proxy fallback as usePayAfterServiceEnabled().
+ */
+export function useDisableOnlinePayments(): boolean {
+  const { data } = useQuery({
+    queryKey: ['app_config', 'disable_online_payments'],
+    queryFn: async () => {
+      let raw: any = undefined;
+      try {
+        const res = await fetch(
+          `${DIRECT_SUPABASE_URL}/rest/v1/app_config?select=*&order=updated_at.desc&limit=1`,
+          {
+            headers: {
+              apikey: PRODUCTION_ANON_KEY,
+              Authorization: `Bearer ${PRODUCTION_ANON_KEY}`,
+              'Cache-Control': 'no-cache',
+            },
+          },
+        );
+        if (res.ok) {
+          const rows = await res.json();
+          const row = Array.isArray(rows) && rows[0] ? rows[0] : {};
+          raw = row.disable_online_payments;
+        }
+      } catch {
+        // fall through to proxy
+      }
+      if (raw === undefined) {
+        const { data: proxyData } = await supabase
+          .from('app_config')
+          .select('*')
+          .order('updated_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        raw = (proxyData as any)?.disable_online_payments;
+      }
+      const enabled = raw === true || raw === 'true' || raw === 1;
+      console.log('[DisableOnlinePaymentsFlag]', { enabled, rawValue: raw });
+      return enabled;
+    },
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    retry: 1,
+  });
+  return data === true;
+}
