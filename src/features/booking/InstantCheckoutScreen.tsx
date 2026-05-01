@@ -22,6 +22,7 @@ import { PaymentMethodSelector, type PaymentMethod } from '@/components/PaymentM
 import { PaymentRetrySheet } from '@/components/PaymentRetrySheet';
 import { trackPaymentEvent } from '@/lib/paymentAnalytics';
 import { useWalletBalance } from '@/hooks/useWallet';
+import { useDisableOnlinePayments } from '@/hooks/useAppConfigFlags';
 
 
 export function InstantCheckoutScreen() {
@@ -50,6 +51,7 @@ export function InstantCheckoutScreen() {
   const { flatSize: autoFlatSize } = useFlatSize();
   const { data: walletData } = useWalletBalance();
   const walletBalance = walletData?.balance_inr ?? 0;
+  const codOnly = useDisableOnlinePayments();
   
 
   const priceParam = searchParams.get('price');
@@ -161,11 +163,14 @@ export function InstantCheckoutScreen() {
       console.log("FINAL_BOOKING_PAYLOAD", bookingData);
 
       // ── Pay After Service: insert booking directly (existing flow) ──
-      if (paymentMethod === 'pay_after_service') {
+      // COD-only kill-switch forces this branch regardless of selected paymentMethod.
+      if (codOnly || paymentMethod === 'pay_after_service') {
         const payAfterData = {
           ...bookingData,
           payment_method: 'pay_after_service',
-          payment_status: 'pay_after_service',
+          // COD-only: payment_status = 'pending' (cash collected after service).
+          // Legacy pay-after flow keeps 'pay_after_service' status.
+          payment_status: codOnly ? 'pending' : 'pay_after_service',
         };
 
         const { data, error } = await insertBookingWithCompat(payAfterData);
@@ -192,7 +197,7 @@ export function InstantCheckoutScreen() {
         console.log('✅ [InstantCheckout] pay-after booking created → navigating to /home');
         toast({
           title: "Booking confirmed!",
-          description: "Worker will arrive in ~10 minutes. Pay after service is done."
+          description: "Worker will arrive in ~10 minutes. Pay in cash after service is done."
         });
         navigate('/home', { replace: true });
         return;
