@@ -35,6 +35,7 @@ import { PaymentRetrySheet } from '@/components/PaymentRetrySheet';
 import { trackPaymentEvent } from '@/lib/paymentAnalytics';
 import { CreditCard, HandCoins } from 'lucide-react';
 import { useWalletBalance } from '@/hooks/useWallet';
+import { useDisableOnlinePayments } from '@/hooks/useAppConfigFlags';
 
 
 // Maid task types and constants
@@ -74,6 +75,7 @@ export function BookingForm() {
   const selectedFlatSize = autoFlatSize as FlatSize | null;
   const { data: walletData } = useWalletBalance();
   const walletBalance = walletData?.balance_inr ?? 0;
+  const codOnly = useDisableOnlinePayments();
   
   const [pricingMap, setPricingMap] = useState<PricingMap>({});
   const [loadingPricing, setLoadingPricing] = useState(true);
@@ -81,7 +83,7 @@ export function BookingForm() {
   const [priceChartOpen, setPriceChartOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [showPaymentPicker, setShowPaymentPicker] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('pay_now');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('pay_after_service');
   const [paymentStatus, setPaymentStatus] = useState<PaymentFlowStatus | null>(null);
 
   // Retry state
@@ -466,14 +468,18 @@ export function BookingForm() {
       } as any;
 
       const isPayAfter = bookingType === 'instant' && paymentMethod === 'pay_after_service';
-      const isPayNow = bookingType === 'instant' && paymentMethod === 'pay_now';
+      // COD-only kill-switch: force pay-after / direct insert path.
+      const forceCod = codOnly;
+      const isPayNow = !forceCod && bookingType === 'instant' && paymentMethod === 'pay_now';
 
-      // ── Pay After Service OR non-payment booking: insert directly ──
-      if (isPayAfter || !isPayNow) {
+      // ── Pay After Service OR non-payment booking OR COD-only: insert directly ──
+      if (forceCod || isPayAfter || !isPayNow) {
+        const treatAsPayAfter = forceCod || isPayAfter;
         const insertData = {
           ...bookingData,
-          payment_method: isPayAfter ? 'pay_after_service' : null,
-          payment_status: isPayAfter ? 'pay_after_service' : 'pending',
+          payment_method: treatAsPayAfter ? 'pay_after_service' : null,
+          // COD-only: payment_status = 'pending'. Legacy pay-after keeps 'pay_after_service'.
+          payment_status: forceCod ? 'pending' : (isPayAfter ? 'pay_after_service' : 'pending'),
         };
 
         console.log('📤 Sending booking data to database:', insertData);
