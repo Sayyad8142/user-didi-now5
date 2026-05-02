@@ -76,27 +76,19 @@ export function HomeOtpCard() {
   return (
     <section
       aria-label="Completion OTP"
-      className="my-3 px-4 py-4 rounded-2xl bg-emerald-50 ring-1 ring-emerald-200"
-      style={{ borderRadius: 16 }}
+      className="my-2 px-3 py-2 rounded-xl bg-emerald-50 ring-1 ring-emerald-200 flex items-center gap-2"
     >
-      <div className="flex items-center justify-center gap-2 mb-3">
-        <div className="p-2 rounded-xl bg-emerald-100 ring-1 ring-emerald-200">
-          <KeyRound className="w-4 h-4 text-emerald-700" />
-        </div>
-        <div className="text-center">
-          <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700 leading-none">
-            Completion OTP
-          </p>
-          <p className="text-[11px] text-emerald-700/70 mt-1 leading-tight">
-            Share only after service completion
-          </p>
-        </div>
+      <div className="p-1.5 rounded-lg bg-emerald-100 ring-1 ring-emerald-200 shrink-0">
+        <KeyRound className="w-3.5 h-3.5 text-emerald-700" />
       </div>
-      <div className="flex items-center justify-center gap-2">
+      <p className="text-[11px] font-semibold uppercase tracking-wider text-emerald-700 shrink-0">
+        OTP
+      </p>
+      <div className="flex items-center gap-1 ml-auto">
         {digits.map((digit, i) => (
           <span
             key={i}
-            className="w-12 h-14 flex items-center justify-center bg-white ring-1 ring-emerald-300 rounded-xl text-2xl font-extrabold text-emerald-900 tabular-nums shadow-sm"
+            className="w-7 h-8 flex items-center justify-center bg-white ring-1 ring-emerald-300 rounded-md text-base font-extrabold text-emerald-900 tabular-nums"
           >
             {digit}
           </span>
