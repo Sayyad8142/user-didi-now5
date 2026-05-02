@@ -69,7 +69,7 @@ export function HomeScreen() {
           </Button>
         </div>
         
-        <WorkerAvailabilityCard counts={counts} loading={loading} />
+        <WorkerAvailabilityCard counts={counts} loading={loading} onServiceSelect={handleServiceSelect} />
         <FeatureCarousel />
 
         <FaqSection />
