@@ -19,6 +19,7 @@ import { toast } from 'sonner';
 import { executePaymentFlow, type PaymentFlowStatus } from '@/lib/paymentService';
 import { useNow } from '@/hooks/useNow';
 import CancelAction from './CancelAction';
+import CancelBookingPill from './CancelBookingPill';
 import { RateWorker } from './RateWorker';
 import { openExternalUrl } from '@/lib/nativeOpen';
 import ChatSheet from '@/features/chat/ChatSheet';
