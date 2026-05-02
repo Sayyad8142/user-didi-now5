@@ -84,11 +84,11 @@ export function HomeOtpCard() {
       <p className="text-[11px] font-semibold uppercase tracking-wider text-emerald-700 shrink-0">
         OTP
       </p>
-      <div className="flex items-center gap-1 ml-auto">
+      <div className="flex items-center gap-0.5 ml-auto">
         {digits.map((digit, i) => (
           <span
             key={i}
-            className="w-7 h-8 flex items-center justify-center bg-white ring-1 ring-emerald-300 rounded-md text-base font-extrabold text-emerald-900 tabular-nums"
+            className="w-6 h-7 flex items-center justify-center bg-white ring-1 ring-emerald-300 rounded text-sm font-extrabold text-emerald-900 tabular-nums"
           >
             {digit}
           </span>
