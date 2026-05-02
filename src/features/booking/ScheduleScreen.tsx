@@ -13,7 +13,6 @@ import { PaymentMethodSelector, type PaymentMethod } from '@/components/PaymentM
 import { PaymentRetrySheet } from '@/components/PaymentRetrySheet';
 import { trackPaymentEvent } from '@/lib/paymentAnalytics';
 import { useWalletBalance } from '@/hooks/useWallet';
-import { useDisableOnlinePayments } from '@/hooks/useAppConfigFlags';
 
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useProfile } from '@/contexts/ProfileContext';
@@ -56,7 +55,6 @@ export function ScheduleScreen() {
   const { flatSize: autoFlatSize } = useFlatSize();
   const { data: walletData } = useWalletBalance();
   const walletBalance = walletData?.balance_inr ?? 0;
-  const codOnly = useDisableOnlinePayments();
   
 
   const [selectedDate, setSelectedDate] = useState<Date>(() => {
@@ -79,7 +77,7 @@ export function ScheduleScreen() {
   const [price, setPrice] = useState<number | null>(null);
   const [paymentStatus, setPaymentStatus] = useState<PaymentFlowStatus | null>(null);
   const [showAvailabilityWarning, setShowAvailabilityWarning] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('pay_after_service');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('pay_now');
   const [showPaymentPicker, setShowPaymentPicker] = useState(false);
   const [availableSlots, setAvailableSlots] = useState<Set<string> | null>(null); // null = still loading
   const [loadingAvailability, setLoadingAvailability] = useState(false);
@@ -328,13 +326,11 @@ export function ScheduleScreen() {
       console.log('FINAL_BOOKING_PAYLOAD', bookingData);
 
       // ── Pay After Service: insert booking directly (existing flow) ──
-      // COD-only kill-switch forces this branch regardless of selected paymentMethod.
-      if (codOnly || paymentMethod === 'pay_after_service') {
+      if (paymentMethod === 'pay_after_service') {
         const payAfterData = {
           ...bookingData,
           payment_method: 'pay_after_service',
-          // COD-only: payment_status = 'pending'. Legacy pay-after keeps 'pay_after_service'.
-          payment_status: codOnly ? 'pending' : 'pay_after_service',
+          payment_status: 'pay_after_service',
         };
 
         console.log('📤 Sending pay-after-service scheduled booking to database:', payAfterData);
@@ -360,7 +356,7 @@ export function ScheduleScreen() {
         console.log('✅ [Schedule] pay-after booking scheduled → navigating to /home');
         toast({
           title: "Booking scheduled!",
-          description: "Worker will be assigned before the scheduled time. Pay in cash after service is done."
+          description: "Worker will be assigned before the scheduled time. Pay after service is done."
         });
         navigate('/home', { replace: true });
         return;

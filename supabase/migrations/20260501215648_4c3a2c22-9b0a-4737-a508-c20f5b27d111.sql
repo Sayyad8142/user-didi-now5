@@ -1,1 +1,0 @@
-ALTER TABLE public.app_config ADD COLUMN IF NOT EXISTS disable_online_payments boolean NOT NULL DEFAULT false;

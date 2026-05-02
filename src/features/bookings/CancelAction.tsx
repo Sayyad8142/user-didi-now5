@@ -57,18 +57,11 @@ export default function CancelAction({ booking, onCancel }: CancelActionProps) {
           throw error;
         }
       } else {
-        // Treat as COD when booking was a Pay-After-Service / cash flow.
-        // For COD bookings no money was collected upfront → don't show refund.
-        const isCodBooking =
-          booking.payment_method === 'pay_after_service' ||
-          booking.payment_status === 'pay_after_service' ||
-          booking.payment_status === 'pending' ||
-          booking.payment_status === 'unpaid';
         const isPaid = booking.payment_status === 'paid';
         const amount = booking.price_inr || booking.payment_amount_inr;
         toast({
           title: "Booking cancelled",
-          description: !isCodBooking && isPaid && amount
+          description: isPaid && amount
             ? `₹${amount} has been refunded to your Didi Now wallet.`
             : "Your booking has been cancelled.",
         });
