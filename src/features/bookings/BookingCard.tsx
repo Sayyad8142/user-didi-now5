@@ -567,17 +567,20 @@ export function BookingCard({
             </div>
           );
         }
-        if ((row.status === 'assigned' || row.status === 'accepted' || row.status === 'on_the_way') && row.worker_phone) {
+        if (row.status === 'assigned' || row.status === 'accepted' || row.status === 'on_the_way') {
           return (
-            <div className="mt-3 ml-1 mr-1 flex justify-end animate-fade-in">
-              <button
-                type="button"
-                onClick={() => openExternalUrl(`tel:${row.worker_phone}`)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-secondary text-secondary-foreground hover:bg-secondary/80 ring-1 ring-border text-[12px] font-medium transition-colors"
-              >
-                <PhoneCall className="w-3.5 h-3.5" />
-                Call Worker
-              </button>
+            <div className="mt-3 ml-1 mr-1 flex flex-wrap items-center justify-end gap-2 animate-fade-in">
+              {row.worker_phone && (
+                <button
+                  type="button"
+                  onClick={() => openExternalUrl(`tel:${row.worker_phone}`)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-secondary text-secondary-foreground hover:bg-secondary/80 ring-1 ring-border text-[12px] font-medium transition-colors"
+                >
+                  <PhoneCall className="w-3.5 h-3.5" />
+                  Call Worker
+                </button>
+              )}
+              <CancelAction booking={row} onCancel={() => {}} />
             </div>
           );
         }
