@@ -19,6 +19,7 @@ import { toast } from 'sonner';
 import { executePaymentFlow, type PaymentFlowStatus } from '@/lib/paymentService';
 import { useNow } from '@/hooks/useNow';
 import CancelAction from './CancelAction';
+import CancelBookingPill from './CancelBookingPill';
 import { RateWorker } from './RateWorker';
 import { openExternalUrl } from '@/lib/nativeOpen';
 import ChatSheet from '@/features/chat/ChatSheet';
@@ -567,20 +568,17 @@ export function BookingCard({
             </div>
           );
         }
-        if (row.status === 'assigned' || row.status === 'accepted' || row.status === 'on_the_way') {
+        if ((row.status === 'assigned' || row.status === 'accepted' || row.status === 'on_the_way') && row.worker_phone) {
           return (
-            <div className="mt-3 ml-1 mr-1 flex flex-wrap items-center justify-end gap-2 animate-fade-in">
-              {row.worker_phone && (
-                <button
-                  type="button"
-                  onClick={() => openExternalUrl(`tel:${row.worker_phone}`)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-secondary text-secondary-foreground hover:bg-secondary/80 ring-1 ring-border text-[12px] font-medium transition-colors"
-                >
-                  <PhoneCall className="w-3.5 h-3.5" />
-                  Call Worker
-                </button>
-              )}
-              <CancelAction booking={row} onCancel={() => {}} />
+            <div className="mt-3 ml-1 mr-1 flex justify-end animate-fade-in">
+              <button
+                type="button"
+                onClick={() => openExternalUrl(`tel:${row.worker_phone}`)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-secondary text-secondary-foreground hover:bg-secondary/80 ring-1 ring-border text-[12px] font-medium transition-colors"
+              >
+                <PhoneCall className="w-3.5 h-3.5" />
+                Call Worker
+              </button>
             </div>
           );
         }
@@ -601,15 +599,18 @@ export function BookingCard({
         return null;
       })()}
 
-      {/* Report Issue — only for active bookings with a worker assigned */}
-      {!isCancelled && !isCompleted && row.worker_id && (
-        <div className="mt-3 ml-1 mr-1 flex justify-end">
-          <ReportIssueButton
-            bookingId={row.id}
-            workerId={row.worker_id}
-            status={row.status}
-            hasWorker={!!row.worker_id}
-          />
+      {/* Report Issue + Cancel Booking — active bookings */}
+      {!isCancelled && !isCompleted && (
+        <div className="mt-3 ml-1 mr-1 flex flex-wrap justify-end gap-2">
+          {row.worker_id && (
+            <ReportIssueButton
+              bookingId={row.id}
+              workerId={row.worker_id}
+              status={row.status}
+              hasWorker={!!row.worker_id}
+            />
+          )}
+          <CancelBookingPill booking={row} onCancel={() => {}} />
         </div>
       )}
     </Card>
