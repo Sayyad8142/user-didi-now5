@@ -20,7 +20,7 @@ const serviceLabels: Record<string, string> = {
   bathroom_cleaning: 'Bathroom Cleaners',
 };
 
-export function WorkerAvailabilityCard({ counts, loading }: WorkerAvailabilityCardProps) {
+export function WorkerAvailabilityCard({ counts, loading, onServiceSelect }: WorkerAvailabilityCardProps) {
   const workerCounts: WorkerCount[] = Object.entries(counts)
     .filter(([service]) => service !== 'cook')
     .map(([service, count]) => ({
