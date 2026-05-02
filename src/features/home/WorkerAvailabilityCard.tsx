@@ -12,6 +12,7 @@ interface WorkerCount {
 interface WorkerAvailabilityCardProps {
   counts: Record<string, number>;
   loading: boolean;
+  onServiceSelect?: (service: 'maid' | 'bathroom_cleaning') => void;
 }
 
 const serviceLabels: Record<string, string> = {
