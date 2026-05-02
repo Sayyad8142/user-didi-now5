@@ -598,15 +598,18 @@ export function BookingCard({
         return null;
       })()}
 
-      {/* Report Issue — only for active bookings with a worker assigned */}
-      {!isCancelled && !isCompleted && row.worker_id && (
-        <div className="mt-3 ml-1 mr-1 flex justify-end">
-          <ReportIssueButton
-            bookingId={row.id}
-            workerId={row.worker_id}
-            status={row.status}
-            hasWorker={!!row.worker_id}
-          />
+      {/* Report Issue + Cancel Booking — active bookings */}
+      {!isCancelled && !isCompleted && (
+        <div className="mt-3 ml-1 mr-1 flex flex-wrap justify-end gap-2">
+          {row.worker_id && (
+            <ReportIssueButton
+              bookingId={row.id}
+              workerId={row.worker_id}
+              status={row.status}
+              hasWorker={!!row.worker_id}
+            />
+          )}
+          <CancelBookingPill booking={row} onCancel={() => {}} />
         </div>
       )}
     </Card>
