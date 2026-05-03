@@ -34,7 +34,13 @@ export const DEMO_SESSION: DemoSession = {
   },
 };
 
+// Demo login is only allowed in development builds. In production, this
+// always returns false so the hardcoded credentials cannot be used to
+// bypass real OTP verification.
+const DEMO_LOGIN_ENABLED = import.meta.env.DEV === true;
+
 export function isDemoCredentials(phone: string, otp: string): boolean {
+  if (!DEMO_LOGIN_ENABLED) return false;
   const normalizedPhone = phone === '919876543210' ? '+919876543210' : phone;
   return normalizedPhone === DEMO_PHONE && otp.trim() === DEMO_OTP;
 }
