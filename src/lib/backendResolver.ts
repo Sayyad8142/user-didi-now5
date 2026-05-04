@@ -107,26 +107,29 @@ async function _doResolve(): Promise<string | null> {
     const result = await testUrl(cached);
     if (result.ok) {
       _resolvedUrl = cached;
-      console.info(`[BackendResolver] Cached URL works: ${cached} (${result.ms}ms)`);
+      console.info(`[BackendResolver] ✅ Using cached backend: ${cached} (${result.ms}ms)`);
       return cached;
     }
-    console.warn(`[BackendResolver] Cached URL failed: ${cached}, trying candidates...`);
+    console.warn(`[BackendResolver] Cached URL failed: ${cached} → ${result.error}, trying candidates...`);
     try { localStorage.removeItem(STORAGE_KEY); } catch {}
   }
 
   // 2. Try each candidate in order
+  const failures: string[] = [];
   for (const url of BACKEND_CANDIDATES) {
     if (url === cached) continue; // Already tried
     const result = await testUrl(url);
     if (result.ok) {
       _resolvedUrl = url;
       try { localStorage.setItem(STORAGE_KEY, url); } catch {}
-      console.info(`[BackendResolver] Resolved to: ${url} (${result.ms}ms)`);
+      console.info(`[BackendResolver] ✅ Resolved to: ${url} (${result.ms}ms)`);
       return url;
     }
-    console.warn(`[BackendResolver] ${url} failed: ${result.error || "HTTP error"} (${result.ms}ms)`);
+    failures.push(`${url}: ${result.error || "HTTP error"} (${result.ms}ms)`);
+    console.warn(`[BackendResolver] ❌ ${url} failed: ${result.error || "HTTP error"} (${result.ms}ms)`);
   }
 
-  console.error("[BackendResolver] All backend candidates failed!");
+  console.error("[BackendResolver] 🚨 All backend candidates failed!\n" + failures.join("\n"));
   return null;
 }
+
