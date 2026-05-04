@@ -122,7 +122,8 @@ export function PaymentRetrySheet({
   const config = getErrorConfig(errorType);
   const { display: timerDisplay, isExpired } = useCountdown(bookingCreatedAt, 10);
   const retrySuggestion = getRetrySuggestion(errorType);
-  const payAfterEnabled = usePayAfterServiceEnabled();
+  // Pay After Service is hidden everywhere (web + native).
+  const payAfterEnabled = false;
 
   // Track retry sheet open
   useEffect(() => {

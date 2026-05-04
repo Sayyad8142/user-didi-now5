@@ -6,7 +6,7 @@
  */
 
 const STORAGE_KEY = "DIDI_BACKEND_URL";
-const TIMEOUT_MS = 1000; // Reduced from 3000ms — fail fast on broken SSL endpoints
+const TIMEOUT_MS = 3000;
 
 import { PRODUCTION_ANON_KEY, BACKEND_CANDIDATES } from '@/lib/constants';
 export { BACKEND_CANDIDATES };
@@ -20,14 +20,13 @@ export type BackendTestResult = {
   error?: string;
 };
 
-/** Test a single URL via real health check (app_config select).
- * Falls back to /rest/v1/ root if health check itself errors with HTTP status. */
+/** Test a single URL for reachability */
 export async function testUrl(url: string, timeoutMs = TIMEOUT_MS): Promise<BackendTestResult> {
   const t0 = performance.now();
   try {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
-    const res = await fetch(`${url}/rest/v1/app_config?select=id&limit=1`, {
+    const res = await fetch(`${url}/rest/v1/`, {
       method: "GET",
       headers: {
         apikey: ANON_KEY,
@@ -37,23 +36,13 @@ export async function testUrl(url: string, timeoutMs = TIMEOUT_MS): Promise<Back
     });
     clearTimeout(timer);
     const ms = Math.round(performance.now() - t0);
-    // 2xx = healthy; 4xx still means server reachable (treat as ok for fallback)
-    if (res.ok || res.status === 401 || res.status === 403) {
-      return { url, ok: true, ms };
-    }
-    return { url, ok: false, ms, error: `HTTP ${res.status}` };
+    // Any HTTP response (even 401/403) means the server is reachable
+    return { url, ok: true, ms };
   } catch (e: any) {
     const ms = Math.round(performance.now() - t0);
-    const errName = e?.name === "AbortError" ? "Timeout" : e?.message || "Network error";
-    // Likely SSL/cipher mismatch shows as "Failed to fetch" / TypeError
-    const isSslOrNetwork = /failed to fetch|load failed|ssl|cipher|network/i.test(errName);
-    if (isSslOrNetwork) {
-      console.error(`[BackendResolver] SSL/network error on ${url}: ${errName} (${ms}ms)`);
-    }
-    return { url, ok: false, ms, error: errName };
+    return { url, ok: false, ms, error: e?.name === "AbortError" ? "Timeout" : e?.message || "Network error" };
   }
 }
-
 
 /** Test all candidates and return results */
 export async function testAllCandidates(timeoutMs = TIMEOUT_MS): Promise<BackendTestResult[]> {
@@ -107,29 +96,26 @@ async function _doResolve(): Promise<string | null> {
     const result = await testUrl(cached);
     if (result.ok) {
       _resolvedUrl = cached;
-      console.info(`[BackendResolver] ✅ Using cached backend: ${cached} (${result.ms}ms)`);
+      console.info(`[BackendResolver] Cached URL works: ${cached} (${result.ms}ms)`);
       return cached;
     }
-    console.warn(`[BackendResolver] Cached URL failed: ${cached} → ${result.error}, trying candidates...`);
+    console.warn(`[BackendResolver] Cached URL failed: ${cached}, trying candidates...`);
     try { localStorage.removeItem(STORAGE_KEY); } catch {}
   }
 
   // 2. Try each candidate in order
-  const failures: string[] = [];
   for (const url of BACKEND_CANDIDATES) {
     if (url === cached) continue; // Already tried
     const result = await testUrl(url);
     if (result.ok) {
       _resolvedUrl = url;
       try { localStorage.setItem(STORAGE_KEY, url); } catch {}
-      console.info(`[BackendResolver] ✅ Resolved to: ${url} (${result.ms}ms)`);
+      console.info(`[BackendResolver] Resolved to: ${url} (${result.ms}ms)`);
       return url;
     }
-    failures.push(`${url}: ${result.error || "HTTP error"} (${result.ms}ms)`);
-    console.warn(`[BackendResolver] ❌ ${url} failed: ${result.error || "HTTP error"} (${result.ms}ms)`);
+    console.warn(`[BackendResolver] ${url} failed: ${result.error || "HTTP error"} (${result.ms}ms)`);
   }
 
-  console.error("[BackendResolver] 🚨 All backend candidates failed!\n" + failures.join("\n"));
+  console.error("[BackendResolver] All backend candidates failed!");
   return null;
 }
-

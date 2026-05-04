@@ -156,26 +156,16 @@ const App = () => {
   const resolveBackend = useCallback(async () => {
     setResolving(true);
     setNetworkBlocked(false);
-    // Hard cap: never let the splash hang more than 6s total
-    const hardTimeout = setTimeout(() => {
-      console.error('[App] Backend resolve hard-timeout (6s) — showing network blocked screen');
-      setNetworkBlocked(true);
-      setResolving(false);
-    }, 6000);
     try {
       const ok = await initSupabase();
-      clearTimeout(hardTimeout);
       setNetworkBlocked(!ok);
       if (ok) {
         // Signal to ProfileProvider and other listeners that backend is ready
         window.dispatchEvent(new Event('supabase-ready'));
       }
-    } catch (err) {
-      clearTimeout(hardTimeout);
-      console.error('[App] initSupabase threw:', err);
+    } catch {
       setNetworkBlocked(true);
     } finally {
-      clearTimeout(hardTimeout);
       setResolving(false);
     }
   }, []);

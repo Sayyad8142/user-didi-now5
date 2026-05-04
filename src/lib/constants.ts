@@ -16,13 +16,8 @@ export const PRODUCTION_API_CANDIDATES = [
 /** Direct Supabase URL (fallback for public reads only) */
 export const DIRECT_SUPABASE_URL = 'https://paywwbuqycovjopryele.supabase.co';
 
-/** All backend candidates in priority order.
- * NOTE: Direct Supabase URL is tried FIRST temporarily because
- * api.didisnow.com / api2.didisnow.com have an SSL cert issue
- * (ERR_SSL_VERSION_OR_CIPHER_MISMATCH) causing 6+ sec splash delay.
- * Once cert is fixed, restore custom domains to the front.
- */
+/** All backend candidates in priority order */
 export const BACKEND_CANDIDATES = [
-  DIRECT_SUPABASE_URL,
   ...PRODUCTION_API_CANDIDATES,
+  DIRECT_SUPABASE_URL,
 ] as const;
