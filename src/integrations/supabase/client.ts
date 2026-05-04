@@ -7,10 +7,13 @@ import {
   clearResolvedUrl,
   BACKEND_CANDIDATES,
 } from "@/lib/backendResolver";
+import { PRODUCTION_ANON_KEY } from "@/lib/constants";
 
-const SUPABASE_PUBLISHABLE_KEY =
-  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBheXd3YnVxeWNvdmpvcHJ5ZWxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUxNjkyNjksImV4cCI6MjA3MDc0NTI2OX0.js1MaTBkjuGlaDfQjrZpZ9_G8Jy9ygNAB8KpNDiQg8o";
+// HYBRID BACKEND: This app always talks to the production Supabase project
+// (paywwbuqycovjopryele) regardless of any VITE_SUPABASE_* env vars that
+// Lovable Cloud may auto-write into .env. Using the wrong anon key causes
+// 401 "invalid JWT" on every REST call (issuer mismatch).
+const SUPABASE_PUBLISHABLE_KEY = PRODUCTION_ANON_KEY;
 
 export { SUPABASE_PUBLISHABLE_KEY };
 
