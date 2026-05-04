@@ -5,7 +5,7 @@
  */
 import { getFirebaseIdToken } from "@/lib/firebase";
 import { resolveBackendUrl } from "@/lib/backendResolver";
-import { PRODUCTION_ANON_KEY } from "@/lib/constants";
+import { LOVABLE_CLOUD_FUNCTIONS_URL, PRODUCTION_ANON_KEY } from "@/lib/constants";
 
 export interface BootstrappedProfile {
   id: string;
@@ -36,11 +36,13 @@ export async function bootstrapProfileViaEdge(
   input: BootstrapInput = {}
 ): Promise<BootstrappedProfile> {
   const backendUrl = await resolveBackendUrl();
-  if (!backendUrl) throw new Error("No reachable backend");
+  const candidateUrls = [
+    `${LOVABLE_CLOUD_FUNCTIONS_URL}/functions/v1/bootstrap-profile`,
+    ...(backendUrl ? [`${backendUrl}/functions/v1/bootstrap-profile`] : []),
+  ].filter((url, index, arr) => arr.indexOf(url) === index);
+  if (candidateUrls.length === 0) throw new Error("No reachable backend");
 
-  const url = `${backendUrl}/functions/v1/bootstrap-profile`;
-
-  const callOnce = async (forceRefresh: boolean) => {
+  const callOnce = async (url: string, forceRefresh: boolean) => {
     const token = await getFirebaseIdToken(forceRefresh);
     if (!token) throw new Error("Not signed in");
 
@@ -59,17 +61,28 @@ export async function bootstrapProfileViaEdge(
     });
   };
 
-  let res = await callOnce(false);
-  if (res.status === 401 || res.status === 403) {
-    res = await callOnce(true);
+  let lastError: Error | null = null;
+
+  for (const url of candidateUrls) {
+    try {
+      let res = await callOnce(url, false);
+      if (res.status === 401 || res.status === 403) {
+        res = await callOnce(url, true);
+      }
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data?.profile) {
+        const msg =
+          (typeof data?.error === "string" && data.error) ||
+          `Profile bootstrap failed (HTTP ${res.status})`;
+        throw new Error(msg);
+      }
+      return data.profile as BootstrappedProfile;
+    } catch (err: any) {
+      lastError = err instanceof Error ? err : new Error(err?.message || "Profile bootstrap failed");
+      console.warn("[ProfileBootstrap] endpoint failed, trying fallback if available", { url, error: lastError.message });
+    }
   }
 
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok || !data?.profile) {
-    const msg =
-      (typeof data?.error === "string" && data.error) ||
-      `Profile bootstrap failed (HTTP ${res.status})`;
-    throw new Error(msg);
-  }
-  return data.profile as BootstrappedProfile;
+  throw lastError || new Error("Profile bootstrap failed");
 }

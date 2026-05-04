@@ -16,6 +16,9 @@ export const PRODUCTION_API_CANDIDATES = [
 /** Direct Supabase URL (fallback for public reads only) */
 export const DIRECT_SUPABASE_URL = 'https://paywwbuqycovjopryele.supabase.co';
 
+/** Lovable Cloud functions host used for service-role backend helpers */
+export const LOVABLE_CLOUD_FUNCTIONS_URL = 'https://wvuuyrovdfydubmvsfxl.supabase.co';
+
 /** All backend candidates in priority order */
 export const BACKEND_CANDIDATES = [
   ...PRODUCTION_API_CANDIDATES,
