@@ -182,10 +182,8 @@ export default function VerifyOTP() {
       // so Home/Profile/Wallet don't sit in an empty state waiting for the provider
       // to observe auth on slower Android devices.
       await bootstrapProfile({ id: uid, phone: userPhone });
-      if (state?.mode === 'signup' && state.signupData && profile) {
-        console.log('📝 Updating profile with signup data');
-
-        if (!state.signupData.communityValue) {
+      if (state?.mode === 'signup') {
+        if (!state.signupData?.communityValue) {
           toast({
             title: 'Signup Error',
             description: 'Community information is missing. Please try signing up again.',
@@ -194,8 +192,7 @@ export default function VerifyOTP() {
           setLoading(false);
           return;
         }
-
-        if (!state.signupData.flatId || !state.signupData.flatNo) {
+        if (!state.signupData?.flatId || !state.signupData?.flatNo) {
           toast({
             title: 'Signup Error',
             description: 'Flat information is missing. Please try signing up again.',
@@ -204,43 +201,14 @@ export default function VerifyOTP() {
           setLoading(false);
           return;
         }
-
-        const { error: updateError } = await supabase
-          .from('profiles')
-          .update({
-            full_name: state.signupData.fullName,
-            community: state.signupData.communityValue,
-            flat_no: state.signupData.flatNo,
-            community_id: state.signupData.communityId,
-            building_id: state.signupData.buildingId || null,
-            flat_id: state.signupData.flatId,
-          })
-          .eq('id', profile.id);
-
-        if (updateError) {
-          console.error('❌ Profile update error:', updateError);
-          toast({
-            title: 'Signup Failed',
-            description: `Failed to complete profile setup: ${updateError.message}`,
-            variant: 'destructive',
-          });
-          setLoading(false);
-          return;
-        }
-
-        console.log('✅ Profile updated successfully');
-        
-        // Wait for profile context to refresh with updated data
+        // Signup data was already applied by the bootstrap edge function above.
         await bootstrapProfile({ id: uid, phone: userPhone });
-        
         toast({
           title: 'Welcome to Didi Now!',
           description: 'Your account has been created successfully.',
         });
       } else {
-        // For sign-in, also refresh profile to ensure latest data
         await bootstrapProfile({ id: uid, phone: userPhone });
-        
         toast({
           title: 'Login Successful',
           description: 'Welcome back!',
