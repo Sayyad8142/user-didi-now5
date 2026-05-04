@@ -104,23 +104,9 @@ export function AuthCard() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const checkIfUserExists = async (phone: string): Promise<boolean> => {
-    try {
-      const formattedPhone = formatPhoneIN(phone);
-      const { data, error } = await supabase.functions.invoke('check-user-exists', {
-        body: { phone: formattedPhone },
-      });
-      if (error) {
-        console.error('[checkIfUserExists] edge error:', error);
-        // Fail-open so legitimate users aren't blocked by transient backend issues
-        return true;
-      }
-      return !!(data as any)?.exists;
-    } catch (error) {
-      console.error('[checkIfUserExists] exception:', error);
-      return true;
-    }
-  };
+  // Pre-OTP existence check removed: anon RLS on profiles always returned
+  // false, blocking legitimate users. The verify screen routes to sign-up
+  // when no profile is found after authentication.
 
   const handleSendOTP = async () => {
     const isSignUp = activeTab === 'signup';
