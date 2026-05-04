@@ -36,6 +36,16 @@ function jsonResponse(body: Record<string, unknown>, status = 200) {
   });
 }
 
+function cleanSecret(raw?: string | null): string {
+  if (!raw) return "";
+  let value = raw.trim().replace(/^['"]|['"]$/g, "");
+  const equalsIndex = value.indexOf("=");
+  if (equalsIndex > -1 && value.slice(0, equalsIndex).includes("KEY")) {
+    value = value.slice(equalsIndex + 1).trim().replace(/^['"]|['"]$/g, "");
+  }
+  return value;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   if (req.method !== "POST") return jsonResponse({ error: "Method not allowed" }, 405);
@@ -55,13 +65,13 @@ serve(async (req) => {
     // function targets the project that actually owns `profiles` even when
     // deployed on Lovable Cloud (whose SUPABASE_URL points elsewhere).
     const supabaseUrl =
-      Deno.env.get("EXTERNAL_SUPABASE_URL") ||
-      Deno.env.get("PROFILES_SUPABASE_URL") ||
+      cleanSecret(Deno.env.get("EXTERNAL_SUPABASE_URL")) ||
+      cleanSecret(Deno.env.get("PROFILES_SUPABASE_URL")) ||
       "https://paywwbuqycovjopryele.supabase.co";
     const serviceRoleKey =
-      Deno.env.get("EXTERNAL_SUPABASE_SERVICE_ROLE_KEY") ||
-      Deno.env.get("PROFILES_SUPABASE_SERVICE_ROLE_KEY") ||
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+      cleanSecret(Deno.env.get("EXTERNAL_SUPABASE_SERVICE_ROLE_KEY")) ||
+      cleanSecret(Deno.env.get("PROFILES_SUPABASE_SERVICE_ROLE_KEY")) ||
+      cleanSecret(Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"));
     if (!supabaseUrl || !serviceRoleKey) {
       console.error("[bootstrap-profile] Missing env");
       return jsonResponse({ error: "Server misconfigured" }, 500);

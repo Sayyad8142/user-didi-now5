@@ -40,7 +40,7 @@ export function BootstrapDebugPanel() {
                 <li
                   key={i}
                   className={`flex items-start justify-between gap-2 rounded px-2 py-1 ${
-                    a.ok ? 'bg-emerald-500/10 text-emerald-700' : 'bg-destructive/10 text-destructive'
+                    a.ok ? 'bg-primary/10 text-primary' : 'bg-destructive/10 text-destructive'
                   }`}
                 >
                   <span className="break-all font-mono">{shortUrl(a.url)}</span>
