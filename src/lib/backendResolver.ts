@@ -6,7 +6,7 @@
  */
 
 const STORAGE_KEY = "DIDI_BACKEND_URL";
-const TIMEOUT_MS = 3000;
+const TIMEOUT_MS = 1000; // Reduced from 3000ms — fail fast on broken SSL endpoints
 
 import { PRODUCTION_ANON_KEY, BACKEND_CANDIDATES } from '@/lib/constants';
 export { BACKEND_CANDIDATES };
@@ -20,13 +20,14 @@ export type BackendTestResult = {
   error?: string;
 };
 
-/** Test a single URL for reachability */
+/** Test a single URL via real health check (app_config select).
+ * Falls back to /rest/v1/ root if health check itself errors with HTTP status. */
 export async function testUrl(url: string, timeoutMs = TIMEOUT_MS): Promise<BackendTestResult> {
   const t0 = performance.now();
   try {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
-    const res = await fetch(`${url}/rest/v1/`, {
+    const res = await fetch(`${url}/rest/v1/app_config?select=id&limit=1`, {
       method: "GET",
       headers: {
         apikey: ANON_KEY,
@@ -36,13 +37,23 @@ export async function testUrl(url: string, timeoutMs = TIMEOUT_MS): Promise<Back
     });
     clearTimeout(timer);
     const ms = Math.round(performance.now() - t0);
-    // Any HTTP response (even 401/403) means the server is reachable
-    return { url, ok: true, ms };
+    // 2xx = healthy; 4xx still means server reachable (treat as ok for fallback)
+    if (res.ok || res.status === 401 || res.status === 403) {
+      return { url, ok: true, ms };
+    }
+    return { url, ok: false, ms, error: `HTTP ${res.status}` };
   } catch (e: any) {
     const ms = Math.round(performance.now() - t0);
-    return { url, ok: false, ms, error: e?.name === "AbortError" ? "Timeout" : e?.message || "Network error" };
+    const errName = e?.name === "AbortError" ? "Timeout" : e?.message || "Network error";
+    // Likely SSL/cipher mismatch shows as "Failed to fetch" / TypeError
+    const isSslOrNetwork = /failed to fetch|load failed|ssl|cipher|network/i.test(errName);
+    if (isSslOrNetwork) {
+      console.error(`[BackendResolver] SSL/network error on ${url}: ${errName} (${ms}ms)`);
+    }
+    return { url, ok: false, ms, error: errName };
   }
 }
+
 
 /** Test all candidates and return results */
 export async function testAllCandidates(timeoutMs = TIMEOUT_MS): Promise<BackendTestResult[]> {
