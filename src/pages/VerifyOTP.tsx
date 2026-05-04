@@ -11,6 +11,7 @@ import { ArrowLeft, CheckCircle2 } from 'lucide-react';
 import { maskPhone } from '@/lib/auth-helpers';
 import { CleaningLoader } from '@/components/ui/cleaning-loader';
 import { normalizePhone } from '@/features/profile/ensureProfile';
+import { bootstrapProfileViaEdge } from '@/lib/profileBootstrap';
 import { isDemoCredentials, setDemoSession, clearDemoSession } from '@/lib/demo';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useAuth } from '@/components/auth/AuthProvider';
@@ -93,105 +94,17 @@ export default function VerifyOTP() {
   }, [countdown]);
 
 
-  // Ensure profile exists after Firebase auth
+  // Ensure profile exists via secure edge function (service-role bootstrap).
+  // Direct inserts from the frontend are blocked by RLS because the Supabase
+  // client is anonymous (Firebase is the identity provider).
   const ensureFirebaseProfile = async (firebaseUid: string, phoneNumber: string) => {
-    const normalized = normalizePhone(phoneNumber);
-
     try {
-      // 1) Prefer lookup by firebase_uid
-      const { data: byUid, error: byUidErr } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('firebase_uid', firebaseUid)
-        .maybeSingle();
-
-      if (byUidErr && byUidErr.code !== 'PGRST116') {
-        console.error('Error fetching profile by firebase_uid:', byUidErr);
-        throw byUidErr;
-      }
-
-      if (byUid) {
-        console.log('✅ Profile exists (firebase_uid):', byUid.id);
-        return byUid;
-      }
-
-      // 2) Fallback: lookup by phone (handles older rows where firebase_uid was empty)
-      const phoneCandidates = Array.from(
-        new Set([normalized, phoneNumber].map(s => (s ?? '').trim()).filter(Boolean))
-      );
-
-      let byPhone: any = null;
-      if (phoneCandidates.length > 0) {
-        // Use list query (not maybeSingle) to avoid errors if legacy duplicates exist.
-        const orExpr = phoneCandidates.map(p => `phone.eq.${p}`).join(',');
-        const { data: rows, error: byPhoneErr } = await supabase
-          .from('profiles')
-          .select('*')
-          .or(orExpr)
-          .order('updated_at', { ascending: false })
-          .limit(1);
-
-        if (byPhoneErr) {
-          console.error('Error fetching profile by phone:', byPhoneErr);
-          throw byPhoneErr;
-        }
-
-        byPhone = rows?.[0] ?? null;
-      }
-
-      if (byPhone) {
-        // Phone is already registered: attach/re-link firebase_uid
-        // (This can happen if the Firebase user was recreated and got a new UID.)
-        if (byPhone.firebase_uid && byPhone.firebase_uid !== firebaseUid) {
-          console.warn(
-            'ℹ️ Re-linking phone to new firebase_uid:',
-            byPhone.id,
-            byPhone.firebase_uid,
-            '→',
-            firebaseUid
-          );
-        }
-
-        const { data: updated, error: updateErr } = await supabase
-          .from('profiles')
-          .update({ firebase_uid: firebaseUid, phone: normalized || byPhone.phone })
-          .eq('id', byPhone.id)
-          .select()
-          .single();
-
-        if (updateErr) {
-          console.error('Error updating existing profile with firebase_uid:', updateErr);
-          throw updateErr;
-        }
-
-        console.log('✅ Profile linked to Firebase UID:', updated.id);
-        return updated;
-      }
-
-      // 3) Create new profile
-      console.log('📝 Creating new profile for Firebase user:', firebaseUid);
-      const { data: newProfile, error: insertError } = await supabase
-        .from('profiles')
-        .insert({
-          firebase_uid: firebaseUid,
-          phone: normalized,
-          full_name: state?.signupData?.fullName || 'User',
-          community: state?.signupData?.communityValue || 'default',
-          flat_no: state?.signupData?.flatNo || 'N/A',
-          community_id: state?.signupData?.communityId || null,
-          building_id: state?.signupData?.buildingId || null,
-          flat_id: state?.signupData?.flatId || null,
-        })
-        .select()
-        .single();
-
-      if (insertError) {
-        console.error('Error creating profile:', insertError);
-        throw insertError;
-      }
-
-      console.log('✅ Profile created:', newProfile.id);
-      return newProfile;
+      const profile = await bootstrapProfileViaEdge({
+        phone: phoneNumber,
+        signupData: state?.mode === 'signup' ? state.signupData ?? null : null,
+      });
+      console.log('✅ Profile bootstrapped:', profile.id);
+      return profile;
     } catch (error) {
       console.error('Error in ensureFirebaseProfile:', error);
       throw error;
@@ -269,10 +182,8 @@ export default function VerifyOTP() {
       // so Home/Profile/Wallet don't sit in an empty state waiting for the provider
       // to observe auth on slower Android devices.
       await bootstrapProfile({ id: uid, phone: userPhone });
-      if (state?.mode === 'signup' && state.signupData && profile) {
-        console.log('📝 Updating profile with signup data');
-
-        if (!state.signupData.communityValue) {
+      if (state?.mode === 'signup') {
+        if (!state.signupData?.communityValue) {
           toast({
             title: 'Signup Error',
             description: 'Community information is missing. Please try signing up again.',
@@ -281,8 +192,7 @@ export default function VerifyOTP() {
           setLoading(false);
           return;
         }
-
-        if (!state.signupData.flatId || !state.signupData.flatNo) {
+        if (!state.signupData?.flatId || !state.signupData?.flatNo) {
           toast({
             title: 'Signup Error',
             description: 'Flat information is missing. Please try signing up again.',
@@ -291,43 +201,14 @@ export default function VerifyOTP() {
           setLoading(false);
           return;
         }
-
-        const { error: updateError } = await supabase
-          .from('profiles')
-          .update({
-            full_name: state.signupData.fullName,
-            community: state.signupData.communityValue,
-            flat_no: state.signupData.flatNo,
-            community_id: state.signupData.communityId,
-            building_id: state.signupData.buildingId || null,
-            flat_id: state.signupData.flatId,
-          })
-          .eq('id', profile.id);
-
-        if (updateError) {
-          console.error('❌ Profile update error:', updateError);
-          toast({
-            title: 'Signup Failed',
-            description: `Failed to complete profile setup: ${updateError.message}`,
-            variant: 'destructive',
-          });
-          setLoading(false);
-          return;
-        }
-
-        console.log('✅ Profile updated successfully');
-        
-        // Wait for profile context to refresh with updated data
+        // Signup data was already applied by the bootstrap edge function above.
         await bootstrapProfile({ id: uid, phone: userPhone });
-        
         toast({
           title: 'Welcome to Didi Now!',
           description: 'Your account has been created successfully.',
         });
       } else {
-        // For sign-in, also refresh profile to ensure latest data
         await bootstrapProfile({ id: uid, phone: userPhone });
-        
         toast({
           title: 'Login Successful',
           description: 'Welcome back!',
