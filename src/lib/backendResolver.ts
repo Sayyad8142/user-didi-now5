@@ -7,7 +7,7 @@
 
 const STORAGE_KEY = "DIDI_BACKEND_URL";
 const PROBE_VERSION_KEY = "DIDI_BACKEND_PROBE_V";
-const PROBE_VERSION = "2"; // bump to invalidate stale cached URLs from old probe
+const PROBE_VERSION = "3"; // bump to invalidate stale cached URLs from old probe
 const TIMEOUT_MS = 3000;
 
 import { PRODUCTION_ANON_KEY, BACKEND_CANDIDATES } from '@/lib/constants';
@@ -31,6 +31,7 @@ export type BackendTestResult = {
  */
 export async function testUrl(url: string, timeoutMs = TIMEOUT_MS): Promise<BackendTestResult> {
   const t0 = performance.now();
+  console.info(`[BackendResolver] Testing URL: ${url}`);
   try {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -46,12 +47,15 @@ export async function testUrl(url: string, timeoutMs = TIMEOUT_MS): Promise<Back
     clearTimeout(timer);
     const ms = Math.round(performance.now() - t0);
     if (!res.ok) {
+      console.warn(`[BackendResolver] URL failed with HTTP status ${res.status}: ${url} (${ms}ms)`);
       return { url, ok: false, ms, error: `HTTP ${res.status}` };
     }
     return { url, ok: true, ms };
   } catch (e: any) {
     const ms = Math.round(performance.now() - t0);
-    return { url, ok: false, ms, error: e?.name === "AbortError" ? "Timeout" : e?.message || "Network error" };
+    const error = e?.name === "AbortError" ? "Timeout" : e?.message || "Network error";
+    console.warn(`[BackendResolver] URL failed (network): ${url} — ${error} (${ms}ms)`);
+    return { url, ok: false, ms, error };
   }
 }
 
@@ -113,27 +117,33 @@ async function _doResolve(): Promise<string | null> {
   } catch {}
 
   if (cached) {
-    const result = await testUrl(cached);
-    if (result.ok) {
-      _resolvedUrl = cached;
-      console.info(`[BackendResolver] Cached URL works: ${cached} (${result.ms}ms)`);
-      return cached;
+    // Only honor cached URL if it's still in the allowed candidate list
+    if (!(BACKEND_CANDIDATES as readonly string[]).includes(cached)) {
+      console.warn(`[BackendResolver] Cached URL no longer in candidates, discarding: ${cached}`);
+      try { localStorage.removeItem(STORAGE_KEY); } catch {}
+      cached = null;
+    } else {
+      const result = await testUrl(cached);
+      if (result.ok) {
+        _resolvedUrl = cached;
+        console.info(`[BackendResolver] Selected backend URL (cached): ${cached} (${result.ms}ms)`);
+        return cached;
+      }
+      console.warn(`[BackendResolver] Cached URL failed: ${cached}, trying candidates...`);
+      try { localStorage.removeItem(STORAGE_KEY); } catch {}
     }
-    console.warn(`[BackendResolver] Cached URL failed: ${cached}, trying candidates...`);
-    try { localStorage.removeItem(STORAGE_KEY); } catch {}
   }
 
-  // 2. Try each candidate in order
+  // 2. Try each candidate in priority order (api.didisnow.com first, direct Supabase last)
   for (const url of BACKEND_CANDIDATES) {
     if (url === cached) continue; // Already tried
     const result = await testUrl(url);
     if (result.ok) {
       _resolvedUrl = url;
       try { localStorage.setItem(STORAGE_KEY, url); } catch {}
-      console.info(`[BackendResolver] Resolved to: ${url} (${result.ms}ms)`);
+      console.info(`[BackendResolver] Selected backend URL: ${url} (${result.ms}ms)`);
       return url;
     }
-    console.warn(`[BackendResolver] ${url} failed: ${result.error || "HTTP error"} (${result.ms}ms)`);
   }
 
   console.error("[BackendResolver] All backend candidates failed!");
