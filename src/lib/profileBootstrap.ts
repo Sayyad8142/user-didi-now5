@@ -37,8 +37,8 @@ export async function bootstrapProfileViaEdge(
 ): Promise<BootstrappedProfile> {
   const backendUrl = await resolveBackendUrl();
   const candidateUrls = [
-    ...(backendUrl ? [`${backendUrl}/functions/v1/bootstrap-profile`] : []),
     `${LOVABLE_CLOUD_FUNCTIONS_URL}/functions/v1/bootstrap-profile`,
+    ...(backendUrl ? [`${backendUrl}/functions/v1/bootstrap-profile`] : []),
   ].filter((url, index, arr) => arr.indexOf(url) === index);
   if (candidateUrls.length === 0) throw new Error("No reachable backend");
 
