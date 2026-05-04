@@ -51,12 +51,22 @@ serve(async (req) => {
     const phone = normalizePhone(payload.phone || fb.phone || "");
     const signup = payload.signupData || null;
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    // Prefer explicit external DB env vars; fall back to defaults so the
+    // function targets the project that actually owns `profiles` even when
+    // deployed on Lovable Cloud (whose SUPABASE_URL points elsewhere).
+    const supabaseUrl =
+      Deno.env.get("EXTERNAL_SUPABASE_URL") ||
+      Deno.env.get("PROFILES_SUPABASE_URL") ||
+      "https://paywwbuqycovjopryele.supabase.co";
+    const serviceRoleKey =
+      Deno.env.get("EXTERNAL_SUPABASE_SERVICE_ROLE_KEY") ||
+      Deno.env.get("PROFILES_SUPABASE_SERVICE_ROLE_KEY") ||
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     if (!supabaseUrl || !serviceRoleKey) {
       console.error("[bootstrap-profile] Missing env");
       return jsonResponse({ error: "Server misconfigured" }, 500);
     }
+    console.log("[bootstrap-profile] using DB host:", new URL(supabaseUrl).host);
 
     const admin = createClient(supabaseUrl, serviceRoleKey, {
       auth: { persistSession: false, autoRefreshToken: false },
