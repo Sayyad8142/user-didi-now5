@@ -128,7 +128,9 @@ serve(async (req) => {
     if (!profile) {
       const insertRow: Record<string, unknown> = {
         firebase_uid: firebaseUid,
-        phone: phone || "",
+        // Use NULL (not "") so the unique constraint on phone doesn't
+        // collide between multiple profiles that have no phone yet.
+        phone: phone || null,
         full_name: signup?.fullName || (phone || "User"),
         community: signup?.communityValue || "other",
         flat_no: signup?.flatNo || "",
@@ -144,21 +146,45 @@ serve(async (req) => {
         .single();
 
       if (insertErr) {
-        // Possible race: another request just created the row
+        // Race / duplicate handling
         if ((insertErr as any).code === "23505") {
-          const { data: again } = await admin
+          // First try to find the row by firebase_uid (uid race)
+          const { data: againUid } = await admin
             .from("profiles")
             .select(SELECT_COLS)
             .eq("firebase_uid", firebaseUid)
             .maybeSingle();
-          if (again) {
-            return jsonResponse({ profile: again });
+          if (againUid) {
+            profile = againUid;
+          } else if (phone) {
+            // Phone collided: an existing profile owns this phone.
+            // Link it to this firebase_uid instead of failing.
+            const { data: byPhone } = await admin
+              .from("profiles")
+              .select(SELECT_COLS)
+              .eq("phone", phone)
+              .order("updated_at", { ascending: false })
+              .limit(1)
+              .maybeSingle();
+            if (byPhone) {
+              const { data: linked, error: linkErr } = await admin
+                .from("profiles")
+                .update({ firebase_uid: firebaseUid })
+                .eq("id", byPhone.id)
+                .select(SELECT_COLS)
+                .single();
+              if (!linkErr && linked) profile = linked;
+            }
           }
         }
-        console.error("[bootstrap-profile] insert error", insertErr);
-        return jsonResponse({ error: insertErr.message || "Profile create failed" }, 500);
+
+        if (!profile) {
+          console.error("[bootstrap-profile] insert error", insertErr);
+          return jsonResponse({ error: insertErr.message || "Profile create failed" }, 500);
+        }
+      } else {
+        profile = created;
       }
-      profile = created;
     }
 
     // 4) Apply signup updates if provided (signup flow)
