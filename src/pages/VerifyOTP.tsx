@@ -94,105 +94,17 @@ export default function VerifyOTP() {
   }, [countdown]);
 
 
-  // Ensure profile exists after Firebase auth
+  // Ensure profile exists via secure edge function (service-role bootstrap).
+  // Direct inserts from the frontend are blocked by RLS because the Supabase
+  // client is anonymous (Firebase is the identity provider).
   const ensureFirebaseProfile = async (firebaseUid: string, phoneNumber: string) => {
-    const normalized = normalizePhone(phoneNumber);
-
     try {
-      // 1) Prefer lookup by firebase_uid
-      const { data: byUid, error: byUidErr } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('firebase_uid', firebaseUid)
-        .maybeSingle();
-
-      if (byUidErr && byUidErr.code !== 'PGRST116') {
-        console.error('Error fetching profile by firebase_uid:', byUidErr);
-        throw byUidErr;
-      }
-
-      if (byUid) {
-        console.log('✅ Profile exists (firebase_uid):', byUid.id);
-        return byUid;
-      }
-
-      // 2) Fallback: lookup by phone (handles older rows where firebase_uid was empty)
-      const phoneCandidates = Array.from(
-        new Set([normalized, phoneNumber].map(s => (s ?? '').trim()).filter(Boolean))
-      );
-
-      let byPhone: any = null;
-      if (phoneCandidates.length > 0) {
-        // Use list query (not maybeSingle) to avoid errors if legacy duplicates exist.
-        const orExpr = phoneCandidates.map(p => `phone.eq.${p}`).join(',');
-        const { data: rows, error: byPhoneErr } = await supabase
-          .from('profiles')
-          .select('*')
-          .or(orExpr)
-          .order('updated_at', { ascending: false })
-          .limit(1);
-
-        if (byPhoneErr) {
-          console.error('Error fetching profile by phone:', byPhoneErr);
-          throw byPhoneErr;
-        }
-
-        byPhone = rows?.[0] ?? null;
-      }
-
-      if (byPhone) {
-        // Phone is already registered: attach/re-link firebase_uid
-        // (This can happen if the Firebase user was recreated and got a new UID.)
-        if (byPhone.firebase_uid && byPhone.firebase_uid !== firebaseUid) {
-          console.warn(
-            'ℹ️ Re-linking phone to new firebase_uid:',
-            byPhone.id,
-            byPhone.firebase_uid,
-            '→',
-            firebaseUid
-          );
-        }
-
-        const { data: updated, error: updateErr } = await supabase
-          .from('profiles')
-          .update({ firebase_uid: firebaseUid, phone: normalized || byPhone.phone })
-          .eq('id', byPhone.id)
-          .select()
-          .single();
-
-        if (updateErr) {
-          console.error('Error updating existing profile with firebase_uid:', updateErr);
-          throw updateErr;
-        }
-
-        console.log('✅ Profile linked to Firebase UID:', updated.id);
-        return updated;
-      }
-
-      // 3) Create new profile
-      console.log('📝 Creating new profile for Firebase user:', firebaseUid);
-      const { data: newProfile, error: insertError } = await supabase
-        .from('profiles')
-        .insert({
-          firebase_uid: firebaseUid,
-          phone: normalized,
-          full_name: state?.signupData?.fullName || 'User',
-          community: state?.signupData?.communityValue || 'default',
-          flat_no: state?.signupData?.flatNo || 'N/A',
-          community_id: state?.signupData?.communityId || null,
-          building_id: state?.signupData?.buildingId || null,
-          flat_id: state?.signupData?.flatId || null,
-        })
-        .select()
-        .single();
-
-      if (insertError) {
-        console.error('Error creating profile:', insertError);
-        throw insertError;
-      }
-
-      console.log('✅ Profile created:', newProfile.id);
-      return newProfile;
+      const profile = await bootstrapProfileViaEdge({
+        phone: phoneNumber,
+        signupData: state?.mode === 'signup' ? state.signupData ?? null : null,
+      });
+      console.log('✅ Profile bootstrapped:', profile.id);
+      return profile;
     } catch (error) {
       console.error('Error in ensureFirebaseProfile:', error);
       throw error;
