@@ -1,5 +1,5 @@
-import { supabase } from '@/integrations/supabase/client';
 import { getFirebaseIdToken, waitForFirebaseAuthReady } from '@/lib/firebase';
+import { LOVABLE_CLOUD_FUNCTIONS_URL, PRODUCTION_ANON_KEY } from '@/lib/constants';
 
 /**
  * Insert a booking row through the `create-pending-booking` edge function.
@@ -30,24 +30,30 @@ export async function insertBookingWithCompat(payload: Record<string, any>) {
     };
   }
 
-  const { data, error } = await supabase.functions.invoke('create-pending-booking', {
-    body: { booking_data: payload },
-    headers: { 'x-firebase-token': token },
-  });
+  let data: any = null;
+  try {
+    const res = await fetch(`${LOVABLE_CLOUD_FUNCTIONS_URL}/functions/v1/create-pending-booking`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: PRODUCTION_ANON_KEY,
+        Authorization: `Bearer ${PRODUCTION_ANON_KEY}`,
+        'x-firebase-token': token,
+      },
+      body: JSON.stringify({ booking_data: payload }),
+    });
 
-  if (error) {
-    // Try to surface the backend error message instead of the generic SDK one
-    let backendMsg: string | null = null;
-    try {
-      const ctx: any = (error as any).context;
-      if (ctx && typeof ctx.json === 'function') {
-        const body = await ctx.json();
-        if (body?.error) backendMsg = body.error;
-      }
-    } catch {}
+    data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return {
+        data: null,
+        error: { message: data?.error || `Booking failed (HTTP ${res.status})` } as any,
+      };
+    }
+  } catch (error: any) {
     return {
       data: null,
-      error: { message: backendMsg || error.message || 'Booking failed' } as any,
+      error: { message: error?.message || 'Booking service unreachable' } as any,
     };
   }
 
