@@ -15,7 +15,6 @@ import { isDemoCredentials, setDemoSession, clearDemoSession } from '@/lib/demo'
 import { useProfile } from '@/contexts/ProfileContext';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { verifyOtp, sendOtp, shouldUseNativeAuth } from '@/lib/firebase';
-import { callEnsureProfile } from '@/lib/ensureProfileApi';
 
 interface LocationState {
   phone: string;
@@ -169,17 +168,27 @@ export default function VerifyOTP() {
         return updated;
       }
 
-      // 3) Create new profile via edge function (service role; bypasses RLS safely
-      //    after verifying the Firebase ID token).
-      console.log('📝 Creating new profile via ensure-profile for Firebase user:', firebaseUid);
-      const newProfile = await callEnsureProfile({
-        full_name: state?.signupData?.fullName || 'User',
-        community: state?.signupData?.communityValue || 'default',
-        flat_no: state?.signupData?.flatNo || 'N/A',
-        community_id: state?.signupData?.communityId || null,
-        building_id: state?.signupData?.buildingId || null,
-        flat_id: state?.signupData?.flatId || null,
-      });
+      // 3) Create new profile
+      console.log('📝 Creating new profile for Firebase user:', firebaseUid);
+      const { data: newProfile, error: insertError } = await supabase
+        .from('profiles')
+        .insert({
+          firebase_uid: firebaseUid,
+          phone: normalized,
+          full_name: state?.signupData?.fullName || 'User',
+          community: state?.signupData?.communityValue || 'default',
+          flat_no: state?.signupData?.flatNo || 'N/A',
+          community_id: state?.signupData?.communityId || null,
+          building_id: state?.signupData?.buildingId || null,
+          flat_id: state?.signupData?.flatId || null,
+        })
+        .select()
+        .single();
+
+      if (insertError) {
+        console.error('Error creating profile:', insertError);
+        throw insertError;
+      }
 
       console.log('✅ Profile created:', newProfile.id);
       return newProfile;

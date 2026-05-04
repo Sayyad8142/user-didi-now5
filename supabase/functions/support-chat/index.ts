@@ -10,10 +10,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-firebase-token",
 };
 
-const FIREBASE_API_KEY = Deno.env.get("FIREBASE_API_KEY") || "";
-if (!FIREBASE_API_KEY) {
-  console.error("Missing FIREBASE_API_KEY environment variable");
-}
+const FIREBASE_API_KEY = "AIzaSyCJJ7PqGC890D92R5m5P5bHRB7k6AyomKo";
 
 type Action =
   | "get_thread"

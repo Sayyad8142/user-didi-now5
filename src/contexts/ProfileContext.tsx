@@ -4,7 +4,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { getDemoSession, isDemoMode, clearDemoSession } from "@/lib/demo";
 import { normalizePhone } from "@/features/profile/ensureProfile";
-import { callEnsureProfile } from "@/lib/ensureProfileApi";
 
 interface Profile {
   id: string;
@@ -131,28 +130,46 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
         }
       }
 
-      // After retries, ask the edge function (service role) to ensure a profile exists.
-      // The anon Supabase client can't satisfy RLS for this insert, so it must
-      // happen server-side after Firebase token verification.
-      console.log('📝 Ensuring profile via edge function for:', activeUser.id);
-      try {
-        const phone = normalizePhone(activeUser.phone ?? "");
-        const created = await callEnsureProfile({
+      // After retries, create a basic profile as last resort
+      console.log('📝 Creating fallback profile for:', activeUser.id);
+      const phone = normalizePhone(activeUser.phone ?? "");
+      
+      const { data: created, error: createErr } = await supabase
+        .from("profiles")
+        .insert({
+          firebase_uid: activeUser.id,
+          phone: phone || "",
           full_name: phone || "User",
           community: "other",
           flat_no: "",
-        });
-        console.log('✅ Profile ensured:', created.id);
-        setProfile(created as any);
-        setLoading(false);
-        return created as any;
-      } catch (e: any) {
-        console.error('❌ ensure-profile failed:', e);
-        setError(e?.message || "Failed to create profile");
+        })
+        .select("id, full_name, phone, community, flat_no, building_id, community_id, flat_id")
+        .single();
+
+      if (createErr) {
+        if (createErr.code === '23505') {
+          const { data: finalData } = await supabase
+            .from("profiles")
+            .select("id, full_name, phone, community, flat_no, building_id, community_id, flat_id")
+            .eq("firebase_uid", activeUser.id)
+            .maybeSingle();
+          if (finalData) {
+            setProfile(finalData);
+            setLoading(false);
+            return finalData;
+          }
+        }
+        console.error('❌ Profile create error:', createErr);
+        setError(createErr.message || "Failed to create profile");
         setProfile(null);
         setLoading(false);
         return null;
       }
+
+      console.log('✅ Profile created:', created.id);
+      setProfile(created);
+      setLoading(false);
+      return created;
     } catch (e: any) {
       console.error('❌ Unexpected error in fetchProfile:', e);
       setError(e?.message || "An unexpected error occurred");

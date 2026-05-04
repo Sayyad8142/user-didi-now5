@@ -6,8 +6,6 @@
  */
 
 const STORAGE_KEY = "DIDI_BACKEND_URL";
-const PROBE_VERSION_KEY = "DIDI_BACKEND_PROBE_V";
-const PROBE_VERSION = "3"; // bump to invalidate stale cached URLs from old probe
 const TIMEOUT_MS = 3000;
 
 import { PRODUCTION_ANON_KEY, BACKEND_CANDIDATES } from '@/lib/constants';
@@ -22,40 +20,27 @@ export type BackendTestResult = {
   error?: string;
 };
 
-/**
- * Test a single URL for reachability AND that anon REST queries work.
- * We probe `app_config` (publicly readable per RLS) so we only accept a
- * backend that can actually serve queries with the anon key. This prevents
- * picking a host that returns 401 "Invalid API key" on the bare /rest/v1/
- * endpoint (which would later break Firebase-JWT-translated queries).
- */
+/** Test a single URL for reachability */
 export async function testUrl(url: string, timeoutMs = TIMEOUT_MS): Promise<BackendTestResult> {
   const t0 = performance.now();
-  console.info(`[BackendResolver] Testing URL: ${url}`);
   try {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
-    const res = await fetch(`${url}/rest/v1/app_config?select=id&limit=1`, {
+    const res = await fetch(`${url}/rest/v1/`, {
       method: "GET",
       headers: {
         apikey: ANON_KEY,
         Authorization: `Bearer ${ANON_KEY}`,
-        Accept: "application/json",
       },
       signal: controller.signal,
     });
     clearTimeout(timer);
     const ms = Math.round(performance.now() - t0);
-    if (!res.ok) {
-      console.warn(`[BackendResolver] URL failed with HTTP status ${res.status}: ${url} (${ms}ms)`);
-      return { url, ok: false, ms, error: `HTTP ${res.status}` };
-    }
+    // Any HTTP response (even 401/403) means the server is reachable
     return { url, ok: true, ms };
   } catch (e: any) {
     const ms = Math.round(performance.now() - t0);
-    const error = e?.name === "AbortError" ? "Timeout" : e?.message || "Network error";
-    console.warn(`[BackendResolver] URL failed (network): ${url} — ${error} (${ms}ms)`);
-    return { url, ok: false, ms, error };
+    return { url, ok: false, ms, error: e?.name === "AbortError" ? "Timeout" : e?.message || "Network error" };
   }
 }
 
@@ -101,15 +86,6 @@ export async function resolveBackendUrl(): Promise<string | null> {
 }
 
 async function _doResolve(): Promise<string | null> {
-  // 0. Invalidate cached URL if probe logic version changed
-  try {
-    const v = localStorage.getItem(PROBE_VERSION_KEY);
-    if (v !== PROBE_VERSION) {
-      localStorage.removeItem(STORAGE_KEY);
-      localStorage.setItem(PROBE_VERSION_KEY, PROBE_VERSION);
-    }
-  } catch {}
-
   // 1. Try the cached URL first
   let cached: string | null = null;
   try {
@@ -117,33 +93,27 @@ async function _doResolve(): Promise<string | null> {
   } catch {}
 
   if (cached) {
-    // Only honor cached URL if it's still in the allowed candidate list
-    if (!(BACKEND_CANDIDATES as readonly string[]).includes(cached)) {
-      console.warn(`[BackendResolver] Cached URL no longer in candidates, discarding: ${cached}`);
-      try { localStorage.removeItem(STORAGE_KEY); } catch {}
-      cached = null;
-    } else {
-      const result = await testUrl(cached);
-      if (result.ok) {
-        _resolvedUrl = cached;
-        console.info(`[BackendResolver] Selected backend URL (cached): ${cached} (${result.ms}ms)`);
-        return cached;
-      }
-      console.warn(`[BackendResolver] Cached URL failed: ${cached}, trying candidates...`);
-      try { localStorage.removeItem(STORAGE_KEY); } catch {}
+    const result = await testUrl(cached);
+    if (result.ok) {
+      _resolvedUrl = cached;
+      console.info(`[BackendResolver] Cached URL works: ${cached} (${result.ms}ms)`);
+      return cached;
     }
+    console.warn(`[BackendResolver] Cached URL failed: ${cached}, trying candidates...`);
+    try { localStorage.removeItem(STORAGE_KEY); } catch {}
   }
 
-  // 2. Try each candidate in priority order (api.didisnow.com first, direct Supabase last)
+  // 2. Try each candidate in order
   for (const url of BACKEND_CANDIDATES) {
     if (url === cached) continue; // Already tried
     const result = await testUrl(url);
     if (result.ok) {
       _resolvedUrl = url;
       try { localStorage.setItem(STORAGE_KEY, url); } catch {}
-      console.info(`[BackendResolver] Selected backend URL: ${url} (${result.ms}ms)`);
+      console.info(`[BackendResolver] Resolved to: ${url} (${result.ms}ms)`);
       return url;
     }
+    console.warn(`[BackendResolver] ${url} failed: ${result.error || "HTTP error"} (${result.ms}ms)`);
   }
 
   console.error("[BackendResolver] All backend candidates failed!");
