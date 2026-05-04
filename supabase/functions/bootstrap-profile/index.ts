@@ -33,6 +33,14 @@ function isDuplicateKeyError(error: unknown): boolean {
   return Boolean(error && typeof error === "object" && "code" in error && (error as { code?: string }).code === "23505");
 }
 
+function isNotNullError(error: unknown): boolean {
+  return Boolean(error && typeof error === "object" && "code" in error && (error as { code?: string }).code === "23502");
+}
+
+function missingPhoneFallback(firebaseUid: string): string {
+  return `firebase:${firebaseUid}`;
+}
+
 function jsonResponse(body: Record<string, unknown>, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -141,11 +149,22 @@ serve(async (req) => {
         flat_id: signup?.flatId ?? null,
       };
 
-      const { data: created, error: insertErr } = await admin
+      let { data: created, error: insertErr } = await admin
         .from("profiles")
         .insert(insertRow)
         .select(SELECT_COLS)
         .single();
+
+      if (insertErr && isNotNullError(insertErr) && !phone) {
+        const fallbackRow = { ...insertRow, phone: missingPhoneFallback(firebaseUid) };
+        const retry = await admin
+          .from("profiles")
+          .insert(fallbackRow)
+          .select(SELECT_COLS)
+          .single();
+        created = retry.data;
+        insertErr = retry.error;
+      }
 
       if (insertErr) {
         // Race / duplicate handling
