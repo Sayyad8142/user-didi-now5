@@ -17,6 +17,7 @@ import { TrustedPartnersSection } from './TrustedPartnersSection';
 import { useOnlineWorkerCounts } from '@/hooks/useOnlineWorkerCounts';
 import { useProfile } from '@/contexts/ProfileContext';
 import { HomeSkeleton } from './HomeSkeleton';
+import { BootstrapDebugPanel } from './BootstrapDebugPanel';
 
 
 export function HomeScreen() {
@@ -34,6 +35,7 @@ export function HomeScreen() {
         <h1 className="text-lg font-semibold">We couldn't load your account</h1>
         <p className="text-sm text-muted-foreground max-w-sm">{profileError}</p>
         <Button onClick={() => refresh()} className="rounded-full px-6">Retry</Button>
+        <BootstrapDebugPanel />
       </div>
     );
   }

@@ -32,6 +32,34 @@ export interface BootstrapInput {
   } | null;
 }
 
+export interface BootstrapAttempt {
+  url: string;
+  status?: number;
+  ok: boolean;
+  error?: string;
+  at: string;
+}
+
+export interface BootstrapDiagnostics {
+  attempts: BootstrapAttempt[];
+  lastError: string | null;
+  lastRunAt: string | null;
+}
+
+const diagnostics: BootstrapDiagnostics = {
+  attempts: [],
+  lastError: null,
+  lastRunAt: null,
+};
+
+export function getBootstrapDiagnostics(): BootstrapDiagnostics {
+  return {
+    attempts: [...diagnostics.attempts],
+    lastError: diagnostics.lastError,
+    lastRunAt: diagnostics.lastRunAt,
+  };
+}
+
 export async function bootstrapProfileViaEdge(
   input: BootstrapInput = {}
 ): Promise<BootstrappedProfile> {
@@ -40,7 +68,15 @@ export async function bootstrapProfileViaEdge(
     `${LOVABLE_CLOUD_FUNCTIONS_URL}/functions/v1/bootstrap-profile`,
     ...(backendUrl ? [`${backendUrl}/functions/v1/bootstrap-profile`] : []),
   ].filter((url, index, arr) => arr.indexOf(url) === index);
-  if (candidateUrls.length === 0) throw new Error("No reachable backend");
+
+  diagnostics.attempts = [];
+  diagnostics.lastError = null;
+  diagnostics.lastRunAt = new Date().toISOString();
+
+  if (candidateUrls.length === 0) {
+    diagnostics.lastError = "No reachable backend";
+    throw new Error("No reachable backend");
+  }
 
   const callOnce = async (url: string, forceRefresh: boolean) => {
     const token = await getFirebaseIdToken(forceRefresh);
@@ -64,11 +100,13 @@ export async function bootstrapProfileViaEdge(
   let lastError: Error | null = null;
 
   for (const url of candidateUrls) {
+    let status: number | undefined;
     try {
       let res = await callOnce(url, false);
       if (res.status === 401 || res.status === 403) {
         res = await callOnce(url, true);
       }
+      status = res.status;
 
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data?.profile) {
@@ -77,12 +115,22 @@ export async function bootstrapProfileViaEdge(
           `Profile bootstrap failed (HTTP ${res.status})`;
         throw new Error(msg);
       }
+      diagnostics.attempts.push({ url, status, ok: true, at: new Date().toISOString() });
       return data.profile as BootstrappedProfile;
     } catch (err: any) {
       lastError = err instanceof Error ? err : new Error(err?.message || "Profile bootstrap failed");
+      diagnostics.attempts.push({
+        url,
+        status,
+        ok: false,
+        error: lastError.message,
+        at: new Date().toISOString(),
+      });
+      diagnostics.lastError = lastError.message;
       console.warn("[ProfileBootstrap] endpoint failed, trying fallback if available", { url, error: lastError.message });
     }
   }
 
+  diagnostics.lastError = (lastError && lastError.message) || "Profile bootstrap failed";
   throw lastError || new Error("Profile bootstrap failed");
 }
