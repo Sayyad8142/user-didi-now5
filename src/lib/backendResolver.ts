@@ -97,6 +97,15 @@ export async function resolveBackendUrl(): Promise<string | null> {
 }
 
 async function _doResolve(): Promise<string | null> {
+  // 0. Invalidate cached URL if probe logic version changed
+  try {
+    const v = localStorage.getItem(PROBE_VERSION_KEY);
+    if (v !== PROBE_VERSION) {
+      localStorage.removeItem(STORAGE_KEY);
+      localStorage.setItem(PROBE_VERSION_KEY, PROBE_VERSION);
+    }
+  } catch {}
+
   // 1. Try the cached URL first
   let cached: string | null = null;
   try {
