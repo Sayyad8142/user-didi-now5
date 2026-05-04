@@ -128,9 +128,7 @@ serve(async (req) => {
     if (!profile) {
       const insertRow: Record<string, unknown> = {
         firebase_uid: firebaseUid,
-        // Use NULL (not "") so the unique constraint on phone doesn't
-        // collide between multiple profiles that have no phone yet.
-        phone: phone || null,
+        phone: phone || "",
         full_name: signup?.fullName || (phone || "User"),
         community: signup?.communityValue || "other",
         flat_no: signup?.flatNo || "",
