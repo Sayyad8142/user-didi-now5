@@ -100,11 +100,13 @@ export async function bootstrapProfileViaEdge(
   let lastError: Error | null = null;
 
   for (const url of candidateUrls) {
+    let status: number | undefined;
     try {
       let res = await callOnce(url, false);
       if (res.status === 401 || res.status === 403) {
         res = await callOnce(url, true);
       }
+      status = res.status;
 
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data?.profile) {
@@ -113,12 +115,22 @@ export async function bootstrapProfileViaEdge(
           `Profile bootstrap failed (HTTP ${res.status})`;
         throw new Error(msg);
       }
+      diagnostics.attempts.push({ url, status, ok: true, at: new Date().toISOString() });
       return data.profile as BootstrappedProfile;
     } catch (err: any) {
       lastError = err instanceof Error ? err : new Error(err?.message || "Profile bootstrap failed");
+      diagnostics.attempts.push({
+        url,
+        status,
+        ok: false,
+        error: lastError.message,
+        at: new Date().toISOString(),
+      });
+      diagnostics.lastError = lastError.message;
       console.warn("[ProfileBootstrap] endpoint failed, trying fallback if available", { url, error: lastError.message });
     }
   }
 
+  diagnostics.lastError = (lastError && lastError.message) || "Profile bootstrap failed";
   throw lastError || new Error("Profile bootstrap failed");
 }
