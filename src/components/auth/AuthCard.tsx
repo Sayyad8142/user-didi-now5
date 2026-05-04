@@ -106,23 +106,19 @@ export function AuthCard() {
 
   const checkIfUserExists = async (phone: string): Promise<boolean> => {
     try {
-      const normalizedPhone = normalizePhone(phone);
       const formattedPhone = formatPhoneIN(phone);
-
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, phone')
-        .in('phone', [normalizedPhone, formattedPhone])
-        .maybeSingle();
-
+      const { data, error } = await supabase.functions.invoke('check-user-exists', {
+        body: { phone: formattedPhone },
+      });
       if (error) {
-        console.error('Error checking user existence:', error);
-        return false;
+        console.error('[checkIfUserExists] edge error:', error);
+        // Fail-open so legitimate users aren't blocked by transient backend issues
+        return true;
       }
-      return !!data;
+      return !!(data as any)?.exists;
     } catch (error) {
-      console.error('Error checking user existence:', error);
-      return false;
+      console.error('[checkIfUserExists] exception:', error);
+      return true;
     }
   };
 
