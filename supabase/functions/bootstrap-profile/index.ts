@@ -29,6 +29,18 @@ function normalizePhone(raw?: string | null): string {
   return raw;
 }
 
+function isDuplicateKeyError(error: unknown): boolean {
+  return Boolean(error && typeof error === "object" && "code" in error && (error as { code?: string }).code === "23505");
+}
+
+function isNotNullError(error: unknown): boolean {
+  return Boolean(error && typeof error === "object" && "code" in error && (error as { code?: string }).code === "23502");
+}
+
+function missingPhoneFallback(firebaseUid: string): string {
+  return `firebase:${firebaseUid}`;
+}
+
 function jsonResponse(body: Record<string, unknown>, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -128,7 +140,7 @@ serve(async (req) => {
     if (!profile) {
       const insertRow: Record<string, unknown> = {
         firebase_uid: firebaseUid,
-        phone: phone || "",
+        phone: phone || null,
         full_name: signup?.fullName || (phone || "User"),
         community: signup?.communityValue || "other",
         flat_no: signup?.flatNo || "",
@@ -137,15 +149,26 @@ serve(async (req) => {
         flat_id: signup?.flatId ?? null,
       };
 
-      const { data: created, error: insertErr } = await admin
+      let { data: created, error: insertErr } = await admin
         .from("profiles")
         .insert(insertRow)
         .select(SELECT_COLS)
         .single();
 
+      if (insertErr && isNotNullError(insertErr) && !phone) {
+        const fallbackRow = { ...insertRow, phone: missingPhoneFallback(firebaseUid) };
+        const retry = await admin
+          .from("profiles")
+          .insert(fallbackRow)
+          .select(SELECT_COLS)
+          .single();
+        created = retry.data;
+        insertErr = retry.error;
+      }
+
       if (insertErr) {
         // Race / duplicate handling
-        if ((insertErr as any).code === "23505") {
+        if (isDuplicateKeyError(insertErr)) {
           // First try to find the row by firebase_uid (uid race)
           const { data: againUid } = await admin
             .from("profiles")
@@ -167,7 +190,7 @@ serve(async (req) => {
             if (byPhone) {
               const { data: linked, error: linkErr } = await admin
                 .from("profiles")
-                .update({ firebase_uid: firebaseUid })
+                .update({ firebase_uid: firebaseUid, phone })
                 .eq("id", byPhone.id)
                 .select(SELECT_COLS)
                 .single();
