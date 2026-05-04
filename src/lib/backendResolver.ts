@@ -6,6 +6,8 @@
  */
 
 const STORAGE_KEY = "DIDI_BACKEND_URL";
+const PROBE_VERSION_KEY = "DIDI_BACKEND_PROBE_V";
+const PROBE_VERSION = "2"; // bump to invalidate stale cached URLs from old probe
 const TIMEOUT_MS = 3000;
 
 import { PRODUCTION_ANON_KEY, BACKEND_CANDIDATES } from '@/lib/constants';
