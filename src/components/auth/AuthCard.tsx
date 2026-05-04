@@ -104,27 +104,9 @@ export function AuthCard() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const checkIfUserExists = async (phone: string): Promise<boolean> => {
-    try {
-      const normalizedPhone = normalizePhone(phone);
-      const formattedPhone = formatPhoneIN(phone);
-
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, phone')
-        .in('phone', [normalizedPhone, formattedPhone])
-        .maybeSingle();
-
-      if (error) {
-        console.error('Error checking user existence:', error);
-        return false;
-      }
-      return !!data;
-    } catch (error) {
-      console.error('Error checking user existence:', error);
-      return false;
-    }
-  };
+  // Pre-OTP existence check removed: anon RLS on profiles always returned
+  // false, blocking legitimate users. The verify screen routes to sign-up
+  // when no profile is found after authentication.
 
   const handleSendOTP = async () => {
     const isSignUp = activeTab === 'signup';
@@ -155,15 +137,11 @@ export function AuthCard() {
     try {
       const formattedPhone = formatPhoneIN(phone);
 
-      // For sign in, check if user exists first
-      if (!isSignUp) {
-        const userExists = await checkIfUserExists(phone);
-        if (!userExists) {
-          setErrors({ phone: 'Mobile number not registered, sign up first.' });
-          setLoading(false);
-          return;
-        }
-      }
+      // NOTE: Removed pre-OTP "is user registered" check.
+      // The previous check called supabase.from('profiles').select() as anon,
+      // which is blocked by RLS and incorrectly reported every number as
+      // "not registered". The verify screen handles missing profiles by
+      // redirecting to sign-up.
 
       // Send OTP via Firebase
       const result = await sendOtp(formattedPhone, 'recaptcha-container');
