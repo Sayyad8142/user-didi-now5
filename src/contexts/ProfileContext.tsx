@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { getDemoSession, isDemoMode, clearDemoSession } from "@/lib/demo";
 import { normalizePhone } from "@/features/profile/ensureProfile";
+import { bootstrapProfileViaEdge } from "@/lib/profileBootstrap";
 
 interface Profile {
   id: string;
