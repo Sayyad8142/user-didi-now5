@@ -39,9 +39,11 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+    // Hard-code production URL — reserved env SUPABASE_URL may point to the
+    // wrong project in some runtimes. Service role secret is set to production.
+    const SUPABASE_URL = "https://paywwbuqycovjopryele.supabase.co";
     const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    if (!SUPABASE_URL || !SERVICE_ROLE) {
+    if (!SERVICE_ROLE) {
       return json({ exists: false, error: "Server not configured" }, 500);
     }
 
