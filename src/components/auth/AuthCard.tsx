@@ -151,15 +151,11 @@ export function AuthCard() {
     try {
       const formattedPhone = formatPhoneIN(phone);
 
-      // For sign in, check if user exists first
-      if (!isSignUp) {
-        const userExists = await checkIfUserExists(phone);
-        if (!userExists) {
-          setErrors({ phone: 'Mobile number not registered, sign up first.' });
-          setLoading(false);
-          return;
-        }
-      }
+      // NOTE: Removed pre-OTP "is user registered" check.
+      // The previous check called supabase.from('profiles').select() as anon,
+      // which is blocked by RLS and incorrectly reported every number as
+      // "not registered". The verify screen handles missing profiles by
+      // redirecting to sign-up.
 
       // Send OTP via Firebase
       const result = await sendOtp(formattedPhone, 'recaptcha-container');
