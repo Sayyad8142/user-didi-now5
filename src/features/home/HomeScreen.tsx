@@ -21,11 +21,22 @@ import { HomeSkeleton } from './HomeSkeleton';
 
 export function HomeScreen() {
   const navigate = useNavigate();
-  const { profile, loading: profileLoading } = useProfile();
+  const { profile, loading: profileLoading, error: profileError, refresh } = useProfile();
   const { hasUnseenMessages, markMessagesAsSeen } = useUnseenMessages();
   const { counts, loading, isServiceAvailable } = useOnlineWorkerCounts();
 
   console.log('[HomeScreen] mounted, profile:', profile?.id, 'community:', profile?.community);
+
+  // Graceful fallback if profile failed to load (e.g. RLS / backend issue)
+  if (!profileLoading && !profile && profileError) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center gap-4">
+        <h1 className="text-lg font-semibold">We couldn't load your account</h1>
+        <p className="text-sm text-muted-foreground max-w-sm">{profileError}</p>
+        <Button onClick={() => refresh()} className="rounded-full px-6">Retry</Button>
+      </div>
+    );
+  }
 
   // Wait for profile before rendering any partial UI
   if (profileLoading || !profile) {
