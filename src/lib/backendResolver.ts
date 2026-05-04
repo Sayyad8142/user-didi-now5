@@ -20,23 +20,32 @@ export type BackendTestResult = {
   error?: string;
 };
 
-/** Test a single URL for reachability */
+/**
+ * Test a single URL for reachability AND that anon REST queries work.
+ * We probe `app_config` (publicly readable per RLS) so we only accept a
+ * backend that can actually serve queries with the anon key. This prevents
+ * picking a host that returns 401 "Invalid API key" on the bare /rest/v1/
+ * endpoint (which would later break Firebase-JWT-translated queries).
+ */
 export async function testUrl(url: string, timeoutMs = TIMEOUT_MS): Promise<BackendTestResult> {
   const t0 = performance.now();
   try {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
-    const res = await fetch(`${url}/rest/v1/`, {
+    const res = await fetch(`${url}/rest/v1/app_config?select=id&limit=1`, {
       method: "GET",
       headers: {
         apikey: ANON_KEY,
         Authorization: `Bearer ${ANON_KEY}`,
+        Accept: "application/json",
       },
       signal: controller.signal,
     });
     clearTimeout(timer);
     const ms = Math.round(performance.now() - t0);
-    // Any HTTP response (even 401/403) means the server is reachable
+    if (!res.ok) {
+      return { url, ok: false, ms, error: `HTTP ${res.status}` };
+    }
     return { url, ok: true, ms };
   } catch (e: any) {
     const ms = Math.round(performance.now() - t0);
