@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Phone, MessageCircle, Star } from 'lucide-react';
+import { Phone, MessageCircle, Star, RefreshCw, AlertCircle } from 'lucide-react';
 import { useUnseenMessages } from '@/hooks/useUnseenMessages';
 import { HomeHeader } from './HomeHeader';
 import { HeroCarousel } from './HeroCarousel';
@@ -21,11 +21,42 @@ import { HomeSkeleton } from './HomeSkeleton';
 
 export function HomeScreen() {
   const navigate = useNavigate();
-  const { profile, loading: profileLoading } = useProfile();
+  const { profile, loading: profileLoading, error: profileError, refresh } = useProfile();
   const { hasUnseenMessages, markMessagesAsSeen } = useUnseenMessages();
   const { counts, loading, isServiceAvailable } = useOnlineWorkerCounts();
 
+  // Show friendly fallback if profile takes too long (>10s) or hard-errors
+  const [softTimeout, setSoftTimeout] = useState(false);
+  useEffect(() => {
+    if (!profileLoading || profile) return;
+    const t = setTimeout(() => setSoftTimeout(true), 10000);
+    return () => clearTimeout(t);
+  }, [profileLoading, profile]);
+
   console.log('[HomeScreen] mounted, profile:', profile?.id, 'community:', profile?.community);
+
+  // Hard error or timed-out skeleton → friendly retry instead of infinite loading
+  if (!profile && (profileError || softTimeout)) {
+    return (
+      <div className="min-h-screen gradient-bg flex flex-col items-center justify-center px-6 text-center">
+        <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mb-5">
+          <AlertCircle className="w-8 h-8 text-destructive" />
+        </div>
+        <h1 className="text-xl font-bold text-foreground mb-2">Couldn't load your profile</h1>
+        <p className="text-sm text-muted-foreground max-w-xs mb-6">
+          {profileError || 'This is taking longer than usual. Please check your connection and try again.'}
+        </p>
+        <div className="flex gap-3 w-full max-w-xs">
+          <Button onClick={() => { setSoftTimeout(false); refresh(); }} className="flex-1 gap-2">
+            <RefreshCw className="w-4 h-4" /> Try Again
+          </Button>
+          <Button variant="outline" onClick={() => window.location.reload()} className="flex-1">
+            Reload App
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   // Wait for profile before rendering any partial UI
   if (profileLoading || !profile) {
