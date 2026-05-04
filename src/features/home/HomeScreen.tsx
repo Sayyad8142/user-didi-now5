@@ -17,6 +17,7 @@ import { TrustedPartnersSection } from './TrustedPartnersSection';
 import { useOnlineWorkerCounts } from '@/hooks/useOnlineWorkerCounts';
 import { useProfile } from '@/contexts/ProfileContext';
 import { HomeSkeleton } from './HomeSkeleton';
+import { BootstrapDebugPanel } from './BootstrapDebugPanel';
 
 
 export function HomeScreen() {
