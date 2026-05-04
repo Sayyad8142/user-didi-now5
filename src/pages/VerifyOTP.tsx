@@ -11,6 +11,7 @@ import { ArrowLeft, CheckCircle2 } from 'lucide-react';
 import { maskPhone } from '@/lib/auth-helpers';
 import { CleaningLoader } from '@/components/ui/cleaning-loader';
 import { normalizePhone } from '@/features/profile/ensureProfile';
+import { bootstrapProfileViaEdge } from '@/lib/profileBootstrap';
 import { isDemoCredentials, setDemoSession, clearDemoSession } from '@/lib/demo';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useAuth } from '@/components/auth/AuthProvider';
