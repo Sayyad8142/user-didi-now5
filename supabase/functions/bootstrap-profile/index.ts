@@ -29,6 +29,10 @@ function normalizePhone(raw?: string | null): string {
   return raw;
 }
 
+function isDuplicateKeyError(error: unknown): boolean {
+  return Boolean(error && typeof error === "object" && "code" in error && (error as { code?: string }).code === "23505");
+}
+
 function jsonResponse(body: Record<string, unknown>, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -128,7 +132,7 @@ serve(async (req) => {
     if (!profile) {
       const insertRow: Record<string, unknown> = {
         firebase_uid: firebaseUid,
-        phone: phone || "",
+        phone: phone || null,
         full_name: signup?.fullName || (phone || "User"),
         community: signup?.communityValue || "other",
         flat_no: signup?.flatNo || "",
@@ -145,7 +149,7 @@ serve(async (req) => {
 
       if (insertErr) {
         // Race / duplicate handling
-        if ((insertErr as any).code === "23505") {
+        if (isDuplicateKeyError(insertErr)) {
           // First try to find the row by firebase_uid (uid race)
           const { data: againUid } = await admin
             .from("profiles")
@@ -167,7 +171,7 @@ serve(async (req) => {
             if (byPhone) {
               const { data: linked, error: linkErr } = await admin
                 .from("profiles")
-                .update({ firebase_uid: firebaseUid })
+                .update({ firebase_uid: firebaseUid, phone })
                 .eq("id", byPhone.id)
                 .select(SELECT_COLS)
                 .single();
