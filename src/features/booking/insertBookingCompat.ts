@@ -1,65 +1,61 @@
 import { supabase } from '@/integrations/supabase/client';
-
-// Columns that may not exist in older production `bookings` table schemas.
-// If insert fails because of a missing column in the schema cache, we strip
-// the offending key and retry. This mirrors the compatibility fallback used
-// by the create-paid-booking edge function.
-const OPTIONAL_BOOKING_COLUMNS = [
-  'building_id',
-  'community_id',
-  'flat_id',
-  'preferred_worker_id',
-  'dish_intensity',
-  'dish_intensity_extra_inr',
-  'has_glass_partition',
-  'glass_partition_fee',
-  'surcharge_amount',
-  'surcharge_reason',
-];
-
-const MISSING_COLUMN_REGEX =
-  /Could not find the '([^']+)' column|column "([^"]+)" of relation "bookings" does not exist/i;
-
-function extractMissingColumn(message: string): string | null {
-  const m = message.match(MISSING_COLUMN_REGEX);
-  return m ? (m[1] || m[2] || null) : null;
-}
+import { getFirebaseIdToken, waitForFirebaseAuthReady } from '@/lib/firebase';
 
 /**
- * Insert a booking row with automatic stripping of optional columns that
- * the production schema may not yet have. Retries up to N times.
+ * Insert a booking row through the `create-pending-booking` edge function.
+ *
+ * Why an edge function:
+ *   The frontend Supabase client is anonymous (Firebase identity, not
+ *   Supabase Auth), so direct INSERTs into `bookings` are blocked by RLS.
+ *   The edge function authenticates via Firebase and inserts using the
+ *   service role. It also handles schema-compat column stripping server-side.
  */
 export async function insertBookingWithCompat(payload: Record<string, any>) {
-  let current = { ...payload };
-  const stripped: string[] = [];
-
-  for (let attempt = 0; attempt < 6; attempt++) {
-    const { data, error } = await supabase
-      .from('bookings')
-      .insert([current])
-      .select();
-
-    if (!error) {
-      if (stripped.length) {
-        console.warn('[insertBookingCompat] Inserted after stripping columns:', stripped);
+  // Get Firebase ID token (with hydration retry — same pattern as paymentService)
+  let token = await getFirebaseIdToken(false);
+  if (!token) {
+    const hydrated = await waitForFirebaseAuthReady(8000);
+    if (hydrated) {
+      try {
+        token = await hydrated.getIdToken(false);
+      } catch (e) {
+        console.error('[insertBookingCompat] getIdToken after hydration failed:', e);
       }
-      return { data, error: null as any };
     }
-
-    const missing = extractMissingColumn(error.message || '');
-    if (missing && OPTIONAL_BOOKING_COLUMNS.includes(missing) && missing in current) {
-      console.warn(`[insertBookingCompat] Stripping unsupported column "${missing}" and retrying`);
-      stripped.push(missing);
-      const { [missing]: _omit, ...rest } = current;
-      current = rest;
-      continue;
-    }
-
-    return { data: null, error };
+  }
+  if (!token) {
+    return {
+      data: null,
+      error: { message: 'Authentication expired, please login again' } as any,
+    };
   }
 
-  return {
-    data: null,
-    error: { message: 'Exceeded compatibility retry attempts' } as any,
-  };
+  const { data, error } = await supabase.functions.invoke('create-pending-booking', {
+    body: { booking_data: payload },
+    headers: { 'x-firebase-token': token },
+  });
+
+  if (error) {
+    // Try to surface the backend error message instead of the generic SDK one
+    let backendMsg: string | null = null;
+    try {
+      const ctx: any = (error as any).context;
+      if (ctx && typeof ctx.json === 'function') {
+        const body = await ctx.json();
+        if (body?.error) backendMsg = body.error;
+      }
+    } catch {}
+    return {
+      data: null,
+      error: { message: backendMsg || error.message || 'Booking failed' } as any,
+    };
+  }
+
+  if (data && typeof data === 'object' && 'error' in data && typeof (data as any).error === 'string') {
+    return { data: null, error: { message: (data as any).error } as any };
+  }
+
+  // Match the previous return shape: array of booking rows
+  const booking = (data as any)?.booking;
+  return { data: booking ? [booking] : [], error: null as any };
 }
