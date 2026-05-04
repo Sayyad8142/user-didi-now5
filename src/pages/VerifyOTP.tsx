@@ -15,6 +15,7 @@ import { isDemoCredentials, setDemoSession, clearDemoSession } from '@/lib/demo'
 import { useProfile } from '@/contexts/ProfileContext';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { verifyOtp, sendOtp, shouldUseNativeAuth } from '@/lib/firebase';
+import { callEnsureProfile } from '@/lib/ensureProfileApi';
 
 interface LocationState {
   phone: string;
