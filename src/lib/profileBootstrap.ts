@@ -32,6 +32,34 @@ export interface BootstrapInput {
   } | null;
 }
 
+export interface BootstrapAttempt {
+  url: string;
+  status?: number;
+  ok: boolean;
+  error?: string;
+  at: string;
+}
+
+export interface BootstrapDiagnostics {
+  attempts: BootstrapAttempt[];
+  lastError: string | null;
+  lastRunAt: string | null;
+}
+
+const diagnostics: BootstrapDiagnostics = {
+  attempts: [],
+  lastError: null,
+  lastRunAt: null,
+};
+
+export function getBootstrapDiagnostics(): BootstrapDiagnostics {
+  return {
+    attempts: [...diagnostics.attempts],
+    lastError: diagnostics.lastError,
+    lastRunAt: diagnostics.lastRunAt,
+  };
+}
+
 export async function bootstrapProfileViaEdge(
   input: BootstrapInput = {}
 ): Promise<BootstrappedProfile> {
@@ -40,7 +68,15 @@ export async function bootstrapProfileViaEdge(
     `${LOVABLE_CLOUD_FUNCTIONS_URL}/functions/v1/bootstrap-profile`,
     ...(backendUrl ? [`${backendUrl}/functions/v1/bootstrap-profile`] : []),
   ].filter((url, index, arr) => arr.indexOf(url) === index);
-  if (candidateUrls.length === 0) throw new Error("No reachable backend");
+
+  diagnostics.attempts = [];
+  diagnostics.lastError = null;
+  diagnostics.lastRunAt = new Date().toISOString();
+
+  if (candidateUrls.length === 0) {
+    diagnostics.lastError = "No reachable backend";
+    throw new Error("No reachable backend");
+  }
 
   const callOnce = async (url: string, forceRefresh: boolean) => {
     const token = await getFirebaseIdToken(forceRefresh);
