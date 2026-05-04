@@ -66,3 +66,6 @@ verify_jwt = false
 
 [functions.twilio-verify-otp]
 verify_jwt = false
+
+[functions.check-user-exists]
+verify_jwt = false
