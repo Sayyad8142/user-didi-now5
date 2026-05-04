@@ -6,6 +6,8 @@
  */
 
 const STORAGE_KEY = "DIDI_BACKEND_URL";
+const PROBE_VERSION_KEY = "DIDI_BACKEND_PROBE_V";
+const PROBE_VERSION = "2"; // bump to invalidate stale cached URLs from old probe
 const TIMEOUT_MS = 3000;
 
 import { PRODUCTION_ANON_KEY, BACKEND_CANDIDATES } from '@/lib/constants';
@@ -20,23 +22,32 @@ export type BackendTestResult = {
   error?: string;
 };
 
-/** Test a single URL for reachability */
+/**
+ * Test a single URL for reachability AND that anon REST queries work.
+ * We probe `app_config` (publicly readable per RLS) so we only accept a
+ * backend that can actually serve queries with the anon key. This prevents
+ * picking a host that returns 401 "Invalid API key" on the bare /rest/v1/
+ * endpoint (which would later break Firebase-JWT-translated queries).
+ */
 export async function testUrl(url: string, timeoutMs = TIMEOUT_MS): Promise<BackendTestResult> {
   const t0 = performance.now();
   try {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
-    const res = await fetch(`${url}/rest/v1/`, {
+    const res = await fetch(`${url}/rest/v1/app_config?select=id&limit=1`, {
       method: "GET",
       headers: {
         apikey: ANON_KEY,
         Authorization: `Bearer ${ANON_KEY}`,
+        Accept: "application/json",
       },
       signal: controller.signal,
     });
     clearTimeout(timer);
     const ms = Math.round(performance.now() - t0);
-    // Any HTTP response (even 401/403) means the server is reachable
+    if (!res.ok) {
+      return { url, ok: false, ms, error: `HTTP ${res.status}` };
+    }
     return { url, ok: true, ms };
   } catch (e: any) {
     const ms = Math.round(performance.now() - t0);
@@ -86,6 +97,15 @@ export async function resolveBackendUrl(): Promise<string | null> {
 }
 
 async function _doResolve(): Promise<string | null> {
+  // 0. Invalidate cached URL if probe logic version changed
+  try {
+    const v = localStorage.getItem(PROBE_VERSION_KEY);
+    if (v !== PROBE_VERSION) {
+      localStorage.removeItem(STORAGE_KEY);
+      localStorage.setItem(PROBE_VERSION_KEY, PROBE_VERSION);
+    }
+  } catch {}
+
   // 1. Try the cached URL first
   let cached: string | null = null;
   try {
