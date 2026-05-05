@@ -495,16 +495,15 @@ export function BookingCard({
             {row.payment_status === 'failed' ? 'Payment failed — tap to retry' : 'Payment pending'}
           </p>
           <Button
-            onClick={handleRetryPayment}
-            disabled={retryingPayment}
-            className="w-full h-10 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-[13px] shadow-sm"
+            disabled
+            aria-disabled="true"
+            className="w-full h-10 rounded-xl bg-primary text-primary-foreground font-semibold text-[13px] shadow-sm opacity-60 cursor-not-allowed"
           >
-            {retryingPayment ? (
-              <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> Processing…</>
-            ) : (
-              <>{row.payment_status === 'failed' ? 'Retry Payment' : 'Complete Payment'} · ₹{row.price_inr || 0}</>
-            )}
+            Pay Now Unavailable · ₹{row.price_inr || 0}
           </Button>
+          <p className="mt-1.5 text-[11px] text-amber-800/80 text-center">
+            Online payment is temporarily disabled. Please pay the worker directly after service.
+          </p>
         </div>
       )}
 
