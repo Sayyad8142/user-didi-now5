@@ -466,115 +466,59 @@ function verifyOtpWeb(code: string): Promise<{ success: boolean; user?: User; er
   })();
 }
 
-// ─── Unified public API (Twilio Verify + Firebase Custom Token) ─────
+// ─── Unified public API (Firebase Phone Auth) ─────────────────────────
 //
-// OTP delivery and verification are handled by Twilio Verify via two edge
-// functions: `twilio-send-otp` and `twilio-verify-otp`. On successful
-// verification, the edge function returns a Firebase Custom Token which we
-// exchange via `signInWithCustomToken`. This keeps Firebase as the identity
-// provider — `firebase_uid`, `getFirebaseIdToken`, `x-firebase-token`, and
-// the entire `profiles` linkage continue to work unchanged.
+// OTP delivery and verification are handled by Firebase Phone Auth.
+//   - Web (and Capacitor WebView): invisible reCAPTCHA + signInWithPhoneNumber
+//   - Native Android: @capacitor-firebase/authentication plugin (no reCAPTCHA)
 //
-// Track the verifying phone between sendOtp and verifyOtp.
-let twilioPendingPhone: string | null = null;
+// Firebase remains the identity provider — `firebase_uid`, `getFirebaseIdToken`,
+// `x-firebase-token`, and the `profiles` linkage continue to work unchanged.
+// Phone number is the unique identity (normalized to +91XXXXXXXXXX) — reinstall
+// of the app produces the same Firebase UID, so no duplicate accounts are created.
 
 // Normalize a user-supplied phone to strict E.164 (e.g. +91XXXXXXXXXX).
 const normalizePhone = (raw: string): string => {
   const trimmed = (raw || '').replace(/\s+/g, '');
   if (trimmed.startsWith('+')) return trimmed;
-  // Default to India country code if missing — matches existing AuthCard behavior.
   const digits = trimmed.replace(/\D/g, '');
   if (digits.length === 10) return `+91${digits}`;
   if (digits.length > 10) return `+${digits}`;
   return trimmed;
 };
 
-// Send OTP — Twilio Verify (works identically on web, Android, iOS).
-// `containerId` is kept in the signature for backward compatibility with
-// existing call sites but is no longer used (no reCAPTCHA needed).
+// Send OTP — routes to native plugin on Android APK, web reCAPTCHA flow elsewhere.
 export const sendOtp = async (
   phoneNumber: string,
-  _containerId: string = 'recaptcha-container'
+  containerId: string = 'recaptcha-container'
 ): Promise<{ success: boolean; error?: string }> => {
   const platform = Capacitor.getPlatform();
   const phone = normalizePhone(phoneNumber);
-  console.log(`[OTP-AUDIT] sendOtp (Twilio) — platform=${platform}, phone=${phone}`);
+  const useNative = await isNativeAuthAvailable();
+  console.log(`[OTP-AUDIT] sendOtp (Firebase) — platform=${platform}, native=${useNative}, phone=${phone}`);
 
-  try {
-    const { data, error } = await supabase.functions.invoke('twilio-send-otp', {
-      body: { phone },
-    });
-
-    if (error) {
-      console.error('[OTP-AUDIT] twilio-send-otp invoke error:', error);
-      return { success: false, error: error.message || 'Failed to send OTP' };
-    }
-    if (!data?.success) {
-      console.error('[OTP-AUDIT] twilio-send-otp failed:', data);
-      return { success: false, error: data?.error || 'Failed to send OTP' };
-    }
-
-    twilioPendingPhone = phone;
-    console.log('[OTP-AUDIT] ✅ Twilio OTP sent to', phone);
-    return { success: true };
-  } catch (e: any) {
-    console.error('[OTP-AUDIT] sendOtp exception:', e);
-    return { success: false, error: e?.message || 'Failed to send OTP' };
+  if (useNative) {
+    return sendOtpNative(phone);
   }
+  return sendOtpWeb(phone, containerId);
 };
 
-// Verify OTP — verifies via Twilio, then signs into Firebase with the returned
-// Custom Token. Returns the Firebase web SDK `User` so existing call sites
-// (which read user.uid / user.phoneNumber) continue to work.
+// Verify OTP — routes to native plugin or web SDK based on which sent the code.
 export const verifyOtp = async (
   code: string
 ): Promise<{ success: boolean; user?: User; nativeUser?: NativeAuthUser; error?: string }> => {
   const platform = Capacitor.getPlatform();
-  console.log(`[OTP-AUDIT] verifyOtp (Twilio) — platform=${platform}, hasPending=${!!twilioPendingPhone}`);
+  const useNative = await isNativeAuthAvailable();
+  console.log(`[OTP-AUDIT] verifyOtp (Firebase) — platform=${platform}, native=${useNative}`);
 
-  if (!twilioPendingPhone) {
-    return { success: false, error: 'No OTP request found. Please request OTP first.' };
-  }
   if (!code || !/^\d{4,8}$/.test(code.trim())) {
     return { success: false, error: 'Invalid verification code' };
   }
 
-  try {
-    const { data, error } = await supabase.functions.invoke('twilio-verify-otp', {
-      body: { phone: twilioPendingPhone, code: code.trim() },
-    });
-
-    if (error) {
-      console.error('[OTP-AUDIT] twilio-verify-otp invoke error:', error);
-      return { success: false, error: error.message || 'Invalid verification code' };
-    }
-    if (!data?.success || !data?.firebaseCustomToken) {
-      console.error('[OTP-AUDIT] twilio-verify-otp failed:', data);
-      return { success: false, error: data?.error || 'Invalid verification code' };
-    }
-
-    const authInstance = getFirebaseAuth();
-    if (!authInstance) {
-      return { success: false, error: 'Firebase Auth not initialized' };
-    }
-
-    console.log('[OTP-AUDIT] ✅ Twilio OTP approved — signing into Firebase with custom token');
-    const credential = await signInWithCustomToken(authInstance, data.firebaseCustomToken);
-    console.log('[OTP-AUDIT] ✅ Firebase signed in:', credential.user.uid);
-
-    twilioPendingPhone = null;
-
-    // Mirror NativeAuthUser shape too, so legacy callers continue working.
-    const nativeUser: NativeAuthUser = {
-      uid: credential.user.uid,
-      phoneNumber: credential.user.phoneNumber || data.phoneNumber || null,
-    };
-
-    return { success: true, user: credential.user, nativeUser };
-  } catch (e: any) {
-    console.error('[OTP-AUDIT] verifyOtp exception:', e);
-    return { success: false, error: e?.message || 'Invalid verification code' };
+  if (useNative) {
+    return verifyOtpNative(code.trim());
   }
+  return verifyOtpWeb(code.trim());
 };
 
 // Get current Firebase user (web SDK only — use getNativeCurrentUser for native)
