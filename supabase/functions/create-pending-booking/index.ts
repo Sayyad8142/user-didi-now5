@@ -118,6 +118,7 @@ Deno.serve(async (req) => {
     if (!idToken) return json({ error: "Not authenticated" }, 401);
 
     const firebaseUser = await verifyFirebaseToken(idToken);
+    const phone = normalizePhone(firebaseUser.phone || "");
 
     const { booking_data: rawBookingData } = await req.json();
     if (!rawBookingData || typeof rawBookingData !== "object") {
@@ -129,12 +130,26 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // Resolve profile from Firebase UID
-    const { data: profile } = await supabase
+    // Resolve profile from Firebase UID, then phone for old linked accounts
+    let { data: profile } = await supabase
       .from("profiles")
       .select("id")
       .eq("firebase_uid", firebaseUser.uid)
-      .single();
+      .maybeSingle();
+
+    if (!profile?.id && phone) {
+      const { data: byPhone } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("phone", phone)
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      profile = byPhone;
+      if (profile?.id) {
+        await supabase.from("profiles").update({ firebase_uid: firebaseUser.uid, phone }).eq("id", profile.id);
+      }
+    }
 
     if (!profile) return json({ error: "Profile not found" }, 404);
 
