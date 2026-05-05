@@ -72,3 +72,6 @@ verify_jwt = false
 
 [functions.bootstrap-profile]
 verify_jwt = false
+
+[functions.bookings-read]
+verify_jwt = false
