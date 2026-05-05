@@ -303,7 +303,8 @@ export function AuthCard() {
           Explore services before signing up
         </p>
 
-        {/* reCAPTCHA removed — OTP is now sent via Twilio Verify (no captcha needed). */}
+        {/* Invisible reCAPTCHA container required by Firebase Phone Auth (web only) */}
+        {!shouldUseNativeAuth() && <div id="recaptcha-container" />}
       </CardContent>
     </Card>
   );

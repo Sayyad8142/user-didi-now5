@@ -390,7 +390,8 @@ export default function VerifyOTP() {
               )}
             </div>
 
-            {/* reCAPTCHA removed — Twilio Verify handles OTP delivery without captcha. */}
+            {/* Invisible reCAPTCHA container for Firebase Phone Auth resend (web only) */}
+            {!shouldUseNativeAuth() && <div id="recaptcha-container-verify" />}
           </CardContent>
         </Card>
       </div>
