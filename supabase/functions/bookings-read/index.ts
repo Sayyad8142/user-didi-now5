@@ -16,6 +16,16 @@ function jsonResponse(body: unknown, status = 200) {
   });
 }
 
+function cleanSecret(raw?: string | null): string {
+  if (!raw) return "";
+  let value = raw.trim().replace(/^[']|[']$/g, "").replace(/^[\"]|[\"]$/g, "");
+  const equalsIndex = value.indexOf("=");
+  if (equalsIndex > -1 && value.slice(0, equalsIndex).includes("KEY")) {
+    value = value.slice(equalsIndex + 1).trim().replace(/^[']|[']$/g, "").replace(/^[\"]|[\"]$/g, "");
+  }
+  return value;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   if (req.method !== "POST" && req.method !== "GET") {
@@ -28,8 +38,14 @@ serve(async (req) => {
 
     const { uid } = await verifyFirebaseToken(idToken);
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const supabaseUrl =
+      cleanSecret(Deno.env.get("EXTERNAL_SUPABASE_URL")) ||
+      cleanSecret(Deno.env.get("PROFILES_SUPABASE_URL")) ||
+      "https://paywwbuqycovjopryele.supabase.co";
+    const serviceRoleKey =
+      cleanSecret(Deno.env.get("EXTERNAL_SUPABASE_SERVICE_ROLE_KEY")) ||
+      cleanSecret(Deno.env.get("PROFILES_SUPABASE_SERVICE_ROLE_KEY")) ||
+      cleanSecret(Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"));
     if (!supabaseUrl || !serviceRoleKey) {
       return jsonResponse({ error: "Server misconfigured" }, 500);
     }
