@@ -1,6 +1,5 @@
 import React from 'react';
 import { CreditCard, HandCoins, Wallet, Shield, Zap, Smartphone, Smartphone as PhoneIcon } from 'lucide-react';
-import { Capacitor } from '@capacitor/core';
 import { cn } from '@/lib/utils';
 import { isNativeApp } from '@/utils/platform';
 
@@ -16,53 +15,27 @@ interface PaymentMethodSelectorProps {
   bookingAmount?: number;
 }
 
-import { usePayAfterServiceEnabled } from '@/hooks/useAppConfigFlags';
-
 export function PaymentMethodSelector({ selected, onChange, disabled, walletBalance = 0, bookingAmount = 0 }: PaymentMethodSelectorProps) {
   const isNative = isNativeApp();
   const payNowDisabled = !isNative; // Pay Now only works in native app
-  const enablePayAfterService = usePayAfterServiceEnabled();
-  // Pay After Service is hidden everywhere (web + native) regardless of admin flag.
-  const shouldShowPayAfterService = false;
-  const payAfterEnabled = shouldShowPayAfterService;
   const walletCoversAll = walletBalance > 0 && walletBalance >= bookingAmount && bookingAmount > 0;
   const walletPartial = walletBalance > 0 && !walletCoversAll && bookingAmount > 0;
   const remainingAmount = walletPartial ? bookingAmount - walletBalance : 0;
   const walletEmpty = walletBalance <= 0;
-
-  console.log('Pay After Service visibility debug', {
-    enable_pay_after_service: enablePayAfterService,
-    isNativeApp: isNative,
-    platform: Capacitor.getPlatform?.(),
-    shouldShowPayAfterService,
-  });
 
   // Auto-select wallet if it covers full amount
   React.useEffect(() => {
     if (walletCoversAll && selected !== 'wallet') {
       onChange('wallet');
     }
-  }, [walletCoversAll, selected, onChange]);
+  }, [walletCoversAll]);
 
-  // If user is on web (Pay Now disabled) and currently selected pay_now, switch to a valid option.
-  // Web: fall back to pay_after_service when admin enabled it.
+  // If user is on web and currently selected pay_now, switch to pay_after_service
   React.useEffect(() => {
     if (payNowDisabled && selected === 'pay_now') {
-      if (walletCoversAll) {
-        onChange('wallet');
-      } else if (payAfterEnabled) {
-        onChange('pay_after_service');
-      }
+      onChange(walletCoversAll ? 'wallet' : 'pay_after_service');
     }
-  }, [payNowDisabled, selected, walletCoversAll, payAfterEnabled, onChange]);
-
-  // If currently selected pay_after_service but it's no longer available,
-  // switch to wallet (if covers) else pay_now.
-  React.useEffect(() => {
-    if (!payAfterEnabled && selected === 'pay_after_service') {
-      onChange(walletCoversAll ? 'wallet' : 'pay_now');
-    }
-  }, [payAfterEnabled, selected, walletCoversAll, onChange]);
+  }, [payNowDisabled, selected, walletCoversAll]);
 
   return (
     <div className="space-y-3">
@@ -211,8 +184,7 @@ export function PaymentMethodSelector({ selected, onChange, disabled, walletBala
         </div>
       </button>
 
-      {/* Pay After Service — admin controlled */}
-      {payAfterEnabled && (
+      {/* Pay After Service */}
       <button
         type="button"
         disabled={disabled}
@@ -251,7 +223,6 @@ export function PaymentMethodSelector({ selected, onChange, disabled, walletBala
           {selected === 'pay_after_service' && <div className="w-2.5 h-2.5 rounded-full bg-primary" />}
         </div>
       </button>
-      )}
 
       {/* Trust footer */}
       <div className="flex items-center justify-center gap-3 pt-1">

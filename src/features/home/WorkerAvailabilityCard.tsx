@@ -12,7 +12,6 @@ interface WorkerCount {
 interface WorkerAvailabilityCardProps {
   counts: Record<string, number>;
   loading: boolean;
-  onServiceSelect?: (service: 'maid' | 'bathroom_cleaning') => void;
 }
 
 const serviceLabels: Record<string, string> = {
@@ -20,7 +19,7 @@ const serviceLabels: Record<string, string> = {
   bathroom_cleaning: 'Bathroom Cleaners',
 };
 
-export function WorkerAvailabilityCard({ counts, loading, onServiceSelect }: WorkerAvailabilityCardProps) {
+export function WorkerAvailabilityCard({ counts, loading }: WorkerAvailabilityCardProps) {
   const workerCounts: WorkerCount[] = Object.entries(counts)
     .filter(([service]) => service !== 'cook')
     .map(([service, count]) => ({
@@ -116,19 +115,10 @@ export function WorkerAvailabilityCard({ counts, loading, onServiceSelect }: Wor
             const StatusIcon = getAvailabilityIcon(count);
             const percentage = Math.min(100, (count / 100) * 100);
 
-            const clickable = !!onServiceSelect && (service === 'maid' || service === 'bathroom_cleaning');
             return (
-              <div
-                key={service}
-                role={clickable ? 'button' : undefined}
-                tabIndex={clickable ? 0 : undefined}
-                onClick={clickable ? () => onServiceSelect!(service as 'maid' | 'bathroom_cleaning') : undefined}
-                onKeyDown={clickable ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onServiceSelect!(service as 'maid' | 'bathroom_cleaning'); } } : undefined}
-                aria-label={clickable ? `Book ${label}` : undefined}
-                className={cn(
-                  "group relative p-4 rounded-2xl bg-background/80 backdrop-blur-sm border border-border/50 transition-all duration-300",
-                  clickable && "cursor-pointer hover:border-primary/30 hover:shadow-md active:scale-[0.99] focus:outline-none focus:ring-2 focus:ring-primary/30"
-                )}
+              <div 
+                key={service} 
+                className="group relative p-4 rounded-2xl bg-background/80 backdrop-blur-sm border border-border/50 hover:border-primary/30 transition-all duration-300 hover:shadow-md"
               >
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-3">

@@ -23,13 +23,11 @@ export function computeProgress(b: BookingLike) {
 
   if (b.booking_type === 'instant') {
     const start = new Date(b.created_at).getTime();
-    // Visual arrival ETA only — NOT the auto-cancel timer.
-    // Auto-cancel timer lives in NoWorkerStateBlock.tsx (AUTO_CANCEL_MINUTES = 60).
-    const ARRIVAL_SLA_MINUTES = 10;
+    const SLA_MIN = 10;
     const elapsed = now - start;
-    const pct = Math.min(1, elapsed / (ARRIVAL_SLA_MINUTES * MS_PER_MIN));
-    const overdue = elapsed > ARRIVAL_SLA_MINUTES * MS_PER_MIN;
-    const label = overdue ? 'Overdue' : `Arriving in ~${prettyTime(ARRIVAL_SLA_MINUTES * MS_PER_MIN - elapsed)}`;
+    const pct = Math.min(1, elapsed / (SLA_MIN * MS_PER_MIN));
+    const overdue = elapsed > SLA_MIN * MS_PER_MIN;
+    const label = overdue ? 'Overdue' : `Arriving in ~${prettyTime(SLA_MIN * MS_PER_MIN - elapsed)}`;
     return { pct, overdue, label, etaText: 'We\'re assigning a worker...' };
   }
 

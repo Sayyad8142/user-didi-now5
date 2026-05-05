@@ -17,7 +17,7 @@ import { useCommunities } from '@/hooks/useCommunities';
 import { useBuildings } from '@/hooks/useBuildings';
 import { useFlats } from '@/hooks/useFlats';
 import { isDemoCredentials, setDemoSession, setGuestSession, clearDemoSession } from '@/lib/demo';
-import { SignUpWizard } from './SignUpWizard';
+import { FlatSearchInput } from './FlatSearchInput';
 import { sendOtp, signOut as firebaseSignOut, shouldUseNativeAuth } from '@/lib/firebase';
 
 export function AuthCard() {
@@ -271,12 +271,125 @@ export function AuthCard() {
 
           {/* Sign Up Tab */}
           <TabsContent value="signup" className="space-y-4">
-            <SignUpWizard
-              data={signUpData}
-              setData={setSignUpData}
-              loading={loading}
-              onSubmit={handleSendOTP}
+            {/* Full Name */}
+            <div className="space-y-2">
+              <Label htmlFor="fullName" className="text-sm font-medium">
+                Name <span className="text-destructive">*</span>
+              </Label>
+              <Input 
+                id="fullName" 
+                type="text" 
+                placeholder="Enter your full name" 
+                value={signUpData.fullName} 
+                onChange={e => setSignUpData(prev => ({ ...prev, fullName: e.target.value }))} 
+                disabled={loading} 
+                className="rounded-xl shadow-input transition-smooth focus:ring-2 focus:ring-primary/20" 
+              />
+              {errors.fullName && <p className="text-sm text-destructive">{errors.fullName}</p>}
+            </div>
+
+            {/* Phone Input */}
+            <PhoneInputIN 
+              value={signUpData.phone} 
+              onChange={value => setSignUpData(prev => ({ ...prev, phone: value }))} 
+              error={errors.phone} 
+              disabled={loading} 
+              required 
             />
+
+            {/* Community */}
+            <div className="space-y-2">
+              <Label htmlFor="community" className="text-sm font-medium">
+                Community Name <span className="text-destructive">*</span>
+              </Label>
+              <Select 
+                value={signUpData.communityId} 
+                onValueChange={value => {
+                  const community = communities.find(c => c.id === value);
+                  setSignUpData(prev => ({
+                    ...prev,
+                    communityId: value,
+                    communityValue: community?.value || '',
+                    buildingId: '',
+                    flatId: '',
+                    flatNo: ''
+                  }));
+                }} 
+                disabled={loading || communitiesLoading}
+              >
+                <SelectTrigger className="rounded-xl shadow-input transition-smooth focus:ring-2 focus:ring-primary/20">
+                  <SelectValue placeholder={communitiesLoading ? "Loading communities..." : communitiesError ? "Error loading communities" : "Select your community"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {communities.map(community => (
+                    <SelectItem key={community.id} value={community.id}>
+                      {community.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.communityId && <p className="text-sm text-destructive">{errors.communityId}</p>}
+              {communitiesError && <p className="text-sm text-destructive">Failed to load communities. Please try again.</p>}
+            </div>
+
+            {/* Building - Only show if not PHF format */}
+            {signUpData.communityId && !isPHF && (
+              <div className="space-y-2">
+                <Label htmlFor="building" className="text-sm font-medium">
+                  Building / Tower <span className="text-destructive">*</span>
+                </Label>
+                <Select 
+                  value={signUpData.buildingId} 
+                  onValueChange={value => setSignUpData(prev => ({
+                    ...prev,
+                    buildingId: value,
+                    flatId: '',
+                    flatNo: ''
+                  }))} 
+                  disabled={loading || buildingsLoading || !signUpData.communityId}
+                >
+                  <SelectTrigger className="rounded-xl shadow-input transition-smooth focus:ring-2 focus:ring-primary/20">
+                    <SelectValue placeholder={buildingsLoading ? "Loading buildings..." : "Select your building"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {buildings.map(building => (
+                      <SelectItem key={building.id} value={building.id}>
+                        {building.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {errors.buildingId && <p className="text-sm text-destructive">{errors.buildingId}</p>}
+              </div>
+            )}
+
+            {/* Flat Number - Searchable Input */}
+            {signUpData.communityId && (isPHF || signUpData.buildingId) && (
+              <FlatSearchInput
+                flats={flats}
+                value={signUpData.flatNo}
+                onSelect={(flatId, flatNo) => {
+                  setSignUpData(prev => ({
+                    ...prev,
+                    flatId,
+                    flatNo
+                  }));
+                }}
+                disabled={loading || (isPHF ? !signUpData.communityId : !signUpData.buildingId)}
+                loading={flatsLoading}
+                error={errors.flatId}
+                placeholder="Enter your flat number"
+              />
+            )}
+
+            <Button 
+              onClick={handleSendOTP} 
+              disabled={loading} 
+              className="w-full h-14 rounded-2xl bg-gradient-to-r from-pink-500 via-rose-500 to-fuchsia-500 text-white font-semibold text-lg shadow-xl shadow-pink-500/30 transition-all duration-300 hover:shadow-2xl hover:shadow-pink-500/40 hover:scale-[1.02] disabled:opacity-50 disabled:scale-100 disabled:shadow-none"
+            >
+              {loading && <CleaningLoader size="sm" className="mr-2" />}
+              Send OTP
+            </Button>
           </TabsContent>
         </Tabs>
 
@@ -303,7 +416,8 @@ export function AuthCard() {
           Explore services before signing up
         </p>
 
-        {/* reCAPTCHA removed — OTP is now sent via Twilio Verify (no captcha needed). */}
+        {/* Invisible reCAPTCHA container — web only */}
+        {!shouldUseNativeAuth() && <div id="recaptcha-container"></div>}
       </CardContent>
     </Card>
   );
