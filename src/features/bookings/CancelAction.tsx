@@ -82,22 +82,6 @@ export default function CancelAction({ booking, onCancel }: CancelActionProps) {
 
   return (
     <>
-      <div className="mt-3 flex items-center justify-between gap-3 p-3 bg-muted/50 rounded-lg">
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <X className="h-3 w-3" />
-          <span>You can cancel this booking anytime</span>
-        </div>
-        
-        <Button
-          size="sm"
-          variant="destructive"
-          onClick={() => setSheetOpen(true)}
-          className="h-7 px-3 text-xs"
-        >
-          <X className="h-3 w-3 mr-1" />
-          Cancel
-        </Button>
-      </div>
 
       <CancelBookingSheet
         open={sheetOpen}
