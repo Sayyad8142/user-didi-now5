@@ -59,19 +59,20 @@ const { data: allBookings = [], isLoading, isFetching, isSuccess, refetch } = us
   queryKey: ['bookings', profile?.id],
   enabled: !!profile?.id,
   queryFn: async () => {
-    // Fetch all essential fields including worker payment info
-    const { data, error } = await supabase
-      .from('bookings')
-      .select('*')
-      .eq('user_id', profile!.id)
-      .order('created_at', { ascending: false })
-      .limit(50); // Limit initial load to recent 50 bookings
-
+    // Bookings RLS blocks anon reads. Proxy via the bookings-read edge function
+    // (service role) which verifies Firebase identity and returns rows owned by
+    // the current profile.
+    const token = await getFirebaseIdToken();
+    if (!token) return [] as Booking[];
+    const { data, error } = await supabase.functions.invoke('bookings-read', {
+      body: { limit: 50 },
+      headers: { 'x-firebase-token': token },
+    });
     if (error) {
       console.error('Error fetching bookings:', error);
       return [] as Booking[];
     }
-    return (data || []) as Booking[];
+    return ((data as any)?.bookings || []) as Booking[];
   },
   staleTime: 30_000, // Cache for 30 seconds
   gcTime: 180_000, // Keep in memory for 3 minutes
