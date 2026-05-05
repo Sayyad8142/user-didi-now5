@@ -10,20 +10,35 @@ import { ServiceHours } from './ServiceHours';
 import { WorkerAvailabilityCard } from './WorkerAvailabilityCard';
 import { FeatureCarousel } from './FeatureCarousel';
 import { ActiveBookingCard } from './ActiveBookingCard';
+import { HomeOtpCard } from './HomeOtpCard';
 import { openExternalUrl } from '@/lib/nativeOpen';
 import FaqSection from './FaqSection';
+import { TrustedPartnersSection } from './TrustedPartnersSection';
 import { useOnlineWorkerCounts } from '@/hooks/useOnlineWorkerCounts';
 import { useProfile } from '@/contexts/ProfileContext';
 import { HomeSkeleton } from './HomeSkeleton';
+import { BootstrapDebugPanel } from './BootstrapDebugPanel';
 
 
 export function HomeScreen() {
   const navigate = useNavigate();
-  const { profile, loading: profileLoading } = useProfile();
+  const { profile, loading: profileLoading, error: profileError, refresh } = useProfile();
   const { hasUnseenMessages, markMessagesAsSeen } = useUnseenMessages();
   const { counts, loading, isServiceAvailable } = useOnlineWorkerCounts();
 
   console.log('[HomeScreen] mounted, profile:', profile?.id, 'community:', profile?.community);
+
+  // Graceful fallback if profile failed to load (e.g. RLS / backend issue)
+  if (!profileLoading && !profile && profileError) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center gap-4">
+        <h1 className="text-lg font-semibold">We couldn't load your account</h1>
+        <p className="text-sm text-muted-foreground max-w-sm">{profileError}</p>
+        <Button onClick={() => refresh()} className="rounded-full px-6">Retry</Button>
+        <BootstrapDebugPanel />
+      </div>
+    );
+  }
 
   // Wait for profile before rendering any partial UI
   if (profileLoading || !profile) {
@@ -43,6 +58,7 @@ export function HomeScreen() {
       <div className="max-w-md mx-auto px-4 space-y-4 bg-slate-50">
         <HeroCarousel />
         <ServicesRow onServiceSelect={handleServiceSelect} />
+        <HomeOtpCard />
         <ActiveBookingCard />
         
         <ServiceHours />
@@ -66,10 +82,12 @@ export function HomeScreen() {
           </Button>
         </div>
         
-        <WorkerAvailabilityCard counts={counts} loading={loading} />
+        <WorkerAvailabilityCard counts={counts} loading={loading} onServiceSelect={handleServiceSelect} />
         <FeatureCarousel />
 
         <FaqSection />
+
+        <TrustedPartnersSection />
       </div>
     </div>;
 }

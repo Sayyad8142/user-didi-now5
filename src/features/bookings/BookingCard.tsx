@@ -19,6 +19,7 @@ import { toast } from 'sonner';
 import { executePaymentFlow, type PaymentFlowStatus } from '@/lib/paymentService';
 import { useNow } from '@/hooks/useNow';
 import CancelAction from './CancelAction';
+import CancelBookingPill from './CancelBookingPill';
 import { RateWorker } from './RateWorker';
 import { openExternalUrl } from '@/lib/nativeOpen';
 import ChatSheet from '@/features/chat/ChatSheet';
@@ -28,6 +29,12 @@ import { useUnseenMessages } from '@/hooks/useUnseenMessages';
 import { useProfile } from '@/contexts/ProfileContext';
 import { WorkerReachConfirmationCard } from './WorkerReachConfirmationCard';
 import { ReportIssueButton } from './ReportIssueSheet';
+import {
+  FindingWorkerCountdown,
+  NoWorkerCancelledBlock,
+  isNoWorkerCancellation,
+  shouldShowDispatchCountdown,
+} from './NoWorkerStateBlock';
 interface Booking {
   id: string;
   service_type: string;
@@ -51,6 +58,8 @@ interface Booking {
   pay_enabled_at?: string | null;
   cancel_source?: string | null;
   cancel_reason?: string | null;
+  cancellation_reason?: string | null;
+  dispatch_expires_at?: string | null;
   completion_otp?: string | null;
   otp_verified_at?: string | null;
   payment_status?: string | null;
@@ -431,6 +440,16 @@ export function BookingCard({
         </div>
       )}
 
+      {/* Auto-cancel countdown when no worker assigned yet */}
+      {shouldShowDispatchCountdown(row) && (
+        <FindingWorkerCountdown booking={row} />
+      )}
+
+      {/* No-worker cancellation block with Book Again */}
+      {isCancelled && isNoWorkerCancellation(row) && (
+        <NoWorkerCancelledBlock booking={row} />
+      )}
+
       {/* Worker mini-card (priority block #2: worker) */}
       {workerDisplayName && !isCancelled && !isCompleted && (
         <div className="mt-4 ml-1 mr-1">
@@ -476,16 +495,15 @@ export function BookingCard({
             {row.payment_status === 'failed' ? 'Payment failed — tap to retry' : 'Payment pending'}
           </p>
           <Button
-            onClick={handleRetryPayment}
-            disabled={retryingPayment}
-            className="w-full h-10 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-[13px] shadow-sm"
+            disabled
+            aria-disabled="true"
+            className="w-full h-10 rounded-xl bg-primary text-primary-foreground font-semibold text-[13px] shadow-sm opacity-60 cursor-not-allowed"
           >
-            {retryingPayment ? (
-              <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> Processing…</>
-            ) : (
-              <>{row.payment_status === 'failed' ? 'Retry Payment' : 'Complete Payment'} · ₹{row.price_inr || 0}</>
-            )}
+            Pay Now Unavailable · ₹{row.price_inr || 0}
           </Button>
+          <p className="mt-1.5 text-[11px] text-amber-800/80 text-center">
+            Online payment is temporarily disabled. Please pay the worker directly after service.
+          </p>
         </div>
       )}
 
@@ -580,15 +598,18 @@ export function BookingCard({
         return null;
       })()}
 
-      {/* Report Issue — only for active bookings with a worker assigned */}
-      {!isCancelled && !isCompleted && row.worker_id && (
-        <div className="mt-3 ml-1 mr-1 flex justify-end">
-          <ReportIssueButton
-            bookingId={row.id}
-            workerId={row.worker_id}
-            status={row.status}
-            hasWorker={!!row.worker_id}
-          />
+      {/* Report Issue + Cancel Booking — active bookings */}
+      {!isCancelled && !isCompleted && (
+        <div className="mt-3 ml-1 mr-1 flex flex-wrap justify-end gap-2">
+          {row.worker_id && (
+            <ReportIssueButton
+              bookingId={row.id}
+              workerId={row.worker_id}
+              status={row.status}
+              hasWorker={!!row.worker_id}
+            />
+          )}
+          <CancelBookingPill booking={row} onCancel={() => {}} />
         </div>
       )}
     </Card>

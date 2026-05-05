@@ -9,6 +9,8 @@ import {
 import { toUserFriendlyPaymentError, type PaymentErrorType } from '@/lib/paymentService';
 import { trackPaymentEvent, getRetrySuggestion } from '@/lib/paymentAnalytics';
 import { AppVersionDisplay } from '@/components/AppVersionDisplay';
+import { usePayAfterServiceEnabled } from '@/hooks/useAppConfigFlags';
+import { isNativeApp } from '@/utils/platform';
 
 // ─── Error config ─────────────────────────────────────────────
 interface ErrorConfig {
@@ -120,6 +122,8 @@ export function PaymentRetrySheet({
   const config = getErrorConfig(errorType);
   const { display: timerDisplay, isExpired } = useCountdown(bookingCreatedAt, 10);
   const retrySuggestion = getRetrySuggestion(errorType);
+  // Pay After Service is hidden everywhere (web + native).
+  const payAfterEnabled = false;
 
   // Track retry sheet open
   useEffect(() => {
@@ -223,8 +227,8 @@ export function PaymentRetrySheet({
             </div>
           )}
 
-          {/* Pay After Service */}
-          {config.showPayAfter && onPayAfterService && !isExpired && (
+          {/* Pay After Service — admin controlled */}
+          {payAfterEnabled && config.showPayAfter && onPayAfterService && !isExpired && (
             <Button
               variant="outline"
               className="w-full h-11 text-sm rounded-2xl gap-2"

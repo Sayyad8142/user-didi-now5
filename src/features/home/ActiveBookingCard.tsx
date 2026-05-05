@@ -21,6 +21,12 @@ import { WorkerRatingsModal } from '@/features/bookings/WorkerRatingsModal';
 import { useUnseenMessages } from '@/hooks/useUnseenMessages';
 import { WorkerReachConfirmationCard } from '@/features/bookings/WorkerReachConfirmationCard';
 import { ReportIssueButton } from '@/features/bookings/ReportIssueSheet';
+import {
+  FindingWorkerCountdown,
+  NoWorkerCancelledBlock,
+  isNoWorkerCancellation,
+  shouldShowDispatchCountdown,
+} from '@/features/bookings/NoWorkerStateBlock';
 
 interface Booking {
   id: string;
@@ -43,6 +49,7 @@ interface Booking {
   pay_enabled_at?: string | null;
   cancel_source?: string | null;
   cancel_reason?: string | null;
+  cancellation_reason?: string | null;
   cancelled_at?: string | null;
   reach_status?: string | null;
   reach_confirmed_at?: string | null;
@@ -50,6 +57,7 @@ interface Booking {
   completion_otp?: string | null;
   otp_verified_at?: string | null;
   payment_status?: string | null;
+  dispatch_expires_at?: string | null;
 }
 
 const getServiceIcon = (serviceType: string) => {
@@ -523,6 +531,11 @@ const ActiveBookingCard = memo(() => {
           </div>
         )}
 
+        {/* Auto-cancel countdown when no worker has been assigned yet */}
+        {shouldShowDispatchCountdown(activeBooking) && (
+          <FindingWorkerCountdown booking={activeBooking} />
+        )}
+
         {/* Reassurance line — only for pending instant */}
         {isFindingActive && (
           <p className="mt-2 pl-1 text-xs text-muted-foreground animate-fade-in">
@@ -571,38 +584,7 @@ const ActiveBookingCard = memo(() => {
           </div>
         )}
 
-        {/* OTP prominent block — stacked layout for mobile fit */}
-        {showOtpRow && (
-          <button
-            type="button"
-            onClick={() => setShowOtpSheet(true)}
-            className="mt-3 ml-1 w-[calc(100%-0.25rem)] flex flex-col gap-3 px-4 py-3 rounded-2xl bg-emerald-50 hover:bg-emerald-100 ring-1 ring-emerald-200 transition-colors text-left"
-          >
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="p-2 rounded-xl bg-emerald-100 ring-1 ring-emerald-200 shrink-0">
-                <KeyRound className="w-4 h-4 text-emerald-700" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-emerald-700/80 leading-none">
-                  Completion OTP
-                </p>
-                <p className="text-[11px] text-emerald-700/70 mt-1 leading-tight">
-                  Share only after service completion
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center justify-center gap-2 w-full">
-              {(activeBooking.completion_otp || '').split('').map((digit, i) => (
-                <span
-                  key={i}
-                  className="flex-1 max-w-[64px] h-12 flex items-center justify-center bg-white ring-1 ring-emerald-300 rounded-lg text-2xl font-extrabold text-emerald-900 tabular-nums shadow-sm"
-                >
-                  {digit}
-                </span>
-              ))}
-            </div>
-          </button>
-        )}
+        {/* OTP block moved to HomeOtpCard (rendered above this card on Home) */}
 
         {/* Rate worker prompt — keep when assigned/completed */}
         {(activeBooking.status === 'assigned' || activeBooking.status === 'completed') && activeBooking.worker_id && (
@@ -617,46 +599,53 @@ const ActiveBookingCard = memo(() => {
 
         {/* Cancellation message */}
         {isCancelled && (
-          <div className="mt-3 ml-1 p-3 bg-rose-50 border border-rose-200 rounded-xl">
-            {activeBooking.cancel_source === 'user' ? (
-              <p className="text-rose-800 text-sm">Booking cancelled by you. You can book again anytime.</p>
-            ) : activeBooking.cancel_source === 'admin' ? (
-              <p className="text-rose-800 text-sm">Cancelled by admin — we couldn't provide a helper this time.</p>
+          isNoWorkerCancellation(activeBooking) ? (
+            <NoWorkerCancelledBlock booking={activeBooking} />
+          ) : (
+            <div className="mt-3 ml-1 p-3 bg-rose-50 border border-rose-200 rounded-xl">
+              {activeBooking.cancel_source === 'user' ? (
+                <p className="text-rose-800 text-sm">Booking cancelled by you. You can book again anytime.</p>
+              ) : activeBooking.cancel_source === 'admin' ? (
+                <p className="text-rose-800 text-sm">Cancelled by admin — we couldn't provide a helper this time.</p>
+              ) : (
+                <p className="text-rose-800 text-sm">All workers are busy. Please try again in a few minutes.</p>
+              )}
+            </div>
+          )
+        )}
+
+        {/* D. Bottom CTAs — hide Call Manager when no-worker block is shown (it has Book Again) */}
+        {!(isCancelled && isNoWorkerCancellation(activeBooking)) && (
+          <div className="mt-6 ml-1 flex items-center gap-2.5">
+            {isCancelled ? (
+              <Button
+                onClick={() => openExternalUrl('tel:+918008180018')}
+                className="flex-1 h-12 rounded-2xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-[15px] shadow-md shadow-primary/25"
+              >
+                <PhoneCall className="h-4 w-4 mr-2" /> Call Manager
+              </Button>
             ) : (
-              <p className="text-rose-800 text-sm">All workers are busy. Please try again in a few minutes.</p>
+              <>
+                <Button
+                  onClick={handleViewDetails}
+                  className="flex-1 h-12 rounded-2xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-[15px] tracking-tight shadow-md shadow-primary/25"
+                >
+                  Track Booking
+                  <ArrowRight className="w-4 h-4 ml-1.5" />
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => openExternalUrl('tel:+918008180018')}
+                  aria-label="Call Manager"
+                  className="h-12 px-3 rounded-2xl border-primary/20 text-primary hover:bg-primary/5 shrink-0 font-semibold text-[13px] gap-1.5"
+                >
+                  <PhoneCall className="h-4 w-4" />
+                  Call Manager
+                </Button>
+              </>
             )}
           </div>
         )}
-
-        {/* D. Bottom CTAs — primary Track Booking + ghost Call Support */}
-        <div className="mt-6 ml-1 flex items-center gap-2.5">
-          {isCancelled ? (
-            <Button
-              onClick={() => openExternalUrl('tel:+918008180018')}
-              className="flex-1 h-12 rounded-2xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-[15px] shadow-md shadow-primary/25"
-            >
-              <PhoneCall className="h-4 w-4 mr-2" /> Call Manager
-            </Button>
-          ) : (
-            <>
-              <Button
-                onClick={handleViewDetails}
-                className="flex-1 h-12 rounded-2xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-[15px] tracking-tight shadow-md shadow-primary/25"
-              >
-                Track Booking
-                <ArrowRight className="w-4 h-4 ml-1.5" />
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => openExternalUrl('tel:+918008180018')}
-                aria-label="Call Support"
-                className="h-12 w-12 p-0 rounded-2xl border-primary/20 text-primary hover:bg-primary/5 shrink-0"
-              >
-                <PhoneCall className="h-4 w-4" />
-              </Button>
-            </>
-          )}
-        </div>
 
         {/* Hidden: Change worker action — kept reachable via Bookings details for less clutter.
             Quietly preserved when worker assigned and not yet exhausted. */}

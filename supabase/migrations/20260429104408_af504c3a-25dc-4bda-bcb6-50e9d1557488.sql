@@ -1,0 +1,1 @@
+UPDATE public.app_config SET enable_pay_after_service = true, updated_at = now();

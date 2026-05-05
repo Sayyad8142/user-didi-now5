@@ -22,7 +22,7 @@
  * - Backend is always source of truth
  */
 import { supabase } from '@/integrations/supabase/client';
-import { getFirebaseIdToken } from '@/lib/firebase';
+import { getFirebaseIdToken, waitForFirebaseAuthReady } from '@/lib/firebase';
 import { fetchWalletBalanceValue } from '@/lib/wallet';
 import { runCheckout, type CheckoutResult } from './checkoutRunner';
 import {
@@ -250,7 +250,25 @@ function logCreatePaidBookingDebug(stage: 'request' | 'response' | 'error', deta
 async function invokeWithFirebaseAuth<T>(functionName: string, body: Record<string, unknown>): Promise<T> {
   // Force refresh token for payment-critical calls to avoid stale tokens after checkout
   const forceRefresh = functionName === 'create-paid-booking' || functionName === 'verify-razorpay-payment';
-  const token = await getFirebaseIdToken(forceRefresh);
+
+  // Try to get token. On Android, returning from Razorpay can briefly null
+  // currentUser while the WebView resumes — wait for hydration and retry.
+  let token = await getFirebaseIdToken(forceRefresh);
+  if (!token) {
+    console.warn(`[${functionName}] no token on first try — waiting for Firebase hydration`);
+    const hydrated = await waitForFirebaseAuthReady(8000);
+    if (hydrated) {
+      try {
+        token = await hydrated.getIdToken(forceRefresh);
+      } catch (e) {
+        console.error(`[${functionName}] getIdToken after hydration failed:`, e);
+      }
+    }
+    if (!token) {
+      // One last attempt without forceRefresh
+      token = await getFirebaseIdToken(false);
+    }
+  }
   if (!token) throw new Error('Authentication expired, please login again');
 
   const { data, error } = await supabase.functions.invoke(functionName, {
