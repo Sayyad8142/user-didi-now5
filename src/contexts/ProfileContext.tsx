@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { getDemoSession, isDemoMode, clearDemoSession } from "@/lib/demo";
 import { normalizePhone } from "@/features/profile/ensureProfile";
@@ -86,58 +85,11 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
       setLoading(true);
       setError(null);
 
-      console.log('🔍 Fetching profile for firebase_uid:', activeUser.id);
-
-      const { data, error: fetchError } = await supabase
-        .from("profiles")
-        .select("id, full_name, phone, community, flat_no, building_id, community_id, flat_id")
-        .eq("firebase_uid", activeUser.id)
-        .maybeSingle();
-
-      if (fetchError) {
-        console.error('❌ Profile fetch error:', fetchError);
-        setError(fetchError.message || "Failed to load profile");
-        setProfile(null);
-        setLoading(false);
-        return null;
-      }
-
-      if (data) {
-        console.log('✅ Profile loaded:', data.id, data.full_name);
-        setProfile(data);
-        setLoading(false);
-        return data;
-      }
-
-      // No profile found - retry several times before falling back.
-      // On first APK login the profile row is being inserted in parallel by
-      // VerifyOTP.ensureFirebaseProfile — give it enough time on slow networks
-      // before we create a generic fallback row.
-      console.log('📝 No profile found for:', activeUser.id, '- retrying...');
-
-      for (let attempt = 0; attempt < 12; attempt++) {
-        await new Promise(r => setTimeout(r, 600));
-        const { data: retryData } = await supabase
-          .from("profiles")
-          .select("id, full_name, phone, community, flat_no, building_id, community_id, flat_id")
-          .eq("firebase_uid", activeUser.id)
-          .maybeSingle();
-
-        if (retryData) {
-          console.log(`✅ Profile found on retry #${attempt + 1}:`, retryData.id, retryData.full_name);
-          setProfile(retryData);
-          setLoading(false);
-          return retryData;
-        }
-      }
-
-      // After retries, bootstrap a profile via the secure edge function.
-      // (RLS blocks anonymous frontend inserts on `profiles`.)
-      console.log('📝 Bootstrapping profile via edge function for:', activeUser.id);
+      console.log('📝 Loading profile via secure bootstrap for:', activeUser.id);
       try {
         const phone = normalizePhone(activeUser.phone ?? "");
         const created = await bootstrapProfileViaEdge({ phone });
-        console.log('✅ Profile bootstrapped:', created.id);
+        console.log('✅ Profile loaded:', created.id, created.full_name);
         setProfile(created as any);
         setLoading(false);
         return created as any;
