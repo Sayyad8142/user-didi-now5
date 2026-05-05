@@ -11,6 +11,7 @@ import { BookingCard } from './BookingCard';
 import { EmptyState } from './EmptyState';
 import { useMyBookingsRealtime } from './useMyBookingsRealtime';
 import { useBookingStatusToasts } from './useBookingStatusToasts';
+import { getFirebaseIdToken } from '@/lib/firebase';
 
 interface Booking {
   id: string;
