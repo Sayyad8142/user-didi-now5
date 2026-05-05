@@ -21,6 +21,7 @@ import { WorkerRatingsModal } from '@/features/bookings/WorkerRatingsModal';
 import { useUnseenMessages } from '@/hooks/useUnseenMessages';
 import { WorkerReachConfirmationCard } from '@/features/bookings/WorkerReachConfirmationCard';
 import { ReportIssueButton } from '@/features/bookings/ReportIssueSheet';
+import { fetchMyBookings } from '@/features/bookings/bookingsReadClient';
 import {
   FindingWorkerCountdown,
   NoWorkerCancelledBlock,
@@ -215,29 +216,21 @@ const ActiveBookingCard = memo(() => {
       startOfToday.setHours(0, 0, 0, 0);
       const todayStart = startOfToday.toISOString();
 
-      const { data: allBookings, error } = await supabase
-        .from('bookings')
-        .select('*, workers:workers!bookings_worker_id_fkey(upi_id)')
-        .eq('user_id', profile.id)
-        .or(`and(status.in.(pending,assigned,accepted,on_the_way,started),booking_type.eq.instant),and(status.in.(pending,assigned,accepted,on_the_way,started),booking_type.eq.scheduled,scheduled_date.gte.${today}),and(status.eq.cancelled,cancelled_at.gte.${todayStart})`)
-        .order('created_at', { ascending: false });
+      const activeStatuses = ['pending', 'assigned', 'accepted', 'on_the_way', 'started'];
+      const allBookings = (await fetchMyBookings(50)).filter((booking: Booking) => {
+        if (booking.status === 'cancelled') return Boolean(booking.cancelled_at && booking.cancelled_at >= todayStart);
+        if (!activeStatuses.includes(booking.status)) return false;
+        if (booking.booking_type === 'instant') return true;
+        return booking.booking_type === 'scheduled' && Boolean(booking.scheduled_date && booking.scheduled_date >= today);
+      });
 
       let bookingToShow = null;
       if (allBookings && allBookings.length > 0) {
         const activeBooking = allBookings.find(b => b.status !== 'cancelled' && !dismissedBookings.has(b.id));
         const cancelledBooking = allBookings.find(b => b.status === 'cancelled' && !dismissedBookings.has(b.id));
-        const rawBooking = activeBooking || cancelledBooking;
-        if (rawBooking) {
-          const workerData = rawBooking.workers as { upi_id: string | null } | null;
-          bookingToShow = {
-            ...rawBooking,
-            worker_upi: rawBooking.worker_upi || workerData?.upi_id || null,
-            workers: undefined,
-          };
-        }
+        bookingToShow = activeBooking || cancelledBooking || null;
       }
-      if (error) console.error('Error fetching active booking:', error);
-      else setActiveBooking(bookingToShow || null);
+      setActiveBooking(bookingToShow || null);
     } catch (err) {
       console.error('Error:', err);
     } finally {
