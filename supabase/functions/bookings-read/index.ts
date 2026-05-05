@@ -1,0 +1,78 @@
+// Edge function: bookings-read
+// Returns the authenticated user's bookings via service role (bypasses RLS).
+// The Supabase JS client in the app is anonymous (Firebase identity), so it
+// cannot read RLS-protected bookings directly. This proxy verifies the
+// Firebase ID token, maps to the profile id, and returns bookings owned by
+// that profile.
+
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.55.0";
+import { verifyFirebaseToken, extractToken, corsHeaders } from "../_shared/firebaseAuth.ts";
+
+function jsonResponse(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
+serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  if (req.method !== "POST" && req.method !== "GET") {
+    return jsonResponse({ error: "Method not allowed" }, 405);
+  }
+
+  try {
+    const idToken = extractToken(req);
+    if (!idToken) return jsonResponse({ error: "Missing Firebase token" }, 401);
+
+    const { uid } = await verifyFirebaseToken(idToken);
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (!supabaseUrl || !serviceRoleKey) {
+      return jsonResponse({ error: "Server misconfigured" }, 500);
+    }
+
+    const admin = createClient(supabaseUrl, serviceRoleKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+
+    const { data: profile, error: profileError } = await admin
+      .from("profiles")
+      .select("id")
+      .eq("firebase_uid", uid)
+      .maybeSingle();
+
+    if (profileError) {
+      console.error("[bookings-read] Profile lookup failed", profileError);
+      return jsonResponse({ error: "Failed to load profile" }, 500);
+    }
+    if (!profile?.id) return jsonResponse({ bookings: [] });
+
+    let limit = 50;
+    if (req.method === "POST") {
+      const body = await req.json().catch(() => ({}));
+      if (typeof body?.limit === "number" && body.limit > 0 && body.limit <= 200) {
+        limit = body.limit;
+      }
+    }
+
+    const { data, error } = await admin
+      .from("bookings")
+      .select("*")
+      .eq("user_id", profile.id)
+      .order("created_at", { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      console.error("[bookings-read] Query failed", error);
+      return jsonResponse({ error: "Failed to load bookings" }, 500);
+    }
+
+    return jsonResponse({ bookings: data ?? [] });
+  } catch (err) {
+    console.error("[bookings-read] Unhandled error", err);
+    return jsonResponse({ error: (err as Error).message || "Internal error" }, 500);
+  }
+});
