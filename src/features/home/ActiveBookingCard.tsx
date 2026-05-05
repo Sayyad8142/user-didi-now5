@@ -264,9 +264,8 @@ const ActiveBookingCard = memo(() => {
 
   useEffect(() => {
     if (!activeBooking?.id) return;
-    supabase.from('bookings').select('payment_status').eq('id', activeBooking.id).maybeSingle()
-      .then(({ data }) => setPaymentStatus(data?.payment_status || 'pending'));
-  }, [activeBooking?.id]);
+    setPaymentStatus(activeBooking.payment_status || 'pending');
+  }, [activeBooking?.id, activeBooking?.payment_status]);
 
   useEffect(() => {
     if (!profile?.id) return;
