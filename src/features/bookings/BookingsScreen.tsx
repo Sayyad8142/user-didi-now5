@@ -11,7 +11,7 @@ import { BookingCard } from './BookingCard';
 import { EmptyState } from './EmptyState';
 import { useMyBookingsRealtime } from './useMyBookingsRealtime';
 import { useBookingStatusToasts } from './useBookingStatusToasts';
-import { getFirebaseIdToken } from '@/lib/firebase';
+import { fetchMyBookings } from './bookingsReadClient';
 
 interface Booking {
   id: string;
@@ -59,20 +59,12 @@ const { data: allBookings = [], isLoading, isFetching, isSuccess, refetch } = us
   queryKey: ['bookings', profile?.id],
   enabled: !!profile?.id,
   queryFn: async () => {
-    // Bookings RLS blocks anon reads. Proxy via the bookings-read edge function
-    // (service role) which verifies Firebase identity and returns rows owned by
-    // the current profile.
-    const token = await getFirebaseIdToken();
-    if (!token) return [] as Booking[];
-    const { data, error } = await supabase.functions.invoke('bookings-read', {
-      body: { limit: 50 },
-      headers: { 'x-firebase-token': token },
-    });
-    if (error) {
+    try {
+      return (await fetchMyBookings(50)) as Booking[];
+    } catch (error) {
       console.error('Error fetching bookings:', error);
       return [] as Booking[];
     }
-    return ((data as any)?.bookings || []) as Booking[];
   },
   staleTime: 30_000, // Cache for 30 seconds
   gcTime: 180_000, // Keep in memory for 3 minutes
