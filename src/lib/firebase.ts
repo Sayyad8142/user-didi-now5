@@ -1,8 +1,10 @@
 // Firebase Configuration for Phone Auth and Web Push
-// NOTE: OTP delivery is now handled by Twilio Verify (edge functions twilio-send-otp /
-// twilio-verify-otp). Firebase remains the identity layer — we mint a Firebase
-// Custom Token server-side and exchange it via signInWithCustomToken so the rest of
-// the app (firebase_uid, x-firebase-token, profiles linkage) works unchanged.
+// OTP delivery + verification: Firebase Phone Auth directly.
+//   - Web / iOS: Firebase Web SDK with invisible reCAPTCHA (signInWithPhoneNumber)
+//   - Android APK: @capacitor-firebase/authentication native plugin (no reCAPTCHA)
+// Identity layer (firebase_uid, getFirebaseIdToken, x-firebase-token, profiles linkage)
+// is unchanged. Phone is normalized to +91XXXXXXXXXX so reinstalls reuse the same
+// Firebase UID and the same profile row — no duplicate accounts.
 import { initializeApp, FirebaseApp, getApps } from 'firebase/app';
 import {
   getAuth,
