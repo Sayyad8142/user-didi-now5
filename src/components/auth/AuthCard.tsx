@@ -155,15 +155,12 @@ export function AuthCard() {
     try {
       const formattedPhone = formatPhoneIN(phone);
 
-      // For sign in, check if user exists first
-      if (!isSignUp) {
-        const userExists = await checkIfUserExists(phone);
-        if (!userExists) {
-          setErrors({ phone: 'Mobile number not registered, sign up first.' });
-          setLoading(false);
-          return;
-        }
-      }
+      // Note: We no longer pre-check profile existence here.
+      // Reading `profiles` from the client is blocked by RLS for anonymous users,
+      // which incorrectly flagged every existing user as "not registered".
+      // Firebase OTP works for any valid phone; after verification, `bootstrap-profile`
+      // matches existing accounts by phone (and firebase_uid) so reinstalls/sign-ins
+      // reuse the same profile with zero duplicates.
 
       // Send OTP via Firebase
       const result = await sendOtp(formattedPhone, 'recaptcha-container');
