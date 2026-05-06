@@ -109,21 +109,25 @@ export function MandatoryRatingProvider({ children }: { children: React.ReactNod
     if (!current || !rating || !profile?.id) return;
     setSubmitting(true);
     try {
-      const { error } = await supabase.from('worker_ratings').upsert(
-        {
+      const { getAuth } = await import('firebase/auth');
+      const token = await getAuth().currentUser?.getIdToken();
+      if (!token) throw new Error('Not authenticated');
+
+      const { data, error } = await supabase.functions.invoke('submit-worker-rating', {
+        body: {
           booking_id: current.id,
-          worker_id: current.worker_id,
-          user_id: profile.id,
           rating,
           comment: comment.trim() || null,
         },
-        { onConflict: 'booking_id' }
-      );
+        headers: { 'x-firebase-token': token },
+      });
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
       toast.success('Thanks for rating!');
-      // Remove this booking from queue, advance to next
       setQueue((q) => q.slice(1));
     } catch (err: any) {
+      console.error('[MandatoryRating] submit failed', err);
       toast.error(err?.message || 'Could not submit rating');
     } finally {
       setSubmitting(false);
