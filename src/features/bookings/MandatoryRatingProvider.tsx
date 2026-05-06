@@ -63,8 +63,20 @@ export function MandatoryRatingProvider({ children }: { children: React.ReactNod
         .in('booking_id', ids);
       const ratedIds = new Set((rated || []).map((r: any) => r.booking_id));
 
+      // Feature release cutoff — only ask ratings for bookings completed AFTER this date.
+      // Older completed bookings are ignored permanently to avoid spamming users with legacy ratings.
+      const FEATURE_RELEASE_CUTOFF = new Date('2026-05-07T00:00:00Z').getTime();
+
       const unrated = completed
-        .filter((b: any) => !ratedIds.has(b.id) && b.worker_id && !sessionDismissed.has(b.id))
+        .filter((b: any) => {
+          if (ratedIds.has(b.id)) return false;
+          if (!b.worker_id) return false;
+          if (sessionDismissed.has(b.id)) return false;
+          // Use completed_at if present, else fall back to updated_at, else created_at
+          const completedTs = new Date(b.completed_at || b.updated_at || b.created_at).getTime();
+          if (!Number.isFinite(completedTs)) return false;
+          return completedTs >= FEATURE_RELEASE_CUTOFF;
+        })
         .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
       setQueue(unrated as PendingRatingBooking[]);
