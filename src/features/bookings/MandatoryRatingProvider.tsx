@@ -148,10 +148,9 @@ export function MandatoryRatingProvider({ children }: { children: React.ReactNod
       >
         <SheetContent
           side="bottom"
-          className="rounded-t-3xl p-0 max-h-[92vh] overflow-y-auto"
+          className="rounded-t-3xl p-0 max-h-[92vh] overflow-y-auto [&>button.absolute]:hidden"
           onPointerDownOutside={(e) => e.preventDefault()}
           onEscapeKeyDown={(e) => e.preventDefault()}
-          hideClose
         >
           {current && (
             <div className="p-6 space-y-5">
