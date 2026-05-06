@@ -2,7 +2,8 @@ import { useState } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { X } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { X, Wallet } from "lucide-react";
 
 const CANCEL_REASONS = [
   "Worker taking too long",
@@ -30,12 +31,14 @@ export default function CancelBookingSheet({
   const [isOther, setIsOther] = useState(false);
   const [customReason, setCustomReason] = useState("");
   const [error, setError] = useState("");
+  const [showWalletConfirm, setShowWalletConfirm] = useState(false);
 
   function reset() {
     setSelected(null);
     setIsOther(false);
     setCustomReason("");
     setError("");
+    setShowWalletConfirm(false);
   }
 
   function handleOpenChange(v: boolean) {
@@ -63,7 +66,12 @@ export default function CancelBookingSheet({
       setError("Please select or enter a cancellation reason");
       return;
     }
+    setShowWalletConfirm(true);
+  }
+
+  function handleFinalConfirm() {
     const reason = selected || customReason.trim();
+    setShowWalletConfirm(false);
     onConfirm(reason);
   }
 
@@ -159,6 +167,34 @@ export default function CancelBookingSheet({
           </Button>
         </div>
       </SheetContent>
+
+      <AlertDialog open={showWalletConfirm} onOpenChange={setShowWalletConfirm}>
+        <AlertDialogContent className="max-w-[92%] rounded-2xl">
+          <AlertDialogHeader>
+            <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-[#ff007a]/10">
+              <Wallet className="h-6 w-6 text-[#ff007a]" />
+            </div>
+            <AlertDialogTitle className="text-center text-base font-bold">
+              Cancel & Refund to Wallet?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-center text-sm leading-relaxed">
+              The booking amount will be credited to your Didi Now wallet instantly after cancellation. You can use this wallet balance for your next booking.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col gap-2 sm:flex-col sm:space-x-0">
+            <AlertDialogAction
+              onClick={handleFinalConfirm}
+              disabled={loading}
+              className="w-full bg-[#ff007a] hover:bg-[#e0006b] text-white"
+            >
+              {loading ? "Cancelling..." : "Cancel Booking & Add to Wallet"}
+            </AlertDialogAction>
+            <AlertDialogCancel disabled={loading} className="w-full mt-0">
+              Go Back
+            </AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Sheet>
   );
 }
