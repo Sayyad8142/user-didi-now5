@@ -20,6 +20,7 @@ import { useBackButton } from "@/hooks/useBackButton";
 import { useAppWarmup } from "@/hooks/useAppWarmup";
 import AuthGate from "@/auth/AuthGate";
 import { WalletRealtimeProvider } from "@/components/WalletRealtimeProvider";
+import { MandatoryRatingProvider } from "@/features/bookings/MandatoryRatingProvider";
 
 
 import { initSupabase } from "@/integrations/supabase/client";
@@ -262,9 +263,11 @@ const App = () => {
       <Sonner />
       <AuthGate>
         <WalletRealtimeProvider>
-          <ErrorBoundary fallbackTitle="Something went wrong">
-            <AppContent />
-          </ErrorBoundary>
+          <MandatoryRatingProvider>
+            <ErrorBoundary fallbackTitle="Something went wrong">
+              <AppContent />
+            </ErrorBoundary>
+          </MandatoryRatingProvider>
         </WalletRealtimeProvider>
       </AuthGate>
     </TooltipProvider>
