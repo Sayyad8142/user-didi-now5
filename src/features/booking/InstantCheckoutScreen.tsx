@@ -35,7 +35,7 @@ export function InstantCheckoutScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [supplyModalOpen, setSupplyModalOpen] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState<PaymentFlowStatus | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('pay_after_service');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('pay_now');
   const [showPaymentPicker, setShowPaymentPicker] = useState(false);
 
   // Retry state

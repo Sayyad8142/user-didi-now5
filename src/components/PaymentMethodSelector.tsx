@@ -22,8 +22,8 @@ export function PaymentMethodSelector({ selected, onChange, disabled, walletBala
   const isNative = isNativeApp();
   const payNowDisabled = !isNative; // Pay Now only works in native app
   const enablePayAfterService = usePayAfterServiceEnabled();
-  // Pay After Service is hidden everywhere (web + native) regardless of admin flag.
-  const shouldShowPayAfterService = false;
+  // Pay After Service visibility is admin-controlled via app_config.enable_pay_after_service.
+  const shouldShowPayAfterService = enablePayAfterService;
   const payAfterEnabled = shouldShowPayAfterService;
   const walletCoversAll = walletBalance > 0 && walletBalance >= bookingAmount && bookingAmount > 0;
   const walletPartial = walletBalance > 0 && !walletCoversAll && bookingAmount > 0;
@@ -240,7 +240,7 @@ export function PaymentMethodSelector({ selected, onChange, disabled, walletBala
             Pay After Service
           </span>
           <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
-            Cash or UPI directly to worker after service
+            Book now and pay after the service is completed
           </p>
         </div>
 
