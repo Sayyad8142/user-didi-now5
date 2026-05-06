@@ -31,12 +31,14 @@ export default function CancelBookingSheet({
   const [isOther, setIsOther] = useState(false);
   const [customReason, setCustomReason] = useState("");
   const [error, setError] = useState("");
+  const [showWalletConfirm, setShowWalletConfirm] = useState(false);
 
   function reset() {
     setSelected(null);
     setIsOther(false);
     setCustomReason("");
     setError("");
+    setShowWalletConfirm(false);
   }
 
   function handleOpenChange(v: boolean) {
@@ -64,7 +66,12 @@ export default function CancelBookingSheet({
       setError("Please select or enter a cancellation reason");
       return;
     }
+    setShowWalletConfirm(true);
+  }
+
+  function handleFinalConfirm() {
     const reason = selected || customReason.trim();
+    setShowWalletConfirm(false);
     onConfirm(reason);
   }
 
