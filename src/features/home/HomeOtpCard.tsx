@@ -2,23 +2,24 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { KeyRound } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useProfile } from '@/contexts/ProfileContext';
+import { fetchMyBookings } from '@/features/bookings/bookingsReadClient';
 
 interface OtpBooking {
   id: string;
   status: string;
   completion_otp: string | null;
   completed_at: string | null;
+  otp_verified_at?: string | null;
   created_at: string;
 }
 
-const OTP_VISIBLE_STATUSES = ['assigned', 'on_the_way', 'started'];
-const HIDDEN_STATUSES = ['completed', 'cancelled'];
+const OTP_VISIBLE_STATUSES = ['assigned', 'accepted', 'on_the_way', 'started'];
 
 /**
  * HomeOtpCard
  * Shows the Completion OTP prominently on the Home screen for the latest
- * active booking with status in (assigned, on_the_way, started).
- * UI-only — does not modify booking/payment/OTP logic.
+ * active booking. Uses bookings-read edge function (Firebase-authenticated)
+ * since the Supabase client is anonymous and cannot satisfy RLS directly.
  */
 export function HomeOtpCard() {
   const { profile } = useProfile();
@@ -29,22 +30,20 @@ export function HomeOtpCard() {
       setBooking(null);
       return;
     }
-    const { data, error } = await supabase
-      .from('bookings')
-      .select('id, status, completion_otp, completed_at, created_at')
-      .eq('user_id', profile.id)
-      .in('status', OTP_VISIBLE_STATUSES)
-      .is('completed_at', null)
-      .not('completion_otp', 'is', null)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (error) {
-      console.warn('[HomeOtpCard] fetch error:', error);
-      return;
+    try {
+      const all = (await fetchMyBookings(50)) as OtpBooking[];
+      const match = all
+        .filter(b =>
+          OTP_VISIBLE_STATUSES.includes(b.status) &&
+          !!b.completion_otp &&
+          !b.completed_at &&
+          !b.otp_verified_at
+        )
+        .sort((a, b) => (a.created_at < b.created_at ? 1 : -1))[0];
+      setBooking(match ?? null);
+    } catch (err) {
+      console.warn('[HomeOtpCard] fetch error:', err);
     }
-    setBooking((data as OtpBooking) ?? null);
   }, [profile?.id]);
 
   useEffect(() => {
@@ -68,8 +67,7 @@ export function HomeOtpCard() {
 
   if (!booking || !booking.completion_otp) return null;
   if (!OTP_VISIBLE_STATUSES.includes(booking.status)) return null;
-  if (HIDDEN_STATUSES.includes(booking.status)) return null;
-  if (booking.completed_at) return null;
+  if (booking.completed_at || booking.otp_verified_at) return null;
 
   const digits = booking.completion_otp.split('');
 
