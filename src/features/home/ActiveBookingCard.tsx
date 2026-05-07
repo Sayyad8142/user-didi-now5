@@ -359,11 +359,15 @@ const ActiveBookingCard = memo(() => {
 
   const handleSubmitRating = async (rating: number, comment?: string) => {
     if (!profile?.id) throw new Error('Not authenticated');
-    const { error } = await supabase.from('worker_ratings').upsert(
-      { booking_id: activeBooking.id, worker_id: activeBooking.worker_id, user_id: profile.id, rating, comment: comment ?? null },
-      { onConflict: 'booking_id' }
-    );
+    const auth = getAuth();
+    const token = await auth.currentUser?.getIdToken();
+    if (!token) throw new Error('Not authenticated');
+    const { data, error } = await supabase.functions.invoke('submit-worker-rating', {
+      body: { booking_id: activeBooking.id, rating, comment: comment ?? null },
+      headers: { 'x-firebase-token': token },
+    });
     if (error) throw error;
+    if (data?.error) throw new Error(data.error);
   };
 
   const handleReachConfirmation = async (reached: boolean) => {
