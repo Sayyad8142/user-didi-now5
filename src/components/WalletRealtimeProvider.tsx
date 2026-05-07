@@ -32,11 +32,27 @@ export function WalletRealtimeProvider({ children }: { children: React.ReactNode
     ]);
   }, [qc, userId]);
 
-  // Initial fetch
+  // Track last successful refetch for TTL guard
+  const lastFetchRef = React.useRef<number>(0);
+  const guardedRefetch = useCallback(async (source: string, force = false) => {
+    const REFETCH_TTL = 60_000;
+    const sinceLast = Date.now() - lastFetchRef.current;
+    if (!force && sinceLast < REFETCH_TTL) {
+      log.info('[WalletRT] skip refetch (within TTL)', { source, sinceLast });
+      return;
+    }
+    lastFetchRef.current = Date.now();
+    await refetchWalletData(source);
+  }, [refetchWalletData]);
+
+  // Initial fetch — defer until after Home renders so it doesn't block startup
   useEffect(() => {
     if (!userId) return;
-    void refetchWalletData('wallet-provider-init');
-  }, [refetchWalletData, userId]);
+    const t = setTimeout(() => {
+      void guardedRefetch('wallet-provider-init', true);
+    }, 800);
+    return () => clearTimeout(t);
+  }, [guardedRefetch, userId]);
 
   // 1. Realtime subscription for wallet changes
   useEffect(() => {
@@ -50,6 +66,7 @@ export function WalletRealtimeProvider({ children }: { children: React.ReactNode
         (payload) => {
           log.info('[WalletRT] user_wallets change received:', payload);
           void refetchWalletData('wallet-realtime.user_wallets');
+          lastFetchRef.current = Date.now();
         }
       )
       .on(
@@ -58,6 +75,7 @@ export function WalletRealtimeProvider({ children }: { children: React.ReactNode
         (payload) => {
           log.info('[WalletRT] wallet_transactions insert received:', payload);
           void refetchWalletData('wallet-realtime.wallet_transactions');
+          lastFetchRef.current = Date.now();
         }
       )
       .subscribe((status) => {
@@ -69,14 +87,13 @@ export function WalletRealtimeProvider({ children }: { children: React.ReactNode
     };
   }, [refetchWalletData, userId]);
 
-  // 2. App resume / visibility change → refetch wallet
+  // 2. App resume / visibility change → refetch wallet (TTL-guarded)
   useEffect(() => {
     if (!userId) return;
 
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') {
-        log.info('[WalletRT] App resumed, refetching wallet');
-        void refetchWalletData('wallet-visibility.visible');
+        void guardedRefetch('wallet-visibility.visible');
       }
     };
 
@@ -90,8 +107,7 @@ export function WalletRealtimeProvider({ children }: { children: React.ReactNode
           const { App } = await import('@capacitor/app');
           const listener = App.addListener('appStateChange', ({ isActive }) => {
             if (isActive) {
-              log.info('[WalletRT] Capacitor resumed, refetching wallet');
-              void refetchWalletData('wallet-capacitor.active');
+              void guardedRefetch('wallet-capacitor.active');
             }
           });
           capacitorCleanup = () => { listener.then(l => l.remove()); };
@@ -105,16 +121,16 @@ export function WalletRealtimeProvider({ children }: { children: React.ReactNode
       document.removeEventListener('visibilitychange', handleVisibility);
       capacitorCleanup?.();
     };
-  }, [refetchWalletData, userId]);
+  }, [guardedRefetch, userId]);
 
-  // 3. Polling fallback every 30s — safety net if realtime publication is not enabled
+  // 3. Polling fallback — realtime is primary; poll only every 120s as safety net
   useEffect(() => {
     if (!userId) return;
     const interval = setInterval(() => {
-      void refetchWalletData('wallet-poll-30s');
-    }, 30_000);
+      void guardedRefetch('wallet-poll-120s', true);
+    }, 120_000);
     return () => clearInterval(interval);
-  }, [refetchWalletData, userId]);
+  }, [guardedRefetch, userId]);
 
   return <>{children}</>;
 }
