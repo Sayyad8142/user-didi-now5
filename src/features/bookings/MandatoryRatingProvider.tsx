@@ -9,6 +9,7 @@ import { useProfile } from '@/contexts/ProfileContext';
 import { fetchMyBookings } from './bookingsReadClient';
 import { prettyServiceName } from '@/features/booking/utils';
 import { toast } from 'sonner';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface PendingRatingBooking {
   id: string;
