@@ -564,6 +564,13 @@ export function ScheduleScreen() {
                             +₹{slotSurge}
                           </span>
                         )}
+                        {!isSlotUnavailable && !isStillLoading && slotSurge < 0 && (
+                          <span className={`text-[10px] font-semibold mt-0.5 ${
+                            isSelected ? 'text-primary' : 'text-emerald-600'
+                          }`}>
+                            -₹{Math.abs(slotSurge)}
+                          </span>
+                        )}
                       </Button>
                     );
                   })}
@@ -589,6 +596,13 @@ export function ScheduleScreen() {
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-orange-600">Slot surge</span>
                   <span className="text-xs font-semibold text-orange-600">+₹{getSurge(selectedTime)}</span>
+                </div>
+              )}
+
+              {selectedTime && getSurge(selectedTime) < 0 && (
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-emerald-600">Slot discount</span>
+                  <span className="text-xs font-semibold text-emerald-600">-₹{Math.abs(getSurge(selectedTime))}</span>
                 </div>
               )}
 
