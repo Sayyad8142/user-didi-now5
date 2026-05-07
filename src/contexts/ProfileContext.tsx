@@ -103,10 +103,18 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
         mark('profile.bootstrap.done');
         console.log('✅ Profile loaded:', created.id, created.full_name);
         setProfile(created as any);
+        try { localStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify(created)); } catch {}
         setLoading(false);
         return created as any;
       } catch (bootstrapErr: any) {
         console.error('❌ Profile bootstrap error:', bootstrapErr);
+        // If we have a cached profile, keep showing it instead of error UI
+        const cached = readCachedProfile();
+        if (cached) {
+          setProfile(cached);
+          setLoading(false);
+          return cached;
+        }
         setError(bootstrapErr?.message || "Failed to load profile");
         setProfile(null);
         setLoading(false);
