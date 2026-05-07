@@ -263,7 +263,7 @@ const App = () => {
     return (
       <NetworkBlockedScreen
         onRetry={() => {
-          resolveBackend();
+          resolveBackend(true);
         }}
       />
     );
