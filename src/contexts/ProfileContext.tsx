@@ -46,8 +46,17 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
   const { user, firebaseUser } = useAuth();
   const queryClient = useQueryClient();
 
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [loading, setLoading] = useState(true);
+  const PROFILE_CACHE_KEY = 'didi.profile.cache.v1';
+  const readCachedProfile = (): Profile | null => {
+    try {
+      const raw = localStorage.getItem(PROFILE_CACHE_KEY);
+      return raw ? (JSON.parse(raw) as Profile) : null;
+    } catch { return null; }
+  };
+
+  const initialCached = typeof window !== 'undefined' ? readCachedProfile() : null;
+  const [profile, setProfile] = useState<Profile | null>(initialCached);
+  const [loading, setLoading] = useState(!initialCached);
   const [error, setError] = useState<string | null>(null);
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastInvalidatedForRef = useRef<string | null>(null);
