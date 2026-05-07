@@ -91,8 +91,9 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
         return null;
       }
 
-      // Don't show loading state if we already have a (cached) profile to render
-      setLoading((prev) => (profile ? false : true));
+      // Don't flash loading skeleton if a cached profile is already rendered
+      const hasCached = !!readCachedProfile();
+      setLoading(hasCached ? false : true);
       setError(null);
 
       console.log('📝 Loading profile via secure bootstrap for:', activeUser.id);
