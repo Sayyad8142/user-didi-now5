@@ -87,6 +87,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const native = isNativePlatform();
 
     console.log(`🔑 AuthProvider init — platform: ${native ? 'native' : 'web'}`);
+    import('@/lib/perfMarks').then(({ mark }) => mark('auth.provider.init'));
 
     // ─── Demo/guest mode listener (shared) ─────────────────────
     const handleDemoModeChange = (event: Event) => {
@@ -228,6 +229,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const unsubscribe = onFirebaseAuthStateChanged((fbUser) => {
       if (!mounted) return;
       console.log('🌐 Firebase auth state changed:', fbUser?.uid);
+      import('@/lib/perfMarks').then(({ mark }) => mark(`auth.firebase.state(${fbUser ? 'user' : 'null'})`));
 
       if (fbUser) {
         clearDemoSession();

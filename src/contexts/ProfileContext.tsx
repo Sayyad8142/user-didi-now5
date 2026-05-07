@@ -88,7 +88,10 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
       console.log('📝 Loading profile via secure bootstrap for:', activeUser.id);
       try {
         const phone = normalizePhone(activeUser.phone ?? "");
+        const { mark } = await import('@/lib/perfMarks');
+        mark('profile.bootstrap.start');
         const created = await bootstrapProfileViaEdge({ phone });
+        mark('profile.bootstrap.done');
         console.log('✅ Profile loaded:', created.id, created.full_name);
         setProfile(created as any);
         setLoading(false);
