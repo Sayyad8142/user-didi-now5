@@ -66,15 +66,19 @@ export function MandatoryRatingProvider({ children }: { children: React.ReactNod
         return;
       }
 
-      // Feature release cutoff — only ask ratings for bookings completed AFTER this date.
-      const FEATURE_RELEASE_CUTOFF = new Date('2026-05-07T00:00:00Z').getTime();
+      // Only ask ratings for bookings completed in the last 7 days,
+      // and require an explicit completed_at timestamp (avoid stale
+      // bookings whose updated_at/created_at happens to be recent).
+      const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+      const now = Date.now();
 
       const candidates = completed.filter((b: any) => {
         if (!b.worker_id) return false;
         if (sessionDismissed.has(b.id)) return false;
-        const completedTs = new Date(b.completed_at || b.updated_at || b.created_at).getTime();
+        if (!b.completed_at) return false;
+        const completedTs = new Date(b.completed_at).getTime();
         if (!Number.isFinite(completedTs)) return false;
-        return completedTs >= FEATURE_RELEASE_CUTOFF;
+        return now - completedTs <= SEVEN_DAYS_MS;
       });
 
       if (candidates.length === 0) {
@@ -89,9 +93,12 @@ export function MandatoryRatingProvider({ children }: { children: React.ReactNod
         .in('booking_id', ids);
       const ratedIds = new Set((rated || []).map((r: any) => r.booking_id));
 
+      // Only prompt for the SINGLE most recent unrated booking,
+      // not a queue of historical ones.
       const unrated = candidates
         .filter((b: any) => !ratedIds.has(b.id))
-        .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        .sort((a: any, b: any) => new Date(b.completed_at).getTime() - new Date(a.completed_at).getTime())
+        .slice(0, 1);
 
       setQueue(unrated as PendingRatingBooking[]);
     } catch (err) {
