@@ -91,7 +91,8 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
         return null;
       }
 
-      setLoading(true);
+      // Don't show loading state if we already have a (cached) profile to render
+      setLoading((prev) => (profile ? false : true));
       setError(null);
 
       console.log('📝 Loading profile via secure bootstrap for:', activeUser.id);
