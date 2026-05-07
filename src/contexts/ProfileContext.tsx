@@ -140,12 +140,25 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
   }, [fetchProfile]);
 
   // Re-fetch when app resumes from background (handles both native + web)
+  // Guarded by a 60s TTL — quick reopens (lock screen, app switcher) do NOT
+  // trigger a full profile re-bootstrap.
+  const lastProfileFetchRef = useRef<number>(0);
   useEffect(() => {
+    // Track successful fetches
+    if (profile?.id) lastProfileFetchRef.current = Date.now();
+  }, [profile?.id]);
+
+  useEffect(() => {
+    const REFETCH_TTL = 60_000;
     const handleVisibility = () => {
-      if (document.visibilityState === 'visible' && user?.id) {
-        console.log('🔄 Profile: app resumed, refreshing');
-        fetchProfile();
+      if (document.visibilityState !== 'visible' || !user?.id) return;
+      const sinceLast = Date.now() - lastProfileFetchRef.current;
+      if (sinceLast < REFETCH_TTL) {
+        console.log('🟢 Profile: skip refetch (within TTL', sinceLast, 'ms)');
+        return;
       }
+      console.log('🔄 Profile: app resumed after', sinceLast, 'ms — refreshing');
+      fetchProfile();
     };
     document.addEventListener('visibilitychange', handleVisibility);
     return () => document.removeEventListener('visibilitychange', handleVisibility);
