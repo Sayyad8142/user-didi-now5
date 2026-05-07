@@ -158,7 +158,10 @@ const App = () => {
     setResolving(true);
     setNetworkBlocked(false);
     try {
+      const { mark } = await import('@/lib/perfMarks');
+      mark('App.resolveBackend.start');
       const ok = await initSupabase();
+      mark('App.resolveBackend.done');
       setNetworkBlocked(!ok);
       if (ok) {
         // Signal to ProfileProvider and other listeners that backend is ready

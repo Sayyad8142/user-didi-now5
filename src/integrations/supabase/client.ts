@@ -1,4 +1,5 @@
 // Smart Supabase client with dynamic backend resolution
+import { mark } from "@/lib/perfMarks";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "./types";
 import {
@@ -82,9 +83,12 @@ function createSupabaseClient(baseUrl: string): SupabaseClient<Database> {
  * Returns true if a working backend was found.
  */
 export async function initSupabase(): Promise<boolean> {
+  mark("supabase.init.start");
   const url = await resolveBackendUrl();
+  mark("supabase.init.resolved");
   if (!url) return false;
   createSupabaseClient(url);
+  mark("supabase.init.clientReady");
   return true;
 }
 
