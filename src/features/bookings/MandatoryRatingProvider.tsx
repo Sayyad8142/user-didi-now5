@@ -9,6 +9,7 @@ import { useProfile } from '@/contexts/ProfileContext';
 import { fetchMyBookings } from './bookingsReadClient';
 import { prettyServiceName } from '@/features/booking/utils';
 import { toast } from 'sonner';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface PendingRatingBooking {
   id: string;
@@ -33,6 +34,7 @@ const sessionDismissed = new Set<string>();
 
 export function MandatoryRatingProvider({ children }: { children: React.ReactNode }) {
   const { profile } = useProfile();
+  const qc = useQueryClient();
   const [queue, setQueue] = useState<PendingRatingBooking[]>([]);
   const [open, setOpen] = useState(false);
   const [rating, setRating] = useState(0);
@@ -42,60 +44,73 @@ export function MandatoryRatingProvider({ children }: { children: React.ReactNod
 
   const current = queue[0];
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (force = false) => {
     if (!profile?.id) return;
-    // Throttle to once every 15s
-    if (Date.now() - lastFetchRef.current < 15000) return;
+    // TTL guard — only refetch every 60s unless forced
+    const REFRESH_TTL = 60_000;
+    if (!force && Date.now() - lastFetchRef.current < REFRESH_TTL) return;
     lastFetchRef.current = Date.now();
 
     try {
-      const all = await fetchMyBookings(50);
-      const completed = all.filter((b: any) => b.status === 'completed');
+      // Reuse the bookings React Query cache shared with BookingsScreen
+      // (queryKey: ['bookings', profile.id]) to avoid a duplicate
+      // bookings-read call on app open.
+      let all: any[] | undefined = qc.getQueryData(['bookings', profile.id]);
+      if (!all) {
+        all = await fetchMyBookings(50);
+        qc.setQueryData(['bookings', profile.id], all);
+      }
+      const completed = (all || []).filter((b: any) => b.status === 'completed');
       if (completed.length === 0) {
         setQueue([]);
         return;
       }
 
-      const ids = completed.map((b: any) => b.id);
+      // Feature release cutoff — only ask ratings for bookings completed AFTER this date.
+      const FEATURE_RELEASE_CUTOFF = new Date('2026-05-07T00:00:00Z').getTime();
+
+      const candidates = completed.filter((b: any) => {
+        if (!b.worker_id) return false;
+        if (sessionDismissed.has(b.id)) return false;
+        const completedTs = new Date(b.completed_at || b.updated_at || b.created_at).getTime();
+        if (!Number.isFinite(completedTs)) return false;
+        return completedTs >= FEATURE_RELEASE_CUTOFF;
+      });
+
+      if (candidates.length === 0) {
+        setQueue([]);
+        return;
+      }
+
+      const ids = candidates.map((b: any) => b.id);
       const { data: rated } = await supabase
         .from('worker_ratings')
         .select('booking_id')
         .in('booking_id', ids);
       const ratedIds = new Set((rated || []).map((r: any) => r.booking_id));
 
-      // Feature release cutoff — only ask ratings for bookings completed AFTER this date.
-      // Older completed bookings are ignored permanently to avoid spamming users with legacy ratings.
-      const FEATURE_RELEASE_CUTOFF = new Date('2026-05-07T00:00:00Z').getTime();
-
-      const unrated = completed
-        .filter((b: any) => {
-          if (ratedIds.has(b.id)) return false;
-          if (!b.worker_id) return false;
-          if (sessionDismissed.has(b.id)) return false;
-          // Use completed_at if present, else fall back to updated_at, else created_at
-          const completedTs = new Date(b.completed_at || b.updated_at || b.created_at).getTime();
-          if (!Number.isFinite(completedTs)) return false;
-          return completedTs >= FEATURE_RELEASE_CUTOFF;
-        })
+      const unrated = candidates
+        .filter((b: any) => !ratedIds.has(b.id))
         .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
       setQueue(unrated as PendingRatingBooking[]);
     } catch (err) {
       console.warn('[MandatoryRating] refresh failed', err);
     }
-  }, [profile?.id]);
+  }, [profile?.id, qc]);
 
-  // Initial + on profile change
+  // Initial check — defer until after first paint so it doesn't block Home
   useEffect(() => {
-    if (profile?.id) refresh();
+    if (!profile?.id) return;
+    const t = setTimeout(() => { void refresh(true); }, 1500);
+    return () => clearTimeout(t);
   }, [profile?.id, refresh]);
 
-  // On app resume / visibility
+  // On app resume / visibility — TTL-guarded (handled inside refresh)
   useEffect(() => {
     const onVisible = () => {
       if (document.visibilityState === 'visible') {
-        lastFetchRef.current = 0; // bypass throttle
-        refresh();
+        void refresh(false);
       }
     };
     document.addEventListener('visibilitychange', onVisible);

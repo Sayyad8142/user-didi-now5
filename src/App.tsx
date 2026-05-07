@@ -154,7 +154,36 @@ const App = () => {
 
   useAppWarmup();
 
-  const resolveBackend = useCallback(async () => {
+  const resolveBackend = useCallback(async (force = false) => {
+    // If we already have a cached backend URL, render immediately and run
+    // the health check in the background. This unblocks the Home screen
+    // from a sequential probe of api.didisnow.com on every cold open.
+    let hasCached = false;
+    try {
+      const cached = typeof localStorage !== 'undefined'
+        ? localStorage.getItem('DIDI_BACKEND_URL')
+        : null;
+      hasCached = !!cached;
+    } catch {}
+
+    if (!force && hasCached) {
+      setResolving(false);
+      setNetworkBlocked(false);
+      // Background init — do not block UI
+      (async () => {
+        try {
+          const { mark } = await import('@/lib/perfMarks');
+          mark('App.resolveBackend.bgStart');
+          const ok = await initSupabase();
+          mark('App.resolveBackend.bgDone');
+          if (ok) window.dispatchEvent(new Event('supabase-ready'));
+        } catch {
+          // Silent — cached URL keeps app usable; failover handled by withRetry
+        }
+      })();
+      return;
+    }
+
     setResolving(true);
     setNetworkBlocked(false);
     try {
@@ -164,7 +193,6 @@ const App = () => {
       mark('App.resolveBackend.done');
       setNetworkBlocked(!ok);
       if (ok) {
-        // Signal to ProfileProvider and other listeners that backend is ready
         window.dispatchEvent(new Event('supabase-ready'));
       }
     } catch {
@@ -235,7 +263,7 @@ const App = () => {
     return (
       <NetworkBlockedScreen
         onRetry={() => {
-          resolveBackend();
+          resolveBackend(true);
         }}
       />
     );
