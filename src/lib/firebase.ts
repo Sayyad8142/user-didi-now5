@@ -358,6 +358,12 @@ const purgeRecaptchaDom = (containerId: string) => {
 
 // Setup invisible reCAPTCHA verifier — works on ALL platforms (web + Capacitor webview)
 export const setupRecaptcha = async (containerId: string = 'recaptcha-container'): Promise<RecaptchaVerifier | null> => {
+  console.warn('[OTP-AUDIT] WEB_RECAPTCHA_SETUP_REQUESTED', {
+    platform: Capacitor.getPlatform(),
+    nativePlatform: isNativePlatform(),
+    containerId,
+    meaning: 'If this appears on Android APK, the app selected Firebase Web SDK path instead of native phone auth.',
+  });
   const authInstance = getFirebaseAuth();
   if (!authInstance) {
     console.error('❌ Auth not available for reCAPTCHA');
@@ -444,6 +450,12 @@ async function sendOtpWeb(
   phoneNumber: string,
   containerId: string = 'recaptcha-container'
 ): Promise<{ success: boolean; error?: string }> {
+  console.warn('[OTP-AUDIT] WEB_AUTH_PATH_SELECTED — Firebase Web SDK signInWithPhoneNumber + RecaptchaVerifier', {
+    platform: Capacitor.getPlatform(),
+    nativePlatform: isNativePlatform(),
+    containerId,
+    phoneNumber,
+  });
   const authInstance = getFirebaseAuth();
   if (!authInstance) {
     return { success: false, error: 'Firebase Auth not initialized' };
@@ -456,13 +468,14 @@ async function sendOtpWeb(
       return { success: false, error: 'Failed to setup reCAPTCHA. Please refresh and try again.' };
     }
 
+    console.warn('[OTP-AUDIT] Firebase Web signInWithPhoneNumber called — this path can show reCAPTCHA UI');
     console.log('🌐 Web: Sending OTP to:', phoneNumber);
     confirmationResult = await signInWithPhoneNumber(authInstance, phoneNumber, verifier);
     console.log('✅ Web: OTP sent successfully');
 
     return { success: true };
   } catch (error: any) {
-    console.error('❌ Web sendOtp error:', error?.code, error?.message);
+    console.error('[OTP-AUDIT] Web Firebase phone auth FAILED', { code: error?.code, message: error?.message, full: error });
 
     // Clear stale verifier so next attempt rebuilds
     if (recaptchaVerifier) {
