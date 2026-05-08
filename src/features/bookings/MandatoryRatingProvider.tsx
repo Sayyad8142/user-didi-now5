@@ -213,13 +213,15 @@ export function MandatoryRatingProvider({ children }: { children: React.ReactNod
             const locStr = [current.flat_no, current.community].filter(Boolean).join(' · ');
             return (
               <>
-                <button
-                  onClick={handleMinimize}
-                  aria-label="Minimize"
-                  className="absolute right-3 top-3 text-muted-foreground hover:text-foreground p-1 rounded-full z-10"
-                >
-                  <X className="w-5 h-5" />
-                </button>
+                <div className="absolute right-2 top-2 z-50">
+                  <button
+                    onClick={handleMinimize}
+                    aria-label="Close"
+                    className="bg-muted hover:bg-muted/80 text-foreground p-2 rounded-full shadow-sm"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
 
                 <div className="flex-1 overflow-y-auto px-4 pt-4 pb-2 space-y-3">
                   {/* Header: avatar + name inline */}
