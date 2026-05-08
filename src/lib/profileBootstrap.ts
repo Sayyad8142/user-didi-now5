@@ -146,3 +146,9 @@ export async function bootstrapProfileViaEdge(
   diagnostics.lastError = (lastError && lastError.message) || "Profile bootstrap failed";
   throw lastError || new Error("Profile bootstrap failed");
 }
+
+export async function updateProfileViaEdge(
+  updates: ProfileUpdates
+): Promise<BootstrappedProfile> {
+  return bootstrapProfileViaEdge({ profileUpdates: updates });
+}
