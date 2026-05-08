@@ -192,11 +192,11 @@ async function registerNativeListeners(): Promise<void> {
 }
 
 async function sendOtpNative(phoneNumber: string): Promise<{ success: boolean; error?: string }> {
+  let appStateListener: { remove: () => Promise<void> } | null = null;
   try {
     await registerNativeListeners();
     const { FirebaseAuthentication } = await import('@capacitor-firebase/authentication');
 
-    let appStateListener: { remove: () => Promise<void> } | null = null;
     try {
       const { App } = await import('@capacitor/app');
       appStateListener = await App.addListener('appStateChange', ({ isActive }) => {
@@ -257,6 +257,9 @@ async function sendOtpNative(phoneNumber: string): Promise<{ success: boolean; e
     console.error('[OTP-AUDIT] Native sendOtp threw — code:', code, 'message:', msg, 'full:', error);
     if (msg.toLowerCase().includes('recaptcha') || code.includes('recaptcha')) {
       console.error('[OTP-AUDIT] ⚠️ reCAPTCHA fallback triggered — Firebase could not get Play Integrity attestation. Check SHA-1/SHA-256 fingerprints in Firebase Console for com.didisnow.app.');
+    }
+    if (appStateListener) {
+      try { await appStateListener.remove(); } catch {}
     }
     let errorMessage = 'Failed to send OTP';
     const m = msg || code;
