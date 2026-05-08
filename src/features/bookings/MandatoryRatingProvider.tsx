@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
-import { Star, X } from 'lucide-react';
+import { Star, X, Calendar, Clock, IndianRupee, Sparkles, ShowerHead, MapPin } from 'lucide-react';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -17,9 +17,14 @@ interface PendingRatingBooking {
   worker_name?: string | null;
   worker_photo_url?: string | null;
   service_type: string;
+  booking_type?: string | null;
   scheduled_date?: string | null;
   scheduled_time?: string | null;
   created_at?: string;
+  completed_at?: string | null;
+  price_inr?: number | null;
+  flat_no?: string | null;
+  community?: string | null;
 }
 
 interface MandatoryRatingContextType {
@@ -66,10 +71,12 @@ export function MandatoryRatingProvider({ children }: { children: React.ReactNod
         return;
       }
 
-      // Only ask ratings for bookings completed in the last 7 days,
-      // and require an explicit completed_at timestamp (avoid stale
-      // bookings whose updated_at/created_at happens to be recent).
-      const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+      // Only ask ratings for bookings completed in the last 48 hours.
+      // Require an explicit completed_at timestamp AND that the booking
+      // itself was created within the last 30 days — this avoids ancient
+      // bookings whose completed_at was set late by an admin/back-fill.
+      const FRESH_MS = 48 * 60 * 60 * 1000;
+      const MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
       const now = Date.now();
 
       const candidates = completed.filter((b: any) => {
@@ -78,7 +85,10 @@ export function MandatoryRatingProvider({ children }: { children: React.ReactNod
         if (!b.completed_at) return false;
         const completedTs = new Date(b.completed_at).getTime();
         if (!Number.isFinite(completedTs)) return false;
-        return now - completedTs <= SEVEN_DAYS_MS;
+        if (now - completedTs > FRESH_MS) return false;
+        const createdTs = b.created_at ? new Date(b.created_at).getTime() : NaN;
+        if (Number.isFinite(createdTs) && now - createdTs > MAX_AGE_MS) return false;
+        return true;
       });
 
       if (candidates.length === 0) {
@@ -213,13 +223,70 @@ export function MandatoryRatingProvider({ children }: { children: React.ReactNod
                 <h2 className="text-xl font-bold text-foreground">
                   Rate {current.worker_name || 'your worker'}
                 </h2>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Service completed: {prettyServiceName(current.service_type)}
-                </p>
-                <p className="text-xs text-muted-foreground mt-2 italic">
-                  Your rating helps us send the best workers to your community.
+                <p className="text-xs text-muted-foreground mt-1">
+                  Booking #{current.id.slice(0, 8).toUpperCase()}
                 </p>
               </div>
+
+              {/* Booking details card */}
+              <div className="rounded-2xl border border-border bg-muted/30 p-4 space-y-2.5">
+                <div className="flex items-center gap-2 text-sm text-foreground">
+                  {current.service_type === 'bathroom_cleaning'
+                    ? <ShowerHead className="w-4 h-4 text-primary" />
+                    : <Sparkles className="w-4 h-4 text-primary" />}
+                  <span className="font-semibold">{prettyServiceName(current.service_type)}</span>
+                  {current.booking_type && (
+                    <span className="ml-auto text-[11px] uppercase tracking-wide text-muted-foreground">
+                      {current.booking_type === 'instant' ? 'Instant' : 'Scheduled'}
+                    </span>
+                  )}
+                </div>
+
+                {(() => {
+                  const isScheduled = current.booking_type === 'scheduled' && current.scheduled_date && current.scheduled_time;
+                  const dt = isScheduled
+                    ? new Date(`${current.scheduled_date}T${(current.scheduled_time || '').slice(0, 5)}:00`)
+                    : current.completed_at
+                      ? new Date(current.completed_at)
+                      : current.created_at ? new Date(current.created_at) : null;
+                  if (!dt || isNaN(dt.getTime())) return null;
+                  const dateStr = dt.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+                  const timeStr = dt.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true });
+                  return (
+                    <>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Calendar className="w-4 h-4" />
+                        <span>{isScheduled ? 'Scheduled for' : 'Completed on'} {dateStr}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Clock className="w-4 h-4" />
+                        <span>{timeStr}</span>
+                      </div>
+                    </>
+                  );
+                })()}
+
+                {(current.flat_no || current.community) && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <MapPin className="w-4 h-4" />
+                    <span className="truncate">
+                      {[current.flat_no, current.community].filter(Boolean).join(' · ')}
+                    </span>
+                  </div>
+                )}
+
+                {typeof current.price_inr === 'number' && current.price_inr > 0 && (
+                  <div className="flex items-center gap-2 text-sm text-foreground pt-1 border-t border-border/60">
+                    <IndianRupee className="w-4 h-4 text-primary" />
+                    <span className="font-semibold">₹{current.price_inr}</span>
+                    <span className="text-xs text-muted-foreground">paid for this service</span>
+                  </div>
+                )}
+              </div>
+
+              <p className="text-xs text-center text-muted-foreground italic">
+                Your rating helps us send the best workers to your community.
+              </p>
 
               <div className="flex items-center justify-center gap-2">
                 {[1, 2, 3, 4, 5].map((n) => (
