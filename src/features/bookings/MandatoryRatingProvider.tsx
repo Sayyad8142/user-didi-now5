@@ -157,16 +157,49 @@ export function MandatoryRatingProvider({ children }: { children: React.ReactNod
       const token = await getAuth().currentUser?.getIdToken();
       if (!token) throw new Error('Not authenticated');
 
-      const { data, error } = await supabase.functions.invoke('submit-worker-rating', {
-        body: {
-          booking_id: current.id,
-          rating,
-          comment: comment.trim() || null,
-        },
-        headers: { 'x-firebase-token': token },
-      });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      // submit-worker-rating lives on Lovable Cloud functions host; the main
+      // supabase client points to api.didisnow.com where it isn't deployed,
+      // which caused "Failed to send a request to the Edge Function" (404).
+      const { LOVABLE_CLOUD_FUNCTIONS_URL, PRODUCTION_ANON_KEY } = await import('@/lib/constants');
+      const { resolveBackendUrl } = await import('@/lib/backendResolver');
+      const backendUrl = await resolveBackendUrl().catch(() => null);
+      const candidates = [
+        `${LOVABLE_CLOUD_FUNCTIONS_URL}/functions/v1/submit-worker-rating`,
+        ...(backendUrl ? [`${backendUrl}/functions/v1/submit-worker-rating`] : []),
+      ].filter((u, i, a) => a.indexOf(u) === i);
+
+      let lastErr: any = null;
+      let okData: any = null;
+      for (const url of candidates) {
+        try {
+          const res = await fetch(url, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              apikey: PRODUCTION_ANON_KEY,
+              Authorization: `Bearer ${PRODUCTION_ANON_KEY}`,
+              'x-firebase-token': token,
+            },
+            body: JSON.stringify({
+              booking_id: current.id,
+              rating,
+              comment: comment.trim() || null,
+            }),
+          });
+          const json = await res.json().catch(() => ({}));
+          if (!res.ok || json?.error) {
+            lastErr = new Error(json?.error || `HTTP ${res.status}`);
+            // 404 → try next candidate; other errors → stop
+            if (res.status !== 404) break;
+            continue;
+          }
+          okData = json;
+          break;
+        } catch (e: any) {
+          lastErr = e;
+        }
+      }
+      if (!okData) throw lastErr || new Error('Could not submit rating');
 
       toast.success('Thanks for rating!');
       setQueue((q) => q.slice(1));
