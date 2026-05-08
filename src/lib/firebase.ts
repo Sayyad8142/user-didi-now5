@@ -218,8 +218,12 @@ async function sendOtpNative(phoneNumber: string): Promise<{ success: boolean; e
 
     return await resultPromise;
   } catch (error: any) {
-    console.error('❌ Native sendOtp error:', error);
-    
+    const code = error?.code || '';
+    const msg = error?.message || '';
+    console.error('[OTP-AUDIT] Native sendOtp threw — code:', code, 'message:', msg, 'full:', error);
+    if (msg.toLowerCase().includes('recaptcha') || code.includes('recaptcha')) {
+      console.error('[OTP-AUDIT] ⚠️ reCAPTCHA fallback triggered — Firebase could not get Play Integrity attestation. Check SHA-1/SHA-256 fingerprints in Firebase Console for com.didisnow.app.');
+    }
     let errorMessage = 'Failed to send OTP';
     const msg = error?.message || error?.code || '';
     if (msg.includes('invalid-phone-number')) {
