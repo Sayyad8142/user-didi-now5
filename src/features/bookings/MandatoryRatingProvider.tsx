@@ -71,10 +71,12 @@ export function MandatoryRatingProvider({ children }: { children: React.ReactNod
         return;
       }
 
-      // Only ask ratings for bookings completed in the last 7 days,
-      // and require an explicit completed_at timestamp (avoid stale
-      // bookings whose updated_at/created_at happens to be recent).
-      const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+      // Only ask ratings for bookings completed in the last 48 hours.
+      // Require an explicit completed_at timestamp AND that the booking
+      // itself was created within the last 30 days — this avoids ancient
+      // bookings whose completed_at was set late by an admin/back-fill.
+      const FRESH_MS = 48 * 60 * 60 * 1000;
+      const MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
       const now = Date.now();
 
       const candidates = completed.filter((b: any) => {
@@ -83,7 +85,10 @@ export function MandatoryRatingProvider({ children }: { children: React.ReactNod
         if (!b.completed_at) return false;
         const completedTs = new Date(b.completed_at).getTime();
         if (!Number.isFinite(completedTs)) return false;
-        return now - completedTs <= SEVEN_DAYS_MS;
+        if (now - completedTs > FRESH_MS) return false;
+        const createdTs = b.created_at ? new Date(b.created_at).getTime() : NaN;
+        if (Number.isFinite(createdTs) && now - createdTs > MAX_AGE_MS) return false;
+        return true;
       });
 
       if (candidates.length === 0) {
