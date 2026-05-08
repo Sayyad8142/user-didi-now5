@@ -104,6 +104,7 @@ export async function bootstrapProfileViaEdge(
       body: JSON.stringify({
         phone: input.phone ?? null,
         signupData: input.signupData ?? null,
+        profileUpdates: input.profileUpdates ?? null,
       }),
     });
   };
