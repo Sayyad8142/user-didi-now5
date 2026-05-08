@@ -185,7 +185,13 @@ async function sendOtpNative(phoneNumber: string): Promise<{ success: boolean; e
     await registerNativeListeners();
     const { FirebaseAuthentication } = await import('@capacitor-firebase/authentication');
 
-    console.log('📱 Native: sending OTP to', phoneNumber);
+    console.log('[OTP-AUDIT] sendOtpNative — start', {
+      phoneNumber,
+      platform: Capacitor.getPlatform(),
+      nativeAuthAvailable: true,
+      packageName: 'com.didisnow.app',
+    });
+    console.log('[OTP-AUDIT] Firebase phone auth started (native plugin)');
 
     const resultPromise = new Promise<{ success: boolean; error?: string }>((resolve) => {
       const timeout = setTimeout(() => {
@@ -197,11 +203,13 @@ async function sendOtpNative(phoneNumber: string): Promise<{ success: boolean; e
 
       nativePhoneCodeSentResolver = (_verificationId: string) => {
         clearTimeout(timeout);
+        console.log('[OTP-AUDIT] OTP sent event received (phoneCodeSent)');
         resolve({ success: true });
       };
 
       nativeVerificationFailedResolver = (errorMsg: string) => {
         clearTimeout(timeout);
+        console.error('[OTP-AUDIT] Firebase phone auth FAILED — likely reCAPTCHA fallback / SHA mismatch / Play Integrity issue', { errorMsg });
         resolve({ success: false, error: errorMsg });
       };
     });
@@ -210,16 +218,20 @@ async function sendOtpNative(phoneNumber: string): Promise<{ success: boolean; e
 
     return await resultPromise;
   } catch (error: any) {
-    console.error('❌ Native sendOtp error:', error);
-    
+    const code = error?.code || '';
+    const msg = error?.message || '';
+    console.error('[OTP-AUDIT] Native sendOtp threw — code:', code, 'message:', msg, 'full:', error);
+    if (msg.toLowerCase().includes('recaptcha') || code.includes('recaptcha')) {
+      console.error('[OTP-AUDIT] ⚠️ reCAPTCHA fallback triggered — Firebase could not get Play Integrity attestation. Check SHA-1/SHA-256 fingerprints in Firebase Console for com.didisnow.app.');
+    }
     let errorMessage = 'Failed to send OTP';
-    const msg = error?.message || error?.code || '';
-    if (msg.includes('invalid-phone-number')) {
+    const m = msg || code;
+    if (m.includes('invalid-phone-number')) {
       errorMessage = 'Invalid phone number format';
-    } else if (msg.includes('too-many-requests')) {
+    } else if (m.includes('too-many-requests')) {
       errorMessage = 'Too many attempts. Please try again later.';
-    } else if (msg) {
-      errorMessage = msg;
+    } else if (m) {
+      errorMessage = m;
     }
     
     return { success: false, error: errorMessage };
