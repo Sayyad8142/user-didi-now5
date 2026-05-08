@@ -16,9 +16,20 @@ type SignupData = {
   flatNo?: string;
 };
 
+type ProfileUpdates = {
+  full_name?: string;
+  phone?: string;
+  community?: string;
+  community_id?: string | null;
+  building_id?: string | null;
+  flat_id?: string | null;
+  flat_no?: string;
+};
+
 type BootstrapRequest = {
   phone?: string;
   signupData?: SignupData | null;
+  profileUpdates?: ProfileUpdates | null;
 };
 
 function normalizePhone(raw?: string | null): string {
@@ -242,6 +253,36 @@ serve(async (req) => {
         .select(SELECT_COLS)
         .single();
       if (updated) profile = updated;
+    }
+
+    // 6) Apply explicit profile updates from edit-profile flow
+    const profileUpdates = payload.profileUpdates || null;
+    if (profileUpdates && profile) {
+      const updates: Record<string, unknown> = {};
+      const allowed: (keyof ProfileUpdates)[] = [
+        "full_name", "phone", "community", "community_id", "building_id", "flat_id", "flat_no",
+      ];
+      for (const k of allowed) {
+        const v = profileUpdates[k];
+        if (v !== undefined) updates[k] = v === "" && (k === "community_id" || k === "building_id" || k === "flat_id") ? null : v;
+      }
+      if (Object.keys(updates).length > 0) {
+        updates.updated_at = new Date().toISOString();
+        const { data: updated, error: updErr } = await admin
+          .from("profiles")
+          .update(updates)
+          .eq("id", profile.id)
+          .select(SELECT_COLS)
+          .single();
+        if (updErr) {
+          console.error("[bootstrap-profile] profileUpdates error", updErr);
+          return jsonResponse({ error: updErr.message || "Profile update failed" }, 500);
+        }
+        if (!updated) {
+          return jsonResponse({ error: "No profile row updated" }, 404);
+        }
+        profile = updated;
+      }
     }
 
     return jsonResponse({ profile });
