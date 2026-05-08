@@ -362,12 +362,41 @@ const ActiveBookingCard = memo(() => {
     const auth = getAuth();
     const token = await auth.currentUser?.getIdToken();
     if (!token) throw new Error('Not authenticated');
-    const { data, error } = await supabase.functions.invoke('submit-worker-rating', {
-      body: { booking_id: activeBooking.id, rating, comment: comment ?? null },
-      headers: { 'x-firebase-token': token },
-    });
-    if (error) throw error;
-    if (data?.error) throw new Error(data.error);
+
+    // Function is deployed on Lovable Cloud, not on api.didisnow.com.
+    const { LOVABLE_CLOUD_FUNCTIONS_URL, PRODUCTION_ANON_KEY } = await import('@/lib/constants');
+    const { resolveBackendUrl } = await import('@/lib/backendResolver');
+    const backendUrl = await resolveBackendUrl().catch(() => null);
+    const candidates = [
+      `${LOVABLE_CLOUD_FUNCTIONS_URL}/functions/v1/submit-worker-rating`,
+      ...(backendUrl ? [`${backendUrl}/functions/v1/submit-worker-rating`] : []),
+    ].filter((u, i, a) => a.indexOf(u) === i);
+
+    let lastErr: any = null;
+    for (const url of candidates) {
+      try {
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            apikey: PRODUCTION_ANON_KEY,
+            Authorization: `Bearer ${PRODUCTION_ANON_KEY}`,
+            'x-firebase-token': token,
+          },
+          body: JSON.stringify({ booking_id: activeBooking.id, rating, comment: comment ?? null }),
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok || json?.error) {
+          lastErr = new Error(json?.error || `HTTP ${res.status}`);
+          if (res.status !== 404) throw lastErr;
+          continue;
+        }
+        return;
+      } catch (e: any) {
+        lastErr = e;
+      }
+    }
+    throw lastErr || new Error('Could not submit rating');
   };
 
   const handleReachConfirmation = async (reached: boolean) => {
