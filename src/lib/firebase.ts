@@ -225,13 +225,13 @@ async function sendOtpNative(phoneNumber: string): Promise<{ success: boolean; e
       console.error('[OTP-AUDIT] ⚠️ reCAPTCHA fallback triggered — Firebase could not get Play Integrity attestation. Check SHA-1/SHA-256 fingerprints in Firebase Console for com.didisnow.app.');
     }
     let errorMessage = 'Failed to send OTP';
-    const msg = error?.message || error?.code || '';
-    if (msg.includes('invalid-phone-number')) {
+    const m = msg || code;
+    if (m.includes('invalid-phone-number')) {
       errorMessage = 'Invalid phone number format';
-    } else if (msg.includes('too-many-requests')) {
+    } else if (m.includes('too-many-requests')) {
       errorMessage = 'Too many attempts. Please try again later.';
-    } else if (msg) {
-      errorMessage = msg;
+    } else if (m) {
+      errorMessage = m;
     }
     
     return { success: false, error: errorMessage };
