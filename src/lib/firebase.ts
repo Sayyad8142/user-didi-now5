@@ -203,11 +203,13 @@ async function sendOtpNative(phoneNumber: string): Promise<{ success: boolean; e
 
       nativePhoneCodeSentResolver = (_verificationId: string) => {
         clearTimeout(timeout);
+        console.log('[OTP-AUDIT] OTP sent event received (phoneCodeSent)');
         resolve({ success: true });
       };
 
       nativeVerificationFailedResolver = (errorMsg: string) => {
         clearTimeout(timeout);
+        console.error('[OTP-AUDIT] Firebase phone auth FAILED — likely reCAPTCHA fallback / SHA mismatch / Play Integrity issue', { errorMsg });
         resolve({ success: false, error: errorMsg });
       };
     });
