@@ -185,7 +185,13 @@ async function sendOtpNative(phoneNumber: string): Promise<{ success: boolean; e
     await registerNativeListeners();
     const { FirebaseAuthentication } = await import('@capacitor-firebase/authentication');
 
-    console.log('📱 Native: sending OTP to', phoneNumber);
+    console.log('[OTP-AUDIT] sendOtpNative — start', {
+      phoneNumber,
+      platform: Capacitor.getPlatform(),
+      nativeAuthAvailable: true,
+      packageName: 'com.didisnow.app',
+    });
+    console.log('[OTP-AUDIT] Firebase phone auth started (native plugin)');
 
     const resultPromise = new Promise<{ success: boolean; error?: string }>((resolve) => {
       const timeout = setTimeout(() => {
