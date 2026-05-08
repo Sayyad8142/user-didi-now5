@@ -102,35 +102,39 @@ export default function Profile() {
       return;
     }
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          full_name: editForm.full_name,
-          phone: editForm.phone,
-          community: editForm.community,
-          community_id: editForm.community_id || null,
-          building_id: editForm.building_id || null,
-          flat_id: editForm.flat_id || null,
-          flat_no: editForm.flat_no,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', profile?.id);
+      const { updateProfileViaEdge } = await import('@/lib/profileBootstrap');
+      const updated = await updateProfileViaEdge({
+        full_name: editForm.full_name,
+        phone: editForm.phone,
+        community: editForm.community,
+        community_id: editForm.community_id || null,
+        building_id: editForm.building_id || null,
+        flat_id: editForm.flat_id || null,
+        flat_no: editForm.flat_no,
+      });
 
-      if (error) throw error;
+      if (!updated || !updated.id) {
+        throw new Error('Profile update failed');
+      }
+
+      // Overwrite local cache so reopen shows fresh data
+      try {
+        localStorage.setItem('didi.profile.cache.v1', JSON.stringify(updated));
+      } catch {}
 
       setIsEditing(false);
       toast({
         title: 'Profile updated',
         description: 'Your profile information has been updated successfully'
       });
-      
-      // Refresh the page to show updated data
-      window.location.reload();
-    } catch (error) {
+
+      // Refresh context (no full page reload)
+      await refresh();
+    } catch (error: any) {
       console.error('Error updating profile:', error);
       toast({
         title: 'Error',
-        description: 'Failed to update profile',
+        description: error?.message || 'Failed to update profile',
         variant: 'destructive'
       });
     }
