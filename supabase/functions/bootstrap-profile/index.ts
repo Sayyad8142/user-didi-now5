@@ -16,9 +16,20 @@ type SignupData = {
   flatNo?: string;
 };
 
+type ProfileUpdates = {
+  full_name?: string;
+  phone?: string;
+  community?: string;
+  community_id?: string | null;
+  building_id?: string | null;
+  flat_id?: string | null;
+  flat_no?: string;
+};
+
 type BootstrapRequest = {
   phone?: string;
   signupData?: SignupData | null;
+  profileUpdates?: ProfileUpdates | null;
 };
 
 function normalizePhone(raw?: string | null): string {
