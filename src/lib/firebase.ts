@@ -40,8 +40,14 @@ let confirmationResult: ConfirmationResult | null = null;
 // Native OTP state
 let nativeVerificationId: string | null = null;
 let nativePhoneCodeSentResolver: ((verificationId: string) => void) | null = null;
-let nativeVerificationFailedResolver: ((error: string) => void) | null = null;
+let nativeVerificationFailedResolver: ((error: { message: string; code?: string }) => void) | null = null;
 let nativeListenersRegistered = false;
+
+const OTP_AUDIT_ANDROID_CONFIG = {
+  expectedPackageName: 'com.didisnow.app',
+  expectedFirebaseProjectId: 'didinowusernew',
+  expectedFirebaseProjectNumber: '767811736462',
+};
 
 // Check if Firebase is configured
 export const isFirebaseConfigured = (): boolean => {
@@ -160,9 +166,14 @@ async function registerNativeListeners(): Promise<void> {
     });
 
     FirebaseAuthentication.addListener('phoneVerificationFailed', (event) => {
-      console.error('❌ Native: phoneVerificationFailed:', event.message);
+      const code = (event as any)?.code || (event as any)?.errorCode;
+      console.error('[OTP-AUDIT] Native phoneVerificationFailed event', {
+        code,
+        message: event.message,
+        hint: 'If a Chrome/WebView “not a robot” screen appeared before this, it was opened by Firebase Android SDK attestation fallback, not by our Web SDK path.',
+      });
       if (nativeVerificationFailedResolver) {
-        nativeVerificationFailedResolver(event.message || 'Phone verification failed');
+        nativeVerificationFailedResolver({ message: event.message || 'Phone verification failed', code });
         nativeVerificationFailedResolver = null;
       }
     });
@@ -181,17 +192,36 @@ async function registerNativeListeners(): Promise<void> {
 }
 
 async function sendOtpNative(phoneNumber: string): Promise<{ success: boolean; error?: string }> {
+  let appStateListener: { remove: () => Promise<void> } | null = null;
   try {
     await registerNativeListeners();
     const { FirebaseAuthentication } = await import('@capacitor-firebase/authentication');
+
+    try {
+      const { App } = await import('@capacitor/app');
+      appStateListener = await App.addListener('appStateChange', ({ isActive }) => {
+        console.warn('[OTP-AUDIT] Android app state changed during native OTP', {
+          isActive,
+          browserOrCustomTabLikelyOpened: !isActive,
+          meaning: !isActive
+            ? 'Firebase Android SDK likely opened the reCAPTCHA/attestation custom tab fallback.'
+            : 'Returned from external Firebase verification UI.',
+        });
+      });
+    } catch (listenerError) {
+      console.warn('[OTP-AUDIT] Could not attach appStateChange popup detector', listenerError);
+    }
 
     console.log('[OTP-AUDIT] sendOtpNative — start', {
       phoneNumber,
       platform: Capacitor.getPlatform(),
       nativeAuthAvailable: true,
-      packageName: 'com.didisnow.app',
+      packageName: OTP_AUDIT_ANDROID_CONFIG.expectedPackageName,
+      firebaseProjectId: OTP_AUDIT_ANDROID_CONFIG.expectedFirebaseProjectId,
+      firebaseProjectNumber: OTP_AUDIT_ANDROID_CONFIG.expectedFirebaseProjectNumber,
     });
-    console.log('[OTP-AUDIT] Firebase phone auth started (native plugin)');
+    console.log('[OTP-AUDIT] NATIVE_AUTH_PATH_SELECTED — Firebase Android SDK via @capacitor-firebase/authentication');
+    console.log('[OTP-AUDIT] Firebase phone auth plugin called');
 
     const resultPromise = new Promise<{ success: boolean; error?: string }>((resolve) => {
       const timeout = setTimeout(() => {
@@ -207,22 +237,29 @@ async function sendOtpNative(phoneNumber: string): Promise<{ success: boolean; e
         resolve({ success: true });
       };
 
-      nativeVerificationFailedResolver = (errorMsg: string) => {
+      nativeVerificationFailedResolver = ({ message, code }) => {
         clearTimeout(timeout);
-        console.error('[OTP-AUDIT] Firebase phone auth FAILED — likely reCAPTCHA fallback / SHA mismatch / Play Integrity issue', { errorMsg });
-        resolve({ success: false, error: errorMsg });
+        console.error('[OTP-AUDIT] Firebase phone auth FAILED — likely reCAPTCHA fallback / SHA mismatch / Play Integrity issue', { code, message });
+        resolve({ success: false, error: message });
       };
     });
 
     await FirebaseAuthentication.signInWithPhoneNumber({ phoneNumber });
 
-    return await resultPromise;
+    const result = await resultPromise;
+    if (appStateListener) {
+      try { await appStateListener.remove(); } catch {}
+    }
+    return result;
   } catch (error: any) {
     const code = error?.code || '';
     const msg = error?.message || '';
     console.error('[OTP-AUDIT] Native sendOtp threw — code:', code, 'message:', msg, 'full:', error);
     if (msg.toLowerCase().includes('recaptcha') || code.includes('recaptcha')) {
       console.error('[OTP-AUDIT] ⚠️ reCAPTCHA fallback triggered — Firebase could not get Play Integrity attestation. Check SHA-1/SHA-256 fingerprints in Firebase Console for com.didisnow.app.');
+    }
+    if (appStateListener) {
+      try { await appStateListener.remove(); } catch {}
     }
     let errorMessage = 'Failed to send OTP';
     const m = msg || code;
@@ -321,6 +358,12 @@ const purgeRecaptchaDom = (containerId: string) => {
 
 // Setup invisible reCAPTCHA verifier — works on ALL platforms (web + Capacitor webview)
 export const setupRecaptcha = async (containerId: string = 'recaptcha-container'): Promise<RecaptchaVerifier | null> => {
+  console.warn('[OTP-AUDIT] WEB_RECAPTCHA_SETUP_REQUESTED', {
+    platform: Capacitor.getPlatform(),
+    nativePlatform: isNativePlatform(),
+    containerId,
+    meaning: 'If this appears on Android APK, the app selected Firebase Web SDK path instead of native phone auth.',
+  });
   const authInstance = getFirebaseAuth();
   if (!authInstance) {
     console.error('❌ Auth not available for reCAPTCHA');
@@ -407,6 +450,12 @@ async function sendOtpWeb(
   phoneNumber: string,
   containerId: string = 'recaptcha-container'
 ): Promise<{ success: boolean; error?: string }> {
+  console.warn('[OTP-AUDIT] WEB_AUTH_PATH_SELECTED — Firebase Web SDK signInWithPhoneNumber + RecaptchaVerifier', {
+    platform: Capacitor.getPlatform(),
+    nativePlatform: isNativePlatform(),
+    containerId,
+    phoneNumber,
+  });
   const authInstance = getFirebaseAuth();
   if (!authInstance) {
     return { success: false, error: 'Firebase Auth not initialized' };
@@ -419,13 +468,14 @@ async function sendOtpWeb(
       return { success: false, error: 'Failed to setup reCAPTCHA. Please refresh and try again.' };
     }
 
+    console.warn('[OTP-AUDIT] Firebase Web signInWithPhoneNumber called — this path can show reCAPTCHA UI');
     console.log('🌐 Web: Sending OTP to:', phoneNumber);
     confirmationResult = await signInWithPhoneNumber(authInstance, phoneNumber, verifier);
     console.log('✅ Web: OTP sent successfully');
 
     return { success: true };
   } catch (error: any) {
-    console.error('❌ Web sendOtp error:', error?.code, error?.message);
+    console.error('[OTP-AUDIT] Web Firebase phone auth FAILED', { code: error?.code, message: error?.message, full: error });
 
     // Clear stale verifier so next attempt rebuilds
     if (recaptchaVerifier) {
@@ -509,10 +559,22 @@ export const sendOtp = async (
   const platform = Capacitor.getPlatform();
   const phone = normalizePhone(phoneNumber);
   const useNative = await isNativeAuthAvailable();
-  console.log(`[OTP-AUDIT] sendOtp (Firebase) — platform=${platform}, native=${useNative}, phone=${phone}`);
+  console.log('[OTP-AUDIT] sendOtp route decision', {
+    platform,
+    nativePlatform: isNativePlatform(),
+    nativeAuthAvailable: useNative,
+    selectedPath: useNative ? 'native-android-plugin' : 'web-sdk-recaptcha',
+    phone,
+    expectedPackageName: OTP_AUDIT_ANDROID_CONFIG.expectedPackageName,
+    expectedFirebaseProjectId: OTP_AUDIT_ANDROID_CONFIG.expectedFirebaseProjectId,
+    expectedFirebaseProjectNumber: OTP_AUDIT_ANDROID_CONFIG.expectedFirebaseProjectNumber,
+  });
 
   if (useNative) {
     return sendOtpNative(phone);
+  }
+  if (platform === 'android') {
+    console.error('[OTP-AUDIT] Android selected WEB SDK path. That means native FirebaseAuthentication plugin is missing/unavailable in this APK, so RecaptchaVerifier will run.');
   }
   return sendOtpWeb(phone, containerId);
 };
