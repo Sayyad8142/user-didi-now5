@@ -20,6 +20,16 @@ export interface BootstrappedProfile {
   firebase_uid?: string | null;
 }
 
+export interface ProfileUpdates {
+  full_name?: string;
+  phone?: string;
+  community?: string;
+  community_id?: string | null;
+  building_id?: string | null;
+  flat_id?: string | null;
+  flat_no?: string;
+}
+
 export interface BootstrapInput {
   phone?: string | null;
   signupData?: {
@@ -30,6 +40,7 @@ export interface BootstrapInput {
     flatId?: string | null;
     flatNo?: string;
   } | null;
+  profileUpdates?: ProfileUpdates | null;
 }
 
 export interface BootstrapAttempt {
