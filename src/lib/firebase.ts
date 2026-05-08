@@ -559,10 +559,22 @@ export const sendOtp = async (
   const platform = Capacitor.getPlatform();
   const phone = normalizePhone(phoneNumber);
   const useNative = await isNativeAuthAvailable();
-  console.log(`[OTP-AUDIT] sendOtp (Firebase) — platform=${platform}, native=${useNative}, phone=${phone}`);
+  console.log('[OTP-AUDIT] sendOtp route decision', {
+    platform,
+    nativePlatform: isNativePlatform(),
+    nativeAuthAvailable: useNative,
+    selectedPath: useNative ? 'native-android-plugin' : 'web-sdk-recaptcha',
+    phone,
+    expectedPackageName: OTP_AUDIT_ANDROID_CONFIG.expectedPackageName,
+    expectedFirebaseProjectId: OTP_AUDIT_ANDROID_CONFIG.expectedFirebaseProjectId,
+    expectedFirebaseProjectNumber: OTP_AUDIT_ANDROID_CONFIG.expectedFirebaseProjectNumber,
+  });
 
   if (useNative) {
     return sendOtpNative(phone);
+  }
+  if (platform === 'android') {
+    console.error('[OTP-AUDIT] Android selected WEB SDK path. That means native FirebaseAuthentication plugin is missing/unavailable in this APK, so RecaptchaVerifier will run.');
   }
   return sendOtpWeb(phone, containerId);
 };
