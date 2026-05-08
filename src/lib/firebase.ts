@@ -40,8 +40,14 @@ let confirmationResult: ConfirmationResult | null = null;
 // Native OTP state
 let nativeVerificationId: string | null = null;
 let nativePhoneCodeSentResolver: ((verificationId: string) => void) | null = null;
-let nativeVerificationFailedResolver: ((error: string) => void) | null = null;
+let nativeVerificationFailedResolver: ((error: { message: string; code?: string }) => void) | null = null;
 let nativeListenersRegistered = false;
+
+const OTP_AUDIT_ANDROID_CONFIG = {
+  expectedPackageName: 'com.didisnow.app',
+  expectedFirebaseProjectId: 'didinowusernew',
+  expectedFirebaseProjectNumber: '767811736462',
+};
 
 // Check if Firebase is configured
 export const isFirebaseConfigured = (): boolean => {
@@ -160,9 +166,14 @@ async function registerNativeListeners(): Promise<void> {
     });
 
     FirebaseAuthentication.addListener('phoneVerificationFailed', (event) => {
-      console.error('❌ Native: phoneVerificationFailed:', event.message);
+      const code = (event as any)?.code || (event as any)?.errorCode;
+      console.error('[OTP-AUDIT] Native phoneVerificationFailed event', {
+        code,
+        message: event.message,
+        hint: 'If a Chrome/WebView “not a robot” screen appeared before this, it was opened by Firebase Android SDK attestation fallback, not by our Web SDK path.',
+      });
       if (nativeVerificationFailedResolver) {
-        nativeVerificationFailedResolver(event.message || 'Phone verification failed');
+        nativeVerificationFailedResolver({ message: event.message || 'Phone verification failed', code });
         nativeVerificationFailedResolver = null;
       }
     });
@@ -185,13 +196,32 @@ async function sendOtpNative(phoneNumber: string): Promise<{ success: boolean; e
     await registerNativeListeners();
     const { FirebaseAuthentication } = await import('@capacitor-firebase/authentication');
 
+    let appStateListener: { remove: () => Promise<void> } | null = null;
+    try {
+      const { App } = await import('@capacitor/app');
+      appStateListener = await App.addListener('appStateChange', ({ isActive }) => {
+        console.warn('[OTP-AUDIT] Android app state changed during native OTP', {
+          isActive,
+          browserOrCustomTabLikelyOpened: !isActive,
+          meaning: !isActive
+            ? 'Firebase Android SDK likely opened the reCAPTCHA/attestation custom tab fallback.'
+            : 'Returned from external Firebase verification UI.',
+        });
+      });
+    } catch (listenerError) {
+      console.warn('[OTP-AUDIT] Could not attach appStateChange popup detector', listenerError);
+    }
+
     console.log('[OTP-AUDIT] sendOtpNative — start', {
       phoneNumber,
       platform: Capacitor.getPlatform(),
       nativeAuthAvailable: true,
-      packageName: 'com.didisnow.app',
+      packageName: OTP_AUDIT_ANDROID_CONFIG.expectedPackageName,
+      firebaseProjectId: OTP_AUDIT_ANDROID_CONFIG.expectedFirebaseProjectId,
+      firebaseProjectNumber: OTP_AUDIT_ANDROID_CONFIG.expectedFirebaseProjectNumber,
     });
-    console.log('[OTP-AUDIT] Firebase phone auth started (native plugin)');
+    console.log('[OTP-AUDIT] NATIVE_AUTH_PATH_SELECTED — Firebase Android SDK via @capacitor-firebase/authentication');
+    console.log('[OTP-AUDIT] Firebase phone auth plugin called');
 
     const resultPromise = new Promise<{ success: boolean; error?: string }>((resolve) => {
       const timeout = setTimeout(() => {
@@ -207,16 +237,20 @@ async function sendOtpNative(phoneNumber: string): Promise<{ success: boolean; e
         resolve({ success: true });
       };
 
-      nativeVerificationFailedResolver = (errorMsg: string) => {
+      nativeVerificationFailedResolver = ({ message, code }) => {
         clearTimeout(timeout);
-        console.error('[OTP-AUDIT] Firebase phone auth FAILED — likely reCAPTCHA fallback / SHA mismatch / Play Integrity issue', { errorMsg });
-        resolve({ success: false, error: errorMsg });
+        console.error('[OTP-AUDIT] Firebase phone auth FAILED — likely reCAPTCHA fallback / SHA mismatch / Play Integrity issue', { code, message });
+        resolve({ success: false, error: message });
       };
     });
 
     await FirebaseAuthentication.signInWithPhoneNumber({ phoneNumber });
 
-    return await resultPromise;
+    const result = await resultPromise;
+    if (appStateListener) {
+      try { await appStateListener.remove(); } catch {}
+    }
+    return result;
   } catch (error: any) {
     const code = error?.code || '';
     const msg = error?.message || '';
