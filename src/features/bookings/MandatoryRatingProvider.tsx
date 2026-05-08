@@ -17,9 +17,14 @@ interface PendingRatingBooking {
   worker_name?: string | null;
   worker_photo_url?: string | null;
   service_type: string;
+  booking_type?: string | null;
   scheduled_date?: string | null;
   scheduled_time?: string | null;
   created_at?: string;
+  completed_at?: string | null;
+  price_inr?: number | null;
+  flat_no?: string | null;
+  community?: string | null;
 }
 
 interface MandatoryRatingContextType {
