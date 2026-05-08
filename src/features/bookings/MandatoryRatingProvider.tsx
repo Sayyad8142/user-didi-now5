@@ -196,138 +196,112 @@ export function MandatoryRatingProvider({ children }: { children: React.ReactNod
       >
         <SheetContent
           side="bottom"
-          className="rounded-t-3xl p-0 max-h-[92vh] overflow-y-auto [&>button.absolute]:hidden"
+          className="rounded-t-2xl p-0 max-h-[88vh] flex flex-col [&>button.absolute]:hidden"
           onPointerDownOutside={(e) => e.preventDefault()}
           onEscapeKeyDown={(e) => e.preventDefault()}
         >
-          {current && (
-            <div className="p-6 space-y-5">
-              {/* Minimize (session only) */}
-              <button
-                onClick={handleMinimize}
-                aria-label="Minimize"
-                className="absolute right-4 top-4 text-muted-foreground hover:text-foreground p-1 rounded-full"
-              >
-                <X className="w-5 h-5" />
-              </button>
+          {current && (() => {
+            const isScheduled = current.booking_type === 'scheduled' && current.scheduled_date && current.scheduled_time;
+            const dt = isScheduled
+              ? new Date(`${current.scheduled_date}T${(current.scheduled_time || '').slice(0, 5)}:00`)
+              : current.completed_at
+                ? new Date(current.completed_at)
+                : current.created_at ? new Date(current.created_at) : null;
+            const dtValid = dt && !isNaN(dt.getTime());
+            const dateStr = dtValid ? dt!.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : '';
+            const timeStr = dtValid ? dt!.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true }) : '';
+            const locStr = [current.flat_no, current.community].filter(Boolean).join(' · ');
+            return (
+              <>
+                <button
+                  onClick={handleMinimize}
+                  aria-label="Minimize"
+                  className="absolute right-3 top-3 text-muted-foreground hover:text-foreground p-1 rounded-full z-10"
+                >
+                  <X className="w-5 h-5" />
+                </button>
 
-              <div className="text-center pt-2">
-                <div className="flex justify-center mb-3">
-                  <WorkerAvatar
-                    photoUrl={current.worker_photo_url}
-                    name={current.worker_name}
-                    size="lg"
-                    className="w-20 h-20 border-2 border-primary/20"
+                <div className="flex-1 overflow-y-auto px-4 pt-4 pb-2 space-y-3">
+                  {/* Header: avatar + name inline */}
+                  <div className="flex items-center gap-3">
+                    <WorkerAvatar
+                      photoUrl={current.worker_photo_url}
+                      name={current.worker_name}
+                      size="lg"
+                      className="border-2 border-primary/20"
+                    />
+                    <div className="min-w-0">
+                      <h2 className="text-lg font-bold text-foreground leading-tight truncate">
+                        Rate {current.worker_name || 'your worker'}
+                      </h2>
+                      <p className="text-[11px] text-muted-foreground">
+                        #{current.id.slice(0, 8).toUpperCase()} · {prettyServiceName(current.service_type)}
+                        {current.booking_type ? ` · ${current.booking_type === 'instant' ? 'Instant' : 'Scheduled'}` : ''}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Compact details row */}
+                  <div className="rounded-xl border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground space-y-1">
+                    {dtValid && (
+                      <div className="flex items-center gap-1.5">
+                        <Calendar className="w-3.5 h-3.5" />
+                        <span>{dateStr} · {timeStr}</span>
+                        {typeof current.price_inr === 'number' && current.price_inr > 0 && (
+                          <span className="ml-auto inline-flex items-center font-semibold text-foreground">
+                            <IndianRupee className="w-3 h-3" />{current.price_inr}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    {locStr && (
+                      <div className="flex items-center gap-1.5">
+                        <MapPin className="w-3.5 h-3.5" />
+                        <span className="truncate">{locStr}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Stars */}
+                  <div className="flex items-center justify-center gap-1.5 pt-1">
+                    {[1, 2, 3, 4, 5].map((n) => (
+                      <button
+                        key={n}
+                        type="button"
+                        onClick={() => setRating(n)}
+                        className="p-0.5 transition-transform active:scale-90"
+                        aria-label={`${n} stars`}
+                      >
+                        <Star
+                          className={`w-9 h-9 ${n <= rating ? 'text-yellow-500' : 'text-gray-300'}`}
+                          fill={n <= rating ? 'currentColor' : 'none'}
+                        />
+                      </button>
+                    ))}
+                  </div>
+
+                  <Textarea
+                    placeholder="Share your experience (optional)"
+                    value={comment}
+                    onChange={(e) => setComment(e.target.value)}
+                    rows={2}
+                    className="text-sm resize-none"
                   />
                 </div>
-                <h2 className="text-xl font-bold text-foreground">
-                  Rate {current.worker_name || 'your worker'}
-                </h2>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Booking #{current.id.slice(0, 8).toUpperCase()}
-                </p>
-              </div>
 
-              {/* Booking details card */}
-              <div className="rounded-2xl border border-border bg-muted/30 p-4 space-y-2.5">
-                <div className="flex items-center gap-2 text-sm text-foreground">
-                  {current.service_type === 'bathroom_cleaning'
-                    ? <ShowerHead className="w-4 h-4 text-primary" />
-                    : <Sparkles className="w-4 h-4 text-primary" />}
-                  <span className="font-semibold">{prettyServiceName(current.service_type)}</span>
-                  {current.booking_type && (
-                    <span className="ml-auto text-[11px] uppercase tracking-wide text-muted-foreground">
-                      {current.booking_type === 'instant' ? 'Instant' : 'Scheduled'}
-                    </span>
-                  )}
-                </div>
-
-                {(() => {
-                  const isScheduled = current.booking_type === 'scheduled' && current.scheduled_date && current.scheduled_time;
-                  const dt = isScheduled
-                    ? new Date(`${current.scheduled_date}T${(current.scheduled_time || '').slice(0, 5)}:00`)
-                    : current.completed_at
-                      ? new Date(current.completed_at)
-                      : current.created_at ? new Date(current.created_at) : null;
-                  if (!dt || isNaN(dt.getTime())) return null;
-                  const dateStr = dt.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
-                  const timeStr = dt.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true });
-                  return (
-                    <>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Calendar className="w-4 h-4" />
-                        <span>{isScheduled ? 'Scheduled for' : 'Completed on'} {dateStr}</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Clock className="w-4 h-4" />
-                        <span>{timeStr}</span>
-                      </div>
-                    </>
-                  );
-                })()}
-
-                {(current.flat_no || current.community) && (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <MapPin className="w-4 h-4" />
-                    <span className="truncate">
-                      {[current.flat_no, current.community].filter(Boolean).join(' · ')}
-                    </span>
-                  </div>
-                )}
-
-                {typeof current.price_inr === 'number' && current.price_inr > 0 && (
-                  <div className="flex items-center gap-2 text-sm text-foreground pt-1 border-t border-border/60">
-                    <IndianRupee className="w-4 h-4 text-primary" />
-                    <span className="font-semibold">₹{current.price_inr}</span>
-                    <span className="text-xs text-muted-foreground">paid for this service</span>
-                  </div>
-                )}
-              </div>
-
-              <p className="text-xs text-center text-muted-foreground italic">
-                Your rating helps us send the best workers to your community.
-              </p>
-
-              <div className="flex items-center justify-center gap-2">
-                {[1, 2, 3, 4, 5].map((n) => (
-                  <button
-                    key={n}
-                    type="button"
-                    onClick={() => setRating(n)}
-                    className="p-1 transition-transform active:scale-90"
-                    aria-label={`${n} stars`}
+                {/* Sticky footer */}
+                <div className="border-t border-border bg-background px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+                  <Button
+                    onClick={handleSubmit}
+                    disabled={!rating || submitting}
+                    className="w-full bg-pink-600 hover:bg-pink-700 text-white h-11 text-sm font-semibold"
                   >
-                    <Star
-                      className={`w-10 h-10 ${
-                        n <= rating ? 'text-yellow-500' : 'text-gray-300'
-                      }`}
-                      fill={n <= rating ? 'currentColor' : 'none'}
-                    />
-                  </button>
-                ))}
-              </div>
-
-              <Textarea
-                placeholder="Share your experience (optional)"
-                value={comment}
-                onChange={(e) => setComment(e.target.value)}
-                rows={3}
-                className="text-sm"
-              />
-
-              <Button
-                onClick={handleSubmit}
-                disabled={!rating || submitting}
-                className="w-full bg-pink-600 hover:bg-pink-700 text-white h-12 text-base font-semibold"
-              >
-                {submitting ? 'Submitting...' : 'Submit Rating'}
-              </Button>
-
-              <p className="text-[11px] text-center text-muted-foreground">
-                You can minimize this for now, but we'll ask again until you rate.
-              </p>
-            </div>
-          )}
+                    {submitting ? 'Submitting...' : 'Submit Rating'}
+                  </Button>
+                </div>
+              </>
+            );
+          })()}
         </SheetContent>
       </Sheet>
     </Ctx.Provider>
