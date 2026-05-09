@@ -1,8 +1,7 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.55.0";
 import { verifyFirebaseToken, extractToken, corsHeaders } from "../_shared/firebaseAuth.ts";
 
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const cleanSecret = (v?: string | null) => (v ? v.trim().replace(/^['"]|['"]$/g, "") : "");
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -28,13 +27,38 @@ Deno.serve(async (req) => {
       );
     }
 
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    // Target the external DB that owns profiles/bookings (matches bootstrap-profile)
+    const supabaseUrl =
+      cleanSecret(Deno.env.get("EXTERNAL_SUPABASE_URL")) ||
+      cleanSecret(Deno.env.get("PROFILES_SUPABASE_URL")) ||
+      "https://paywwbuqycovjopryele.supabase.co";
+    const serviceRoleKey =
+      cleanSecret(Deno.env.get("EXTERNAL_SUPABASE_SERVICE_ROLE_KEY")) ||
+      cleanSecret(Deno.env.get("PROFILES_SUPABASE_SERVICE_ROLE_KEY")) ||
+      cleanSecret(Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"));
 
-    const { data: profile } = await supabase
+    if (!supabaseUrl || !serviceRoleKey) {
+      return new Response(JSON.stringify({ error: "Server misconfigured" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    console.log("[submit-worker-rating] using DB host:", new URL(supabaseUrl).host, "uid:", firebaseUser.uid);
+
+    const supabase = createClient(supabaseUrl, serviceRoleKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+
+    const { data: profile, error: profileErr } = await supabase
       .from("profiles")
       .select("id")
       .eq("firebase_uid", firebaseUser.uid)
       .maybeSingle();
+
+    if (profileErr) {
+      console.error("profile lookup error:", profileErr);
+    }
 
     if (!profile) {
       return new Response(JSON.stringify({ error: "Profile not found" }), {
