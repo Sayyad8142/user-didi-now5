@@ -359,8 +359,8 @@ const ActiveBookingCard = memo(() => {
 
   const handleSubmitRating = async (rating: number, comment?: string) => {
     if (!profile?.id) throw new Error('Not authenticated');
-    const auth = getAuth();
-    const token = await auth.currentUser?.getIdToken();
+    const { getFirebaseIdToken } = await import('@/lib/firebase');
+    const token = await getFirebaseIdToken();
     if (!token) throw new Error('Not authenticated');
 
     // Function is deployed on Lovable Cloud, not on api.didisnow.com.

@@ -153,8 +153,8 @@ export function MandatoryRatingProvider({ children }: { children: React.ReactNod
     if (!current || !rating || !profile?.id) return;
     setSubmitting(true);
     try {
-      const { getAuth } = await import('firebase/auth');
-      const token = await getAuth().currentUser?.getIdToken();
+      const { getFirebaseIdToken } = await import('@/lib/firebase');
+      const token = await getFirebaseIdToken();
       if (!token) throw new Error('Not authenticated');
 
       // submit-worker-rating lives on Lovable Cloud functions host; the main
