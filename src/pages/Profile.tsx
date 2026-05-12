@@ -191,7 +191,7 @@ export default function Profile() {
       window.location.href = '/auth';
     }
   };
-  if (loading) {
+  if (hydrating && !profile?.full_name) {
     return <div className="min-h-screen gradient-bg pb-24">
         <div className="max-w-md mx-auto px-4 py-8 space-y-6">
           <div className="text-center space-y-4">
