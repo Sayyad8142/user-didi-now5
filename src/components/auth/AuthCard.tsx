@@ -18,7 +18,7 @@ import { useBuildings } from '@/hooks/useBuildings';
 import { useFlats } from '@/hooks/useFlats';
 import { isDemoCredentials, setDemoSession, setGuestSession, clearDemoSession } from '@/lib/demo';
 import { SignUpWizard } from './SignUpWizard';
-import { sendOtp, signOut as firebaseSignOut, shouldUseNativeAuth } from '@/lib/firebase';
+import { sendOtp, signOut as firebaseSignOut } from '@/lib/firebase';
 
 export function AuthCard() {
   const navigate = useNavigate();
@@ -162,8 +162,8 @@ export function AuthCard() {
       // matches existing accounts by phone (and firebase_uid) so reinstalls/sign-ins
       // reuse the same profile with zero duplicates.
 
-      // Send OTP via Firebase
-      const result = await sendOtp(formattedPhone, 'recaptcha-container');
+      // Send OTP via Twilio Verify
+      const result = await sendOtp(formattedPhone);
       
       if (!result.success) {
         setErrors({ phone: result.error || 'Failed to send OTP' });
@@ -300,8 +300,6 @@ export function AuthCard() {
           Explore services before signing up
         </p>
 
-        {/* Invisible reCAPTCHA container required by Firebase Phone Auth (web only) */}
-        {!shouldUseNativeAuth() && <div id="recaptcha-container" />}
       </CardContent>
     </Card>
   );

@@ -1,127 +1,75 @@
-// Firebase Configuration for Phone Auth and Web Push
-// OTP delivery + verification: Firebase Phone Auth directly.
-//   - Web / iOS: Firebase Web SDK with invisible reCAPTCHA (signInWithPhoneNumber)
-//   - Android APK: @capacitor-firebase/authentication native plugin (no reCAPTCHA)
-// Identity layer (firebase_uid, getFirebaseIdToken, x-firebase-token, profiles linkage)
-// is unchanged. Phone is normalized to +91XXXXXXXXXX so reinstalls reuse the same
-// Firebase UID and the same profile row — no duplicate accounts.
+// Firebase identity + Web Push only.
+//
+// OTP delivery + verification: Twilio Verify (via `twilio-send-otp` and
+// `twilio-verify-otp` edge functions). Twilio mints a Firebase Custom Token
+// bound to deterministic uid `phone:+91XXXXXXXXXX`; we then call
+// signInWithCustomToken() to get a real Firebase session — so the rest of
+// the app (firebase_uid, getFirebaseIdToken, x-firebase-token, profiles
+// linkage) is unchanged.
+//
+// reCAPTCHA and @capacitor-firebase/authentication are no longer used.
+// `shouldUseNativeAuth` / `getNativeCurrentUser` are kept as no-op stubs so
+// older callers (wallet helpers, AuthGate, AuthProvider) compile and gracefully
+// degrade to the web SDK path everywhere.
 import { initializeApp, FirebaseApp, getApps } from 'firebase/app';
 import {
   getAuth,
   Auth,
-  signInWithPhoneNumber,
   signInWithCustomToken,
-  RecaptchaVerifier,
-  ConfirmationResult,
   onAuthStateChanged,
   User,
-  signOut as firebaseSignOut
+  signOut as firebaseSignOut,
 } from 'firebase/auth';
 import { getMessaging, Messaging, getToken, onMessage, MessagePayload } from 'firebase/messaging';
 import { Capacitor } from '@capacitor/core';
 import { supabase } from '@/integrations/supabase/client';
 
-// Firebase config
 const firebaseConfig = {
-  apiKey: "AIzaSyCJJ7PqGC890D92R5m5P5bHRB7k6AyomKo",
-  authDomain: "didinowusernew.firebaseapp.com",
-  projectId: "didinowusernew",
-  storageBucket: "didinowusernew.firebasestorage.app",
-  messagingSenderId: "767811736462",
-  appId: "1:767811736462:web:b4ac74852f1f56db1ccadf"
+  apiKey: 'AIzaSyCJJ7PqGC890D92R5m5P5bHRB7k6AyomKo',
+  authDomain: 'didinowusernew.firebaseapp.com',
+  projectId: 'didinowusernew',
+  storageBucket: 'didinowusernew.firebasestorage.app',
+  messagingSenderId: '767811736462',
+  appId: '1:767811736462:web:b4ac74852f1f56db1ccadf',
 };
 
 let app: FirebaseApp | null = null;
 let auth: Auth | null = null;
 let messaging: Messaging | null = null;
-let recaptchaVerifier: RecaptchaVerifier | null = null;
-let confirmationResult: ConfirmationResult | null = null;
 
-// Native OTP state
-let nativeVerificationId: string | null = null;
-let nativePhoneCodeSentResolver: ((verificationId: string) => void) | null = null;
-let nativeVerificationFailedResolver: ((error: { message: string; code?: string }) => void) | null = null;
-let nativeListenersRegistered = false;
+// Last phone an OTP was sent to — used by verifyOtp when caller doesn't pass it.
+let lastOtpPhone: string | null = null;
 
-const OTP_AUDIT_ANDROID_CONFIG = {
-  expectedPackageName: 'com.didisnow.app',
-  expectedFirebaseProjectId: 'didinowusernew',
-  expectedFirebaseProjectNumber: '767811736462',
-};
+export const isFirebaseConfigured = (): boolean =>
+  !!(firebaseConfig.apiKey && firebaseConfig.projectId && firebaseConfig.appId);
 
-// Check if Firebase is configured
-export const isFirebaseConfigured = (): boolean => {
-  return !!(
-    firebaseConfig.apiKey &&
-    firebaseConfig.projectId &&
-    firebaseConfig.messagingSenderId &&
-    firebaseConfig.appId
-  );
-};
-
-// Platform checks
+// Platform checks (kept for backward compat with callers).
 export const isNativePlatform = (): boolean => Capacitor.isNativePlatform();
 export const isAndroid = (): boolean => Capacitor.getPlatform() === 'android';
 export const isIOS = (): boolean => Capacitor.getPlatform() === 'ios';
 export const isWeb = (): boolean => !Capacitor.isNativePlatform();
 
-// Whether native Firebase phone auth plugin is available and safe to call.
-// Currently only Android has the plugin implemented; iOS will get it later.
-let _nativeAuthAvailable: boolean | null = null;
-
-export const isNativeAuthAvailable = async (): Promise<boolean> => {
-  if (_nativeAuthAvailable !== null) return _nativeAuthAvailable;
-  if (!isNativePlatform() || !isAndroid()) {
-    _nativeAuthAvailable = false;
-    console.log(`[OTP-AUDIT] isNativeAuthAvailable=false (platform=${Capacitor.getPlatform()}, native=${isNativePlatform()})`);
-    return false;
-  }
-  try {
-    const { FirebaseAuthentication } = await import('@capacitor-firebase/authentication');
-    // Verify plugin is actually registered with Capacitor bridge (not the JS stub)
-    // Capacitor.isPluginAvailable returns false when the Android plugin class isn't compiled in.
-    const registered = Capacitor.isPluginAvailable('FirebaseAuthentication');
-    if (!registered) {
-      console.error('❌ [OTP-AUDIT] FirebaseAuthentication plugin NOT registered in Android bridge. APK was built without `npx cap sync android`.');
-      _nativeAuthAvailable = false;
-      return false;
-    }
-    // Smoke-test: if plugin is a stub this throws
-    await FirebaseAuthentication.getCurrentUser();
-    _nativeAuthAvailable = true;
-    console.log('✅ [OTP-AUDIT] Native FirebaseAuthentication plugin available and registered');
-  } catch (e: any) {
-    console.error('❌ [OTP-AUDIT] Native FirebaseAuthentication not available:', e?.message);
-    _nativeAuthAvailable = false;
-  }
-  return _nativeAuthAvailable;
-};
-
-// Custom error returned when Android APK lacks the native plugin.
-// We refuse to silently fall back to web reCAPTCHA — that opens an external
-// browser/Custom Tab which breaks the in-app OTP UX.
+// ─── Native plugin shims (no-op — Twilio path is used everywhere) ─────
+export interface NativeAuthUser {
+  uid: string;
+  phoneNumber: string | null;
+}
+export const shouldUseNativeAuth = (): boolean => false;
+export const isNativeAuthAvailable = async (): Promise<boolean> => false;
+export const getNativeCurrentUser = async (): Promise<NativeAuthUser | null> => null;
 export const NATIVE_PLUGIN_MISSING_ERROR =
-  'Native Firebase Auth plugin is not available in this build. Please rebuild APK after `npx cap sync android`.';
+  'Native Firebase Auth plugin is not used in this build (Twilio OTP flow).';
 
-// Synchronous best-guess: Android native = true, everything else = false.
-// Use this for UI decisions (e.g. hiding reCAPTCHA container).
-export const shouldUseNativeAuth = (): boolean => isNativePlatform() && isAndroid();
-
-// Initialize Firebase (lazy, singleton)
+// ─── Firebase init ────────────────────────────────────────────────────
 export const getFirebaseApp = (): FirebaseApp | null => {
   if (!isFirebaseConfigured()) {
     console.warn('⚠️ Firebase not configured');
     return null;
   }
-  
   if (!app) {
     try {
-      const existingApps = getApps();
-      if (existingApps.length > 0) {
-        app = existingApps[0];
-      } else {
-        app = initializeApp(firebaseConfig);
-      }
+      const existing = getApps();
+      app = existing.length > 0 ? existing[0] : initializeApp(firebaseConfig);
       console.log('✅ Firebase initialized');
     } catch (error) {
       console.error('❌ Firebase init error:', error);
@@ -131,14 +79,12 @@ export const getFirebaseApp = (): FirebaseApp | null => {
   return app;
 };
 
-// Get Firebase Auth instance
 export const getFirebaseAuth = (): Auth | null => {
-  const firebaseApp = getFirebaseApp();
-  if (!firebaseApp) return null;
-  
+  const a = getFirebaseApp();
+  if (!a) return null;
   if (!auth) {
     try {
-      auth = getAuth(firebaseApp);
+      auth = getAuth(a);
       console.log('✅ Firebase Auth initialized');
     } catch (error) {
       console.error('❌ Firebase Auth init error:', error);
@@ -148,400 +94,8 @@ export const getFirebaseAuth = (): Auth | null => {
   return auth;
 };
 
-// ─── Native Firebase Auth (Android/iOS) ──────────────────────────────
+// ─── OTP via Twilio + Firebase Custom Token ───────────────────────────
 
-async function registerNativeListeners(): Promise<void> {
-  if (nativeListenersRegistered) return;
-  
-  try {
-    const { FirebaseAuthentication } = await import('@capacitor-firebase/authentication');
-    
-    FirebaseAuthentication.addListener('phoneCodeSent', (event) => {
-      console.log('✅ Native: phoneCodeSent, verificationId:', event.verificationId?.substring(0, 20));
-      nativeVerificationId = event.verificationId;
-      if (nativePhoneCodeSentResolver) {
-        nativePhoneCodeSentResolver(event.verificationId);
-        nativePhoneCodeSentResolver = null;
-      }
-    });
-
-    FirebaseAuthentication.addListener('phoneVerificationFailed', (event) => {
-      const code = (event as any)?.code || (event as any)?.errorCode;
-      console.error('[OTP-AUDIT] Native phoneVerificationFailed event', {
-        code,
-        message: event.message,
-        hint: 'If a Chrome/WebView “not a robot” screen appeared before this, it was opened by Firebase Android SDK attestation fallback, not by our Web SDK path.',
-      });
-      if (nativeVerificationFailedResolver) {
-        nativeVerificationFailedResolver({ message: event.message || 'Phone verification failed', code });
-        nativeVerificationFailedResolver = null;
-      }
-    });
-
-    // Auto-verification (Android) — user doesn't even type OTP
-    FirebaseAuthentication.addListener('phoneVerificationCompleted', async (event) => {
-      console.log('✅ Native: phoneVerificationCompleted (auto-verify)');
-      // The credential is auto-applied; the Firebase Web SDK onAuthStateChanged will fire
-    });
-
-    nativeListenersRegistered = true;
-    console.log('✅ Native Firebase auth listeners registered');
-  } catch (error) {
-    console.error('❌ Failed to register native listeners:', error);
-  }
-}
-
-async function sendOtpNative(phoneNumber: string): Promise<{ success: boolean; error?: string }> {
-  let appStateListener: { remove: () => Promise<void> } | null = null;
-  try {
-    await registerNativeListeners();
-    const { FirebaseAuthentication } = await import('@capacitor-firebase/authentication');
-
-    try {
-      const { App } = await import('@capacitor/app');
-      appStateListener = await App.addListener('appStateChange', ({ isActive }) => {
-        console.warn('[OTP-AUDIT] Android app state changed during native OTP', {
-          isActive,
-          browserOrCustomTabLikelyOpened: !isActive,
-          meaning: !isActive
-            ? 'Firebase Android SDK likely opened the reCAPTCHA/attestation custom tab fallback.'
-            : 'Returned from external Firebase verification UI.',
-        });
-      });
-    } catch (listenerError) {
-      console.warn('[OTP-AUDIT] Could not attach appStateChange popup detector', listenerError);
-    }
-
-    console.log('[OTP-AUDIT] sendOtpNative — start', {
-      phoneNumber,
-      platform: Capacitor.getPlatform(),
-      nativeAuthAvailable: true,
-      packageName: OTP_AUDIT_ANDROID_CONFIG.expectedPackageName,
-      firebaseProjectId: OTP_AUDIT_ANDROID_CONFIG.expectedFirebaseProjectId,
-      firebaseProjectNumber: OTP_AUDIT_ANDROID_CONFIG.expectedFirebaseProjectNumber,
-    });
-    console.log('[OTP-AUDIT] NATIVE_AUTH_PATH_SELECTED — Firebase Android SDK via @capacitor-firebase/authentication');
-    console.log('[OTP-AUDIT] Firebase phone auth plugin called');
-
-    const resultPromise = new Promise<{ success: boolean; error?: string }>((resolve) => {
-      const timeout = setTimeout(() => {
-        nativePhoneCodeSentResolver = null;
-        nativeVerificationFailedResolver = null;
-        console.warn('⏰ Native OTP: timeout');
-        resolve({ success: false, error: 'OTP request timed out. Please try again.' });
-      }, 30000);
-
-      nativePhoneCodeSentResolver = (_verificationId: string) => {
-        clearTimeout(timeout);
-        console.log('[OTP-AUDIT] OTP sent event received (phoneCodeSent)');
-        resolve({ success: true });
-      };
-
-      nativeVerificationFailedResolver = ({ message, code }) => {
-        clearTimeout(timeout);
-        console.error('[OTP-AUDIT] Firebase phone auth FAILED — likely reCAPTCHA fallback / SHA mismatch / Play Integrity issue', { code, message });
-        resolve({ success: false, error: message });
-      };
-    });
-
-    await FirebaseAuthentication.signInWithPhoneNumber({ phoneNumber });
-
-    const result = await resultPromise;
-    if (appStateListener) {
-      try { await appStateListener.remove(); } catch {}
-    }
-    return result;
-  } catch (error: any) {
-    const code = error?.code || '';
-    const msg = error?.message || '';
-    console.error('[OTP-AUDIT] Native sendOtp threw — code:', code, 'message:', msg, 'full:', error);
-    if (msg.toLowerCase().includes('recaptcha') || code.includes('recaptcha')) {
-      console.error('[OTP-AUDIT] ⚠️ reCAPTCHA fallback triggered — Firebase could not get Play Integrity attestation. Check SHA-1/SHA-256 fingerprints in Firebase Console for com.didisnow.app.');
-    }
-    if (appStateListener) {
-      try { await appStateListener.remove(); } catch {}
-    }
-    let errorMessage = 'Failed to send OTP';
-    const m = msg || code;
-    if (m.includes('invalid-phone-number')) {
-      errorMessage = 'Invalid phone number format';
-    } else if (m.includes('too-many-requests')) {
-      errorMessage = 'Too many attempts. Please try again later.';
-    } else if (m) {
-      errorMessage = m;
-    }
-    
-    return { success: false, error: errorMessage };
-  }
-}
-
-// Native user info — used across auth layer
-export interface NativeAuthUser {
-  uid: string;
-  phoneNumber: string | null;
-}
-
-async function verifyOtpNative(code: string): Promise<{ success: boolean; user?: User; nativeUser?: NativeAuthUser; error?: string }> {
-  if (!nativeVerificationId) {
-    return { success: false, error: 'No OTP request found. Please request OTP first.' };
-  }
-
-  try {
-    const { FirebaseAuthentication } = await import('@capacitor-firebase/authentication');
-
-    console.log('🔐 Native: verifying OTP...');
-    
-    // Confirm the verification code using ONLY the native plugin
-    await FirebaseAuthentication.confirmVerificationCode({
-      verificationId: nativeVerificationId,
-      verificationCode: code,
-    });
-
-    nativeVerificationId = null;
-    console.log('✅ Native: OTP verified');
-
-    // Get user info from native plugin — NO web SDK signInWithCredential
-    const nativeUserResult = await FirebaseAuthentication.getCurrentUser();
-    const nativeUser: NativeAuthUser = {
-      uid: nativeUserResult.user?.uid || '',
-      phoneNumber: nativeUserResult.user?.phoneNumber || null,
-    };
-
-    console.log('✅ Native user:', nativeUser.uid, nativeUser.phoneNumber);
-
-    // The plugin auto-syncs native auth state to web SDK,
-    // so onAuthStateChanged will fire shortly. But we return
-    // native user info immediately for profile creation.
-    return { success: true, nativeUser };
-  } catch (error: any) {
-    console.error('❌ Native verifyOtp error:', error);
-
-    let errorMessage = 'Invalid OTP';
-    const msg = error?.message || error?.code || '';
-    if (msg.includes('invalid-verification-code') || msg.includes('INVALID_CODE')) {
-      errorMessage = 'Invalid verification code. Please try again.';
-    } else if (msg.includes('code-expired') || msg.includes('SESSION_EXPIRED')) {
-      errorMessage = 'OTP has expired. Please request a new one.';
-    } else if (msg) {
-      errorMessage = msg;
-    }
-
-    return { success: false, error: errorMessage };
-  }
-}
-
-// ─── Web Firebase Auth (reCAPTCHA) ───────────────────────────────────
-
-// Fully purge reCAPTCHA artifacts that Google injects into <body> (badge,
-// challenge iframes, script-injected divs). Without this, calling render()
-// a second time after a failed/stale OTP attempt throws and we surface the
-// generic "Failed to setup reCAPTCHA" error to the user.
-const purgeRecaptchaDom = (containerId: string) => {
-  try {
-    const container = document.getElementById(containerId);
-    if (container) container.innerHTML = '';
-
-    // Google injects these directly into <body> — they are NOT inside our container
-    document.querySelectorAll('.grecaptcha-badge').forEach((n) => n.remove());
-    document.querySelectorAll('iframe[src*="recaptcha"]').forEach((n) => n.remove());
-    document.querySelectorAll('iframe[title*="recaptcha" i]').forEach((n) => n.remove());
-
-    // Reset the global grecaptcha singleton so a fresh widget id can be issued
-    const w = window as any;
-    if (w.___grecaptcha_cfg) {
-      try { delete w.___grecaptcha_cfg; } catch { w.___grecaptcha_cfg = undefined; }
-    }
-  } catch (e) {
-    console.warn('purgeRecaptchaDom warning:', e);
-  }
-};
-
-// Setup invisible reCAPTCHA verifier — works on ALL platforms (web + Capacitor webview)
-export const setupRecaptcha = async (containerId: string = 'recaptcha-container'): Promise<RecaptchaVerifier | null> => {
-  console.warn('[OTP-AUDIT] WEB_RECAPTCHA_SETUP_REQUESTED', {
-    platform: Capacitor.getPlatform(),
-    nativePlatform: isNativePlatform(),
-    containerId,
-    meaning: 'If this appears on Android APK, the app selected Firebase Web SDK path instead of native phone auth.',
-  });
-  const authInstance = getFirebaseAuth();
-  if (!authInstance) {
-    console.error('❌ Auth not available for reCAPTCHA');
-    return null;
-  }
-
-  // Clear any existing verifier
-  if (recaptchaVerifier) {
-    try { recaptchaVerifier.clear(); } catch {}
-    recaptchaVerifier = null;
-  }
-
-  // Remove stale DOM/global artifacts from previous attempts BEFORE we look up the container
-  purgeRecaptchaDom(containerId);
-
-  // Wait one tick to let React re-render the container (it may have been removed
-  // by a previous tab switch and just re-mounted on this attempt).
-  await new Promise((r) => setTimeout(r, 0));
-
-  const tryCreate = async (): Promise<RecaptchaVerifier | null> => {
-    const container = document.getElementById(containerId);
-    if (!container) {
-      console.error('❌ reCAPTCHA container element not found:', containerId);
-      return null;
-    }
-
-    container.innerHTML = '';
-    console.log('[auth] setupRecaptcha start — container found:', containerId);
-
-    const verifier = new RecaptchaVerifier(authInstance, containerId, {
-      size: 'invisible',
-      callback: () => {
-        console.log('✅ reCAPTCHA solved');
-      },
-      'expired-callback': () => {
-        console.log('⚠️ reCAPTCHA expired, will re-create on next send');
-        if (recaptchaVerifier) {
-          try { recaptchaVerifier.clear(); } catch {}
-          recaptchaVerifier = null;
-        }
-      },
-    });
-
-    await verifier.render();
-    return verifier;
-  };
-
-  try {
-    recaptchaVerifier = await tryCreate();
-    if (recaptchaVerifier) {
-      console.log('✅ reCAPTCHA verifier created and rendered');
-      return recaptchaVerifier;
-    }
-    return null;
-  } catch (error) {
-    console.warn('⚠️ reCAPTCHA first attempt failed, retrying after full purge:', error);
-    // Full purge + one retry handles the case where Google left a half-initialized widget
-    if (recaptchaVerifier) {
-      try { recaptchaVerifier.clear(); } catch {}
-      recaptchaVerifier = null;
-    }
-    purgeRecaptchaDom(containerId);
-    await new Promise((r) => setTimeout(r, 50));
-
-    try {
-      recaptchaVerifier = await tryCreate();
-      if (recaptchaVerifier) {
-        console.log('✅ reCAPTCHA verifier created on retry');
-        return recaptchaVerifier;
-      }
-    } catch (retryErr) {
-      console.error('❌ reCAPTCHA setup error (retry failed):', retryErr);
-    }
-
-    if (recaptchaVerifier) {
-      try { recaptchaVerifier.clear(); } catch {}
-      recaptchaVerifier = null;
-    }
-    return null;
-  }
-};
-
-async function sendOtpWeb(
-  phoneNumber: string,
-  containerId: string = 'recaptcha-container'
-): Promise<{ success: boolean; error?: string }> {
-  console.warn('[OTP-AUDIT] WEB_AUTH_PATH_SELECTED — Firebase Web SDK signInWithPhoneNumber + RecaptchaVerifier', {
-    platform: Capacitor.getPlatform(),
-    nativePlatform: isNativePlatform(),
-    containerId,
-    phoneNumber,
-  });
-  const authInstance = getFirebaseAuth();
-  if (!authInstance) {
-    return { success: false, error: 'Firebase Auth not initialized' };
-  }
-
-  try {
-    console.log('[auth] sendOtpWeb: ensuring fresh reCAPTCHA verifier for', containerId);
-    const verifier = await setupRecaptcha(containerId);
-    if (!verifier) {
-      return { success: false, error: 'Failed to setup reCAPTCHA. Please refresh and try again.' };
-    }
-
-    console.warn('[OTP-AUDIT] Firebase Web signInWithPhoneNumber called — this path can show reCAPTCHA UI');
-    console.log('🌐 Web: Sending OTP to:', phoneNumber);
-    confirmationResult = await signInWithPhoneNumber(authInstance, phoneNumber, verifier);
-    console.log('✅ Web: OTP sent successfully');
-
-    return { success: true };
-  } catch (error: any) {
-    console.error('[OTP-AUDIT] Web Firebase phone auth FAILED', { code: error?.code, message: error?.message, full: error });
-
-    // Clear stale verifier so next attempt rebuilds
-    if (recaptchaVerifier) {
-      try { recaptchaVerifier.clear(); } catch {}
-      recaptchaVerifier = null;
-    }
-
-    let errorMessage = 'Failed to send OTP';
-    if (error.code === 'auth/invalid-phone-number') {
-      errorMessage = 'Invalid phone number format';
-    } else if (error.code === 'auth/too-many-requests') {
-      errorMessage = 'Too many attempts. Please try again later.';
-    } else if (error.code === 'auth/captcha-check-failed') {
-      errorMessage = 'reCAPTCHA verification failed. Please try again.';
-    } else if (error.code === 'auth/invalid-app-credential') {
-      errorMessage = 'App credential error. Please try again.';
-    } else if (error.message) {
-      errorMessage = error.message;
-    }
-
-    return { success: false, error: errorMessage };
-  }
-}
-
-function verifyOtpWeb(code: string): Promise<{ success: boolean; user?: User; error?: string }> {
-  return (async () => {
-    if (!confirmationResult) {
-      return { success: false, error: 'No OTP request found. Please request OTP first.' };
-    }
-
-    try {
-      console.log('🔐 Web: Verifying OTP...');
-      const result = await confirmationResult.confirm(code);
-      console.log('✅ Web: OTP verified successfully');
-
-      confirmationResult = null;
-      return { success: true, user: result.user };
-    } catch (error: any) {
-      console.error('❌ Web verifyOtp error:', error);
-
-      let errorMessage = 'Invalid OTP';
-      if (error.code === 'auth/invalid-verification-code') {
-        errorMessage = 'Invalid verification code. Please try again.';
-      } else if (error.code === 'auth/code-expired') {
-        errorMessage = 'OTP has expired. Please request a new one.';
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-
-      return { success: false, error: errorMessage };
-    }
-  })();
-}
-
-// ─── Unified public API (Firebase Phone Auth) ─────────────────────────
-//
-// OTP delivery and verification are handled by Firebase Phone Auth.
-//   - Web (and Capacitor WebView): invisible reCAPTCHA + signInWithPhoneNumber
-//   - Native Android: @capacitor-firebase/authentication plugin (no reCAPTCHA)
-//
-// Firebase remains the identity provider — `firebase_uid`, `getFirebaseIdToken`,
-// `x-firebase-token`, and the `profiles` linkage continue to work unchanged.
-// Phone number is the unique identity (normalized to +91XXXXXXXXXX) — reinstall
-// of the app produces the same Firebase UID, so no duplicate accounts are created.
-
-// Normalize a user-supplied phone to strict E.164 (e.g. +91XXXXXXXXXX).
 const normalizePhone = (raw: string): string => {
   const trimmed = (raw || '').replace(/\s+/g, '');
   if (trimmed.startsWith('+')) return trimmed;
@@ -551,119 +105,111 @@ const normalizePhone = (raw: string): string => {
   return trimmed;
 };
 
-// Send OTP — routes to native plugin on Android APK, web reCAPTCHA flow elsewhere.
+// Send OTP via Twilio Verify. `containerId` is ignored — kept for backward
+// compatibility with old call sites that passed a reCAPTCHA container.
 export const sendOtp = async (
   phoneNumber: string,
-  containerId: string = 'recaptcha-container'
+  _containerId?: string,
 ): Promise<{ success: boolean; error?: string }> => {
-  const platform = Capacitor.getPlatform();
   const phone = normalizePhone(phoneNumber);
-  const useNative = await isNativeAuthAvailable();
-  console.log('[OTP-AUDIT] sendOtp route decision', {
-    platform,
-    nativePlatform: isNativePlatform(),
-    nativeAuthAvailable: useNative,
-    selectedPath: useNative ? 'native-android-plugin' : 'web-sdk-recaptcha',
-    phone,
-    expectedPackageName: OTP_AUDIT_ANDROID_CONFIG.expectedPackageName,
-    expectedFirebaseProjectId: OTP_AUDIT_ANDROID_CONFIG.expectedFirebaseProjectId,
-    expectedFirebaseProjectNumber: OTP_AUDIT_ANDROID_CONFIG.expectedFirebaseProjectNumber,
-  });
+  console.log('[OTP] sendOtp via Twilio', { phone, platform: Capacitor.getPlatform() });
 
-  if (useNative) {
-    return sendOtpNative(phone);
-  }
-  if (platform === 'android') {
-    console.error('[OTP-AUDIT] Android selected WEB SDK path. That means native FirebaseAuthentication plugin is missing/unavailable in this APK, so RecaptchaVerifier will run.');
-  }
-  return sendOtpWeb(phone, containerId);
-};
-
-// Verify OTP — routes to native plugin or web SDK based on which sent the code.
-export const verifyOtp = async (
-  code: string
-): Promise<{ success: boolean; user?: User; nativeUser?: NativeAuthUser; error?: string }> => {
-  const platform = Capacitor.getPlatform();
-  const useNative = await isNativeAuthAvailable();
-  console.log(`[OTP-AUDIT] verifyOtp (Firebase) — platform=${platform}, native=${useNative}`);
-
-  if (!code || !/^\d{4,8}$/.test(code.trim())) {
-    return { success: false, error: 'Invalid verification code' };
-  }
-
-  if (useNative) {
-    return verifyOtpNative(code.trim());
-  }
-  return verifyOtpWeb(code.trim());
-};
-
-// Get current Firebase user (web SDK only — use getNativeCurrentUser for native)
-export const getCurrentUser = (): User | null => {
-  const authInstance = getFirebaseAuth();
-  return authInstance?.currentUser ?? null;
-};
-
-// Get current user from native plugin (async) — only on Android where plugin works
-export const getNativeCurrentUser = async (): Promise<NativeAuthUser | null> => {
-  if (!shouldUseNativeAuth()) return null;
   try {
-    const { FirebaseAuthentication } = await import('@capacitor-firebase/authentication');
-    const result = await FirebaseAuthentication.getCurrentUser();
-    if (result.user) {
-      console.log('📱 Native getCurrentUser:', result.user.uid, result.user.phoneNumber);
-      return { uid: result.user.uid, phoneNumber: result.user.phoneNumber || null };
+    const { data, error } = await supabase.functions.invoke('twilio-send-otp', {
+      body: { phone },
+    });
+
+    if (error) {
+      console.error('[OTP] twilio-send-otp invoke error:', error);
+      // Edge function returns 4xx with { error } in `data` when it's a known failure (e.g. rate limit)
+      const msg =
+        (data && typeof data === 'object' && (data as any).error) ||
+        error.message ||
+        'Failed to send OTP';
+      return { success: false, error: String(msg) };
     }
-    console.log('📱 Native getCurrentUser: no user');
-    return null;
-  } catch (error) {
-    console.error('❌ Native getCurrentUser error:', error);
-    return null;
+    if (!data?.success) {
+      return { success: false, error: data?.error || 'Failed to send OTP' };
+    }
+
+    lastOtpPhone = phone;
+    return { success: true };
+  } catch (e: any) {
+    console.error('[OTP] sendOtp threw:', e);
+    return { success: false, error: e?.message || 'Failed to send OTP' };
   }
 };
 
-// Listen for auth state changes (web SDK)
+// Verify OTP via Twilio, then sign into Firebase with the returned custom token.
+// Backward compatible: callers may pass either (code) or (phone, code).
+export const verifyOtp = async (
+  arg1: string,
+  arg2?: string,
+): Promise<{ success: boolean; user?: User; nativeUser?: NativeAuthUser; error?: string }> => {
+  const phone = normalizePhone(arg2 ? arg1 : (lastOtpPhone || ''));
+  const code = (arg2 ?? arg1 ?? '').trim();
+
+  if (!phone) return { success: false, error: 'Session expired. Please resend OTP.' };
+  if (!/^\d{4,8}$/.test(code)) return { success: false, error: 'Invalid verification code' };
+
+  try {
+    const { data, error } = await supabase.functions.invoke('twilio-verify-otp', {
+      body: { phone, code },
+    });
+
+    if (error) {
+      const msg =
+        (data && typeof data === 'object' && (data as any).error) ||
+        error.message ||
+        'Invalid verification code';
+      return { success: false, error: String(msg) };
+    }
+    if (!data?.success || !data?.firebaseCustomToken) {
+      return { success: false, error: data?.error || 'Verification failed' };
+    }
+
+    const authInstance = getFirebaseAuth();
+    if (!authInstance) return { success: false, error: 'Firebase Auth not initialized' };
+
+    const cred = await signInWithCustomToken(authInstance, data.firebaseCustomToken);
+    lastOtpPhone = null;
+    console.log('✅ Firebase signInWithCustomToken success:', cred.user.uid);
+
+    return { success: true, user: cred.user };
+  } catch (e: any) {
+    console.error('[OTP] verifyOtp threw:', e);
+    return { success: false, error: e?.message || 'Verification failed' };
+  }
+};
+
+// ─── Session helpers ──────────────────────────────────────────────────
+export const getCurrentUser = (): User | null => getFirebaseAuth()?.currentUser ?? null;
+
 export const onFirebaseAuthStateChanged = (callback: (user: User | null) => void): (() => void) => {
-  const authInstance = getFirebaseAuth();
-  if (!authInstance) {
+  const a = getFirebaseAuth();
+  if (!a) {
     console.warn('⚠️ Auth not available for state listener');
     return () => {};
   }
-  
-  return onAuthStateChanged(authInstance, callback);
+  return onAuthStateChanged(a, callback);
 };
 
-// Sign out — native plugin on Android only, web SDK everywhere
 export const signOut = async (): Promise<void> => {
-  if (shouldUseNativeAuth()) {
-    try {
-      const { FirebaseAuthentication } = await import('@capacitor-firebase/authentication');
-      await FirebaseAuthentication.signOut();
-      console.log('✅ Native: signed out');
-    } catch (error) {
-      console.error('❌ Native signOut error:', error);
-    }
-  }
-
-  // Also sign out web SDK (harmless no-op if not initialized on native)
-  const authInstance = getFirebaseAuth();
-  if (authInstance) {
-    await firebaseSignOut(authInstance);
-    console.log('✅ Web SDK: signed out');
+  const a = getFirebaseAuth();
+  if (a) {
+    await firebaseSignOut(a);
+    console.log('✅ Firebase signed out');
   }
 };
 
-// Wait for the Firebase Web SDK auth state to hydrate. Used after returning
-// from external activities (e.g. Razorpay) where the WebView may have been
-// briefly backgrounded and currentUser is momentarily null while Firebase
-// rehydrates from IndexedDB / localStorage.
 export const waitForFirebaseAuthReady = async (timeoutMs = 8000): Promise<User | null> => {
-  const authInstance = getFirebaseAuth();
-  if (!authInstance) return null;
-  if (authInstance.currentUser) return authInstance.currentUser;
+  const a = getFirebaseAuth();
+  if (!a) return null;
+  if (a.currentUser) return a.currentUser;
 
   return new Promise<User | null>((resolve) => {
     let settled = false;
-    const unsubscribe = onAuthStateChanged(authInstance, (user) => {
+    const unsubscribe = onAuthStateChanged(a, (user) => {
       if (user && !settled) {
         settled = true;
         try { unsubscribe(); } catch {}
@@ -674,86 +220,48 @@ export const waitForFirebaseAuthReady = async (timeoutMs = 8000): Promise<User |
       if (!settled) {
         settled = true;
         try { unsubscribe(); } catch {}
-        resolve(authInstance.currentUser);
+        resolve(a.currentUser);
       }
     }, timeoutMs);
   });
 };
 
-// Get Firebase ID token for Supabase.
-// Since the Twilio migration, OTP flow signs into the Firebase Web SDK on every
-// platform via signInWithCustomToken — so the Web SDK is the source of truth.
-// We poll briefly to handle the WebView resume race after Razorpay (Android),
-// and only fall back to the legacy native plugin if a real native user exists.
 export const getFirebaseIdToken = async (forceRefresh = false): Promise<string | null> => {
-  const authInstance = getFirebaseAuth();
-
-  // 1) Fast path — Web SDK already hydrated
-  if (authInstance?.currentUser) {
+  const a = getFirebaseAuth();
+  if (a?.currentUser) {
     try {
-      return await authInstance.currentUser.getIdToken(forceRefresh);
+      return await a.currentUser.getIdToken(forceRefresh);
     } catch (error) {
-      console.error('❌ Error getting Web SDK ID token (will retry):', error);
+      console.error('❌ Error getting ID token (will retry after hydrate):', error);
     }
   }
-
-  // 2) Wait for Web SDK to hydrate (handles Razorpay return on Android, where
-  //    the WebView pause briefly clears currentUser before IndexedDB rehydrates).
-  const hydratedUser = await waitForFirebaseAuthReady(8000);
-  if (hydratedUser) {
+  const hydrated = await waitForFirebaseAuthReady(8000);
+  if (hydrated) {
     try {
-      const tok = await hydratedUser.getIdToken(forceRefresh);
-      if (tok) return tok;
+      return await hydrated.getIdToken(forceRefresh);
     } catch (e) {
       console.error('❌ Error getting ID token after hydration:', e);
     }
-    // One more retry without forceRefresh in case the network just blipped
     try {
-      const tok2 = await hydratedUser.getIdToken(false);
-      if (tok2) return tok2;
+      return await hydrated.getIdToken(false);
     } catch (e) {
       console.error('❌ Error getting ID token (retry):', e);
     }
   }
-
-  // 3) Legacy fallback — pre-Twilio APKs may still hold a native Firebase user.
-  //    Skip entirely if the native plugin has no user (Twilio flow case),
-  //    so we don't waste time on a plugin that will return null.
-  if (shouldUseNativeAuth()) {
-    try {
-      const { FirebaseAuthentication } = await import('@capacitor-firebase/authentication');
-      const native = await FirebaseAuthentication.getCurrentUser().catch(() => null);
-      if (native?.user) {
-        for (let attempt = 0; attempt < 4; attempt++) {
-          const result = await FirebaseAuthentication.getIdToken({ forceRefresh: forceRefresh || attempt > 0 });
-          if (result.token) return result.token;
-          await new Promise((r) => setTimeout(r, 250));
-        }
-      } else {
-        console.log('[OTP-AUDIT] getFirebaseIdToken: no native user (Twilio session) — skipping native fallback');
-      }
-    } catch (error) {
-      console.error('❌ Native getIdToken fallback error:', error);
-    }
-  }
-
   return null;
 };
 
 // ─── Firebase Messaging (Web Push) ───────────────────────────────────
-
 export const getFirebaseMessaging = (): Messaging | null => {
   if (typeof window === 'undefined' || !('serviceWorker' in navigator)) {
     console.warn('⚠️ Service workers not supported');
     return null;
   }
-  
-  const firebaseApp = getFirebaseApp();
-  if (!firebaseApp) return null;
-  
+  const a = getFirebaseApp();
+  if (!a) return null;
   if (!messaging) {
     try {
-      messaging = getMessaging(firebaseApp);
+      messaging = getMessaging(a);
       console.log('✅ Firebase Messaging initialized');
     } catch (error) {
       console.error('❌ Firebase Messaging init error:', error);
@@ -771,33 +279,21 @@ export const getFcmToken = async (): Promise<string | null> => {
     console.error('❌ Messaging not available');
     return null;
   }
-
   try {
-    let registration: ServiceWorkerRegistration;
-    
-    try {
-      registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js', {
-        scope: '/'
-      });
-      console.log('✅ Service worker registered:', registration.scope);
-      await navigator.serviceWorker.ready;
-    } catch (swError) {
-      console.error('❌ Service worker registration failed:', swError);
-      throw swError;
-    }
+    const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js', { scope: '/' });
+    console.log('✅ Service worker registered:', registration.scope);
+    await navigator.serviceWorker.ready;
 
     const token = await getToken(messagingInstance, {
       vapidKey: VAPID_KEY,
       serviceWorkerRegistration: registration,
     });
-
     if (token) {
       console.log('✅ FCM token obtained:', token.substring(0, 20) + '...');
       return token;
-    } else {
-      console.warn('⚠️ No FCM token available');
-      return null;
     }
+    console.warn('⚠️ No FCM token available');
+    return null;
   } catch (error) {
     console.error('❌ Error getting FCM token:', error);
     return null;
@@ -810,7 +306,6 @@ export const onForegroundMessage = (callback: (payload: MessagePayload) => void)
     console.warn('⚠️ Messaging not available for foreground listener');
     return () => {};
   }
-  
   return onMessage(messagingInstance, (payload) => {
     console.log('📩 Foreground message received:', payload);
     callback(payload);
@@ -820,7 +315,6 @@ export const onForegroundMessage = (callback: (payload: MessagePayload) => void)
 export const showForegroundNotification = (payload: MessagePayload): void => {
   const title = payload.data?.title || payload.notification?.title || 'Didi Now';
   const body = payload.data?.body || payload.notification?.body || '';
-  
   if ('Notification' in window && Notification.permission === 'granted') {
     new Notification(title, {
       body,
