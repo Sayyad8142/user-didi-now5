@@ -11,20 +11,37 @@ export default function AccountSettings() {
   const [msg, setMsg] = useState<string>("");
 
   async function downloadData() {
-    setBusy(true); 
+    setBusy(true);
     setMsg("");
     try {
-      const { data, error } = await supabase.rpc("export_my_data");
-      if (error) throw error;
-      
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const fbToken = await getFirebaseIdToken();
+      if (!fbToken) throw new Error("Please sign in again");
+
+      // Resolve profile by firebase_uid, then load bookings
+      const { data: profile, error: pErr } = await supabase
+        .from("profiles")
+        .select("id, full_name, phone, community, flat_no, created_at, updated_at")
+        .eq("firebase_uid", (await import("@/lib/firebase")).getCurrentUser()?.uid ?? "")
+        .maybeSingle();
+      if (pErr) throw pErr;
+      if (!profile) throw new Error("Profile not found");
+
+      const { data: bookings, error: bErr } = await supabase
+        .from("bookings")
+        .select("id, service_type, booking_type, scheduled_date, scheduled_time, status, price_inr, flat_size, family_count, food_pref, community, flat_no, created_at, updated_at")
+        .eq("user_id", profile.id)
+        .order("created_at", { ascending: false });
+      if (bErr) throw bErr;
+
+      const payload = { profile, bookings: bookings ?? [] };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
-      a.href = url; 
-      a.download = "didi-now-my-data.json"; 
+      a.href = url;
+      a.download = "didi-now-my-data.json";
       a.click();
       URL.revokeObjectURL(url);
-      
+
       setMsg("Data downloaded successfully!");
     } catch (e: any) {
       setMsg(e?.message || "Failed to export data");
@@ -37,35 +54,28 @@ export default function AccountSettings() {
     if (!confirm("This will permanently delete your bookings and profile. This cannot be undone. Continue?")) {
       return;
     }
-    
-    setBusy(true); 
+
+    setBusy(true);
     setMsg("");
     try {
-      // 1) purge database rows first
-      const { error: deleteError } = await supabase.rpc("delete_my_data");
-      if (deleteError) throw deleteError;
+      const fbToken = await getFirebaseIdToken();
+      if (!fbToken) throw new Error("Please sign in again");
 
-      // 2) delete auth user via Edge Function
-      const { data: sess } = await supabase.auth.getSession();
-      const token = sess?.session?.access_token;
-      
-      if (token) {
-        const res = await supabase.functions.invoke('delete-auth-user', {
-          headers: { Authorization: `Bearer ${token}` },
-          body: {}
-        });
-        
-        if (res.error) {
-          console.error('Auth deletion error:', res.error);
-          throw new Error("Failed to delete authentication record");
-        }
+      // Edge function verifies Firebase token and purges bookings, profile, wallet, fcm tokens.
+      const res = await supabase.functions.invoke("delete-auth-user", {
+        headers: { "x-firebase-token": fbToken },
+        body: {},
+      });
+
+      if (res.error) {
+        console.error("Auth deletion error:", res.error);
+        throw new Error("Failed to delete account");
       }
 
-      // 3) sign out and redirect
-      await supabase.auth.signOut();
+      await signOut();
       navigate("/auth?deleted=1");
     } catch (e: any) {
-      console.error('Account deletion error:', e);
+      console.error("Account deletion error:", e);
       setMsg(e?.message || "Failed to delete account");
     } finally {
       setBusy(false);
