@@ -70,31 +70,11 @@ export const isWeb = (): boolean => !Capacitor.isNativePlatform();
 let _nativeAuthAvailable: boolean | null = null;
 
 export const isNativeAuthAvailable = async (): Promise<boolean> => {
-  if (_nativeAuthAvailable !== null) return _nativeAuthAvailable;
-  if (!isNativePlatform() || !isAndroid()) {
-    _nativeAuthAvailable = false;
-    console.log(`[OTP-AUDIT] isNativeAuthAvailable=false (platform=${Capacitor.getPlatform()}, native=${isNativePlatform()})`);
-    return false;
-  }
-  try {
-    const { FirebaseAuthentication } = await import('@capacitor-firebase/authentication');
-    // Verify plugin is actually registered with Capacitor bridge (not the JS stub)
-    // Capacitor.isPluginAvailable returns false when the Android plugin class isn't compiled in.
-    const registered = Capacitor.isPluginAvailable('FirebaseAuthentication');
-    if (!registered) {
-      console.error('❌ [OTP-AUDIT] FirebaseAuthentication plugin NOT registered in Android bridge. APK was built without `npx cap sync android`.');
-      _nativeAuthAvailable = false;
-      return false;
-    }
-    // Smoke-test: if plugin is a stub this throws
-    await FirebaseAuthentication.getCurrentUser();
-    _nativeAuthAvailable = true;
-    console.log('✅ [OTP-AUDIT] Native FirebaseAuthentication plugin available and registered');
-  } catch (e: any) {
-    console.error('❌ [OTP-AUDIT] Native FirebaseAuthentication not available:', e?.message);
-    _nativeAuthAvailable = false;
-  }
-  return _nativeAuthAvailable;
+  // MIGRATION: native Firebase phone-auth plugin is no longer used. We send and
+  // verify OTPs via Twilio Verify edge functions, then sign the user into
+  // Firebase with a custom token. This avoids reCAPTCHA on web AND avoids the
+  // Play Integrity / SHA fingerprint requirement on Android.
+  return false;
 };
 
 // Custom error returned when Android APK lacks the native plugin.
@@ -103,9 +83,12 @@ export const isNativeAuthAvailable = async (): Promise<boolean> => {
 export const NATIVE_PLUGIN_MISSING_ERROR =
   'Native Firebase Auth plugin is not available in this build. Please rebuild APK after `npx cap sync android`.';
 
-// Synchronous best-guess: Android native = true, everything else = false.
-// Use this for UI decisions (e.g. hiding reCAPTCHA container).
-export const shouldUseNativeAuth = (): boolean => isNativePlatform() && isAndroid();
+// MIGRATION: Twilio Verify is now the OTP provider on every platform.
+// Firebase identity is preserved via signInWithCustomToken (deterministic
+// uid = "phone:<E.164>"). The native Firebase phone-auth plugin and the
+// web reCAPTCHA flow are no longer used. Returning false everywhere ensures
+// no reCAPTCHA container is rendered and no native plugin call is made.
+export const shouldUseNativeAuth = (): boolean => false;
 
 // Initialize Firebase (lazy, singleton)
 export const getFirebaseApp = (): FirebaseApp | null => {
@@ -551,50 +534,101 @@ const normalizePhone = (raw: string): string => {
   return trimmed;
 };
 
-// Send OTP — routes to native plugin on Android APK, web reCAPTCHA flow elsewhere.
+// ─── Twilio Verify OTP (replaces Firebase Phone Auth on every platform) ──
+//
+// 1) sendOtp  → POST /functions/v1/twilio-send-otp        (Twilio Verify SMS)
+// 2) verifyOtp → POST /functions/v1/twilio-verify-otp     (returns Firebase
+//    custom token) → signInWithCustomToken() so the rest of the app keeps
+//    using Firebase identity (firebase_uid, x-firebase-token, profiles).
+//
+// Result: no reCAPTCHA on web, no Play Integrity / SHA fingerprint
+// requirement on Android — the popup "Verifying you're not a robot"
+// disappears entirely.
+
+import { LOVABLE_CLOUD_FUNCTIONS_URL, PRODUCTION_ANON_KEY } from '@/lib/constants';
+
+// Phone the OTP was last sent to. Verify uses this — the code alone is not
+// enough for Twilio Verify (it needs the destination number too).
+let lastOtpPhone: string | null = null;
+
+async function callTwilioFn(path: string, body: Record<string, unknown>) {
+  const res = await fetch(`${LOVABLE_CLOUD_FUNCTIONS_URL}/functions/v1/${path}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      apikey: PRODUCTION_ANON_KEY,
+      Authorization: `Bearer ${PRODUCTION_ANON_KEY}`,
+    },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json().catch(() => ({} as any));
+  return { ok: res.ok, status: res.status, data };
+}
+
 export const sendOtp = async (
   phoneNumber: string,
-  containerId: string = 'recaptcha-container'
+  _containerId: string = 'recaptcha-container' // kept for API compat; unused
 ): Promise<{ success: boolean; error?: string }> => {
-  const platform = Capacitor.getPlatform();
   const phone = normalizePhone(phoneNumber);
-  const useNative = await isNativeAuthAvailable();
-  console.log('[OTP-AUDIT] sendOtp route decision', {
-    platform,
-    nativePlatform: isNativePlatform(),
-    nativeAuthAvailable: useNative,
-    selectedPath: useNative ? 'native-android-plugin' : 'web-sdk-recaptcha',
-    phone,
-    expectedPackageName: OTP_AUDIT_ANDROID_CONFIG.expectedPackageName,
-    expectedFirebaseProjectId: OTP_AUDIT_ANDROID_CONFIG.expectedFirebaseProjectId,
-    expectedFirebaseProjectNumber: OTP_AUDIT_ANDROID_CONFIG.expectedFirebaseProjectNumber,
-  });
+  console.log('[OTP] sendOtp via Twilio Verify →', phone);
 
-  if (useNative) {
-    return sendOtpNative(phone);
+  try {
+    const { ok, status, data } = await callTwilioFn('twilio-send-otp', { phone });
+    if (!ok || data?.success === false) {
+      const err = data?.error || `Failed to send OTP (HTTP ${status})`;
+      console.error('[OTP] twilio-send-otp failed:', err);
+      return { success: false, error: err };
+    }
+    lastOtpPhone = phone;
+    console.log('[OTP] Twilio Verify accepted, status =', data?.status);
+    return { success: true };
+  } catch (e: any) {
+    console.error('[OTP] sendOtp network error:', e?.message);
+    return { success: false, error: e?.message || 'OTP service unreachable' };
   }
-  if (platform === 'android') {
-    console.error('[OTP-AUDIT] Android selected WEB SDK path. That means native FirebaseAuthentication plugin is missing/unavailable in this APK, so RecaptchaVerifier will run.');
-  }
-  return sendOtpWeb(phone, containerId);
 };
 
-// Verify OTP — routes to native plugin or web SDK based on which sent the code.
 export const verifyOtp = async (
   code: string
 ): Promise<{ success: boolean; user?: User; nativeUser?: NativeAuthUser; error?: string }> => {
-  const platform = Capacitor.getPlatform();
-  const useNative = await isNativeAuthAvailable();
-  console.log(`[OTP-AUDIT] verifyOtp (Firebase) — platform=${platform}, native=${useNative}`);
-
-  if (!code || !/^\d{4,8}$/.test(code.trim())) {
+  const trimmed = (code || '').trim();
+  if (!trimmed || !/^\d{4,8}$/.test(trimmed)) {
     return { success: false, error: 'Invalid verification code' };
   }
-
-  if (useNative) {
-    return verifyOtpNative(code.trim());
+  if (!lastOtpPhone) {
+    return { success: false, error: 'No OTP request found. Please request OTP first.' };
   }
-  return verifyOtpWeb(code.trim());
+
+  try {
+    const { ok, status, data } = await callTwilioFn('twilio-verify-otp', {
+      phone: lastOtpPhone,
+      code: trimmed,
+    });
+
+    if (!ok || data?.success === false) {
+      const err = data?.error || `Verification failed (HTTP ${status})`;
+      console.warn('[OTP] twilio-verify-otp rejected:', err);
+      return { success: false, error: err };
+    }
+
+    const customToken: string | undefined = data?.firebaseCustomToken;
+    if (!customToken) {
+      return { success: false, error: 'Auth token missing from server' };
+    }
+
+    const authInstance = getFirebaseAuth();
+    if (!authInstance) {
+      return { success: false, error: 'Firebase Auth not initialized' };
+    }
+
+    const cred = await signInWithCustomToken(authInstance, customToken);
+    lastOtpPhone = null;
+    console.log('✅ Firebase signed in via custom token, uid =', cred.user.uid);
+    return { success: true, user: cred.user };
+  } catch (e: any) {
+    console.error('[OTP] verifyOtp error:', e);
+    return { success: false, error: e?.message || 'Verification failed' };
+  }
 };
 
 // Get current Firebase user (web SDK only — use getNativeCurrentUser for native)
