@@ -64,6 +64,12 @@ verify_jwt = false
 [functions.create-pending-booking]
 verify_jwt = false
 
+[functions.twilio-send-otp]
+verify_jwt = false
+
+[functions.twilio-verify-otp]
+verify_jwt = false
+
 [functions.bootstrap-profile]
 verify_jwt = false
 
@@ -71,7 +77,4 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.submit-worker-rating]
-verify_jwt = false
-
-[functions.check-user-exists]
 verify_jwt = false

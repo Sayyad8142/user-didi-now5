@@ -155,30 +155,12 @@ export function AuthCard() {
     try {
       const formattedPhone = formatPhoneIN(phone);
 
-      // For Sign In: verify the phone is registered BEFORE sending an OTP.
-      // Uses a service-role edge function to bypass RLS safely.
-      if (!isSignUp) {
-        try {
-          const { data: existsData, error: existsError } = await supabase.functions.invoke(
-            'check-user-exists',
-            { body: { phone: formattedPhone } }
-          );
-          if (existsError) {
-            console.warn('check-user-exists failed, proceeding anyway:', existsError);
-          } else if (existsData && existsData.success && existsData.exists === false) {
-            setErrors({ phone: "First sign up. You don't have the account." });
-            toast({
-              title: 'Account not found',
-              description: "First sign up. You don't have the account.",
-              variant: 'destructive',
-            });
-            setLoading(false);
-            return;
-          }
-        } catch (e) {
-          console.warn('check-user-exists threw, proceeding anyway:', e);
-        }
-      }
+      // Note: We no longer pre-check profile existence here.
+      // Reading `profiles` from the client is blocked by RLS for anonymous users,
+      // which incorrectly flagged every existing user as "not registered".
+      // Firebase OTP works for any valid phone; after verification, `bootstrap-profile`
+      // matches existing accounts by phone (and firebase_uid) so reinstalls/sign-ins
+      // reuse the same profile with zero duplicates.
 
       // Send OTP via Firebase
       const result = await sendOtp(formattedPhone, 'recaptcha-container');
