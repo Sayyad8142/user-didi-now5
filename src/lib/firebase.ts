@@ -103,9 +103,12 @@ export const isNativeAuthAvailable = async (): Promise<boolean> => {
 export const NATIVE_PLUGIN_MISSING_ERROR =
   'Native Firebase Auth plugin is not available in this build. Please rebuild APK after `npx cap sync android`.';
 
-// Synchronous best-guess: Android native = true, everything else = false.
-// Use this for UI decisions (e.g. hiding reCAPTCHA container).
-export const shouldUseNativeAuth = (): boolean => isNativePlatform() && isAndroid();
+// MIGRATION: Twilio Verify is now the OTP provider on every platform.
+// Firebase identity is preserved via signInWithCustomToken (deterministic
+// uid = "phone:<E.164>"). The native Firebase phone-auth plugin and the
+// web reCAPTCHA flow are no longer used. Returning false everywhere ensures
+// no reCAPTCHA container is rendered and no native plugin call is made.
+export const shouldUseNativeAuth = (): boolean => false;
 
 // Initialize Firebase (lazy, singleton)
 export const getFirebaseApp = (): FirebaseApp | null => {
