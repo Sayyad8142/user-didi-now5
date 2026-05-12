@@ -52,10 +52,11 @@ export function getWalletEndpointUrl(): string {
 async function getWalletToken(forceRefresh = false): Promise<string> {
   const token = await getFirebaseIdToken(forceRefresh);
 
-  // OTP signs in via the Firebase Web SDK on every platform. On native Android,
-  // the legacy native plugin (FirebaseAuthentication.getCurrentUser) returns null
-  // for these sessions — so checking only the native plugin would incorrectly
-  // mark the user as signed-out and the wallet would silently return 0.
+  // Since the Twilio migration, OTP signs in via the Firebase Web SDK on every
+  // platform (signInWithCustomToken). On native Android, the legacy native plugin
+  // (FirebaseAuthentication.getCurrentUser) returns null for these sessions —
+  // so checking only the native plugin would incorrectly mark the user as
+  // signed-out and the wallet would silently return 0.
   // Accept EITHER a Web SDK user OR a legacy native user.
   const webUser = !!getCurrentUser();
   const nativeUser = shouldUseNativeAuth() ? !!(await getNativeCurrentUser()) : false;

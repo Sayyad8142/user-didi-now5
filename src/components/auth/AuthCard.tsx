@@ -166,11 +166,10 @@ export function AuthCard() {
           if (existsError) {
             console.warn('check-user-exists failed, proceeding anyway:', existsError);
           } else if (existsData && existsData.success && existsData.exists === false) {
-            setActiveTab('signup');
-            setErrors({ phone: "You don't have an account. Please sign up first." });
+            setErrors({ phone: "First sign up. You don't have the account." });
             toast({
               title: 'Account not found',
-              description: "You don't have an account. Please sign up first.",
+              description: "First sign up. You don't have the account.",
               variant: 'destructive',
             });
             setLoading(false);
