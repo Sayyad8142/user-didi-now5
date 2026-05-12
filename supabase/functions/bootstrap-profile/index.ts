@@ -69,10 +69,49 @@ function cleanSecret(raw?: string | null): string {
   return value;
 }
 
+// In-memory warmup metrics (per isolate)
+let warmupCount = 0;
+let lastWarmupAt = 0;
+const bootedAt = Date.now();
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  // Lightweight warmup path — no auth, no DB. Used by cron + manual pings to
+  // keep the edge isolate hot. Triggered by:
+  //   - GET  /functions/v1/bootstrap-profile
+  //   - HEAD /functions/v1/bootstrap-profile
+  //   - GET/POST with ?warmup=1
+  const url = new URL(req.url);
+  const isWarmupQuery = url.searchParams.get("warmup") === "1";
+  if (req.method === "GET" || req.method === "HEAD" || isWarmupQuery) {
+    const t0 = Date.now();
+    warmupCount += 1;
+    const wasCold = lastWarmupAt === 0;
+    const sinceLast = lastWarmupAt ? t0 - lastWarmupAt : null;
+    lastWarmupAt = t0;
+    const ageMs = t0 - bootedAt;
+    console.log(`[warmup] ok count=${warmupCount} ageMs=${ageMs} sinceLastMs=${sinceLast ?? "n/a"} cold=${wasCold} latencyMs=${Date.now() - t0}`);
+    if (req.method === "HEAD") {
+      return new Response(null, {
+        status: 200,
+        headers: { ...corsHeaders, "x-warmup": "ok", "x-isolate-age-ms": String(ageMs) },
+      });
+    }
+    return jsonResponse({
+      ok: true,
+      warmup: true,
+      isolate_age_ms: ageMs,
+      warmup_count: warmupCount,
+      since_last_ms: sinceLast,
+      cold: wasCold,
+      ts: new Date().toISOString(),
+    });
+  }
+
   if (req.method !== "POST") return jsonResponse({ error: "Method not allowed" }, 405);
 
+  const requestStart = Date.now();
   try {
     const idToken = extractToken(req);
     if (!idToken) return jsonResponse({ error: "Missing Firebase token" }, 401);
@@ -81,6 +120,11 @@ serve(async (req) => {
     const firebaseUid = fb.uid;
 
     const payload = (await req.json().catch(() => ({}))) as BootstrapRequest;
+    const phone = normalizePhone(payload.phone || fb.phone || "");
+    const signup = payload.signupData || null;
+    const isCold = (Date.now() - bootedAt) < 5_000;
+    console.log(`[bootstrap] start uid=${firebaseUid} cold=${isCold} isolate_age_ms=${Date.now() - bootedAt}`);
+
     const phone = normalizePhone(payload.phone || fb.phone || "");
     const signup = payload.signupData || null;
 
