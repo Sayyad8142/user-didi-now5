@@ -19,6 +19,8 @@ interface Profile {
 interface ProfileContextType {
   profile: Profile | null;
   loading: boolean;
+  /** True only after a successful bootstrap/refresh has completed for the current user. */
+  isProfileReady: boolean;
   error: string | null;
   refresh: () => Promise<Profile | null>;
   bootstrapProfile: (authUser: { id: string; phone?: string | null }) => Promise<Profile | null>;
@@ -27,6 +29,7 @@ interface ProfileContextType {
 const ProfileContext = createContext<ProfileContextType>({
   profile: null,
   loading: true,
+  isProfileReady: false,
   error: null,
   refresh: async () => null,
   bootstrapProfile: async () => null,
@@ -42,11 +45,28 @@ interface ProfileProviderProps {
   children: React.ReactNode;
 }
 
+const PROFILE_CACHE_KEY = 'didi.profile.cache.v1';
+
+/** A cached profile is considered "useful" only when key fields are populated. */
+function isProfileComplete(p: Profile | null | undefined): boolean {
+  if (!p || !p.id) return false;
+  const hasName = !!(p.full_name && p.full_name.trim() && p.full_name !== 'User');
+  const hasPhone = !!(p.phone && p.phone.trim());
+  const hasCommunity = !!(p.community_id || (p.community && p.community.trim()));
+  const hasFlat = !!(p.flat_id || (p.flat_no && p.flat_no.trim()));
+  return hasName && hasPhone && hasCommunity && hasFlat;
+}
+
+const tlog = (...args: any[]) => {
+  try {
+    console.log(`[ProfileBootstrap] ${new Date().toISOString()}`, ...args);
+  } catch {}
+};
+
 export function ProfileProvider({ children }: ProfileProviderProps) {
   const { user, firebaseUser } = useAuth();
   const queryClient = useQueryClient();
 
-  const PROFILE_CACHE_KEY = 'didi.profile.cache.v1';
   const readCachedProfile = (): Profile | null => {
     try {
       const raw = localStorage.getItem(PROFILE_CACHE_KEY);
@@ -55,11 +75,57 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
   };
 
   const initialCached = typeof window !== 'undefined' ? readCachedProfile() : null;
+  const initialComplete = isProfileComplete(initialCached);
   const [profile, setProfile] = useState<Profile | null>(initialCached);
-  const [loading, setLoading] = useState(!initialCached);
+  // Loading is true unless we have a *complete* cached profile to render immediately.
+  const [loading, setLoading] = useState(!initialComplete);
+  const [isProfileReady, setIsProfileReady] = useState(initialComplete);
   const [error, setError] = useState<string | null>(null);
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastInvalidatedForRef = useRef<string | null>(null);
+
+  // In-flight bootstrap promise dedup, keyed by user id
+  const inFlightRef = useRef<{ key: string; promise: Promise<Profile | null> } | null>(null);
+
+  if (initialCached) tlog('cache.read', { complete: initialComplete, hasName: !!initialCached.full_name });
+
+  const _doLoad = useCallback(async (activeUser: { id: string; phone?: string | null }): Promise<Profile | null> => {
+    const startedAt = performance.now();
+    tlog('bootstrap.start', { uid: activeUser.id });
+    try {
+      const phone = normalizePhone(activeUser.phone ?? "");
+      const { mark } = await import('@/lib/perfMarks');
+      mark('profile.bootstrap.start');
+      const created = await bootstrapProfileViaEdge({ phone });
+      mark('profile.bootstrap.done');
+      tlog('bootstrap.done', { uid: activeUser.id, ms: Math.round(performance.now() - startedAt), name: created.full_name });
+      setProfile(created as any);
+      try { localStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify(created)); } catch {}
+      setIsProfileReady(true);
+      setLoading(false);
+      setError(null);
+      return created as any;
+    } catch (bootstrapErr: any) {
+      tlog('bootstrap.error', { uid: activeUser.id, error: bootstrapErr?.message });
+      const cached = readCachedProfile();
+      if (cached) {
+        setProfile(cached);
+        // Only mark ready if cache is genuinely complete; otherwise keep loading state.
+        if (isProfileComplete(cached)) {
+          setIsProfileReady(true);
+          setLoading(false);
+        } else {
+          setLoading(true);
+        }
+        return cached;
+      }
+      setError(bootstrapErr?.message || "Failed to load profile");
+      setProfile(null);
+      setIsProfileReady(false);
+      setLoading(false);
+      return null;
+    }
+  }, []);
 
   const loadProfileForAuth = useCallback(async (authUser?: { id: string; phone?: string | null }): Promise<Profile | null> => {
     try {
@@ -69,67 +135,56 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
           ? { id: user.id, phone: user.phone ?? null }
           : null;
 
-      // IMPORTANT: If we have a real Firebase user, always clear demo/guest mode first
+      // If we have a real Firebase user, always clear demo/guest mode first
       if (firebaseUser || activeUser?.id) {
         clearDemoSession();
       }
 
-      // Only check demo/guest mode if we DON'T have a real Firebase user
+      // Demo/guest mode handling (only when no real user)
       if (!firebaseUser && !activeUser?.id && isDemoMode()) {
         const demoSession = getDemoSession();
         if (demoSession?.profile) {
           setProfile(demoSession.profile);
+          setIsProfileReady(true);
           setLoading(false);
           return demoSession.profile;
         }
       }
 
-      // Firebase-only auth - need a real user to fetch profile
       if (!activeUser?.id) {
         setProfile(null);
+        setIsProfileReady(false);
         setLoading(false);
         return null;
       }
 
-      // Don't flash loading skeleton if a cached profile is already rendered
-      const hasCached = !!readCachedProfile();
-      setLoading(hasCached ? false : true);
+      // Dedup concurrent calls for the same user
+      if (inFlightRef.current && inFlightRef.current.key === activeUser.id) {
+        tlog('bootstrap.dedup', { uid: activeUser.id });
+        return inFlightRef.current.promise;
+      }
+
+      // Loading: only show spinner if cached profile is incomplete or absent.
+      const cached = readCachedProfile();
+      if (!isProfileComplete(cached)) {
+        setLoading(true);
+      }
       setError(null);
 
-      console.log('📝 Loading profile via secure bootstrap for:', activeUser.id);
-      try {
-        const phone = normalizePhone(activeUser.phone ?? "");
-        const { mark } = await import('@/lib/perfMarks');
-        mark('profile.bootstrap.start');
-        const created = await bootstrapProfileViaEdge({ phone });
-        mark('profile.bootstrap.done');
-        console.log('✅ Profile loaded:', created.id, created.full_name);
-        setProfile(created as any);
-        try { localStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify(created)); } catch {}
-        setLoading(false);
-        return created as any;
-      } catch (bootstrapErr: any) {
-        console.error('❌ Profile bootstrap error:', bootstrapErr);
-        // If we have a cached profile, keep showing it instead of error UI
-        const cached = readCachedProfile();
-        if (cached) {
-          setProfile(cached);
-          setLoading(false);
-          return cached;
-        }
-        setError(bootstrapErr?.message || "Failed to load profile");
-        setProfile(null);
-        setLoading(false);
-        return null;
-      }
+      const promise = _doLoad(activeUser).finally(() => {
+        if (inFlightRef.current?.key === activeUser.id) inFlightRef.current = null;
+      });
+      inFlightRef.current = { key: activeUser.id, promise };
+      return promise;
     } catch (e: any) {
-      console.error('❌ Unexpected error in fetchProfile:', e);
+      tlog('bootstrap.unexpected_error', { error: e?.message });
       setError(e?.message || "An unexpected error occurred");
       setProfile(null);
+      setIsProfileReady(false);
       setLoading(false);
       return null;
     }
-  }, [user?.id, user?.phone, firebaseUser]);
+  }, [user?.id, user?.phone, firebaseUser, _doLoad]);
 
   const fetchProfile = useCallback(() => loadProfileForAuth(), [loadProfileForAuth]);
   const bootstrapProfile = useCallback(
@@ -140,13 +195,9 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
   // Primary effect: fetch when auth state changes
   useEffect(() => {
     fetchProfile().then((result) => {
-      // If user is authenticated but profile fetch returned null (backend not ready yet),
-      // schedule a retry after a short delay
       if (user?.id && !result) {
-        console.log('🔄 Profile: scheduling retry (backend may not be ready)');
-        retryTimerRef.current = setTimeout(() => {
-          fetchProfile();
-        }, 2000);
+        tlog('schedule_retry');
+        retryTimerRef.current = setTimeout(() => fetchProfile(), 2000);
       }
     });
 
@@ -158,12 +209,9 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
     };
   }, [fetchProfile]);
 
-  // Re-fetch when app resumes from background (handles both native + web)
-  // Guarded by a 60s TTL — quick reopens (lock screen, app switcher) do NOT
-  // trigger a full profile re-bootstrap.
+  // Re-fetch when app resumes from background — guarded by 60s TTL
   const lastProfileFetchRef = useRef<number>(0);
   useEffect(() => {
-    // Track successful fetches
     if (profile?.id) lastProfileFetchRef.current = Date.now();
   }, [profile?.id]);
 
@@ -172,22 +220,16 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
     const handleVisibility = () => {
       if (document.visibilityState !== 'visible' || !user?.id) return;
       const sinceLast = Date.now() - lastProfileFetchRef.current;
-      if (sinceLast < REFETCH_TTL) {
-        console.log('🟢 Profile: skip refetch (within TTL', sinceLast, 'ms)');
-        return;
-      }
-      console.log('🔄 Profile: app resumed after', sinceLast, 'ms — refreshing');
+      if (sinceLast < REFETCH_TTL) return;
+      tlog('resume.refresh', { sinceLast });
       fetchProfile();
     };
     document.addEventListener('visibilitychange', handleVisibility);
     return () => document.removeEventListener('visibilitychange', handleVisibility);
   }, [fetchProfile, user?.id]);
 
-  // Listen for demo mode changes
   useEffect(() => {
-    const handleDemoModeChange = () => {
-      fetchProfile();
-    };
+    const handleDemoModeChange = () => { fetchProfile(); };
     window.addEventListener('demo-mode-changed', handleDemoModeChange);
     return () => window.removeEventListener('demo-mode-changed', handleDemoModeChange);
   }, [fetchProfile]);
@@ -196,19 +238,17 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
     const handleNativeAuthChanged = (event: Event) => {
       const detail = (event as CustomEvent<{ uid?: string; phoneNumber?: string | null }>).detail;
       if (!detail?.uid) return;
-      console.log('🔄 Profile: bootstrapping from native-auth-changed event', detail.uid);
+      tlog('native-auth-changed', { uid: detail.uid });
       bootstrapProfile({ id: detail.uid, phone: detail.phoneNumber ?? null });
     };
-
     window.addEventListener('native-auth-changed', handleNativeAuthChanged as EventListener);
     return () => window.removeEventListener('native-auth-changed', handleNativeAuthChanged as EventListener);
   }, [bootstrapProfile]);
 
-  // Listen for backend-ready event (fired after initSupabase completes)
   useEffect(() => {
     const handleBackendReady = () => {
       if (user?.id && !profile) {
-        console.log('🔄 Profile: backend ready, fetching now');
+        tlog('supabase-ready.fetch');
         fetchProfile();
       }
     };
@@ -216,17 +256,15 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
     return () => window.removeEventListener('supabase-ready', handleBackendReady);
   }, [fetchProfile, user?.id, profile]);
 
-  // When a fresh profile.id becomes available, invalidate every user-scoped
-  // query so screens that mounted with no userId (during the auth bootstrap
-  // race) refetch with the real userId. This is the second half of the
-  // first-login-on-Android-APK fix.
+  // When a fresh profile.id becomes available, invalidate user-scoped queries that
+  // depend on it — but DO NOT invalidate wallet-balance (it has its own realtime
+  // refresh and refetchOnMount). Avoid forcing an extra wallet refetch.
   useEffect(() => {
     const pid = profile?.id;
     if (!pid) return;
     if (lastInvalidatedForRef.current === pid) return;
     lastInvalidatedForRef.current = pid;
-    console.log('🔄 Profile ready — invalidating user-scoped queries for', pid);
-    queryClient.invalidateQueries({ queryKey: ['wallet-balance'] });
+    tlog('profile.ready.invalidate_queries', { pid });
     queryClient.invalidateQueries({ queryKey: ['wallet-transactions'] });
     queryClient.invalidateQueries({ queryKey: ['bookings'] });
     queryClient.invalidateQueries({ queryKey: ['my-bookings'] });
@@ -238,7 +276,7 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
   const refresh = async () => fetchProfile();
 
   return (
-    <ProfileContext.Provider value={{ profile, loading, error, refresh, bootstrapProfile }}>
+    <ProfileContext.Provider value={{ profile, loading, isProfileReady, error, refresh, bootstrapProfile }}>
       {children}
     </ProfileContext.Provider>
   );
