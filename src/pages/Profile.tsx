@@ -410,7 +410,7 @@ export default function Profile() {
                 <div className="flex-1 space-y-1">
                   <p className="text-sm font-medium text-gray-500 uppercase tracking-wide">Flat Number</p>
                   {!isEditing ? (
-                    <p className="text-lg font-semibold text-gray-900">{profile?.flat_no || 'Not provided'}</p>
+                    hydrating ? <Skeleton className="h-6 w-24" /> : <p className="text-lg font-semibold text-gray-900">{profile?.flat_no || 'Not provided'}</p>
                   ) : flats.length > 0 ? (
                     <Select 
                       value={editForm.flat_id} 
