@@ -8,8 +8,8 @@ android {
         minSdkVersion 23
         targetSdkVersion 34
         // Increase for every Play upload
-        versionCode 50
-        versionName "1.0.50"
+        versionCode 51
+        versionName "2.0.51"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged APK
