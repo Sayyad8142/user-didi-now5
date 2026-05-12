@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
 interface Community {
@@ -9,55 +10,33 @@ interface Community {
   flat_format?: string;
 }
 
+const COMMUNITIES_KEY = ['communities', 'active'] as const;
+
+async function fetchCommunities(): Promise<Community[]> {
+  const { data, error } = await supabase
+    .from('communities')
+    .select('id, name, value, is_active, flat_format')
+    .eq('is_active', true)
+    .order('name');
+  if (error) throw error;
+  return (data || []) as Community[];
+}
+
 export function useCommunities() {
-  const [communities, setCommunities] = useState<Community[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const query = useQuery<Community[]>({
+    queryKey: COMMUNITIES_KEY,
+    queryFn: fetchCommunities,
+    staleTime: 24 * 60 * 60 * 1000, // 1 day
+    gcTime: 7 * 24 * 60 * 60 * 1000, // 7 days
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    retry: 2,
+  });
 
-  const fetchCommunities = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      console.log('🏘️  Fetching active communities...');
-
-      const { data, error: fetchError } = await supabase
-        .from('communities')
-        .select('id, name, value, is_active, flat_format')
-        .eq('is_active', true)
-        .order('name');
-
-      if (fetchError) {
-        console.error('❌ Error fetching communities:', fetchError);
-        setError('Failed to load communities');
-        return;
-      }
-
-      console.log(`✅ Loaded ${data?.length || 0} active communities:`, data);
-      
-      if (!data || data.length === 0) {
-        console.warn('⚠️  No active communities found!');
-      }
-
-      setCommunities(data || []);
-    } catch (err) {
-      console.error('❌ Error:', err);
-      setError('An unexpected error occurred');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchCommunities();
-  }, [fetchCommunities]);
-
-  const memoizedValue = useMemo(() => ({
-    communities,
-    loading,
-    error,
-    refresh: fetchCommunities
-  }), [communities, loading, error, fetchCommunities]);
-
-  return memoizedValue;
+  return useMemo(() => ({
+    communities: query.data || [],
+    loading: query.isLoading,
+    error: query.error ? 'Failed to load communities' : null,
+    refresh: () => query.refetch(),
+  }), [query.data, query.isLoading, query.error, query.refetch]);
 }
