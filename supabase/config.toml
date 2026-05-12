@@ -78,3 +78,6 @@ verify_jwt = false
 
 [functions.submit-worker-rating]
 verify_jwt = false
+
+[functions.check-user-exists]
+verify_jwt = false
