@@ -15,7 +15,7 @@ import { bootstrapProfileViaEdge } from '@/lib/profileBootstrap';
 import { isDemoCredentials, setDemoSession, clearDemoSession } from '@/lib/demo';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useAuth } from '@/components/auth/AuthProvider';
-import { verifyOtp, sendOtp, shouldUseNativeAuth } from '@/lib/firebase';
+import { verifyOtp, sendOtp } from '@/lib/firebase';
 
 interface LocationState {
   phone: string;
@@ -139,8 +139,8 @@ export default function VerifyOTP() {
         return;
       }
 
-      // Verify OTP via Firebase
-      const result = await verifyOtp(otp.trim());
+      // Verify OTP via Twilio (mints Firebase custom token, signs into Firebase Web SDK)
+      const result = await verifyOtp(phone, otp.trim());
 
       if (!result.success) {
         setError(result.error || 'Invalid OTP');
@@ -148,9 +148,8 @@ export default function VerifyOTP() {
         return;
       }
 
-      // Get the user uid — native returns nativeUser, web returns user
-      const uid = result.user?.uid || result.nativeUser?.uid;
-      const userPhone = result.user?.phoneNumber || result.nativeUser?.phoneNumber || phone;
+      const uid = result.user?.uid;
+      const userPhone = result.user?.phoneNumber || phone;
 
       console.log('✅ Firebase auth successful:', uid);
 
@@ -160,20 +159,8 @@ export default function VerifyOTP() {
         return;
       }
 
-      // IMPORTANT: if user previously used Guest/Demo mode, clear it now so UI doesn't stay "Guest"
+      // If user previously used Guest/Demo mode, clear it now
       clearDemoSession();
-
-      // Notify AuthProvider of native auth change so it picks up the new user.
-      // Pass the verified UID/phone in the event payload so AuthProvider can
-      // apply it immediately, even before the native plugin's internal state syncs.
-      // This is the key fix for "first login on Android APK shows empty data until restart".
-      if (shouldUseNativeAuth()) {
-        window.dispatchEvent(
-          new CustomEvent('native-auth-changed', {
-            detail: { uid, phoneNumber: userPhone },
-          })
-        );
-      }
 
       // Ensure profile exists in Supabase
       const profile = await ensureFirebaseProfile(uid, userPhone);
@@ -260,7 +247,7 @@ export default function VerifyOTP() {
     setError('');
 
     try {
-      const result = await sendOtp(phone, shouldUseNativeAuth() ? 'recaptcha-container' : 'recaptcha-container-verify');
+      const result = await sendOtp(phone);
 
       if (!result.success) {
         setError(result.error || 'Failed to resend OTP');
