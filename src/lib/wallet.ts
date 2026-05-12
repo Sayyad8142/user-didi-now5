@@ -4,7 +4,7 @@
  * Uses the same production backend (api.didisnow.com) as the rest of the app.
  * The wallet-read edge function must be deployed to the production Supabase project.
  */
-import { getFirebaseIdToken, getCurrentUser, getNativeCurrentUser, shouldUseNativeAuth } from '@/lib/firebase';
+import { getFirebaseIdToken, getCurrentUser } from '@/lib/firebase';
 import { log } from '@/lib/logger';
 import { resolveBackendUrl, getResolvedUrl } from '@/lib/backendResolver';
 import { PRODUCTION_ANON_KEY } from '@/lib/constants';
@@ -53,20 +53,13 @@ async function getWalletToken(forceRefresh = false): Promise<string> {
   const token = await getFirebaseIdToken(forceRefresh);
 
   // Since the Twilio migration, OTP signs in via the Firebase Web SDK on every
-  // platform (signInWithCustomToken). On native Android, the legacy native plugin
-  // (FirebaseAuthentication.getCurrentUser) returns null for these sessions —
-  // so checking only the native plugin would incorrectly mark the user as
-  // signed-out and the wallet would silently return 0.
-  // Accept EITHER a Web SDK user OR a legacy native user.
-  const webUser = !!getCurrentUser();
-  const nativeUser = shouldUseNativeAuth() ? !!(await getNativeCurrentUser()) : false;
-  const hasActiveFirebaseUser = webUser || nativeUser;
+  // platform using signInWithCustomToken. Only the Web SDK user matters now.
+  const hasActiveFirebaseUser = !!getCurrentUser();
 
   if (!token || !hasActiveFirebaseUser) {
     log.warn('[Wallet] Skipping wallet request — user is not authenticated with Firebase', {
       hasToken: !!token,
-      webUser,
-      nativeUser,
+      hasActiveFirebaseUser,
     });
     throw new Error('Wallet requires a signed-in account');
   }

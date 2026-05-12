@@ -8,9 +8,6 @@
 // linkage) is unchanged.
 //
 // reCAPTCHA and @capacitor-firebase/authentication are no longer used.
-// `shouldUseNativeAuth` / `getNativeCurrentUser` are kept as no-op stubs so
-// older callers (wallet helpers, AuthGate, AuthProvider) compile and gracefully
-// degrade to the web SDK path everywhere.
 import { initializeApp, FirebaseApp, getApps } from 'firebase/app';
 import {
   getAuth,
@@ -49,16 +46,6 @@ export const isAndroid = (): boolean => Capacitor.getPlatform() === 'android';
 export const isIOS = (): boolean => Capacitor.getPlatform() === 'ios';
 export const isWeb = (): boolean => !Capacitor.isNativePlatform();
 
-// ─── Native plugin shims (no-op — Twilio path is used everywhere) ─────
-export interface NativeAuthUser {
-  uid: string;
-  phoneNumber: string | null;
-}
-export const shouldUseNativeAuth = (): boolean => false;
-export const isNativeAuthAvailable = async (): Promise<boolean> => false;
-export const getNativeCurrentUser = async (): Promise<NativeAuthUser | null> => null;
-export const NATIVE_PLUGIN_MISSING_ERROR =
-  'Native Firebase Auth plugin is not used in this build (Twilio OTP flow).';
 
 // ─── Firebase init ────────────────────────────────────────────────────
 export const getFirebaseApp = (): FirebaseApp | null => {
@@ -145,7 +132,7 @@ export const sendOtp = async (
 export const verifyOtp = async (
   arg1: string,
   arg2?: string,
-): Promise<{ success: boolean; user?: User; nativeUser?: NativeAuthUser; error?: string }> => {
+): Promise<{ success: boolean; user?: User; error?: string }> => {
   const phone = normalizePhone(arg2 ? arg1 : (lastOtpPhone || ''));
   const code = (arg2 ?? arg1 ?? '').trim();
 
