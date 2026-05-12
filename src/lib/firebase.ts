@@ -132,7 +132,7 @@ export const sendOtp = async (
 export const verifyOtp = async (
   arg1: string,
   arg2?: string,
-): Promise<{ success: boolean; user?: User; nativeUser?: NativeAuthUser; error?: string }> => {
+): Promise<{ success: boolean; user?: User; error?: string }> => {
   const phone = normalizePhone(arg2 ? arg1 : (lastOtpPhone || ''));
   const code = (arg2 ?? arg1 ?? '').trim();
 
