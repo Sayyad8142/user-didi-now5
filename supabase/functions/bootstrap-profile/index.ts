@@ -125,8 +125,6 @@ serve(async (req) => {
     const isCold = (Date.now() - bootedAt) < 5_000;
     console.log(`[bootstrap] start uid=${firebaseUid} cold=${isCold} isolate_age_ms=${Date.now() - bootedAt}`);
 
-    const phone = normalizePhone(payload.phone || fb.phone || "");
-    const signup = payload.signupData || null;
 
     // Prefer explicit external DB env vars; fall back to defaults so the
     // function targets the project that actually owns `profiles` even when
