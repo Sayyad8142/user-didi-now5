@@ -77,12 +77,8 @@ export default function Profile() {
   const { buildings } = useBuildings(editForm.community_id || null);
   const { flats } = useFlats(editForm.building_id || null, editForm.community_id || null, isPHF);
 
-  // Refresh profile on mount if profile data is incomplete (handles new signup race condition)
-  React.useEffect(() => {
-    if (!loading && profile && !profile.full_name) {
-      refresh();
-    }
-  }, [loading, profile?.full_name]);
+  // Note: ProfileContext owns retry/refresh logic — do NOT call refresh() from
+  // here based on missing fields. That used to cause duplicate bootstrap calls.
 
   // Initialize form when profile loads
   React.useEffect(() => {
