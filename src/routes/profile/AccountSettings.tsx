@@ -1,8 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { auth, getFirebaseIdToken } from "@/lib/firebase";
-import { signOut } from "firebase/auth";
+import { getFirebaseIdToken, signOut } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Download, Trash2 } from "lucide-react";
 
