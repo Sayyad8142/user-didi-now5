@@ -70,31 +70,11 @@ export const isWeb = (): boolean => !Capacitor.isNativePlatform();
 let _nativeAuthAvailable: boolean | null = null;
 
 export const isNativeAuthAvailable = async (): Promise<boolean> => {
-  if (_nativeAuthAvailable !== null) return _nativeAuthAvailable;
-  if (!isNativePlatform() || !isAndroid()) {
-    _nativeAuthAvailable = false;
-    console.log(`[OTP-AUDIT] isNativeAuthAvailable=false (platform=${Capacitor.getPlatform()}, native=${isNativePlatform()})`);
-    return false;
-  }
-  try {
-    const { FirebaseAuthentication } = await import('@capacitor-firebase/authentication');
-    // Verify plugin is actually registered with Capacitor bridge (not the JS stub)
-    // Capacitor.isPluginAvailable returns false when the Android plugin class isn't compiled in.
-    const registered = Capacitor.isPluginAvailable('FirebaseAuthentication');
-    if (!registered) {
-      console.error('❌ [OTP-AUDIT] FirebaseAuthentication plugin NOT registered in Android bridge. APK was built without `npx cap sync android`.');
-      _nativeAuthAvailable = false;
-      return false;
-    }
-    // Smoke-test: if plugin is a stub this throws
-    await FirebaseAuthentication.getCurrentUser();
-    _nativeAuthAvailable = true;
-    console.log('✅ [OTP-AUDIT] Native FirebaseAuthentication plugin available and registered');
-  } catch (e: any) {
-    console.error('❌ [OTP-AUDIT] Native FirebaseAuthentication not available:', e?.message);
-    _nativeAuthAvailable = false;
-  }
-  return _nativeAuthAvailable;
+  // MIGRATION: native Firebase phone-auth plugin is no longer used. We send and
+  // verify OTPs via Twilio Verify edge functions, then sign the user into
+  // Firebase with a custom token. This avoids reCAPTCHA on web AND avoids the
+  // Play Integrity / SHA fingerprint requirement on Android.
+  return false;
 };
 
 // Custom error returned when Android APK lacks the native plugin.
