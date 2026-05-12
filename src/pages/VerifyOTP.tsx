@@ -377,8 +377,6 @@ export default function VerifyOTP() {
               )}
             </div>
 
-            {/* Invisible reCAPTCHA container for Firebase Phone Auth resend (web only) */}
-            {!shouldUseNativeAuth() && <div id="recaptcha-container-verify" />}
           </CardContent>
         </Card>
       </div>
