@@ -317,9 +317,15 @@ export default function Profile() {
                 <div className="flex-1 space-y-1">
                   <p className="text-sm font-medium text-gray-500 uppercase tracking-wide">Community</p>
                   {!isEditing ? (
-                    <p className="text-lg font-semibold text-gray-900">
-                      {communities.find(c => c.value === profile?.community)?.name || profile?.community || 'Not provided'}
-                    </p>
+                    hydrating || (communitiesLoading && !profile?.community) ? (
+                      <Skeleton className="h-6 w-44" />
+                    ) : (
+                      <p className="text-lg font-semibold text-gray-900">
+                        {communities.find(c => c.id === profile?.community_id || c.value === profile?.community)?.name
+                          || profile?.community
+                          || 'Not provided'}
+                      </p>
+                    )
                   ) : (
                     <Select 
                       value={editForm.community_id} 
