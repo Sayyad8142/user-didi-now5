@@ -681,10 +681,10 @@ export const waitForFirebaseAuthReady = async (timeoutMs = 8000): Promise<User |
 };
 
 // Get Firebase ID token for Supabase.
-// Since the Twilio migration, OTP flow signs into the Firebase Web SDK on every
-// platform via signInWithCustomToken — so the Web SDK is the source of truth.
-// We poll briefly to handle the WebView resume race after Razorpay (Android),
-// and only fall back to the legacy native plugin if a real native user exists.
+// OTP flow signs into the Firebase Web SDK on every platform via Firebase Phone
+// Auth — so the Web SDK is the source of truth. We poll briefly to handle the
+// WebView resume race after Razorpay (Android), and only fall back to the
+// legacy native plugin if a real native user exists.
 export const getFirebaseIdToken = async (forceRefresh = false): Promise<string | null> => {
   const authInstance = getFirebaseAuth();
 
@@ -716,9 +716,9 @@ export const getFirebaseIdToken = async (forceRefresh = false): Promise<string |
     }
   }
 
-  // 3) Legacy fallback — pre-Twilio APKs may still hold a native Firebase user.
-  //    Skip entirely if the native plugin has no user (Twilio flow case),
-  //    so we don't waste time on a plugin that will return null.
+  // 3) Legacy fallback — older APKs may still hold a native Firebase user.
+  //    Skip entirely if the native plugin has no user, so we don't waste time
+  //    on a plugin that will return null.
   if (shouldUseNativeAuth()) {
     try {
       const { FirebaseAuthentication } = await import('@capacitor-firebase/authentication');
@@ -730,7 +730,7 @@ export const getFirebaseIdToken = async (forceRefresh = false): Promise<string |
           await new Promise((r) => setTimeout(r, 250));
         }
       } else {
-        console.log('[OTP-AUDIT] getFirebaseIdToken: no native user (Twilio session) — skipping native fallback');
+        console.log('[OTP-AUDIT] getFirebaseIdToken: no native user — skipping native fallback');
       }
     } catch (error) {
       console.error('❌ Native getIdToken fallback error:', error);
