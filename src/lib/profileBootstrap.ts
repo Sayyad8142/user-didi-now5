@@ -74,32 +74,37 @@ export function getBootstrapDiagnostics(): BootstrapDiagnostics {
 export async function bootstrapProfileViaEdge(
   input: BootstrapInput = {}
 ): Promise<BootstrappedProfile> {
-  const backendUrl = await resolveBackendUrl();
-  const candidateUrls = [
-    `${LOVABLE_CLOUD_FUNCTIONS_URL}/functions/v1/bootstrap-profile`,
-    ...(backendUrl ? [`${backendUrl}/functions/v1/bootstrap-profile`] : []),
-  ].filter((url, index, arr) => arr.indexOf(url) === index);
+  const t0 = performance.now();
+  const log = (...args: any[]) => {
+    try { console.log(`[ProfileBootstrap] ${new Date().toISOString()} +${Math.round(performance.now() - t0)}ms`, ...args); } catch {}
+  };
+
+  // Run Firebase token fetch and backend URL resolution in parallel.
+  const tokenPromise = getFirebaseIdToken(false).catch((e) => {
+    log('token.error', e?.message);
+    return null as string | null;
+  });
+  const backendPromise = resolveBackendUrl().catch(() => null);
+
+  // Always try the Lovable Cloud functions URL FIRST (it is always known and
+  // does not depend on the resolver finishing).
+  const primaryUrl = `${LOVABLE_CLOUD_FUNCTIONS_URL}/functions/v1/bootstrap-profile`;
+  log('primary.url', primaryUrl);
 
   diagnostics.attempts = [];
   diagnostics.lastError = null;
   diagnostics.lastRunAt = new Date().toISOString();
 
-  if (candidateUrls.length === 0) {
-    diagnostics.lastError = "No reachable backend";
-    throw new Error("No reachable backend");
-  }
-
-  const callOnce = async (url: string, forceRefresh: boolean) => {
-    const token = await getFirebaseIdToken(forceRefresh);
-    if (!token) throw new Error("Not signed in");
-
+  const callOnce = async (url: string, token: string, refresh: boolean) => {
+    const useToken = refresh ? (await getFirebaseIdToken(true)) || token : token;
+    if (!useToken) throw new Error("Not signed in");
     return fetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         apikey: PRODUCTION_ANON_KEY,
         Authorization: `Bearer ${PRODUCTION_ANON_KEY}`,
-        "x-firebase-token": token,
+        "x-firebase-token": useToken,
       },
       body: JSON.stringify({
         phone: input.phone ?? null,
@@ -109,37 +114,60 @@ export async function bootstrapProfileViaEdge(
     });
   };
 
+  const tryUrl = async (url: string, token: string): Promise<BootstrappedProfile> => {
+    let status: number | undefined;
+    log('attempt.start', url);
+    let res = await callOnce(url, token, false);
+    if (res.status === 401 || res.status === 403) {
+      log('attempt.retry_with_refreshed_token', { status: res.status });
+      res = await callOnce(url, token, true);
+    }
+    status = res.status;
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data?.profile) {
+      const msg = (typeof data?.error === "string" && data.error) || `Profile bootstrap failed (HTTP ${res.status})`;
+      throw new Error(msg);
+    }
+    diagnostics.attempts.push({ url, status, ok: true, at: new Date().toISOString() });
+    log('attempt.ok', { url, status });
+    return data.profile as BootstrappedProfile;
+  };
+
+  // Wait for token (parallel with backend resolution above)
+  const token = await tokenPromise;
+  log('token.ready', { hasToken: !!token });
+  if (!token) throw new Error("Not signed in");
+
   let lastError: Error | null = null;
 
-  for (const url of candidateUrls) {
-    let status: number | undefined;
-    try {
-      let res = await callOnce(url, false);
-      if (res.status === 401 || res.status === 403) {
-        res = await callOnce(url, true);
-      }
-      status = res.status;
+  // 1) Primary: Lovable Cloud functions URL — try immediately, no resolver wait.
+  try {
+    return await tryUrl(primaryUrl, token);
+  } catch (err: any) {
+    lastError = err instanceof Error ? err : new Error(err?.message || 'Primary failed');
+    diagnostics.attempts.push({
+      url: primaryUrl, ok: false, error: lastError.message, at: new Date().toISOString(),
+    });
+    diagnostics.lastError = lastError.message;
+    log('primary.failed', lastError.message);
+  }
 
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data?.profile) {
-        const msg =
-          (typeof data?.error === "string" && data.error) ||
-          `Profile bootstrap failed (HTTP ${res.status})`;
-        throw new Error(msg);
+  // 2) Fallback: resolved backend URL (if different)
+  const backendUrl = await backendPromise;
+  if (backendUrl) {
+    const fallbackUrl = `${backendUrl}/functions/v1/bootstrap-profile`;
+    if (fallbackUrl !== primaryUrl) {
+      try {
+        log('fallback.url', fallbackUrl);
+        return await tryUrl(fallbackUrl, token);
+      } catch (err: any) {
+        lastError = err instanceof Error ? err : new Error(err?.message || 'Fallback failed');
+        diagnostics.attempts.push({
+          url: fallbackUrl, ok: false, error: lastError.message, at: new Date().toISOString(),
+        });
+        diagnostics.lastError = lastError.message;
+        log('fallback.failed', lastError.message);
       }
-      diagnostics.attempts.push({ url, status, ok: true, at: new Date().toISOString() });
-      return data.profile as BootstrappedProfile;
-    } catch (err: any) {
-      lastError = err instanceof Error ? err : new Error(err?.message || "Profile bootstrap failed");
-      diagnostics.attempts.push({
-        url,
-        status,
-        ok: false,
-        error: lastError.message,
-        at: new Date().toISOString(),
-      });
-      diagnostics.lastError = lastError.message;
-      console.warn("[ProfileBootstrap] endpoint failed, trying fallback if available", { url, error: lastError.message });
     }
   }
 

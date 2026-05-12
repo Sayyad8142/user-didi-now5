@@ -48,8 +48,12 @@ function WalletCard() {
 }
 
 export default function Profile() {
-  const { profile, loading, refresh } = useProfile();
+  const { profile, loading, isProfileReady, refresh } = useProfile();
   const { communities, loading: communitiesLoading } = useCommunities();
+  // Treat the screen as still hydrating whenever bootstrap hasn't completed
+  // OR the cached profile is missing critical fields.
+  const hydrating = loading || !isProfileReady;
+  const NA = (val?: string | null) => (hydrating ? '' : (val && val.trim() ? val : 'Not provided'));
   const { flatSize, loading: flatSizeLoading } = useFlatSize();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -73,12 +77,8 @@ export default function Profile() {
   const { buildings } = useBuildings(editForm.community_id || null);
   const { flats } = useFlats(editForm.building_id || null, editForm.community_id || null, isPHF);
 
-  // Refresh profile on mount if profile data is incomplete (handles new signup race condition)
-  React.useEffect(() => {
-    if (!loading && profile && !profile.full_name) {
-      refresh();
-    }
-  }, [loading, profile?.full_name]);
+  // Note: ProfileContext owns retry/refresh logic — do NOT call refresh() from
+  // here based on missing fields. That used to cause duplicate bootstrap calls.
 
   // Initialize form when profile loads
   React.useEffect(() => {
@@ -191,7 +191,7 @@ export default function Profile() {
       window.location.href = '/auth';
     }
   };
-  if (loading) {
+  if (hydrating && !profile?.full_name) {
     return <div className="min-h-screen gradient-bg pb-24">
         <div className="max-w-md mx-auto px-4 py-8 space-y-6">
           <div className="text-center space-y-4">
@@ -275,7 +275,7 @@ export default function Profile() {
                 <div className="flex-1 space-y-1">
                   <p className="text-sm font-medium text-gray-500 uppercase tracking-wide">Full Name</p>
                   {!isEditing ? (
-                    <p className="text-lg font-semibold text-gray-900">{profile?.full_name || 'Not provided'}</p>
+                    hydrating ? <Skeleton className="h-6 w-40" /> : <p className="text-lg font-semibold text-gray-900">{profile?.full_name || 'Not provided'}</p>
                   ) : (
                     <Input
                       value={editForm.full_name}
@@ -296,7 +296,7 @@ export default function Profile() {
                 <div className="flex-1 space-y-1">
                   <p className="text-sm font-medium text-gray-500 uppercase tracking-wide">Phone Number</p>
                   {!isEditing ? (
-                    <p className="text-lg font-semibold text-gray-900">{profile?.phone || 'Not provided'}</p>
+                    hydrating ? <Skeleton className="h-6 w-32" /> : <p className="text-lg font-semibold text-gray-900">{profile?.phone || 'Not provided'}</p>
                   ) : (
                     <Input
                       value={editForm.phone}
@@ -317,9 +317,15 @@ export default function Profile() {
                 <div className="flex-1 space-y-1">
                   <p className="text-sm font-medium text-gray-500 uppercase tracking-wide">Community</p>
                   {!isEditing ? (
-                    <p className="text-lg font-semibold text-gray-900">
-                      {communities.find(c => c.value === profile?.community)?.name || profile?.community || 'Not provided'}
-                    </p>
+                    hydrating || (communitiesLoading && !profile?.community) ? (
+                      <Skeleton className="h-6 w-44" />
+                    ) : (
+                      <p className="text-lg font-semibold text-gray-900">
+                        {communities.find(c => c.id === profile?.community_id || c.value === profile?.community)?.name
+                          || profile?.community
+                          || 'Not provided'}
+                      </p>
+                    )
                   ) : (
                     <Select 
                       value={editForm.community_id} 
@@ -361,9 +367,11 @@ export default function Profile() {
                   <div className="flex-1 space-y-1">
                     <p className="text-sm font-medium text-gray-500 uppercase tracking-wide">Building</p>
                     {!isEditing ? (
-                      <p className="text-lg font-semibold text-gray-900">
-                        {buildings.find(b => b.id === profile?.building_id)?.name || 'Not provided'}
-                      </p>
+                      hydrating ? <Skeleton className="h-6 w-32" /> : (
+                        <p className="text-lg font-semibold text-gray-900">
+                          {buildings.find(b => b.id === profile?.building_id)?.name || 'Not provided'}
+                        </p>
+                      )
                     ) : (
                       <Select 
                         value={editForm.building_id} 
@@ -402,7 +410,7 @@ export default function Profile() {
                 <div className="flex-1 space-y-1">
                   <p className="text-sm font-medium text-gray-500 uppercase tracking-wide">Flat Number</p>
                   {!isEditing ? (
-                    <p className="text-lg font-semibold text-gray-900">{profile?.flat_no || 'Not provided'}</p>
+                    hydrating ? <Skeleton className="h-6 w-24" /> : <p className="text-lg font-semibold text-gray-900">{profile?.flat_no || 'Not provided'}</p>
                   ) : flats.length > 0 ? (
                     <Select 
                       value={editForm.flat_id} 
