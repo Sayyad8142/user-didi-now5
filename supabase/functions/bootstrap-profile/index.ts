@@ -329,6 +329,7 @@ serve(async (req) => {
       }
     }
 
+    console.log(`[bootstrap] done cold=${isCold} totalMs=${Date.now() - requestStart}`);
     return jsonResponse({ profile });
   } catch (err) {
     console.error("[bootstrap-profile] error", err);
