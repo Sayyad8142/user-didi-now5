@@ -21,7 +21,7 @@ export default function AccountSettings() {
       const { data: profile, error: pErr } = await supabase
         .from("profiles")
         .select("id, full_name, phone, community, flat_no, created_at, updated_at")
-        .eq("firebase_uid", (await import("@/lib/firebase")).getCurrentUser()?.uid ?? "")
+        .eq("firebase_uid", getCurrentUser()?.uid ?? "")
         .maybeSingle();
       if (pErr) throw pErr;
       if (!profile) throw new Error("Profile not found");
