@@ -1,6 +1,8 @@
 // Sends an OTP via Twilio Verify to the given phone number (E.164, +91...).
-// Uses raw Twilio credentials (TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_VERIFY_SERVICE_SID)
-// against verify.twilio.com directly.
+// Only sends to numbers that already exist in the `profiles` table.
+// Uses raw Twilio credentials (TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_VERIFY_SERVICE_SID).
+
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -14,6 +16,46 @@ function json(body: unknown, status = 200): Response {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
+}
+
+function cleanSecret(v: string | undefined | null): string | undefined {
+  if (!v) return undefined;
+  const t = v.trim();
+  return t.length ? t : undefined;
+}
+
+async function isPhoneRegistered(phone: string): Promise<boolean> {
+  const supabaseUrl =
+    cleanSecret(Deno.env.get("EXTERNAL_SUPABASE_URL")) ||
+    cleanSecret(Deno.env.get("PROFILES_SUPABASE_URL")) ||
+    "https://paywwbuqycovjopryele.supabase.co";
+  const serviceRoleKey =
+    cleanSecret(Deno.env.get("EXTERNAL_SUPABASE_SERVICE_ROLE_KEY")) ||
+    cleanSecret(Deno.env.get("PROFILES_SUPABASE_SERVICE_ROLE_KEY")) ||
+    cleanSecret(Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"));
+
+  if (!supabaseUrl || !serviceRoleKey) {
+    console.error("[twilio-send-otp] Missing Supabase env for registration check");
+    // Fail-closed: do not send OTP if we cannot verify registration
+    return false;
+  }
+
+  const admin = createClient(supabaseUrl, serviceRoleKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+
+  const { data, error } = await admin
+    .from("profiles")
+    .select("id")
+    .eq("phone", phone)
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.error("[twilio-send-otp] profile lookup failed", error);
+    return false;
+  }
+  return !!data;
 }
 
 Deno.serve(async (req) => {
@@ -36,10 +78,23 @@ Deno.serve(async (req) => {
       return json({ success: false, error: "phone is required" }, 400);
     }
 
-    // Basic E.164 validation
     const trimmed = phone.trim();
     if (!/^\+\d{8,15}$/.test(trimmed)) {
       return json({ success: false, error: "Invalid phone format. Use +91XXXXXXXXXX" }, 400);
+    }
+
+    // Gate: only send OTP to registered numbers
+    const registered = await isPhoneRegistered(trimmed);
+    if (!registered) {
+      console.log("[twilio-send-otp] blocked unregistered number", trimmed);
+      return json(
+        {
+          success: false,
+          code: "not_registered",
+          error: "This number isn't registered. Please contact support to create an account.",
+        },
+        403,
+      );
     }
 
     const url = `https://verify.twilio.com/v2/Services/${VERIFY_SID}/Verifications`;
