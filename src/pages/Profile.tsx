@@ -48,8 +48,12 @@ function WalletCard() {
 }
 
 export default function Profile() {
-  const { profile, loading, refresh } = useProfile();
+  const { profile, loading, isProfileReady, refresh } = useProfile();
   const { communities, loading: communitiesLoading } = useCommunities();
+  // Treat the screen as still hydrating whenever bootstrap hasn't completed
+  // OR the cached profile is missing critical fields.
+  const hydrating = loading || !isProfileReady;
+  const NA = (val?: string | null) => (hydrating ? '' : (val && val.trim() ? val : 'Not provided'));
   const { flatSize, loading: flatSizeLoading } = useFlatSize();
   const navigate = useNavigate();
   const { toast } = useToast();
