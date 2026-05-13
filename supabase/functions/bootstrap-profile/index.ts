@@ -123,8 +123,9 @@ serve(async (req) => {
     const payload = (await req.json().catch(() => ({}))) as BootstrapRequest;
     const phone = normalizePhone(payload.phone || fb.phone || "");
     const signup = payload.signupData || null;
+    const mode = payload.mode || (signup ? 'signup' : null); // null = legacy / profileUpdates-only call
     const isCold = (Date.now() - bootedAt) < 5_000;
-    console.log(`[bootstrap] start uid=${firebaseUid} cold=${isCold} isolate_age_ms=${Date.now() - bootedAt}`);
+    console.log(`[bootstrap] start uid=${firebaseUid} mode=${mode} cold=${isCold} isolate_age_ms=${Date.now() - bootedAt}`);
 
 
     // Prefer explicit external DB env vars; fall back to defaults so the
