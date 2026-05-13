@@ -67,6 +67,9 @@ verify_jwt = false
 [functions.twilio-send-otp]
 verify_jwt = false
 
+[functions.check-phone-exists]
+verify_jwt = false
+
 [functions.twilio-verify-otp]
 verify_jwt = false
 

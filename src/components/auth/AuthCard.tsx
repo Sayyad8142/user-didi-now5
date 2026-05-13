@@ -104,25 +104,23 @@ export function AuthCard() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const checkIfUserExists = async (phone: string): Promise<boolean> => {
+  const checkIfUserExists = async (formattedPhone: string): Promise<boolean | null> => {
     try {
-      const normalizedPhone = normalizePhone(phone);
-      const formattedPhone = formatPhoneIN(phone);
-
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, phone')
-        .in('phone', [normalizedPhone, formattedPhone])
-        .maybeSingle();
-
-      if (error) {
-        console.error('Error checking user existence:', error);
-        return false;
+      const url = `https://paywwbuqycovjopryele.supabase.co/functions/v1/check-phone-exists`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: formattedPhone }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data?.success !== true) {
+        console.warn('[AuthCard] check-phone-exists failed:', res.status, data);
+        return null; // unknown — don't block, server-side bootstrap will enforce
       }
-      return !!data;
-    } catch (error) {
-      console.error('Error checking user existence:', error);
-      return false;
+      return !!data.exists;
+    } catch (err) {
+      console.warn('[AuthCard] check-phone-exists error:', err);
+      return null;
     }
   };
 
@@ -155,12 +153,34 @@ export function AuthCard() {
     try {
       const formattedPhone = formatPhoneIN(phone);
 
-      // Note: We no longer pre-check profile existence here.
-      // Reading `profiles` from the client is blocked by RLS for anonymous users,
-      // which incorrectly flagged every existing user as "not registered".
-      // Firebase OTP works for any valid phone; after verification, `bootstrap-profile`
-      // matches existing accounts by phone (and firebase_uid) so reinstalls/sign-ins
-      // reuse the same profile with zero duplicates.
+      // Pre-check if a profile exists for this phone (background check, before OTP send).
+      // This avoids sending an OTP to unregistered numbers in Sign In, and prevents
+      // Sign Up on already-registered numbers. Final enforcement still happens
+      // in the bootstrap-profile edge function after OTP verification.
+      const exists = await checkIfUserExists(formattedPhone);
+
+      if (exists === true && isSignUp) {
+        setErrors({ phone: 'Account already exists. Please sign in.' });
+        toast({
+          title: 'Account already exists',
+          description: 'This mobile number is already registered. Please sign in.',
+          variant: 'destructive',
+        });
+        setLoading(false);
+        return;
+      }
+
+      if (exists === false && !isSignUp) {
+        setErrors({ phone: 'This mobile number is not registered. Please sign up and create an account.' });
+        toast({
+          title: 'Account not found',
+          description: 'This mobile number is not registered. Please sign up and create an account.',
+          variant: 'destructive',
+        });
+        setLoading(false);
+        return;
+      }
+      // exists === null → check failed; fall through and let server enforce after OTP.
 
       // Send OTP via Twilio Verify
       const result = await sendOtp(formattedPhone);
