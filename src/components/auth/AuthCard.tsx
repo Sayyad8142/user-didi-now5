@@ -104,25 +104,23 @@ export function AuthCard() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const checkIfUserExists = async (phone: string): Promise<boolean> => {
+  const checkIfUserExists = async (formattedPhone: string): Promise<boolean | null> => {
     try {
-      const normalizedPhone = normalizePhone(phone);
-      const formattedPhone = formatPhoneIN(phone);
-
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, phone')
-        .in('phone', [normalizedPhone, formattedPhone])
-        .maybeSingle();
-
-      if (error) {
-        console.error('Error checking user existence:', error);
-        return false;
+      const url = `https://paywwbuqycovjopryele.supabase.co/functions/v1/check-phone-exists`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: formattedPhone }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data?.success !== true) {
+        console.warn('[AuthCard] check-phone-exists failed:', res.status, data);
+        return null; // unknown — don't block, server-side bootstrap will enforce
       }
-      return !!data;
-    } catch (error) {
-      console.error('Error checking user existence:', error);
-      return false;
+      return !!data.exists;
+    } catch (err) {
+      console.warn('[AuthCard] check-phone-exists error:', err);
+      return null;
     }
   };
 
