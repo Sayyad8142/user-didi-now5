@@ -107,16 +107,17 @@ export function AuthCard() {
 
   const checkIfUserExists = async (formattedPhone: string): Promise<boolean | null> => {
     try {
-      const url = `https://paywwbuqycovjopryele.supabase.co/functions/v1/check-phone-exists`;
+      const url = `${LOVABLE_CLOUD_FUNCTIONS_URL}/functions/v1/check-phone-exists`;
       const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone: formattedPhone }),
       });
       const data = await res.json().catch(() => ({}));
+      console.log('[AuthCard] check-phone-exists result:', res.status, data);
       if (!res.ok || data?.success !== true) {
         console.warn('[AuthCard] check-phone-exists failed:', res.status, data);
-        return null; // unknown — don't block, server-side bootstrap will enforce
+        return null;
       }
       return !!data.exists;
     } catch (err) {
