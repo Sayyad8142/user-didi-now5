@@ -136,6 +136,7 @@ export function BookingCard({
   } | null>(null);
   const [paymentStatus, setPaymentStatus] = useState<string>('pending');
   const [retryingPayment, setRetryingPayment] = useState(false);
+  const [myRating, setMyRating] = useState<{ rating: number; comment: string | null } | null>(null);
   const now = useNow(); // ticks every 30s
   
   // Subscribe to real-time updates for this specific booking
@@ -190,6 +191,22 @@ export function BookingCard({
         setPaymentStatus(data?.payment_status || 'pending');
       });
   }, [booking.id]);
+
+  // Load the rating the user submitted for this booking (if any)
+  useEffect(() => {
+    if (booking.status !== 'completed') {
+      setMyRating(null);
+      return;
+    }
+    supabase
+      .from('worker_ratings')
+      .select('rating, comment')
+      .eq('booking_id', booking.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        setMyRating(data ? { rating: data.rating, comment: data.comment } : null);
+      });
+  }, [booking.id, booking.status]);
 
   // Load assigned worker (for fallback compatibility)
   useEffect(() => {
@@ -450,11 +467,11 @@ export function BookingCard({
         <NoWorkerCancelledBlock booking={row} />
       )}
 
-      {/* Worker mini-card (priority block #2: worker) */}
-      {workerDisplayName && !isCancelled && !isCompleted && (
+      {/* Worker mini-card (priority block #2: worker) — also shown on completed */}
+      {workerDisplayName && !isCancelled && (
         <div className="mt-4 ml-1 mr-1">
           <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 pl-0.5">
-            Assigned worker
+            {isCompleted ? 'Service by' : 'Assigned worker'}
           </p>
           <button
             type="button"
@@ -477,6 +494,80 @@ export function BookingCard({
             </div>
             {stars > 0 && <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />}
           </button>
+        </div>
+      )}
+
+      {/* Completed booking — extra details (your rating, payment, completed at) */}
+      {isCompleted && (
+        <div className="mt-3 ml-1 mr-1 rounded-2xl bg-muted/40 ring-1 ring-border/60 px-3 py-2.5 space-y-2 animate-fade-in">
+          {/* Your rating */}
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Your rating</span>
+            {myRating ? (
+              <div className="flex items-center gap-0.5">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <Star
+                    key={i}
+                    className={`w-3.5 h-3.5 ${i <= myRating.rating ? 'text-amber-500' : 'text-muted-foreground/30'}`}
+                    fill={i <= myRating.rating ? 'currentColor' : 'none'}
+                  />
+                ))}
+                <span className="ml-1 text-[12px] font-semibold text-foreground">{myRating.rating}.0</span>
+              </div>
+            ) : row.worker_id ? (
+              <button
+                type="button"
+                onClick={() => navigate(`/booking/${row.id}`)}
+                className="text-[12px] font-semibold text-primary hover:underline"
+              >
+                Rate now
+              </button>
+            ) : (
+              <span className="text-[12px] text-muted-foreground">—</span>
+            )}
+          </div>
+          {myRating?.comment && (
+            <p className="text-[12px] text-muted-foreground italic line-clamp-2">"{myRating.comment}"</p>
+          )}
+
+          {/* Payment */}
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+              <CreditCard className="w-3 h-3" />
+              Payment
+            </span>
+            <span className="text-[12px] font-semibold text-foreground capitalize">
+              {(() => {
+                const pm = (row.payment_method || '').toLowerCase();
+                const ps = (row.payment_status || '').toLowerCase();
+                if (pm === 'wallet') return 'Paid · Wallet';
+                if (pm === 'wallet+razorpay') return 'Paid · Wallet + Online';
+                if (pm === 'razorpay') return 'Paid · Online';
+                if (ps === 'pay_after_service') return 'Paid · Cash';
+                if (ps === 'paid') return 'Paid';
+                return ps || 'Pending';
+              })()}
+            </span>
+          </div>
+
+          {/* Completed at */}
+          {(row.otp_verified_at || row.auto_complete_at) && (
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+                <CheckCircle className="w-3 h-3" />
+                Completed
+              </span>
+              <span className="text-[12px] font-semibold text-foreground">
+                {format(new Date(row.otp_verified_at || row.auto_complete_at!), 'dd MMM, hh:mm a')}
+              </span>
+            </div>
+          )}
+
+          {/* Booking ID */}
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Booking ID</span>
+            <span className="text-[11px] font-mono text-muted-foreground">#{row.id.slice(0, 8)}</span>
+          </div>
         </div>
       )}
 
