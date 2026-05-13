@@ -224,6 +224,26 @@ export default function VerifyOTP() {
       setPendingRedirect("/home");
     } catch (error: any) {
       console.error('Verify OTP error:', error);
+
+      // Intent-enforcement errors from bootstrap-profile:
+      //   account_not_found  → user tried Sign In with an unregistered phone
+      //   account_exists     → user tried Sign Up with an already-registered phone
+      // In both cases, sign out the freshly-minted Firebase session so we don't
+      // leave a half-authenticated user on the device, then bounce back to /auth.
+      if (error instanceof BootstrapProfileError) {
+        try { await firebaseSignOut(); } catch {}
+        const isSignup = error.code === 'account_exists';
+        toast({
+          title: isSignup ? 'Account already exists' : 'Account not found',
+          description: isSignup
+            ? 'Please sign in instead.'
+            : 'Please sign up first.',
+          variant: 'destructive',
+        });
+        navigate('/auth', { replace: true, state: { tab: isSignup ? 'signin' : 'signup' } });
+        return;
+      }
+
       const errorMsg = error.message ?? "Verification failed";
       setError(errorMsg);
       toast({
