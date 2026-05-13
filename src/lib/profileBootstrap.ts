@@ -32,6 +32,7 @@ export interface ProfileUpdates {
 
 export interface BootstrapInput {
   phone?: string | null;
+  mode?: 'signin' | 'signup' | null;
   signupData?: {
     fullName?: string;
     communityValue?: string;
@@ -41,6 +42,16 @@ export interface BootstrapInput {
     flatNo?: string;
   } | null;
   profileUpdates?: ProfileUpdates | null;
+}
+
+export class BootstrapProfileError extends Error {
+  code: string;
+  status: number;
+  constructor(message: string, code: string, status: number) {
+    super(message);
+    this.code = code;
+    this.status = status;
+  }
 }
 
 export interface BootstrapAttempt {
