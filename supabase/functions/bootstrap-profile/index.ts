@@ -28,6 +28,7 @@ type ProfileUpdates = {
 
 type BootstrapRequest = {
   phone?: string;
+  mode?: 'signin' | 'signup' | null;
   signupData?: SignupData | null;
   profileUpdates?: ProfileUpdates | null;
 };
