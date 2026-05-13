@@ -32,6 +32,7 @@ export interface ProfileUpdates {
 
 export interface BootstrapInput {
   phone?: string | null;
+  mode?: 'signin' | 'signup' | null;
   signupData?: {
     fullName?: string;
     communityValue?: string;
@@ -41,6 +42,16 @@ export interface BootstrapInput {
     flatNo?: string;
   } | null;
   profileUpdates?: ProfileUpdates | null;
+}
+
+export class BootstrapProfileError extends Error {
+  code: string;
+  status: number;
+  constructor(message: string, code: string, status: number) {
+    super(message);
+    this.code = code;
+    this.status = status;
+  }
 }
 
 export interface BootstrapAttempt {
@@ -108,6 +119,7 @@ export async function bootstrapProfileViaEdge(
       },
       body: JSON.stringify({
         phone: input.phone ?? null,
+        mode: input.mode ?? null,
         signupData: input.signupData ?? null,
         profileUpdates: input.profileUpdates ?? null,
       }),
@@ -125,6 +137,14 @@ export async function bootstrapProfileViaEdge(
     status = res.status;
     const data = await res.json().catch(() => ({}));
     if (!res.ok || !data?.profile) {
+      // Surface intent-enforcement errors with a typed code so callers can branch.
+      if (data?.code === 'account_not_found' || data?.code === 'account_exists') {
+        throw new BootstrapProfileError(
+          (typeof data?.error === 'string' && data.error) || 'Account check failed',
+          data.code,
+          res.status,
+        );
+      }
       const msg = (typeof data?.error === "string" && data.error) || `Profile bootstrap failed (HTTP ${res.status})`;
       throw new Error(msg);
     }
@@ -150,6 +170,8 @@ export async function bootstrapProfileViaEdge(
     });
     diagnostics.lastError = lastError.message;
     log('primary.failed', lastError.message);
+    // Do NOT fall back for intent-enforcement errors — they're authoritative.
+    if (err instanceof BootstrapProfileError) throw err;
   }
 
   // 2) Fallback: resolved backend URL (if different)

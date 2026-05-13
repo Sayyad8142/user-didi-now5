@@ -28,6 +28,7 @@ type ProfileUpdates = {
 
 type BootstrapRequest = {
   phone?: string;
+  mode?: 'signin' | 'signup' | null;
   signupData?: SignupData | null;
   profileUpdates?: ProfileUpdates | null;
 };
@@ -122,8 +123,9 @@ serve(async (req) => {
     const payload = (await req.json().catch(() => ({}))) as BootstrapRequest;
     const phone = normalizePhone(payload.phone || fb.phone || "");
     const signup = payload.signupData || null;
+    const mode = payload.mode || (signup ? 'signup' : null); // null = legacy / profileUpdates-only call
     const isCold = (Date.now() - bootedAt) < 5_000;
-    console.log(`[bootstrap] start uid=${firebaseUid} cold=${isCold} isolate_age_ms=${Date.now() - bootedAt}`);
+    console.log(`[bootstrap] start uid=${firebaseUid} mode=${mode} cold=${isCold} isolate_age_ms=${Date.now() - bootedAt}`);
 
 
     // Prefer explicit external DB env vars; fall back to defaults so the
@@ -189,8 +191,25 @@ serve(async (req) => {
       }
     }
 
-    // 3) Create new
-    if (!profile) {
+    // 2.5) Intent enforcement
+    //   - signup + existing profile (matched by uid OR phone) => block, do not overwrite
+    //   - signin + no profile => block, do not auto-create stub accounts
+    if (mode === 'signup' && profile) {
+      console.warn(`[bootstrap] signup blocked: profile already exists id=${profile.id}`);
+      return jsonResponse({
+        error: 'Account already exists. Please sign in.',
+        code: 'account_exists',
+      }, 409);
+    }
+    if (mode === 'signin' && !profile) {
+      console.warn(`[bootstrap] signin blocked: no profile for uid=${firebaseUid} phone=${phone}`);
+      return jsonResponse({
+        error: 'Account not found. Please sign up first.',
+        code: 'account_not_found',
+      }, 404);
+    }
+
+    // 3) Create new (signup, or legacy callers with no mode)
       const insertRow: Record<string, unknown> = {
         firebase_uid: firebaseUid,
         phone: phone || null,

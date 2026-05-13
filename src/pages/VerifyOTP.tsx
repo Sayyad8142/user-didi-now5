@@ -11,11 +11,11 @@ import { ArrowLeft, CheckCircle2 } from 'lucide-react';
 import { maskPhone } from '@/lib/auth-helpers';
 import { CleaningLoader } from '@/components/ui/cleaning-loader';
 import { normalizePhone } from '@/features/profile/ensureProfile';
-import { bootstrapProfileViaEdge } from '@/lib/profileBootstrap';
+import { bootstrapProfileViaEdge, BootstrapProfileError } from '@/lib/profileBootstrap';
 import { isDemoCredentials, setDemoSession, clearDemoSession } from '@/lib/demo';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useAuth } from '@/components/auth/AuthProvider';
-import { verifyOtp, sendOtp } from '@/lib/firebase';
+import { verifyOtp, sendOtp, signOut as firebaseSignOut } from '@/lib/firebase';
 
 interface LocationState {
   phone: string;
@@ -98,17 +98,13 @@ export default function VerifyOTP() {
   // Direct inserts from the frontend are blocked by RLS because the Supabase
   // client is anonymous (Firebase is the identity provider).
   const ensureFirebaseProfile = async (firebaseUid: string, phoneNumber: string) => {
-    try {
-      const profile = await bootstrapProfileViaEdge({
-        phone: phoneNumber,
-        signupData: state?.mode === 'signup' ? state.signupData ?? null : null,
-      });
-      console.log('✅ Profile bootstrapped:', profile.id);
-      return profile;
-    } catch (error) {
-      console.error('Error in ensureFirebaseProfile:', error);
-      throw error;
-    }
+    const profile = await bootstrapProfileViaEdge({
+      phone: phoneNumber,
+      mode: state?.mode === 'signup' ? 'signup' : 'signin',
+      signupData: state?.mode === 'signup' ? state.signupData ?? null : null,
+    });
+    console.log('✅ Profile bootstrapped:', profile.id);
+    return profile;
   };
 
   const handleVerifyOTP = async () => {
@@ -228,6 +224,26 @@ export default function VerifyOTP() {
       setPendingRedirect("/home");
     } catch (error: any) {
       console.error('Verify OTP error:', error);
+
+      // Intent-enforcement errors from bootstrap-profile:
+      //   account_not_found  → user tried Sign In with an unregistered phone
+      //   account_exists     → user tried Sign Up with an already-registered phone
+      // In both cases, sign out the freshly-minted Firebase session so we don't
+      // leave a half-authenticated user on the device, then bounce back to /auth.
+      if (error instanceof BootstrapProfileError) {
+        try { await firebaseSignOut(); } catch {}
+        const isSignup = error.code === 'account_exists';
+        toast({
+          title: isSignup ? 'Account already exists' : 'Account not found',
+          description: isSignup
+            ? 'Please sign in instead.'
+            : 'Please sign up first.',
+          variant: 'destructive',
+        });
+        navigate('/auth', { replace: true, state: { tab: isSignup ? 'signin' : 'signup' } });
+        return;
+      }
+
       const errorMsg = error.message ?? "Verification failed";
       setError(errorMsg);
       toast({
