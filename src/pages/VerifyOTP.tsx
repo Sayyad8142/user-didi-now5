@@ -11,11 +11,11 @@ import { ArrowLeft, CheckCircle2 } from 'lucide-react';
 import { maskPhone } from '@/lib/auth-helpers';
 import { CleaningLoader } from '@/components/ui/cleaning-loader';
 import { normalizePhone } from '@/features/profile/ensureProfile';
-import { bootstrapProfileViaEdge } from '@/lib/profileBootstrap';
+import { bootstrapProfileViaEdge, BootstrapProfileError } from '@/lib/profileBootstrap';
 import { isDemoCredentials, setDemoSession, clearDemoSession } from '@/lib/demo';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useAuth } from '@/components/auth/AuthProvider';
-import { verifyOtp, sendOtp } from '@/lib/firebase';
+import { verifyOtp, sendOtp, signOut as firebaseSignOut } from '@/lib/firebase';
 
 interface LocationState {
   phone: string;
