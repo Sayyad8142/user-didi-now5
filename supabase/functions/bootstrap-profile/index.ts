@@ -191,8 +191,25 @@ serve(async (req) => {
       }
     }
 
-    // 3) Create new
-    if (!profile) {
+    // 2.5) Intent enforcement
+    //   - signup + existing profile (matched by uid OR phone) => block, do not overwrite
+    //   - signin + no profile => block, do not auto-create stub accounts
+    if (mode === 'signup' && profile) {
+      console.warn(`[bootstrap] signup blocked: profile already exists id=${profile.id}`);
+      return jsonResponse({
+        error: 'Account already exists. Please sign in.',
+        code: 'account_exists',
+      }, 409);
+    }
+    if (mode === 'signin' && !profile) {
+      console.warn(`[bootstrap] signin blocked: no profile for uid=${firebaseUid} phone=${phone}`);
+      return jsonResponse({
+        error: 'Account not found. Please sign up first.',
+        code: 'account_not_found',
+      }, 404);
+    }
+
+    // 3) Create new (signup, or legacy callers with no mode)
       const insertRow: Record<string, unknown> = {
         firebase_uid: firebaseUid,
         phone: phone || null,
