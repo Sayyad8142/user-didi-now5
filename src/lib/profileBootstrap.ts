@@ -119,6 +119,7 @@ export async function bootstrapProfileViaEdge(
       },
       body: JSON.stringify({
         phone: input.phone ?? null,
+        mode: input.mode ?? null,
         signupData: input.signupData ?? null,
         profileUpdates: input.profileUpdates ?? null,
       }),
@@ -136,6 +137,14 @@ export async function bootstrapProfileViaEdge(
     status = res.status;
     const data = await res.json().catch(() => ({}));
     if (!res.ok || !data?.profile) {
+      // Surface intent-enforcement errors with a typed code so callers can branch.
+      if (data?.code === 'account_not_found' || data?.code === 'account_exists') {
+        throw new BootstrapProfileError(
+          (typeof data?.error === 'string' && data.error) || 'Account check failed',
+          data.code,
+          res.status,
+        );
+      }
       const msg = (typeof data?.error === "string" && data.error) || `Profile bootstrap failed (HTTP ${res.status})`;
       throw new Error(msg);
     }
