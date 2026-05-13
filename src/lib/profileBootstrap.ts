@@ -170,6 +170,8 @@ export async function bootstrapProfileViaEdge(
     });
     diagnostics.lastError = lastError.message;
     log('primary.failed', lastError.message);
+    // Do NOT fall back for intent-enforcement errors — they're authoritative.
+    if (err instanceof BootstrapProfileError) throw err;
   }
 
   // 2) Fallback: resolved backend URL (if different)
