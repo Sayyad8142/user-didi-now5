@@ -19,6 +19,7 @@ import { useFlats } from '@/hooks/useFlats';
 import { isDemoCredentials, setDemoSession, setGuestSession, clearDemoSession } from '@/lib/demo';
 import { SignUpWizard } from './SignUpWizard';
 import { sendOtp, signOut as firebaseSignOut } from '@/lib/firebase';
+import { LOVABLE_CLOUD_FUNCTIONS_URL } from '@/lib/constants';
 
 export function AuthCard() {
   const navigate = useNavigate();
