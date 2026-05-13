@@ -165,7 +165,57 @@ serve(async (req) => {
     }
 
     let profile = byUid;
-    let matchSource: 'uid' | 'phone_exact' | 'phone_variant' | 'created' | 'none' = byUid ? 'uid' : 'none';
+    let matchSource: 'uid' | 'phone_exact' | 'phone_variant' | 'created' | 'none' | 'stub_recovered' = byUid ? 'uid' : 'none';
+
+    // 1.5) Stub-recovery: if uid match returned a stub (default name, no flat,
+    // community 'other') AND we have a phone, look for a real profile by phone
+    // and reassign the firebase_uid to it. Fixes race where a parallel
+    // bootstrap call (with empty phone) created a default profile while
+    // another call linked the real profile.
+    if (profile && phone) {
+      const isStub =
+        (!profile.full_name || profile.full_name === "User" || profile.full_name === phone) &&
+        (!profile.flat_no || profile.flat_no === "") &&
+        (profile.community === "other" || !profile.community);
+      if (isStub) {
+        const digits = phone.replace(/\D/g, "");
+        const last10 = digits.slice(-10);
+        const variants = Array.from(new Set([
+          phone, `+${digits}`, digits, last10,
+          `+91${last10}`, `91${last10}`, `0${last10}`, `+91 ${last10}`, `91 ${last10}`,
+        ].filter(Boolean)));
+        const { data: realCandidates } = await admin
+          .from("profiles")
+          .select(SELECT_COLS)
+          .in("phone", variants)
+          .neq("id", profile.id)
+          .order("updated_at", { ascending: false })
+          .limit(5);
+        const real = (realCandidates || []).find((r: any) =>
+          r.full_name && r.full_name !== "User" && r.full_name !== phone &&
+          (r.flat_no || r.community !== "other")
+        );
+        if (real) {
+          console.log(`[bootstrap] stub recovery: stub=${profile.id} → real=${real.id} (oldUid=${real.firebase_uid})`);
+          // Free uid on stub, then attach to real.
+          await admin.from("profiles").update({ firebase_uid: `stub:${profile.id}` }).eq("id", profile.id);
+          const { data: linked, error: linkErr } = await admin
+            .from("profiles")
+            .update({ firebase_uid: firebaseUid, phone })
+            .eq("id", real.id)
+            .select(SELECT_COLS)
+            .single();
+          if (!linkErr && linked) {
+            profile = linked;
+            matchSource = 'stub_recovered';
+          } else if (linkErr) {
+            console.error("[bootstrap] stub recovery link failed", linkErr);
+            // Restore uid on stub so user isn't locked out
+            await admin.from("profiles").update({ firebase_uid: firebaseUid }).eq("id", profile.id);
+          }
+        }
+      }
+    }
 
     // 2) Fallback: link by phone — try multiple legacy formats so old Firebase
     // users (whose phone may be stored as 9000666986, 919000666986, with
