@@ -98,17 +98,13 @@ export default function VerifyOTP() {
   // Direct inserts from the frontend are blocked by RLS because the Supabase
   // client is anonymous (Firebase is the identity provider).
   const ensureFirebaseProfile = async (firebaseUid: string, phoneNumber: string) => {
-    try {
-      const profile = await bootstrapProfileViaEdge({
-        phone: phoneNumber,
-        signupData: state?.mode === 'signup' ? state.signupData ?? null : null,
-      });
-      console.log('✅ Profile bootstrapped:', profile.id);
-      return profile;
-    } catch (error) {
-      console.error('Error in ensureFirebaseProfile:', error);
-      throw error;
-    }
+    const profile = await bootstrapProfileViaEdge({
+      phone: phoneNumber,
+      mode: state?.mode === 'signup' ? 'signup' : 'signin',
+      signupData: state?.mode === 'signup' ? state.signupData ?? null : null,
+    });
+    console.log('✅ Profile bootstrapped:', profile.id);
+    return profile;
   };
 
   const handleVerifyOTP = async () => {
