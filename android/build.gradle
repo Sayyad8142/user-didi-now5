@@ -47,6 +47,21 @@ subprojects { subproject ->
             }
         }
     }
+
+    // Hard override: force Java 17 on every JavaCompile / KotlinCompile task.
+    // Capacitor 7 plugin modules declare VERSION_21 in their bundled build.gradle
+    // files (inside node_modules). Without this override, builds on a JDK 17
+    // toolchain fail with: "invalid source release: 21".
+    tasks.withType(JavaCompile).configureEach {
+        sourceCompatibility = JavaVersion.VERSION_17.toString()
+        targetCompatibility = JavaVersion.VERSION_17.toString()
+        options.release.set(17)
+    }
+    tasks.matching { it.name.startsWith('compile') && it.name.endsWith('Kotlin') }.configureEach {
+        kotlinOptions {
+            jvmTarget = "17"
+        }
+    }
 }
 
 task clean(type: Delete) {
