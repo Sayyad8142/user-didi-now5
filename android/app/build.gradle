@@ -7,8 +7,8 @@ android {
         applicationId "com.didisnow.app"
         minSdkVersion 23
         targetSdkVersion 34
-        // Increase for every Play upload
-        versionCode 70
+        // Increase for every Play upload — must be strictly > highest previously uploaded code
+        versionCode 6070
         versionName "7.0.70"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
