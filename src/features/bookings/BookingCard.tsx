@@ -192,6 +192,22 @@ export function BookingCard({
       });
   }, [booking.id]);
 
+  // Load the rating the user submitted for this booking (if any)
+  useEffect(() => {
+    if (booking.status !== 'completed') {
+      setMyRating(null);
+      return;
+    }
+    supabase
+      .from('worker_ratings')
+      .select('rating, comment')
+      .eq('booking_id', booking.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        setMyRating(data ? { rating: data.rating, comment: data.comment } : null);
+      });
+  }, [booking.id, booking.status]);
+
   // Load assigned worker (for fallback compatibility)
   useEffect(() => {
     let active = true;
