@@ -165,10 +165,29 @@ serve(async (req) => {
     }
 
     let profile = byUid;
+    let matchSource: 'uid' | 'phone_exact' | 'phone_variant' | 'created' | 'none' = byUid ? 'uid' : 'none';
 
-    // 2) Fallback: link by phone
+    // 2) Fallback: link by phone — try multiple legacy formats so old Firebase
+    // users (whose phone may be stored as 9000666986, 919000666986, with
+    // spaces, etc.) get matched to their existing profile instead of getting
+    // a fresh default one.
     if (!profile && phone) {
-      const { data: byPhone } = await admin
+      const digits = phone.replace(/\D/g, ""); // e.g. "919000666986"
+      const last10 = digits.slice(-10);         // e.g. "9000666986"
+      const variants = Array.from(new Set([
+        phone,                  // +91XXXXXXXXXX
+        `+${digits}`,           // +91XXXXXXXXXX
+        digits,                 // 91XXXXXXXXXX
+        last10,                 // XXXXXXXXXX
+        `+91${last10}`,
+        `91${last10}`,
+        `0${last10}`,
+        `+91 ${last10}`,
+        `91 ${last10}`,
+      ].filter(Boolean)));
+
+      // First try exact normalized match
+      const { data: byPhoneExact } = await admin
         .from("profiles")
         .select(SELECT_COLS)
         .eq("phone", phone)
@@ -176,11 +195,43 @@ serve(async (req) => {
         .limit(1)
         .maybeSingle();
 
-      if (byPhone) {
+      let matched = byPhoneExact;
+      if (matched) {
+        matchSource = 'phone_exact';
+      } else {
+        // Try the other variants via IN(...)
+        const { data: byVariants } = await admin
+          .from("profiles")
+          .select(SELECT_COLS)
+          .in("phone", variants)
+          .order("updated_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (byVariants) {
+          matched = byVariants;
+          matchSource = 'phone_variant';
+        } else {
+          // Last resort: strip whitespace and compare last-10-digit suffix server-side
+          const { data: bySuffix } = await admin
+            .from("profiles")
+            .select(SELECT_COLS)
+            .like("phone", `%${last10}`)
+            .order("updated_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          if (bySuffix) {
+            matched = bySuffix;
+            matchSource = 'phone_variant';
+          }
+        }
+      }
+
+      if (matched) {
+        console.log(`[bootstrap] phone match found id=${matched.id} oldPhone=${matched.phone} oldUid=${matched.firebase_uid} via=${matchSource}`);
         const { data: linked, error: linkErr } = await admin
           .from("profiles")
           .update({ firebase_uid: firebaseUid, phone })
-          .eq("id", byPhone.id)
+          .eq("id", matched.id)
           .select(SELECT_COLS)
           .single();
         if (linkErr) {
@@ -191,8 +242,10 @@ serve(async (req) => {
       }
     }
 
+    console.log(`[bootstrap] lookup result uid=${firebaseUid} phone=${phone} matchSource=${matchSource} profileId=${profile?.id ?? 'none'}`);
+
     // 2.5) Intent enforcement
-    //   - signup + existing profile (matched by uid OR phone) => block, do not overwrite
+    //   - signup + existing profile => block, do not overwrite
     //   - signin + no profile => block, do not auto-create stub accounts
     if (mode === 'signup' && profile) {
       console.warn(`[bootstrap] signup blocked: profile already exists id=${profile.id}`);
@@ -209,7 +262,10 @@ serve(async (req) => {
       }, 404);
     }
 
-    // 3) Create new (signup, or legacy callers with no mode)
+    // 3) Create new — ONLY when no profile was found (signup, or legacy
+    // callers with no mode). For signin with an existing profile we skip
+    // straight to the post-processing below.
+    if (!profile) {
       const insertRow: Record<string, unknown> = {
         firebase_uid: firebaseUid,
         phone: phone || null,
@@ -239,9 +295,8 @@ serve(async (req) => {
       }
 
       if (insertErr) {
-        // Race / duplicate handling
         if (isDuplicateKeyError(insertErr)) {
-          // First try to find the row by firebase_uid (uid race)
+          // Race: another request created/linked the row. Re-resolve.
           const { data: againUid } = await admin
             .from("profiles")
             .select(SELECT_COLS)
@@ -250,8 +305,6 @@ serve(async (req) => {
           if (againUid) {
             profile = againUid;
           } else if (phone) {
-            // Phone collided: an existing profile owns this phone.
-            // Link it to this firebase_uid instead of failing.
             const { data: byPhone } = await admin
               .from("profiles")
               .select(SELECT_COLS)
@@ -277,6 +330,8 @@ serve(async (req) => {
         }
       } else {
         profile = created;
+        matchSource = 'created';
+        console.log(`[bootstrap] created new profile id=${profile?.id} uid=${firebaseUid} phone=${phone}`);
       }
     }
 
