@@ -60,6 +60,7 @@ export function HomeScreen() {
         <HeroCarousel />
         <ServicesRow onServiceSelect={handleServiceSelect} />
         <HomeOtpCard />
+        <HomeRatingCard />
         <ActiveBookingCard />
         
         <ServiceHours />
