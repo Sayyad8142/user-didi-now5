@@ -31,9 +31,31 @@ export async function verifyFirebaseToken(idToken: string): Promise<FirebaseUser
   const user = data.users?.[0];
   if (!user?.localId) throw new Error("No user found for token");
 
+  // Custom-token users (Twilio OTP flow) don't have phoneNumber on the
+  // Firebase user record — the phone is only in the ID token claims.
+  // Decode the JWT payload to recover it.
+  let claimPhone: string | null = null;
+  try {
+    const parts = idToken.split(".");
+    if (parts.length >= 2) {
+      const b64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+      const padded = b64 + "=".repeat((4 - (b64.length % 4)) % 4);
+      const json = JSON.parse(atob(padded));
+      claimPhone = json.phone_number || json.claims?.phone_number || null;
+    }
+  } catch (_) {
+    // ignore
+  }
+
+  // Fallback: derive from uid pattern "phone:+E164"
+  let uidPhone: string | null = null;
+  if (typeof user.localId === "string" && user.localId.startsWith("phone:")) {
+    uidPhone = user.localId.slice("phone:".length);
+  }
+
   return {
     uid: user.localId,
-    phone: user.phoneNumber || null,
+    phone: user.phoneNumber || claimPhone || uidPhone || null,
     email: user.email || null,
   };
 }
