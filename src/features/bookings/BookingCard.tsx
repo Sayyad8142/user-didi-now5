@@ -136,6 +136,7 @@ export function BookingCard({
   } | null>(null);
   const [paymentStatus, setPaymentStatus] = useState<string>('pending');
   const [retryingPayment, setRetryingPayment] = useState(false);
+  const [myRating, setMyRating] = useState<{ rating: number; comment: string | null } | null>(null);
   const now = useNow(); // ticks every 30s
   
   // Subscribe to real-time updates for this specific booking
