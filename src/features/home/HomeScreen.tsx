@@ -11,6 +11,7 @@ import { WorkerAvailabilityCard } from './WorkerAvailabilityCard';
 import { FeatureCarousel } from './FeatureCarousel';
 import { ActiveBookingCard } from './ActiveBookingCard';
 import { HomeOtpCard } from './HomeOtpCard';
+import { HomeRatingCard } from './HomeRatingCard';
 import { openExternalUrl } from '@/lib/nativeOpen';
 import FaqSection from './FaqSection';
 import { TrustedPartnersSection } from './TrustedPartnersSection';
@@ -59,6 +60,7 @@ export function HomeScreen() {
         <HeroCarousel />
         <ServicesRow onServiceSelect={handleServiceSelect} />
         <HomeOtpCard />
+        <HomeRatingCard />
         <ActiveBookingCard />
         
         <ServiceHours />
