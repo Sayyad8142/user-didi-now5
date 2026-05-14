@@ -681,29 +681,20 @@ Deno.serve(async (req) => {
         .limit(1);
     }
 
-    // 11. Trigger dispatch for instant bookings
+    // 11. Trigger dispatch for instant bookings (modern flow only)
     if (newBooking.booking_type === "instant") {
       console.log(
-        `[create-paid-booking] 🚀 Dispatching instant booking ${newBooking.id}`,
+        `[DISPATCH_FLOW_DEBUG][create-paid-booking] booking=${newBooking.id} type=instant → dispatch-pending-bookings`,
       );
       try {
-        const { error: dispatchErr } = await supabase.rpc("dispatch_booking", {
-          p_booking_id: newBooking.id,
+        await fetch(`${SUPABASE_URL}/functions/v1/dispatch-pending-bookings`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+          },
+          body: JSON.stringify({ booking_id: newBooking.id }),
         });
-        if (dispatchErr) {
-          console.warn(
-            "[create-paid-booking] dispatch RPC failed, trying edge fn:",
-            dispatchErr.message,
-          );
-          await fetch(`${SUPABASE_URL}/functions/v1/scheduled-dispatch`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-            },
-            body: JSON.stringify({ booking_id: newBooking.id }),
-          });
-        }
       } catch (e) {
         console.error(
           "[create-paid-booking] Dispatch error (non-blocking):",

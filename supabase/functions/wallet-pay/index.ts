@@ -83,22 +83,16 @@ Deno.serve(async (req) => {
         .single();
 
       if (booking?.booking_type === "instant" && booking?.status === "pending") {
-        console.log(`[wallet-pay] 🚀 Dispatching wallet-paid instant booking ${booking_id}`);
+        console.log(`[DISPATCH_FLOW_DEBUG][wallet-pay] booking=${booking_id} type=instant → dispatch-pending-bookings`);
         try {
-          const { error: dispatchErr } = await supabase.rpc("dispatch_booking", {
-            p_booking_id: booking_id,
+          await fetch(`${SUPABASE_URL}/functions/v1/dispatch-pending-bookings`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+            },
+            body: JSON.stringify({ booking_id }),
           });
-          if (dispatchErr) {
-            console.warn("[wallet-pay] dispatch RPC failed, calling edge fn:", dispatchErr.message);
-            await fetch(`${SUPABASE_URL}/functions/v1/scheduled-dispatch`, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-              },
-              body: JSON.stringify({ booking_id }),
-            });
-          }
         } catch (e) {
           console.error("[wallet-pay] Dispatch error (non-blocking):", e);
         }

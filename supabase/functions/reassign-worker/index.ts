@@ -125,20 +125,32 @@ Deno.serve(async (req) => {
       return json({ error: "Failed to reset booking" }, 500);
     }
 
-    // ── Step 4: Call dispatch_booking() — same path as fresh instant bookings ──
-    const { error: dispatchErr } = await supabase.rpc("dispatch_booking", {
-      p_booking_id: booking_id,
-    });
-
-    if (dispatchErr) {
-      console.error("[reassign-worker] dispatch_booking RPC error:", dispatchErr);
+    // ── Step 4: Hand off to dispatch-pending-bookings (modern flow) ──
+    try {
+      const dispRes = await fetch(`${SUPABASE_URL}/functions/v1/dispatch-pending-bookings`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+        },
+        body: JSON.stringify({ booking_id }),
+      });
+      if (!dispRes.ok) {
+        console.error("[reassign-worker] dispatch edge fn non-OK:", dispRes.status);
+        return json({
+          ok: true,
+          warning: "Booking reset but dispatch failed — workers will be notified shortly",
+        });
+      }
+    } catch (e) {
+      console.error("[reassign-worker] dispatch edge fn error:", e);
       return json({
         ok: true,
         warning: "Booking reset but dispatch failed — workers will be notified shortly",
       });
     }
 
-    console.log(`[reassign-worker] ✅ Booking ${booking_id} reassigned and dispatched`);
+    console.log(`[DISPATCH_FLOW_DEBUG][reassign-worker] booking=${booking_id} reassigned & dispatched`);
     return json({ ok: true });
   } catch (err) {
     console.error("[reassign-worker] Error:", err);
