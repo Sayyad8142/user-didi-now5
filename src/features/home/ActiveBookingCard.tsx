@@ -21,6 +21,7 @@ import { WorkerRatingsModal } from '@/features/bookings/WorkerRatingsModal';
 import { useUnseenMessages } from '@/hooks/useUnseenMessages';
 import { WorkerReachConfirmationCard } from '@/features/bookings/WorkerReachConfirmationCard';
 import { ReportIssueButton } from '@/features/bookings/ReportIssueSheet';
+import CancelBookingPill from '@/features/bookings/CancelBookingPill';
 import { fetchMyBookings } from '@/features/bookings/bookingsReadClient';
 import {
   FindingWorkerCountdown,
@@ -683,15 +684,18 @@ const ActiveBookingCard = memo(() => {
           </button>
         )}
 
-        {/* Report Issue — only when a worker is assigned and booking is active */}
-        {!isCancelled && activeBooking.worker_id && (
-          <div className="mt-3 ml-1 flex justify-end">
-            <ReportIssueButton
-              bookingId={activeBooking.id}
-              workerId={activeBooking.worker_id}
-              status={activeBooking.status}
-              hasWorker={!!activeBooking.worker_id}
-            />
+        {/* Cancel + Report Issue actions */}
+        {!isCancelled && (
+          <div className="mt-3 ml-1 flex justify-end items-center gap-2 flex-wrap">
+            <CancelBookingPill booking={activeBooking} onCancel={fetchActiveBooking} />
+            {activeBooking.worker_id && (
+              <ReportIssueButton
+                bookingId={activeBooking.id}
+                workerId={activeBooking.worker_id}
+                status={activeBooking.status}
+                hasWorker={!!activeBooking.worker_id}
+              />
+            )}
           </div>
         )}
       </Card>
