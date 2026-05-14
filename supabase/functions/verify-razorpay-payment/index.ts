@@ -147,34 +147,19 @@ Deno.serve(async (req) => {
 
     console.log(`✅ Payment verified for booking ${booking_id}, payment: ${razorpay_payment_id}`);
 
-    // 10. TRIGGER DISPATCH — only for instant bookings (scheduled bookings dispatch on their own schedule)
+    // 10. TRIGGER DISPATCH — only for instant bookings (modern flow only)
     if (booking.booking_type === "instant") {
-      console.log(`🚀 Triggering dispatch for instant booking ${booking_id}...`);
+      console.log(`[DISPATCH_FLOW_DEBUG][verify-razorpay-payment] booking=${booking_id} type=instant → dispatch-pending-bookings`);
       try {
-        // Try DB dispatch function first (preferred — atomic, uses advisory locks)
-        const { error: dispatchErr } = await supabase.rpc("dispatch_booking", {
-          p_booking_id: booking_id,
+        await fetch(`${SUPABASE_URL}/functions/v1/dispatch-pending-bookings`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+          },
+          body: JSON.stringify({ booking_id }),
         });
-
-        if (dispatchErr) {
-          console.error("dispatch_booking RPC failed, trying edge function fallback:", dispatchErr);
-          // Fallback: call scheduled-dispatch edge function
-          try {
-            await fetch(`${SUPABASE_URL}/functions/v1/scheduled-dispatch`, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-              },
-              body: JSON.stringify({ booking_id }),
-            });
-            console.log(`✅ Dispatch triggered via edge function for ${booking_id}`);
-          } catch (fallbackErr) {
-            console.error("Edge function dispatch fallback also failed:", fallbackErr);
-          }
-        } else {
-          console.log(`✅ Dispatch triggered via RPC for ${booking_id}`);
-        }
+        console.log(`✅ Dispatch triggered via edge function for ${booking_id}`);
       } catch (dispatchCatchErr) {
         console.error("Dispatch trigger error (non-blocking):", dispatchCatchErr);
       }
