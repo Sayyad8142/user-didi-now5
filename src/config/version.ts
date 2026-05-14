@@ -1,2 +1,2 @@
-export const APP_VERSION_CODE = 7070;
-export const APP_VERSION_NAME = "7.0.70";
+export const APP_VERSION_CODE = 8080;
+export const APP_VERSION_NAME = "8.0.80";
