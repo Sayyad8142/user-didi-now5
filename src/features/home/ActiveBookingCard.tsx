@@ -21,6 +21,7 @@ import { WorkerRatingsModal } from '@/features/bookings/WorkerRatingsModal';
 import { useUnseenMessages } from '@/hooks/useUnseenMessages';
 import { WorkerReachConfirmationCard } from '@/features/bookings/WorkerReachConfirmationCard';
 import { ReportIssueButton } from '@/features/bookings/ReportIssueSheet';
+import CancelBookingPill from '@/features/bookings/CancelBookingPill';
 import { fetchMyBookings } from '@/features/bookings/bookingsReadClient';
 import {
   FindingWorkerCountdown,
