@@ -167,32 +167,19 @@ Deno.serve(async (req) => {
 
       console.log(`${logPrefix} ✅ Booking ${booking.id} marked as paid via webhook`);
 
-      // Trigger dispatch for instant bookings that haven't been dispatched yet
+      // Trigger dispatch for instant bookings (modern flow only)
       if (booking.booking_type === "instant" && booking.status === "pending") {
-        console.log(`${logPrefix} 🚀 Triggering dispatch for instant booking ${booking.id}`);
+        console.log(`[DISPATCH_FLOW_DEBUG][razorpay-webhook] booking=${booking.id} type=instant → dispatch-pending-bookings`);
         try {
-          const { error: dispatchErr } = await supabase.rpc("dispatch_booking", {
-            p_booking_id: booking.id,
+          await fetch(`${SUPABASE_URL}/functions/v1/dispatch-pending-bookings`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+            },
+            body: JSON.stringify({ booking_id: booking.id }),
           });
-          if (dispatchErr) {
-            console.error(`${logPrefix} dispatch_booking RPC failed:`, dispatchErr);
-            // Fallback to edge function
-            try {
-              await fetch(`${SUPABASE_URL}/functions/v1/scheduled-dispatch`, {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-                },
-                body: JSON.stringify({ booking_id: booking.id }),
-              });
-              console.log(`${logPrefix} ✅ Dispatch via edge function fallback`);
-            } catch (fallbackErr) {
-              console.error(`${logPrefix} Edge function fallback also failed:`, fallbackErr);
-            }
-          } else {
-            console.log(`${logPrefix} ✅ Dispatch triggered via RPC`);
-          }
+          console.log(`${logPrefix} ✅ Dispatch via edge function`);
         } catch (dispatchCatchErr) {
           console.error(`${logPrefix} Dispatch error (non-blocking):`, dispatchCatchErr);
         }
