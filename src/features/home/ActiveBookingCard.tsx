@@ -245,9 +245,35 @@ const ActiveBookingCard = memo(() => {
   }, []);
 
   useEffect(() => {
-    if (profile?.id) fetchActiveBooking();
-    else { setLoading(false); setActiveBooking(null); }
-  }, [profile?.id]);
+    if (profile?.id) {
+      console.log('[HOME_FETCH_START] ActiveBookingCard initial fetch for', profile.id);
+      fetchActiveBooking().then(() => console.log('[HOME_FETCH_DONE] ActiveBookingCard'));
+    } else { setLoading(false); setActiveBooking(null); }
+  }, [profile?.id, fetchActiveBooking]);
+
+  // Refetch when the tab/window regains focus or backend becomes ready.
+  // KeepAliveTabs keeps Home mounted, so plain mount-only effects miss
+  // resume/visibility events — explicit listeners are required.
+  useEffect(() => {
+    if (!profile?.id) return;
+    const refresh = (reason: string) => {
+      console.log('[HOME_REFRESH] ActiveBookingCard ←', reason);
+      fetchActiveBooking();
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') refresh('visibilitychange');
+    };
+    const onFocus = () => refresh('focus');
+    const onSupabaseReady = () => refresh('supabase-ready');
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('focus', onFocus);
+    window.addEventListener('supabase-ready', onSupabaseReady);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('focus', onFocus);
+      window.removeEventListener('supabase-ready', onSupabaseReady);
+    };
+  }, [profile?.id, fetchActiveBooking]);
 
   useEffect(() => {
     if (!activeBooking?.worker_id) { setWorkerStats(null); return; }
@@ -270,11 +296,15 @@ const ActiveBookingCard = memo(() => {
 
   useEffect(() => {
     if (!profile?.id) return;
+    console.log('[HOME_REALTIME] ActiveBookingCard subscribing for', profile.id);
     const channel = supabase
       .channel(`active-booking-updates-${profile.id}`)
       .on("postgres_changes",
-        { event: "UPDATE", schema: "public", table: "bookings", filter: `user_id=eq.${profile.id}` },
-        () => fetchActiveBooking()
+        { event: "*", schema: "public", table: "bookings", filter: `user_id=eq.${profile.id}` },
+        (payload) => {
+          console.log('[HOME_REALTIME_EVENT] bookings', (payload as any)?.eventType);
+          fetchActiveBooking();
+        }
       )
       .subscribe();
     return () => { supabase.removeChannel(channel); };
