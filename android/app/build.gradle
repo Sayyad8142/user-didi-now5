@@ -61,6 +61,41 @@ android {
     }
 }
 
+androidComponents {
+    onVariants(selector().withBuildType("release")) { variant ->
+        variant.outputs.each { output ->
+            output.versionCode.set(didiNowVersionCode)
+            output.versionName.set(didiNowVersionName)
+        }
+    }
+}
+
+tasks.register("verifyDidiNowReleaseVersion") {
+    def expectedCode = didiNowVersionCode
+    def expectedName = didiNowVersionName
+    doLast {
+        def metadataFile = file("$buildDir/outputs/bundle/release/output-metadata.json")
+        if (!metadataFile.exists()) {
+            throw new GradleException("Release bundle metadata not found: ${metadataFile}")
+        }
+
+        def metadata = new JsonSlurper().parse(metadataFile)
+        def element = metadata.elements?.find { it.outputFile == "app-release.aab" } ?: metadata.elements?.first()
+        def actualCode = element?.versionCode as Integer
+        def actualName = element?.versionName as String
+
+        if (actualCode != expectedCode || actualName != expectedName) {
+            throw new GradleException("Wrong release version in AAB metadata: versionCode=${actualCode}, versionName=${actualName}; expected versionCode=${expectedCode}, versionName=${expectedName}")
+        }
+
+        println "Verified release AAB metadata: versionCode=${actualCode}, versionName=${actualName}"
+    }
+}
+
+tasks.matching { it.name == "bundleRelease" }.configureEach {
+    finalizedBy("verifyDidiNowReleaseVersion")
+}
+
 repositories {
     flatDir{
         dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
