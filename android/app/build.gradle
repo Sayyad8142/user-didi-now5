@@ -1,5 +1,10 @@
 apply plugin: 'com.android.application'
 
+import groovy.json.JsonSlurper
+
+def didiNowVersionCode = 8080
+def didiNowVersionName = "8.0.80"
+
 android {
     namespace "com.didisnow.app"
     compileSdkVersion rootProject.ext.compileSdkVersion
@@ -8,8 +13,8 @@ android {
         minSdkVersion 23
         targetSdkVersion 34
         // Increase for every Play upload — must be strictly > highest previously uploaded code
-        versionCode 8080
-        versionName "8.0.80"
+        versionCode didiNowVersionCode
+        versionName didiNowVersionName
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged APK
