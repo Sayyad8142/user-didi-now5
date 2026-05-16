@@ -160,6 +160,21 @@ export function InstantCheckoutScreen() {
 
       console.log("FINAL_BOOKING_PAYLOAD", bookingData);
 
+      // ── Wallet pre-check: block creation if balance insufficient ──
+      if (paymentMethod === 'wallet') {
+        console.log('[WALLET_BALANCE_CHECK]', { balance: walletBalance, required: price });
+        if (walletBalance < price) {
+          const short = Math.max(0, Math.ceil(price - walletBalance));
+          console.warn('[WALLET_INSUFFICIENT]', { short, balance: walletBalance, required: price });
+          toast({
+            title: 'Insufficient wallet balance',
+            description: `Please add ₹${short} more or pay online.`,
+            variant: 'destructive',
+          });
+          return;
+        }
+      }
+
       // ── Pay After Service: insert booking directly (existing flow) ──
       if (paymentMethod === 'pay_after_service') {
         const payAfterData = {

@@ -325,6 +325,21 @@ export function ScheduleScreen() {
       });
       console.log('FINAL_BOOKING_PAYLOAD', bookingData);
 
+      // ── Wallet pre-check: block creation if balance insufficient ──
+      if (paymentMethod === 'wallet') {
+        console.log('[WALLET_BALANCE_CHECK]', { balance: walletBalance, required: bookingData.price_inr });
+        if (walletBalance < (bookingData.price_inr as number)) {
+          const short = Math.max(0, Math.ceil((bookingData.price_inr as number) - walletBalance));
+          console.warn('[WALLET_INSUFFICIENT]', { short, balance: walletBalance, required: bookingData.price_inr });
+          toast({
+            title: 'Insufficient wallet balance',
+            description: `Please add ₹${short} more or pay online.`,
+            variant: 'destructive',
+          });
+          return;
+        }
+      }
+
       // ── Pay After Service: insert booking directly (existing flow) ──
       if (paymentMethod === 'pay_after_service') {
         const payAfterData = {
