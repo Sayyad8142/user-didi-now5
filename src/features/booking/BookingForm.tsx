@@ -465,18 +465,33 @@ export function BookingForm() {
         preferred_worker_id: null,
       } as any;
 
-      const isPayAfter = bookingType === 'instant' && paymentMethod === 'pay_after_service';
-      const isPayNow = bookingType === 'instant' && paymentMethod === 'pay_now';
+      const isPayAfter = paymentMethod === 'pay_after_service';
+      const isWallet = paymentMethod === 'wallet';
 
-      // ── Pay After Service OR non-payment booking: insert directly ──
-      if (isPayAfter || !isPayNow) {
+      // ── Wallet pre-check: block creation if balance insufficient ──
+      if (isWallet) {
+        console.log('[WALLET_BALANCE_CHECK]', { balance: walletBalance, required: price });
+        if (walletBalance < price) {
+          const short = Math.max(0, Math.ceil(price - walletBalance));
+          console.warn('[WALLET_INSUFFICIENT]', { short, balance: walletBalance, required: price });
+          toast({
+            title: 'Insufficient wallet balance',
+            description: `Please add ₹${short} more or pay online.`,
+            variant: 'destructive',
+          });
+          return;
+        }
+      }
+
+      // ── Pay After Service ONLY: direct insert. Wallet & Pay Now go via payment-first. ──
+      if (isPayAfter) {
         const insertData = {
           ...bookingData,
-          payment_method: isPayAfter ? 'pay_after_service' : null,
-          payment_status: isPayAfter ? 'pay_after_service' : 'pending',
+          payment_method: 'pay_after_service',
+          payment_status: 'pay_after_service',
         };
 
-        console.log('📤 Sending booking data to database:', insertData);
+        console.log('📤 Sending pay-after booking to database:', insertData);
         const { data, error } = await insertBookingWithCompat(insertData);
 
         if (error) {
@@ -498,14 +513,14 @@ export function BookingForm() {
           return;
         }
 
-        console.log('✅ [BookingForm] booking created successfully → navigating to /home', data);
+        console.log('✅ [BookingForm] pay-after booking created → navigating to /home', data);
         trackPaymentEvent('booking_created', { booking_id: data?.[0]?.id, user_id: profile.id, amount: price });
 
         toast({
-          title: isPayAfter ? "Booking confirmed!" : "Booking received!",
-          description: bookingType === 'instant' 
-            ? (isPayAfter ? "Worker will arrive in ~10 minutes. Pay after service is done." : "Service will arrive in 10 minutes.")
-            : "Your booking has been scheduled successfully."
+          title: "Booking confirmed!",
+          description: bookingType === 'instant'
+            ? "Worker will arrive in ~10 minutes. Pay after service is done."
+            : "Your booking has been scheduled. Pay after service is done."
         });
         setScheduleSheetOpen(false);
         clearPreferredWorker();
@@ -513,8 +528,9 @@ export function BookingForm() {
         return;
       }
 
-      // ── Pay Now (instant): PAYMENT-FIRST — no booking until payment verified ──
-      console.log('💳 Starting payment-first flow for instant booking');
+      // ── Wallet OR Pay Now: PAYMENT-FIRST — no booking until payment verified ──
+      console.log('[WALLET_BOOKING_START]', { method: paymentMethod, price, balance: walletBalance });
+
       try {
         const result = await executePaymentFlowForNewBooking(bookingData, (status) => {
           setPaymentStatus(status);
