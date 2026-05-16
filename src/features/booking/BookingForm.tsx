@@ -537,6 +537,7 @@ export function BookingForm() {
         });
 
         console.log('✅ [BookingForm] payment-first booking created:', result.booking_id, '→ navigating to /home');
+        console.log('[WALLET_BOOKING_CREATED]', { booking_id: result.booking_id, method: paymentMethod });
         toast({
           title: "Payment successful!",
           description: "Your booking is confirmed. Worker will arrive in ~10 minutes."
@@ -545,6 +546,7 @@ export function BookingForm() {
         navigate('/home', { replace: true });
       } catch (payErr: any) {
         console.error('❌ Payment error:', payErr);
+        console.warn('[WALLET_BOOKING_FAILED]', { method: paymentMethod, message: payErr?.message });
         const errType = payErr instanceof PaymentError ? payErr.type : 'payment_failed';
         setRetryErrorType(errType as PaymentErrorType);
         setRetryErrorMessage(payErr?.message);
