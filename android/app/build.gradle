@@ -1,5 +1,10 @@
 apply plugin: 'com.android.application'
 
+import groovy.json.JsonSlurper
+
+def didiNowVersionCode = 8080
+def didiNowVersionName = "8.0.80"
+
 android {
     namespace "com.didisnow.app"
     compileSdkVersion rootProject.ext.compileSdkVersion
@@ -8,8 +13,8 @@ android {
         minSdkVersion 23
         targetSdkVersion 34
         // Increase for every Play upload — must be strictly > highest previously uploaded code
-        versionCode 8080
-        versionName "8.0.80"
+        versionCode didiNowVersionCode
+        versionName didiNowVersionName
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged APK
@@ -54,6 +59,41 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
+}
+
+androidComponents {
+    onVariants(selector().withBuildType("release")) { variant ->
+        variant.outputs.each { output ->
+            output.versionCode.set(didiNowVersionCode)
+            output.versionName.set(didiNowVersionName)
+        }
+    }
+}
+
+tasks.register("verifyDidiNowReleaseVersion") {
+    def expectedCode = didiNowVersionCode
+    def expectedName = didiNowVersionName
+    doLast {
+        def metadataFile = file("$buildDir/outputs/bundle/release/output-metadata.json")
+        if (!metadataFile.exists()) {
+            throw new GradleException("Release bundle metadata not found: ${metadataFile}")
+        }
+
+        def metadata = new JsonSlurper().parse(metadataFile)
+        def element = metadata.elements?.find { it.outputFile == "app-release.aab" } ?: metadata.elements?.first()
+        def actualCode = element?.versionCode as Integer
+        def actualName = element?.versionName as String
+
+        if (actualCode != expectedCode || actualName != expectedName) {
+            throw new GradleException("Wrong release version in AAB metadata: versionCode=${actualCode}, versionName=${actualName}; expected versionCode=${expectedCode}, versionName=${expectedName}")
+        }
+
+        println "Verified release AAB metadata: versionCode=${actualCode}, versionName=${actualName}"
+    }
+}
+
+tasks.matching { it.name == "bundleRelease" }.configureEach {
+    finalizedBy("verifyDidiNowReleaseVersion")
 }
 
 repositories {
