@@ -10,7 +10,8 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "android:sync": "npm run build && npx cap sync android",
-    "android:aab": "npm run build && npx cap sync android && cd android && ./gradlew bundleRelease"
+    "android:clean-release": "rm -rf android/app/build/outputs/bundle/release android/app/build/outputs/apk/release && cd android && ./gradlew clean",
+    "android:aab": "npm run build && npx cap sync android && npm run android:clean-release && cd android && ./gradlew bundleRelease"
   },
   "dependencies": {
     "@capacitor/action-sheet": "^7.0.2",
