@@ -30,7 +30,7 @@ serve(async (req) => {
     const processedCount = (data as number) ?? 0
     console.log(`SLA Checker: Processed ${processedCount} overdue bookings`)
 
-    // 2. Auto-cancel stale instant bookings (pending > 60 min)
+    // 2. Auto-cancel stale instant bookings (pending > 90 min)
     const { data: staleCancelled, error: staleError } = await supabase.rpc('auto_cancel_stale_instant_bookings')
 
     if (staleError) {
