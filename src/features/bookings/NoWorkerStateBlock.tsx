@@ -9,12 +9,12 @@ import { Clock, Wallet, RefreshCw, AlertCircle } from 'lucide-react';
  *   1. Pending (Finding worker) — shows live countdown until auto-cancel.
  *   2. Cancelled by system due to no worker available — shows refund info + Book Again.
  *
- * Backend untouched: we derive `dispatch_expires_at` from `created_at + 60 minutes`
+ * Backend untouched: we derive `dispatch_expires_at` from `created_at + 90 minutes`
  * (matching the existing auto_cancel_stale_instant_bookings function), since the
  * column does not exist on the bookings table.
  */
 
-const AUTO_CANCEL_MINUTES = 60;
+const AUTO_CANCEL_MINUTES = 90;
 
 type Booking = {
   id: string;

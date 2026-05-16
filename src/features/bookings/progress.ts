@@ -24,7 +24,7 @@ export function computeProgress(b: BookingLike) {
   if (b.booking_type === 'instant') {
     const start = new Date(b.created_at).getTime();
     // Visual arrival ETA only — NOT the auto-cancel timer.
-    // Auto-cancel timer lives in NoWorkerStateBlock.tsx (AUTO_CANCEL_MINUTES = 60).
+    // Auto-cancel timer lives in NoWorkerStateBlock.tsx (AUTO_CANCEL_MINUTES = 90).
     const ARRIVAL_SLA_MINUTES = 10;
     const elapsed = now - start;
     const pct = Math.min(1, elapsed / (ARRIVAL_SLA_MINUTES * MS_PER_MIN));
