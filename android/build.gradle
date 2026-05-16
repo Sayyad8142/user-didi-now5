@@ -55,7 +55,6 @@ subprojects { subproject ->
     tasks.withType(JavaCompile).configureEach {
         sourceCompatibility = JavaVersion.VERSION_17.toString()
         targetCompatibility = JavaVersion.VERSION_17.toString()
-        options.release.set(17)
     }
     tasks.matching { it.name.startsWith('compile') && it.name.endsWith('Kotlin') }.configureEach {
         kotlinOptions {
