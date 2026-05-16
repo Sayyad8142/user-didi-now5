@@ -14,7 +14,7 @@ import { Clock, Wallet, RefreshCw, AlertCircle } from 'lucide-react';
  * column does not exist on the bookings table.
  */
 
-const AUTO_CANCEL_MINUTES = 60;
+const AUTO_CANCEL_MINUTES = 90;
 
 type Booking = {
   id: string;
