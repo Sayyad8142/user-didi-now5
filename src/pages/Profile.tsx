@@ -53,6 +53,17 @@ export default function Profile() {
   // Treat the screen as still hydrating whenever bootstrap hasn't completed
   // OR the cached profile is missing critical fields.
   const hydrating = loading || !isProfileReady;
+  // A "real" name has at least one letter and isn't a phone number / stub
+  const isValidDisplayName = (n?: string | null) => {
+    if (!n) return false;
+    const t = n.trim();
+    if (!t) return false;
+    if (/^\+?\d{7,15}$/.test(t)) return false;
+    if (t.toLowerCase() === 'user') return false;
+    if (/^(firebase|stub):/i.test(t)) return false;
+    return /[A-Za-z]{2,}/.test(t);
+  };
+  const nameMissing = !hydrating && !!profile && !isValidDisplayName(profile.full_name);
   const NA = (val?: string | null) => (hydrating ? '' : (val && val.trim() ? val : 'Not provided'));
   const { flatSize, loading: flatSizeLoading } = useFlatSize();
   const navigate = useNavigate();
@@ -83,8 +94,9 @@ export default function Profile() {
   // Initialize form when profile loads
   React.useEffect(() => {
     if (profile) {
+      const safeName = isValidDisplayName(profile.full_name) ? profile.full_name : '';
       setEditForm({
-        full_name: profile.full_name || '',
+        full_name: safeName,
         phone: profile.phone || '',
         community: profile.community || '',
         community_id: profile.community_id || '',
@@ -222,6 +234,27 @@ export default function Profile() {
         {/* Didi Now Wallet */}
         <WalletCard />
 
+        {nameMissing && !isEditing && (
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start gap-3">
+            <div className="h-9 w-9 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
+              <User className="w-5 h-5 text-amber-700" />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-amber-900">Complete your profile</p>
+              <p className="text-xs text-amber-800 mt-0.5">Please add your full name so workers and our team can address you correctly.</p>
+              <Button
+                size="sm"
+                className="mt-3 h-8 px-3 bg-amber-600 hover:bg-amber-700 text-white rounded-full text-xs gap-1.5"
+                onClick={() => setIsEditing(true)}
+              >
+                <Edit3 className="w-3.5 h-3.5" />
+                Add your name
+              </Button>
+            </div>
+          </div>
+        )}
+
+
         {/* Personal Information Card */}
         <div className="bg-white rounded-3xl shadow-lg border border-gray-100 overflow-hidden">
           <div className="bg-gradient-to-r from-primary to-primary/80 p-6">
@@ -275,7 +308,7 @@ export default function Profile() {
                 <div className="flex-1 space-y-1">
                   <p className="text-sm font-medium text-gray-500 uppercase tracking-wide">Full Name</p>
                   {!isEditing ? (
-                    hydrating ? <Skeleton className="h-6 w-40" /> : <p className="text-lg font-semibold text-gray-900">{profile?.full_name || 'Not provided'}</p>
+                    hydrating ? <Skeleton className="h-6 w-40" /> : <p className="text-lg font-semibold text-gray-900">{isValidDisplayName(profile?.full_name) ? profile?.full_name : 'Name missing'}</p>
                   ) : (
                     <Input
                       value={editForm.full_name}

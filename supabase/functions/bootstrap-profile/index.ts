@@ -410,7 +410,15 @@ serve(async (req) => {
     // 4) Apply signup updates if provided (signup flow)
     if (signup && profile) {
       const updates: Record<string, unknown> = {};
-      if (signup.fullName) updates.full_name = signup.fullName;
+      if (signup.fullName) {
+        const trimmed = signup.fullName.trim();
+        // Never persist phone-shaped values, the literal "User", or empty as full_name.
+        if (trimmed && !/^\+?\d{7,15}$/.test(trimmed) && trimmed.toLowerCase() !== "user") {
+          updates.full_name = trimmed;
+        } else {
+          console.warn(`[bootstrap] dropped invalid signup.fullName="${signup.fullName}" for id=${profile.id}`);
+        }
+      }
       if (signup.communityValue) updates.community = signup.communityValue;
       if (signup.flatNo) updates.flat_no = signup.flatNo;
       if (signup.communityId !== undefined) updates.community_id = signup.communityId;
@@ -452,7 +460,19 @@ serve(async (req) => {
       ];
       for (const k of allowed) {
         const v = profileUpdates[k];
-        if (v !== undefined) updates[k] = v === "" && (k === "community_id" || k === "building_id" || k === "flat_id") ? null : v;
+        if (v === undefined) continue;
+        if (k === "full_name") {
+          const trimmed = typeof v === "string" ? v.trim() : "";
+          if (!trimmed) {
+            return jsonResponse({ error: "Full name cannot be empty.", code: "invalid_full_name" }, 400);
+          }
+          if (/^\+?\d{7,15}$/.test(trimmed) || trimmed.toLowerCase() === "user") {
+            return jsonResponse({ error: "Please enter your real name.", code: "invalid_full_name" }, 400);
+          }
+          updates[k] = trimmed;
+          continue;
+        }
+        updates[k] = v === "" && (k === "community_id" || k === "building_id" || k === "flat_id") ? null : v;
       }
       if (Object.keys(updates).length > 0) {
         updates.updated_at = new Date().toISOString();
