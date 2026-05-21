@@ -403,6 +403,15 @@ export function BookingForm() {
         });
         return;
       }
+      if (!maidPricingReady || totalPrice <= 0) {
+        refetchTaskPrices();
+        toast({
+          title: "Pricing is temporarily unavailable",
+          description: "Please try again in a moment.",
+          variant: "destructive"
+        });
+        return;
+      }
       params.set('flat', selectedFlatSize);
       params.set('price', totalPrice.toString());
     } else if (service_type === 'bathroom_cleaning') {
