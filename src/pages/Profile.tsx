@@ -234,6 +234,27 @@ export default function Profile() {
         {/* Didi Now Wallet */}
         <WalletCard />
 
+        {nameMissing && !isEditing && (
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start gap-3">
+            <div className="h-9 w-9 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
+              <User className="w-5 h-5 text-amber-700" />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-amber-900">Complete your profile</p>
+              <p className="text-xs text-amber-800 mt-0.5">Please add your full name so workers and our team can address you correctly.</p>
+              <Button
+                size="sm"
+                className="mt-3 h-8 px-3 bg-amber-600 hover:bg-amber-700 text-white rounded-full text-xs gap-1.5"
+                onClick={() => setIsEditing(true)}
+              >
+                <Edit3 className="w-3.5 h-3.5" />
+                Add your name
+              </Button>
+            </div>
+          </div>
+        )}
+
+
         {/* Personal Information Card */}
         <div className="bg-white rounded-3xl shadow-lg border border-gray-100 overflow-hidden">
           <div className="bg-gradient-to-r from-primary to-primary/80 p-6">
