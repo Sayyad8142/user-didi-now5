@@ -1193,6 +1193,11 @@ export function BookingForm() {
                     });
                     return;
                   }
+                  if (!maidPricingReady || totalPrice <= 0) {
+                    refetchTaskPrices();
+                    toast({ title: "Pricing is temporarily unavailable", description: "Please try again in a moment.", variant: "destructive" });
+                    return;
+                  }
                   const price = totalPrice;
                   const dishParams = selectedTasks.includes('dish_washing') ?
                   `&dish_intensity=${dishIntensity}&dish_extra=${dishIntensityExtra}` :
