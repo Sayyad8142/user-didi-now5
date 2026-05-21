@@ -438,6 +438,17 @@ export function BookingForm() {
   const createBooking = async (bookingType: 'instant' | 'scheduled', scheduledDate: string | null, scheduledTime: string | null, price: number) => {
     if (service_type !== 'bathroom_cleaning' && !selectedFlatSize) return;
 
+    // Final guard: never create a maid booking with missing/zero live pricing.
+    if (service_type === 'maid' && (!maidPricingReady || !price || price <= 0)) {
+      refetchTaskPrices();
+      toast({
+        title: "Pricing is temporarily unavailable",
+        description: "Please try again in a moment.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     // Validate community before booking
     if (!profile.community || profile.community === 'other') {
       console.error('❌ Invalid community in profile:', profile.community);
