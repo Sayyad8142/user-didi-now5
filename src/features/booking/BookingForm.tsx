@@ -870,7 +870,7 @@ export function BookingForm() {
                         <p className="font-semibold text-sm text-foreground">{label}</p>
                         <p className="text-xs text-muted-foreground">{desc}</p>
                       </div>
-                      <span className="text-[15px] font-bold text-primary shrink-0">₹{taskPrice(task)}</span>
+                      <span className="text-[15px] font-bold text-primary shrink-0">₹{displayTaskPrice(task)}</span>
                     </button>);
 
             })}
