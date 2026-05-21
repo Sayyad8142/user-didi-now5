@@ -410,7 +410,15 @@ serve(async (req) => {
     // 4) Apply signup updates if provided (signup flow)
     if (signup && profile) {
       const updates: Record<string, unknown> = {};
-      if (signup.fullName) updates.full_name = signup.fullName;
+      if (signup.fullName) {
+        const trimmed = signup.fullName.trim();
+        // Never persist phone-shaped values, the literal "User", or empty as full_name.
+        if (trimmed && !/^\+?\d{7,15}$/.test(trimmed) && trimmed.toLowerCase() !== "user") {
+          updates.full_name = trimmed;
+        } else {
+          console.warn(`[bootstrap] dropped invalid signup.fullName="${signup.fullName}" for id=${profile.id}`);
+        }
+      }
       if (signup.communityValue) updates.community = signup.communityValue;
       if (signup.flatNo) updates.flat_no = signup.flatNo;
       if (signup.communityId !== undefined) updates.community_id = signup.communityId;
