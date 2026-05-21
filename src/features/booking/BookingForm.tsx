@@ -43,8 +43,10 @@ const TASK_LABEL: Record<MaidTask, string> = {
   floor_cleaning: "Jhaadu & Pocha (Floor Cleaning)",
   dish_washing: "Dish Washing"
 };
-// Fallback base prices if table not found
-const FALLBACK_PRICES: Record<string, number> = {
+// UI placeholder prices ONLY — shown while live prices are loading.
+// NEVER use these to compute a payable amount or to create a booking.
+// Live prices must come from `maid_pricing_tasks` (admin-managed).
+const PLACEHOLDER_PRICES: Record<string, number> = {
   "2BHK": 100,
   "2.5BHK": 110,
   "3BHK": 120,
@@ -146,12 +148,21 @@ export function BookingForm() {
     setPreferredWorker(null);
   }, [prefKey]);
 
-  // Fetch maid task prices
+  // Fetch maid task prices (live from admin-managed `maid_pricing_tasks`)
   const {
-    data: taskPrices
+    data: taskPrices,
+    isLoading: taskPricesLoading,
+    isError: taskPricesError,
+    refetch: refetchTaskPrices,
   } = useQuery({
     queryKey: ["maid_prices", selectedFlatSize, profile?.community],
     enabled: !!selectedFlatSize && service_type === 'maid',
+    // Always fetch fresh — admin pricing edits must reflect immediately,
+    // and we must never silently bill an outdated cached price.
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
     queryFn: async () => {
       const q = supabase.from("maid_pricing_tasks").select("task, price_inr, community").eq("flat_size", selectedFlatSize!).eq("active", true);
       if (profile?.community) {
@@ -168,8 +179,8 @@ export function BookingForm() {
       // Build pricing map with community-specific overriding global
       const map = new Map<MaidTask, number>();
 
-      // First, add global pricing (where community is null)
-      (data || []).filter((row) => row.community === null).forEach((row: any) => {
+      // First, add global pricing (where community is null or empty)
+      (data || []).filter((row) => row.community === null || row.community === '').forEach((row: any) => {
         map.set(row.task, row.price_inr);
       });
 
@@ -180,12 +191,8 @@ export function BookingForm() {
         });
       }
 
-      // Ensure both tasks have prices (fallback)
-      (["floor_cleaning", "dish_washing"] as MaidTask[]).forEach((t) => {
-        if (!map.has(t)) {
-          map.set(t, FALLBACK_PRICES[selectedFlatSize] || 100);
-        }
-      });
+      // NOTE: deliberately NO fallback fill here. Missing rows must surface
+      // as an error so we never silently charge the user an outdated price.
       return map;
     }
   });
@@ -220,11 +227,23 @@ export function BookingForm() {
     return found?.extra_inr ?? 0;
   };
 
-  // Helper functions for maid pricing
-  const taskPrice = (t: MaidTask) => taskPrices?.get(t) ?? FALLBACK_PRICES[selectedFlatSize || "2BHK"];
+  // Live price lookup — returns undefined when admin pricing is missing.
+  const livePrice = (t: MaidTask): number | undefined => taskPrices?.get(t);
+  // Placeholder used ONLY for visual rendering while live prices load.
+  // Never feeds totalPrice / booking creation.
+  const placeholderPrice = (_t: MaidTask) => PLACEHOLDER_PRICES[selectedFlatSize || "2BHK"] ?? 100;
+  const displayTaskPrice = (t: MaidTask) => livePrice(t) ?? placeholderPrice(t);
+
+  // Are all selected tasks priced from live admin data?
+  const maidPricingReady =
+    service_type !== 'maid' ||
+    (!taskPricesLoading && !taskPricesError && selectedTasks.every((t) => typeof livePrice(t) === 'number'));
+
   const dishIntensityExtra = selectedTasks.includes('dish_washing') && dishIntensity ? getIntensityExtra(dishIntensity) : 0;
-  const totalPrice = service_type === 'maid' && selectedTasks.length > 0 ?
-  selectedTasks.reduce((sum, task) => sum + taskPrice(task), 0) + dishIntensityExtra :
+  // totalPrice uses ONLY live prices. If anything is missing, totalPrice = 0
+  // and booking entry points block submission with a clear error toast.
+  const totalPrice = service_type === 'maid' && selectedTasks.length > 0 && maidPricingReady ?
+  selectedTasks.reduce((sum, task) => sum + (livePrice(task) as number), 0) + dishIntensityExtra :
   0;
 
   // Bathroom pricing calculation
@@ -317,6 +336,16 @@ export function BookingForm() {
         });
         return;
       }
+      // Block booking if live pricing is missing/failed — never use placeholder.
+      if (!maidPricingReady || totalPrice <= 0) {
+        refetchTaskPrices();
+        toast({
+          title: "Pricing is temporarily unavailable",
+          description: "Please try again in a moment.",
+          variant: "destructive"
+        });
+        return;
+      }
     } else if (service_type !== 'bathroom_cleaning') {
       if (!selectedFlatSize) return;
       const price = pricingMap[selectedFlatSize];
@@ -374,6 +403,15 @@ export function BookingForm() {
         });
         return;
       }
+      if (!maidPricingReady || totalPrice <= 0) {
+        refetchTaskPrices();
+        toast({
+          title: "Pricing is temporarily unavailable",
+          description: "Please try again in a moment.",
+          variant: "destructive"
+        });
+        return;
+      }
       params.set('flat', selectedFlatSize);
       params.set('price', totalPrice.toString());
     } else if (service_type === 'bathroom_cleaning') {
@@ -399,6 +437,17 @@ export function BookingForm() {
   };
   const createBooking = async (bookingType: 'instant' | 'scheduled', scheduledDate: string | null, scheduledTime: string | null, price: number) => {
     if (service_type !== 'bathroom_cleaning' && !selectedFlatSize) return;
+
+    // Final guard: never create a maid booking with missing/zero live pricing.
+    if (service_type === 'maid' && (!maidPricingReady || !price || price <= 0)) {
+      refetchTaskPrices();
+      toast({
+        title: "Pricing is temporarily unavailable",
+        description: "Please try again in a moment.",
+        variant: "destructive"
+      });
+      return;
+    }
 
     // Validate community before booking
     if (!profile.community || profile.community === 'other') {
@@ -851,7 +900,7 @@ export function BookingForm() {
                         <p className="font-semibold text-sm text-foreground">{label}</p>
                         <p className="text-xs text-muted-foreground">{desc}</p>
                       </div>
-                      <span className="text-[15px] font-bold text-primary shrink-0">₹{taskPrice(task)}</span>
+                      <span className="text-[15px] font-bold text-primary shrink-0">₹{displayTaskPrice(task)}</span>
                     </button>);
 
             })}
@@ -1074,6 +1123,11 @@ export function BookingForm() {
                       toast({ title: "Select dish washing workload", description: "Please choose Light, Medium, or Heavy.", variant: "destructive" });
                       return;
                     }
+                    if (!maidPricingReady || totalPrice <= 0) {
+                      refetchTaskPrices();
+                      toast({ title: "Pricing is temporarily unavailable", description: "Please try again in a moment.", variant: "destructive" });
+                      return;
+                    }
                     const dishParams = selectedTasks.includes('dish_washing') ? `&dish_intensity=${dishIntensity}&dish_extra=${dishIntensityExtra}` : '';
                     navigate(`/book/${service_type}/instant?flat=${selectedFlatSize}&tasks=${selectedTasks.join(',')}&price=${totalPrice}${dishParams}`);
                   } else if (service_type === 'bathroom_cleaning') {
@@ -1148,6 +1202,11 @@ export function BookingForm() {
                       description: "Please choose Light, Medium, or Heavy for dish washing.",
                       variant: "destructive"
                     });
+                    return;
+                  }
+                  if (!maidPricingReady || totalPrice <= 0) {
+                    refetchTaskPrices();
+                    toast({ title: "Pricing is temporarily unavailable", description: "Please try again in a moment.", variant: "destructive" });
                     return;
                   }
                   const price = totalPrice;
