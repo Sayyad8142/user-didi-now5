@@ -295,8 +295,13 @@ serve(async (req) => {
     console.log(`[bootstrap] lookup result uid=${firebaseUid} phone=${phone} matchSource=${matchSource} profileId=${profile?.id ?? 'none'}`);
 
     // 2.5) Intent enforcement
-    //   - signup + existing profile => block, do not overwrite
-    //   - signin + no profile => block, do not auto-create stub accounts
+    //   - signup + existing profile  => block, do not overwrite
+    //   - signin + no profile        => block, do not auto-create stub accounts
+    //   - null mode + no profile     => block (legacy auto-call from
+    //     ProfileContext on Firebase auth-state change). Auto-creating here
+    //     produced stub profiles named "+91XXXXXXXXXX" that races with the
+    //     explicit signup call and made the admin show "User <last4>".
+    //   - signup WITHOUT a real fullName => block (must come from the wizard)
     if (mode === 'signup' && profile) {
       console.warn(`[bootstrap] signup blocked: profile already exists id=${profile.id}`);
       return jsonResponse({
@@ -311,15 +316,32 @@ serve(async (req) => {
         code: 'account_not_found',
       }, 404);
     }
+    if (mode === null && !profile) {
+      console.warn(`[bootstrap] legacy no-mode call blocked (would create stub) uid=${firebaseUid} phone=${phone}`);
+      return jsonResponse({
+        error: 'Account not found. Please sign up first.',
+        code: 'account_not_found',
+      }, 404);
+    }
+    if (mode === 'signup' && (!signup?.fullName || !signup.fullName.trim() || /^\+?\d{7,15}$/.test(signup.fullName.trim()))) {
+      console.warn(`[bootstrap] signup blocked: missing/invalid fullName uid=${firebaseUid}`);
+      return jsonResponse({
+        error: 'A valid full name is required to create an account.',
+        code: 'invalid_signup_data',
+      }, 400);
+    }
 
-    // 3) Create new — ONLY when no profile was found (signup, or legacy
-    // callers with no mode). For signin with an existing profile we skip
-    // straight to the post-processing below.
+    // 3) Create new — only reached when mode='signup' AND no existing profile
+    // AND signup.fullName is a real, validated name.
     if (!profile) {
       const insertRow: Record<string, unknown> = {
         firebase_uid: firebaseUid,
         phone: phone || null,
-        full_name: signup?.fullName || (phone || "User"),
+        // NEVER fall back to phone-as-name. If signup.fullName is somehow
+        // missing here (guarded above), use empty string so the UI prompts
+        // the user instead of producing a stub name that booking screens
+        // would render as "User <last4>".
+        full_name: (signup?.fullName && signup.fullName.trim()) || "",
         community: signup?.communityValue || "other",
         flat_no: signup?.flatNo || "",
         community_id: signup?.communityId ?? null,
@@ -381,7 +403,7 @@ serve(async (req) => {
       } else {
         profile = created;
         matchSource = 'created';
-        console.log(`[bootstrap] created new profile id=${profile?.id} uid=${firebaseUid} phone=${phone}`);
+        console.log(`[bootstrap] created new profile id=${profile?.id} uid=${firebaseUid} phone=${phone} name="${insertRow.full_name}"`);
       }
     }
 
