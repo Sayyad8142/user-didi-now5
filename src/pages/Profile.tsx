@@ -53,6 +53,17 @@ export default function Profile() {
   // Treat the screen as still hydrating whenever bootstrap hasn't completed
   // OR the cached profile is missing critical fields.
   const hydrating = loading || !isProfileReady;
+  // A "real" name has at least one letter and isn't a phone number / stub
+  const isValidDisplayName = (n?: string | null) => {
+    if (!n) return false;
+    const t = n.trim();
+    if (!t) return false;
+    if (/^\+?\d{7,15}$/.test(t)) return false;
+    if (t.toLowerCase() === 'user') return false;
+    if (/^(firebase|stub):/i.test(t)) return false;
+    return /[A-Za-z]{2,}/.test(t);
+  };
+  const nameMissing = !hydrating && !!profile && !isValidDisplayName(profile.full_name);
   const NA = (val?: string | null) => (hydrating ? '' : (val && val.trim() ? val : 'Not provided'));
   const { flatSize, loading: flatSizeLoading } = useFlatSize();
   const navigate = useNavigate();
