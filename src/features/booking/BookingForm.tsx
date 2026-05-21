@@ -43,8 +43,10 @@ const TASK_LABEL: Record<MaidTask, string> = {
   floor_cleaning: "Jhaadu & Pocha (Floor Cleaning)",
   dish_washing: "Dish Washing"
 };
-// Fallback base prices if table not found
-const FALLBACK_PRICES: Record<string, number> = {
+// UI placeholder prices ONLY — shown while live prices are loading.
+// NEVER use these to compute a payable amount or to create a booking.
+// Live prices must come from `maid_pricing_tasks` (admin-managed).
+const PLACEHOLDER_PRICES: Record<string, number> = {
   "2BHK": 100,
   "2.5BHK": 110,
   "3BHK": 120,
