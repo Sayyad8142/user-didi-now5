@@ -345,6 +345,7 @@ export function BookingForm() {
           variant: "destructive"
         });
         return;
+      }
     } else if (service_type !== 'bathroom_cleaning') {
       if (!selectedFlatSize) return;
       const price = pricingMap[selectedFlatSize];
