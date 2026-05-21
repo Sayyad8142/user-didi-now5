@@ -1112,6 +1112,11 @@ export function BookingForm() {
                       toast({ title: "Select dish washing workload", description: "Please choose Light, Medium, or Heavy.", variant: "destructive" });
                       return;
                     }
+                    if (!maidPricingReady || totalPrice <= 0) {
+                      refetchTaskPrices();
+                      toast({ title: "Pricing is temporarily unavailable", description: "Please try again in a moment.", variant: "destructive" });
+                      return;
+                    }
                     const dishParams = selectedTasks.includes('dish_washing') ? `&dish_intensity=${dishIntensity}&dish_extra=${dishIntensityExtra}` : '';
                     navigate(`/book/${service_type}/instant?flat=${selectedFlatSize}&tasks=${selectedTasks.join(',')}&price=${totalPrice}${dishParams}`);
                   } else if (service_type === 'bathroom_cleaning') {
