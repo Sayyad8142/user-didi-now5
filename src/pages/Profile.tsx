@@ -94,8 +94,9 @@ export default function Profile() {
   // Initialize form when profile loads
   React.useEffect(() => {
     if (profile) {
+      const safeName = isValidDisplayName(profile.full_name) ? profile.full_name : '';
       setEditForm({
-        full_name: profile.full_name || '',
+        full_name: safeName,
         phone: profile.phone || '',
         community: profile.community || '',
         community_id: profile.community_id || '',
