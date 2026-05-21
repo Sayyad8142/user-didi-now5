@@ -96,7 +96,14 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
       const phone = normalizePhone(activeUser.phone ?? "");
       const { mark } = await import('@/lib/perfMarks');
       mark('profile.bootstrap.start');
-      const created = await bootstrapProfileViaEdge({ phone });
+      // CRITICAL: pass mode='signin' so this auto-bootstrap (fired on Firebase
+      // auth-state change) can NEVER create a stub profile. Profile creation
+      // must happen exclusively via the explicit signup flow in VerifyOTP,
+      // which passes mode='signup' with signupData (fullName, community, flat).
+      // Without this, a race between this listener and VerifyOTP's signup
+      // call produced stub profiles named "+91XXXXXXXXXX" which the booking
+      // layer then renders as "User <last4>" in the admin panel.
+      const created = await bootstrapProfileViaEdge({ phone, mode: 'signin' });
       mark('profile.bootstrap.done');
       tlog('bootstrap.done', { uid: activeUser.id, ms: Math.round(performance.now() - startedAt), name: created.full_name });
       setProfile(created as any);
@@ -106,11 +113,14 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
       setError(null);
       return created as any;
     } catch (bootstrapErr: any) {
-      tlog('bootstrap.error', { uid: activeUser.id, error: bootstrapErr?.message });
+      // account_not_found is expected during signup (before the explicit
+      // signup call in VerifyOTP has created the profile). Don't surface an
+      // error — just leave profile empty so signup can complete.
+      const isAccountNotFound = bootstrapErr?.code === 'account_not_found';
+      tlog('bootstrap.error', { uid: activeUser.id, error: bootstrapErr?.message, code: bootstrapErr?.code });
       const cached = readCachedProfile();
-      if (cached) {
+      if (cached && !isAccountNotFound) {
         setProfile(cached);
-        // Only mark ready if cache is genuinely complete; otherwise keep loading state.
         if (isProfileComplete(cached)) {
           setIsProfileReady(true);
           setLoading(false);
@@ -119,7 +129,9 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
         }
         return cached;
       }
-      setError(bootstrapErr?.message || "Failed to load profile");
+      if (!isAccountNotFound) {
+        setError(bootstrapErr?.message || "Failed to load profile");
+      }
       setProfile(null);
       setIsProfileReady(false);
       setLoading(false);
