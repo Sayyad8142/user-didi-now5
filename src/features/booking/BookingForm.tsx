@@ -148,12 +148,21 @@ export function BookingForm() {
     setPreferredWorker(null);
   }, [prefKey]);
 
-  // Fetch maid task prices
+  // Fetch maid task prices (live from admin-managed `maid_pricing_tasks`)
   const {
-    data: taskPrices
+    data: taskPrices,
+    isLoading: taskPricesLoading,
+    isError: taskPricesError,
+    refetch: refetchTaskPrices,
   } = useQuery({
     queryKey: ["maid_prices", selectedFlatSize, profile?.community],
     enabled: !!selectedFlatSize && service_type === 'maid',
+    // Always fetch fresh — admin pricing edits must reflect immediately,
+    // and we must never silently bill an outdated cached price.
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
     queryFn: async () => {
       const q = supabase.from("maid_pricing_tasks").select("task, price_inr, community").eq("flat_size", selectedFlatSize!).eq("active", true);
       if (profile?.community) {
@@ -170,8 +179,8 @@ export function BookingForm() {
       // Build pricing map with community-specific overriding global
       const map = new Map<MaidTask, number>();
 
-      // First, add global pricing (where community is null)
-      (data || []).filter((row) => row.community === null).forEach((row: any) => {
+      // First, add global pricing (where community is null or empty)
+      (data || []).filter((row) => row.community === null || row.community === '').forEach((row: any) => {
         map.set(row.task, row.price_inr);
       });
 
@@ -182,12 +191,8 @@ export function BookingForm() {
         });
       }
 
-      // Ensure both tasks have prices (fallback)
-      (["floor_cleaning", "dish_washing"] as MaidTask[]).forEach((t) => {
-        if (!map.has(t)) {
-          map.set(t, FALLBACK_PRICES[selectedFlatSize] || 100);
-        }
-      });
+      // NOTE: deliberately NO fallback fill here. Missing rows must surface
+      // as an error so we never silently charge the user an outdated price.
       return map;
     }
   });
@@ -222,11 +227,23 @@ export function BookingForm() {
     return found?.extra_inr ?? 0;
   };
 
-  // Helper functions for maid pricing
-  const taskPrice = (t: MaidTask) => taskPrices?.get(t) ?? FALLBACK_PRICES[selectedFlatSize || "2BHK"];
+  // Live price lookup — returns undefined when admin pricing is missing.
+  const livePrice = (t: MaidTask): number | undefined => taskPrices?.get(t);
+  // Placeholder used ONLY for visual rendering while live prices load.
+  // Never feeds totalPrice / booking creation.
+  const placeholderPrice = (_t: MaidTask) => PLACEHOLDER_PRICES[selectedFlatSize || "2BHK"] ?? 100;
+  const displayTaskPrice = (t: MaidTask) => livePrice(t) ?? placeholderPrice(t);
+
+  // Are all selected tasks priced from live admin data?
+  const maidPricingReady =
+    service_type !== 'maid' ||
+    (!taskPricesLoading && !taskPricesError && selectedTasks.every((t) => typeof livePrice(t) === 'number'));
+
   const dishIntensityExtra = selectedTasks.includes('dish_washing') && dishIntensity ? getIntensityExtra(dishIntensity) : 0;
-  const totalPrice = service_type === 'maid' && selectedTasks.length > 0 ?
-  selectedTasks.reduce((sum, task) => sum + taskPrice(task), 0) + dishIntensityExtra :
+  // totalPrice uses ONLY live prices. If anything is missing, totalPrice = 0
+  // and booking entry points block submission with a clear error toast.
+  const totalPrice = service_type === 'maid' && selectedTasks.length > 0 && maidPricingReady ?
+  selectedTasks.reduce((sum, task) => sum + (livePrice(task) as number), 0) + dishIntensityExtra :
   0;
 
   // Bathroom pricing calculation
