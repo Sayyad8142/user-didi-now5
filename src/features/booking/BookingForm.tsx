@@ -336,6 +336,15 @@ export function BookingForm() {
         });
         return;
       }
+      // Block booking if live pricing is missing/failed — never use placeholder.
+      if (!maidPricingReady || totalPrice <= 0) {
+        refetchTaskPrices();
+        toast({
+          title: "Pricing is temporarily unavailable",
+          description: "Please try again in a moment.",
+          variant: "destructive"
+        });
+        return;
     } else if (service_type !== 'bathroom_cleaning') {
       if (!selectedFlatSize) return;
       const price = pricingMap[selectedFlatSize];
