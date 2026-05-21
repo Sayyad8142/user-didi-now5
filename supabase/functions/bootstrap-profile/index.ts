@@ -460,7 +460,19 @@ serve(async (req) => {
       ];
       for (const k of allowed) {
         const v = profileUpdates[k];
-        if (v !== undefined) updates[k] = v === "" && (k === "community_id" || k === "building_id" || k === "flat_id") ? null : v;
+        if (v === undefined) continue;
+        if (k === "full_name") {
+          const trimmed = typeof v === "string" ? v.trim() : "";
+          if (!trimmed) {
+            return jsonResponse({ error: "Full name cannot be empty.", code: "invalid_full_name" }, 400);
+          }
+          if (/^\+?\d{7,15}$/.test(trimmed) || trimmed.toLowerCase() === "user") {
+            return jsonResponse({ error: "Please enter your real name.", code: "invalid_full_name" }, 400);
+          }
+          updates[k] = trimmed;
+          continue;
+        }
+        updates[k] = v === "" && (k === "community_id" || k === "building_id" || k === "flat_id") ? null : v;
       }
       if (Object.keys(updates).length > 0) {
         updates.updated_at = new Date().toISOString();
