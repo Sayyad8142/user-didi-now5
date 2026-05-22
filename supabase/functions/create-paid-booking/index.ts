@@ -648,6 +648,7 @@ Deno.serve(async (req) => {
           .single();
 
         if (raceWinner) {
+          await markPendingConsumed(supabase, razorpay_order_id, raceWinner.id);
           return json({
             success: true,
             booking_id: raceWinner.id,
@@ -659,7 +660,10 @@ Deno.serve(async (req) => {
         }
       }
 
-      console.error("[create-paid-booking] ❌ Booking insert failed:", insertErr);
+      console.error(
+        `[create-paid-booking] create_paid_booking_failed payment=${razorpay_payment_id} order=${razorpay_order_id} req=${requestId}:`,
+        insertErr,
+      );
 
       // If wallet was debited but insert failed, refund wallet — SAFE increment-based
       if (walletDebited > 0) {
@@ -689,6 +693,37 @@ Deno.serve(async (req) => {
         });
       }
 
+      // P0: payment may have been captured by Razorpay. Do NOT silently
+      // lose it — log an orphan_payments row tagged 'manual_review' and
+      // flag the pending row so ops can recover.
+      if (razorpay_payment_id) {
+        await supabase.from("orphan_payments").upsert(
+          {
+            razorpay_payment_id,
+            razorpay_order_id: razorpay_order_id || null,
+            amount_inr: bookingPriceInr,
+            user_id: profile.id,
+            status: "manual_review",
+            notes: `create-paid-booking insert failed: ${insertErr.message}`,
+          },
+          { onConflict: "razorpay_payment_id" } as any,
+        ).catch((e) =>
+          console.error("[create-paid-booking] orphan_payments upsert failed:", e),
+        );
+
+        if (razorpay_order_id) {
+          await supabase
+            .from("pending_bookings")
+            .update({
+              status: "manual_review",
+              last_error: insertErr.message,
+              last_checked_at: new Date().toISOString(),
+            })
+            .eq("razorpay_order_id", razorpay_order_id)
+            .catch(() => {});
+        }
+      }
+
       return json(
         { error: "Failed to create booking: " + insertErr.message },
         500,
@@ -696,8 +731,12 @@ Deno.serve(async (req) => {
     }
 
     console.log(
-      `[create-paid-booking] ✅ Booking created: ${newBooking.id}`,
+      `[create-paid-booking] create_paid_booking_success booking=${newBooking.id} payment=${razorpay_payment_id} order=${razorpay_order_id} req=${requestId}`,
     );
+
+    // Mark pending stash consumed (idempotent / no-op for wallet-only).
+    await markPendingConsumed(supabase, razorpay_order_id, newBooking.id);
+
 
     // 10. Update wallet transaction with booking reference (if applicable)
     if (walletDebited > 0) {
