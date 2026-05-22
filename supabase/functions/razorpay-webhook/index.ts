@@ -13,6 +13,11 @@
  * - order.paid        → fallback for order-level confirmation
  */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import {
+  createBookingFromPending,
+  fetchPendingByOrderId,
+} from "../_shared/createBookingFromPending.ts";
+
 
 const RAZORPAY_WEBHOOK_SECRET = Deno.env.get("RAZORPAY_WEBHOOK_SECRET") || "";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
