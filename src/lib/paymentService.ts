@@ -331,13 +331,26 @@ async function getWalletBalance(userId: string): Promise<number> {
 async function createRazorpayOrderForAmount(
   amount: number,
   serviceType: string,
+  extras?: {
+    booking_data?: Record<string, unknown>;
+    request_id?: string;
+    payment_type?: 'razorpay' | 'wallet_and_razorpay';
+    wallet_amount?: number;
+  },
 ): Promise<RazorpayOrderResponse> {
-  console.log('🛒 Creating Razorpay order (payment-first), amount:', amount);
+  console.log('🛒 order_created request — amount:', amount, 'req:', extras?.request_id);
   return invokeWithFirebaseAuth<RazorpayOrderResponse>('create-razorpay-order', {
     amount,
     service_type: serviceType,
+    booking_data: extras?.booking_data
+      ? sanitizeBookingDataForCreatePaidBooking(extras.booking_data)
+      : undefined,
+    request_id: extras?.request_id,
+    payment_type: extras?.payment_type,
+    wallet_amount: extras?.wallet_amount,
   });
 }
+
 
 // ─── Create Paid Booking (backend) ────────────────────────────
 
