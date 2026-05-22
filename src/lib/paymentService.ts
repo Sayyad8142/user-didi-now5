@@ -614,9 +614,32 @@ export async function executePaymentFlowForNewBooking(
     }
   }
 
-  // Step 3: Create Razorpay order for remainder
+  // Step 3: Create Razorpay order for remainder — stash full booking
+  // payload server-side so webhook/cron can recover if frontend dies.
   onStatusChange('creating_order');
-  const order = await createRazorpayOrderForAmount(razorpayAmount, serviceType);
+  const razorpayRequestIdPre = crypto.randomUUID();
+  const paymentTypePre: 'razorpay' | 'wallet_and_razorpay' =
+    walletCanCover > 0 ? 'wallet_and_razorpay' : 'razorpay';
+  const order = await createRazorpayOrderForAmount(razorpayAmount, serviceType, {
+    booking_data: { ...bookingPayload, request_id: razorpayRequestIdPre },
+    request_id: razorpayRequestIdPre,
+    payment_type: paymentTypePre,
+    wallet_amount: walletCanCover > 0 ? walletCanCover : 0,
+  });
+
+  // Local fallback: persist enough to retry from app launch if everything dies.
+  try {
+    localStorage.setItem('pendingCheckout', JSON.stringify({
+      requestId: razorpayRequestIdPre,
+      orderId: order.order_id,
+      bookingPayload: { ...bookingPayload, request_id: razorpayRequestIdPre },
+      paymentType: paymentTypePre,
+      walletCanCover,
+      razorpayAmount,
+      savedAt: Date.now(),
+    }));
+  } catch { /* ignore quota errors */ }
+
 
   console.log('🛒 [PaymentFirst] Order created:', JSON.stringify({
     order_id: order.order_id,
