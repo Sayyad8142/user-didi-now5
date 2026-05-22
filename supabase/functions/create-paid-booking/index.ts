@@ -346,6 +346,7 @@ Deno.serve(async (req) => {
         console.log(
           `[create-paid-booking] ⚡ Duplicate request_id=${requestId}, returning existing booking ${existing.id}`,
         );
+        await markPendingConsumed(supabase, razorpay_order_id, existing.id);
         return json({
           success: true,
           booking_id: existing.id,
@@ -355,6 +356,7 @@ Deno.serve(async (req) => {
           idempotent: true,
         });
       }
+
     }
 
     // 7. Handle wallet debit (if applicable) — uses atomic increment-based ops for safety
