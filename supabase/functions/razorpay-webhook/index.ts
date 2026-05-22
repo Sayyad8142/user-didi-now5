@@ -121,11 +121,42 @@ Deno.serve(async (req) => {
       }
 
       if (!booking) {
-        // ORPHAN PAYMENT - no booking found for this order
-        console.warn(`${logPrefix} ⚠️ ORPHAN PAYMENT: No booking for order ${razorpayOrderId}`);
-        
-        // Extract user info from notes if available
-        const userId = payment.notes?.user_id || null;
+        // No booking row yet. Try to recover from pending_bookings stash.
+        console.warn(
+          `[razorpay-webhook] webhook_received order=${razorpayOrderId} payment=${razorpayPaymentId} — booking missing, checking pending_bookings`,
+        );
+
+        const pending = await fetchPendingByOrderId(supabase, razorpayOrderId);
+
+        if (pending && pending.status !== "consumed") {
+          const result = await createBookingFromPending({
+            supabase,
+            pending,
+            razorpay_payment_id: razorpayPaymentId,
+            razorpay_order_id: razorpayOrderId,
+            razorpay_amount_paise: amountInPaise,
+            webhook_payload: event,
+            source: "webhook",
+          });
+          if (result.status === "created" || result.status === "already_exists") {
+            console.log(
+              `[razorpay-webhook] webhook_booking_created booking=${result.booking_id} order=${razorpayOrderId} payment=${razorpayPaymentId} via=${result.status}`,
+            );
+            return new Response(
+              JSON.stringify({ status: "booking_recovered", booking_id: result.booking_id }),
+              { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+            );
+          }
+          // failed_logged_for_review — orphan row + pending row already updated
+          return new Response(
+            JSON.stringify({ status: "manual_review", error: result.error }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 },
+          );
+        }
+
+        // Truly orphan — no pending stash and no booking.
+        console.warn(`[razorpay-webhook] webhook_orphan_payment order=${razorpayOrderId} payment=${razorpayPaymentId}`);
+        const userId = payment.notes?.user_id || pending?.user_id || null;
 
         await supabase.from("orphan_payments").insert({
           razorpay_payment_id: razorpayPaymentId,
@@ -134,7 +165,7 @@ Deno.serve(async (req) => {
           currency: payment.currency || "INR",
           user_id: userId,
           status: "unmapped",
-          notes: `Webhook event: ${eventType}. No booking found.`,
+          notes: `Webhook event: ${eventType}. No booking and no pending_bookings stash.`,
           webhook_payload: event,
         });
 
@@ -142,6 +173,7 @@ Deno.serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+
 
       // If already paid, skip (idempotent)
       if (booking.payment_status === "paid") {
