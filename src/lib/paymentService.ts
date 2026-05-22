@@ -756,10 +756,11 @@ export async function executePaymentFlowForNewBooking(
   onStatusChange('verifying_payment');
   trackPaymentEvent('payment_verification_pending', { order_id: order.order_id });
 
-  const paymentType = walletCanCover > 0 ? 'wallet_and_razorpay' : 'razorpay';
-
-  // Generate idempotency key for Razorpay flow too
-  const razorpayRequestId = crypto.randomUUID();
+  // Reuse the same request_id we stashed server-side in pending_bookings,
+  // so create-paid-booking, webhook, and reconcile cron all converge on
+  // exactly one booking row.
+  const paymentType = paymentTypePre;
+  const razorpayRequestId = razorpayRequestIdPre;
   const razorpayPayloadWithRequestId = { ...bookingPayload, request_id: razorpayRequestId };
 
   try {
@@ -789,7 +790,9 @@ export async function executePaymentFlowForNewBooking(
     savePreferredMethod('upi');
     clearLastFailure();
     logPaymentSummary();
+    try { localStorage.removeItem('pendingCheckout'); } catch { /* ignore */ }
     return result;
+
   } catch (verifyErr: any) {
     console.error('❌ create-paid-booking failed after successful checkout:', verifyErr);
     onStatusChange('verification_pending');
