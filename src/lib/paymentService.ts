@@ -700,14 +700,11 @@ export async function executePaymentFlowForNewBooking(
       payment_id: orderCheck.razorpay_payment_id,
     });
 
-    // For QR payments we don't have a signature — create booking without signature verification
-    // The edge function will skip HMAC check if we pass a special flag
-    const razorpayRequestId = crypto.randomUUID();
+    // Reuse the pre-generated request_id stashed in pending_bookings.
+    const razorpayRequestId = razorpayRequestIdPre;
     const razorpayPayloadWithRequestId = { ...bookingPayload, request_id: razorpayRequestId };
-    const paymentType = walletCanCover > 0 ? 'wallet_and_razorpay' : 'razorpay';
+    const paymentType = paymentTypePre;
 
-    // We need to verify via the order check — create booking using webhook-style verification
-    // Since we can't get the signature for QR payments, use verify-razorpay-payment flow
     try {
       const result = await createPaidBookingAfterQrPayment({
         request_id: razorpayRequestId,
@@ -729,7 +726,9 @@ export async function executePaymentFlowForNewBooking(
       savePreferredMethod('upi');
       clearLastFailure();
       logPaymentSummary();
+      try { localStorage.removeItem('pendingCheckout'); } catch { /* ignore */ }
       return result;
+
     } catch (qrErr: any) {
       console.error('❌ Booking creation failed after QR payment recovery:', qrErr);
       onStatusChange('verification_pending');
