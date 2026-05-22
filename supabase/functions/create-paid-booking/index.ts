@@ -317,6 +317,7 @@ Deno.serve(async (req) => {
         console.log(
           `[create-paid-booking] ⚡ Duplicate razorpay_payment_id=${razorpay_payment_id}, returning existing booking ${existingByPayment.id}`,
         );
+        await markPendingConsumed(supabase, razorpay_order_id, existingByPayment.id);
         return json({
           success: true,
           booking_id: existingByPayment.id,
@@ -326,6 +327,7 @@ Deno.serve(async (req) => {
           idempotent: true,
         });
       }
+
     }
 
     if (requestId) {
