@@ -863,7 +863,9 @@ export async function retryPendingBookingCreation(
     savePreferredMethod('upi');
     clearLastFailure();
     logPaymentSummary();
+    try { localStorage.removeItem('pendingCheckout'); } catch { /* ignore */ }
     return result;
+
   } catch (err: any) {
     throw err;
   }
