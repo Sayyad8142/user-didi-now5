@@ -80,6 +80,32 @@ function generateOtp(): string {
   return String(Math.floor(100 + Math.random() * 900));
 }
 
+/**
+ * Mark a pending_bookings row as consumed once a booking exists for it.
+ * Safe to call even if no pending row exists (no-op).
+ */
+async function markPendingConsumed(
+  supabase: ReturnType<typeof createClient>,
+  razorpay_order_id: string | undefined | null,
+  booking_id: string,
+): Promise<void> {
+  if (!razorpay_order_id) return;
+  try {
+    await supabase
+      .from("pending_bookings")
+      .update({
+        status: "consumed",
+        consumed_at: new Date().toISOString(),
+        booking_id,
+      })
+      .eq("razorpay_order_id", razorpay_order_id)
+      .neq("status", "consumed");
+  } catch (e) {
+    console.warn("[create-paid-booking] markPendingConsumed failed (non-fatal):", (e as Error).message);
+  }
+}
+
+
 const OPTIONAL_BOOKING_INSERT_COLUMNS = new Set([
   "completion_otp",
   "paid_at",
