@@ -331,13 +331,26 @@ async function getWalletBalance(userId: string): Promise<number> {
 async function createRazorpayOrderForAmount(
   amount: number,
   serviceType: string,
+  extras?: {
+    booking_data?: Record<string, unknown>;
+    request_id?: string;
+    payment_type?: 'razorpay' | 'wallet_and_razorpay';
+    wallet_amount?: number;
+  },
 ): Promise<RazorpayOrderResponse> {
-  console.log('🛒 Creating Razorpay order (payment-first), amount:', amount);
+  console.log('🛒 order_created request — amount:', amount, 'req:', extras?.request_id);
   return invokeWithFirebaseAuth<RazorpayOrderResponse>('create-razorpay-order', {
     amount,
     service_type: serviceType,
+    booking_data: extras?.booking_data
+      ? sanitizeBookingDataForCreatePaidBooking(extras.booking_data)
+      : undefined,
+    request_id: extras?.request_id,
+    payment_type: extras?.payment_type,
+    wallet_amount: extras?.wallet_amount,
   });
 }
+
 
 // ─── Create Paid Booking (backend) ────────────────────────────
 
@@ -601,9 +614,32 @@ export async function executePaymentFlowForNewBooking(
     }
   }
 
-  // Step 3: Create Razorpay order for remainder
+  // Step 3: Create Razorpay order for remainder — stash full booking
+  // payload server-side so webhook/cron can recover if frontend dies.
   onStatusChange('creating_order');
-  const order = await createRazorpayOrderForAmount(razorpayAmount, serviceType);
+  const razorpayRequestIdPre = crypto.randomUUID();
+  const paymentTypePre: 'razorpay' | 'wallet_and_razorpay' =
+    walletCanCover > 0 ? 'wallet_and_razorpay' : 'razorpay';
+  const order = await createRazorpayOrderForAmount(razorpayAmount, serviceType, {
+    booking_data: { ...bookingPayload, request_id: razorpayRequestIdPre },
+    request_id: razorpayRequestIdPre,
+    payment_type: paymentTypePre,
+    wallet_amount: walletCanCover > 0 ? walletCanCover : 0,
+  });
+
+  // Local fallback: persist enough to retry from app launch if everything dies.
+  try {
+    localStorage.setItem('pendingCheckout', JSON.stringify({
+      requestId: razorpayRequestIdPre,
+      orderId: order.order_id,
+      bookingPayload: { ...bookingPayload, request_id: razorpayRequestIdPre },
+      paymentType: paymentTypePre,
+      walletCanCover,
+      razorpayAmount,
+      savedAt: Date.now(),
+    }));
+  } catch { /* ignore quota errors */ }
+
 
   console.log('🛒 [PaymentFirst] Order created:', JSON.stringify({
     order_id: order.order_id,
@@ -664,14 +700,11 @@ export async function executePaymentFlowForNewBooking(
       payment_id: orderCheck.razorpay_payment_id,
     });
 
-    // For QR payments we don't have a signature — create booking without signature verification
-    // The edge function will skip HMAC check if we pass a special flag
-    const razorpayRequestId = crypto.randomUUID();
+    // Reuse the pre-generated request_id stashed in pending_bookings.
+    const razorpayRequestId = razorpayRequestIdPre;
     const razorpayPayloadWithRequestId = { ...bookingPayload, request_id: razorpayRequestId };
-    const paymentType = walletCanCover > 0 ? 'wallet_and_razorpay' : 'razorpay';
+    const paymentType = paymentTypePre;
 
-    // We need to verify via the order check — create booking using webhook-style verification
-    // Since we can't get the signature for QR payments, use verify-razorpay-payment flow
     try {
       const result = await createPaidBookingAfterQrPayment({
         request_id: razorpayRequestId,
@@ -693,7 +726,9 @@ export async function executePaymentFlowForNewBooking(
       savePreferredMethod('upi');
       clearLastFailure();
       logPaymentSummary();
+      try { localStorage.removeItem('pendingCheckout'); } catch { /* ignore */ }
       return result;
+
     } catch (qrErr: any) {
       console.error('❌ Booking creation failed after QR payment recovery:', qrErr);
       onStatusChange('verification_pending');
@@ -720,10 +755,11 @@ export async function executePaymentFlowForNewBooking(
   onStatusChange('verifying_payment');
   trackPaymentEvent('payment_verification_pending', { order_id: order.order_id });
 
-  const paymentType = walletCanCover > 0 ? 'wallet_and_razorpay' : 'razorpay';
-
-  // Generate idempotency key for Razorpay flow too
-  const razorpayRequestId = crypto.randomUUID();
+  // Reuse the same request_id we stashed server-side in pending_bookings,
+  // so create-paid-booking, webhook, and reconcile cron all converge on
+  // exactly one booking row.
+  const paymentType = paymentTypePre;
+  const razorpayRequestId = razorpayRequestIdPre;
   const razorpayPayloadWithRequestId = { ...bookingPayload, request_id: razorpayRequestId };
 
   try {
@@ -753,7 +789,9 @@ export async function executePaymentFlowForNewBooking(
     savePreferredMethod('upi');
     clearLastFailure();
     logPaymentSummary();
+    try { localStorage.removeItem('pendingCheckout'); } catch { /* ignore */ }
     return result;
+
   } catch (verifyErr: any) {
     console.error('❌ create-paid-booking failed after successful checkout:', verifyErr);
     onStatusChange('verification_pending');
@@ -825,7 +863,9 @@ export async function retryPendingBookingCreation(
     savePreferredMethod('upi');
     clearLastFailure();
     logPaymentSummary();
+    try { localStorage.removeItem('pendingCheckout'); } catch { /* ignore */ }
     return result;
+
   } catch (err: any) {
     throw err;
   }

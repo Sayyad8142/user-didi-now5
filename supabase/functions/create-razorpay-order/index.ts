@@ -73,13 +73,32 @@ Deno.serve(async (req) => {
     console.log(`[create-razorpay-order] 👤 profile_id=${profile.id}`);
 
     // ────────────────────────────────────────────────────────────
-    // MODE A: Payment-first (no booking exists yet)
+    // MODE A: Payment-first (no booking exists yet) — stash payload
+    // server-side so webhook/reconcile can recover the booking even
+    // if the frontend dies between payment + create-paid-booking.
     // ────────────────────────────────────────────────────────────
     if (!booking_id && amount && service_type) {
       const amountInPaise = Math.round(amount * 100);
       if (amountInPaise <= 0) {
         return json({ error: "Invalid amount" }, 400);
       }
+
+      // P0 hardening: require booking_data + request_id so we can
+      // reconstruct the booking server-side from the webhook.
+      const bookingData = body.booking_data as Record<string, unknown> | undefined;
+      const requestId = body.request_id as string | undefined;
+      const paymentType = (body.payment_type as string | undefined) || "razorpay";
+      const walletAmount = Number(body.wallet_amount ?? 0);
+
+      if (!bookingData || typeof bookingData !== "object") {
+        return json({ error: "booking_data required for payment-first flow" }, 400);
+      }
+      if (!requestId) {
+        return json({ error: "request_id required for payment-first flow" }, 400);
+      }
+
+      // Force-sync user_id to the authenticated profile (never trust client).
+      const safeBookingData = { ...bookingData, user_id: profile.id };
 
       const receipt = `pf_${profile.id.slice(0, 8)}_${Date.now()}`;
       const prefillName = /^\+?\d{7,15}$/.test((profile.full_name || "").trim())
@@ -101,6 +120,7 @@ Deno.serve(async (req) => {
           notes: {
             service_type,
             user_id: profile.id,
+            request_id: requestId,
             mode: "payment_first",
           },
         }),
@@ -114,7 +134,39 @@ Deno.serve(async (req) => {
 
       const rpOrder = await rpRes.json();
 
-      console.log(`[create-razorpay-order] ✅ Payment-first order: ${rpOrder.id}, amount: ₹${amount}`);
+      // CRITICAL: stash full booking payload BEFORE returning to frontend.
+      // If this insert fails we must not let the user pay — the recovery
+      // path (webhook/cron) would have nothing to recreate.
+      const { error: stashErr } = await supabase
+        .from("pending_bookings")
+        .upsert(
+          {
+            razorpay_order_id: rpOrder.id,
+            user_id: profile.id,
+            request_id: requestId,
+            booking_data: safeBookingData,
+            payment_type: paymentType,
+            wallet_amount: walletAmount,
+            amount_inr: amount,
+            status: "awaiting_payment",
+          },
+          { onConflict: "razorpay_order_id" },
+        );
+
+      if (stashErr) {
+        console.error(
+          "[create-razorpay-order] ❌ Failed to stash pending_booking — aborting:",
+          stashErr.message,
+        );
+        return json(
+          { error: "Could not prepare booking. Please try again.", step: "pending_stash" },
+          500,
+        );
+      }
+
+      console.log(
+        `[create-razorpay-order] ✅ pending_booking_saved order=${rpOrder.id} request_id=${requestId} user=${profile.id} amount=₹${amount} payment_type=${paymentType}`,
+      );
 
       return json({
         order_id: rpOrder.id,
@@ -128,6 +180,7 @@ Deno.serve(async (req) => {
         },
       });
     }
+
 
     // ────────────────────────────────────────────────────────────
     // MODE B: Legacy mode (existing booking_id) — for retries
