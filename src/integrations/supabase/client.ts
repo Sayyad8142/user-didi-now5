@@ -76,8 +76,7 @@ function createSupabaseClient(baseUrl: string): SupabaseClient<Database> {
   // "Multiple GoTrueClient instances detected" warning).
   if (_client) {
     try {
-      // @ts-expect-error - internal but stable
-      _client.auth?.stopAutoRefresh?.();
+      (_client.auth as any)?.stopAutoRefresh?.();
     } catch {}
     try {
       _client.removeAllChannels?.();
