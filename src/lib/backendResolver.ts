@@ -8,10 +8,21 @@
 const STORAGE_KEY = "DIDI_BACKEND_URL";
 const TIMEOUT_MS = 3000;
 
-import { PRODUCTION_ANON_KEY, BACKEND_CANDIDATES } from '@/lib/constants';
+import { PRODUCTION_ANON_KEY, BACKEND_CANDIDATES, DIRECT_SUPABASE_URL } from '@/lib/constants';
+import { getAppPlatform } from '@/utils/platform';
 export { BACKEND_CANDIDATES };
 
 const ANON_KEY = PRODUCTION_ANON_KEY;
+
+/** iOS native WKWebView has ATS/TLS issues with custom backend domains.
+ *  Bypass api.didisnow.com candidates entirely and go straight to Supabase. */
+function isIOSNative(): boolean {
+  try {
+    return getAppPlatform() === 'ios';
+  } catch {
+    return false;
+  }
+}
 
 export type BackendTestResult = {
   url: string;
