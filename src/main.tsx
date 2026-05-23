@@ -9,8 +9,43 @@ import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider } from "@/components/auth/AuthProvider";
 import { ProfileProvider } from "@/contexts/ProfileContext";
 import { PushNotificationProvider } from "@/components/PushNotificationProvider";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import App from "./App.tsx";
 import "./index.css";
+
+// ── Early global error capture ───────────────────────────────────────────────
+// MUST run before any other code that might throw, so iOS WKWebView's vague
+// "JS Eval error: A JavaScript exception occurred" gets a real stack trace.
+(function installGlobalErrorHandlers() {
+  if (typeof window === "undefined") return;
+  const showStartupError = (label: string, err: unknown) => {
+    try {
+      const msg =
+        (err as any)?.stack ||
+        (err as any)?.message ||
+        (typeof err === "string" ? err : JSON.stringify(err));
+      console.error(`[Startup:${label}]`, err);
+      const root = document.getElementById("root");
+      const splash = document.getElementById("app-splash");
+      const reactMounted = !!root && root.childElementCount > 0;
+      if (!reactMounted) {
+        if (splash) splash.remove();
+        if (root) {
+          root.innerHTML = `
+            <div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;background:#fff;color:#111;font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;text-align:center;">
+              <div style="font-size:48px;margin-bottom:12px;">⚠️</div>
+              <h1 style="font-size:18px;font-weight:700;margin:0 0 8px;">Couldn't start the app</h1>
+              <p style="font-size:14px;color:#555;margin:0 0 16px;max-width:320px;">${label}. Please check your connection and try again.</p>
+              <button onclick="window.location.reload()" style="background:#ec4899;color:#fff;border:0;padding:10px 24px;border-radius:9999px;font-weight:600;font-size:14px;">Reload</button>
+              <pre style="margin-top:16px;font-size:10px;color:#888;max-width:90vw;white-space:pre-wrap;text-align:left;max-height:30vh;overflow:auto;">${String(msg).slice(0, 1500)}</pre>
+            </div>`;
+        }
+      }
+    } catch {}
+  };
+  window.addEventListener("error", (e) => showStartupError("error", e.error || e.message));
+  window.addEventListener("unhandledrejection", (e) => showStartupError("unhandledrejection", e.reason));
+})();
 
 // @ts-ignore - injected by Vite define
 console.info("[App] Build ID:", typeof __APP_BUILD_ID__ !== "undefined" ? __APP_BUILD_ID__ : "dev");
