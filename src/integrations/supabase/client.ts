@@ -71,6 +71,18 @@ let _currentBaseUrl: string | null = null;
 function createSupabaseClient(baseUrl: string): SupabaseClient<Database> {
   if (_client && _currentBaseUrl === baseUrl) return _client;
 
+  // Dispose previous client's auth so GoTrue doesn't keep two refresh timers
+  // alive with the same storage key (root cause of the
+  // "Multiple GoTrueClient instances detected" warning).
+  if (_client) {
+    try {
+      (_client.auth as any)?.stopAutoRefresh?.();
+    } catch {}
+    try {
+      _client.removeAllChannels?.();
+    } catch {}
+  }
+
   console.info("[Supabase] Creating client →", baseUrl);
   _currentBaseUrl = baseUrl;
   _client = createClient<Database>(baseUrl, SUPABASE_PUBLISHABLE_KEY, buildClientOptions());
@@ -103,7 +115,8 @@ export function getCurrentBackendUrl(): string | null {
  */
 export async function switchBackend(): Promise<boolean> {
   clearResolvedUrl();
-  _client = null;
+  // Don't null out _client here — createSupabaseClient handles disposal so
+  // the Proxy export never sees a null reference mid-flight.
   _currentBaseUrl = null;
   return initSupabase();
 }
@@ -114,7 +127,8 @@ export async function switchBackend(): Promise<boolean> {
 
 // Prefer the cached backend URL from a prior session so the initial client
 // matches what initSupabase() will resolve to. This prevents creating a
-// second GoTrueClient instance ("Multiple GoTrueClient" warning).
+// second GoTrueClient instance ("Multiple GoTrueClient" warning) on iOS
+// when the cached candidate is unreachable and we fall back to direct.
 function getInitialBackendUrl(): string {
   try {
     const cached = typeof localStorage !== "undefined"
@@ -138,8 +152,12 @@ export const supabase: SupabaseClient<Database> = new Proxy(
   {} as SupabaseClient<Database>,
   {
     get(_target, prop, receiver) {
-      // Always forward to the live client
-      const client = _client!;
+      const client = _client;
+      if (!client) {
+        // Should never happen — initial client is created at module load —
+        // but guard so iOS doesn't crash with "Cannot read property of null".
+        throw new Error("Supabase client not initialized yet");
+      }
       const value = Reflect.get(client, prop, client);
       if (typeof value === "function") {
         return value.bind(client);
