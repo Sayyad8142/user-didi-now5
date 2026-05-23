@@ -148,6 +148,7 @@ const App = () => {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [networkBlocked, setNetworkBlocked] = useState(false);
   const [resolving, setResolving] = useState(true);
+  const [resolveTimedOut, setResolveTimedOut] = useState(false);
   const { updateAvailable, updateMode, handleRefresh, dismissUpdate } = useWebVersion();
   const nativeGate = useNativeVersionGate();
   const maintenance = useMaintenanceMode();
@@ -155,6 +156,7 @@ const App = () => {
   useAppWarmup();
 
   const resolveBackend = useCallback(async (force = false) => {
+    setResolveTimedOut(false);
     // If we already have a cached backend URL, render immediately and run
     // the health check in the background. This unblocks the Home screen
     // from a sequential probe of api.didisnow.com on every cold open.
@@ -169,7 +171,6 @@ const App = () => {
     if (!force && hasCached) {
       setResolving(false);
       setNetworkBlocked(false);
-      // Background init — do not block UI
       (async () => {
         try {
           const { mark } = await import('@/lib/perfMarks');
@@ -195,7 +196,8 @@ const App = () => {
       if (ok) {
         window.dispatchEvent(new Event('supabase-ready'));
       }
-    } catch {
+    } catch (err) {
+      console.error('[App] resolveBackend failed:', err);
       setNetworkBlocked(true);
     } finally {
       setResolving(false);
@@ -205,6 +207,14 @@ const App = () => {
   useEffect(() => {
     resolveBackend();
   }, [resolveBackend]);
+
+  // Safety net: if we're still "resolving" after 10s on iOS/Android, surface
+  // a retry screen instead of staying stuck on the pink splash forever.
+  useEffect(() => {
+    if (!resolving) return;
+    const t = setTimeout(() => setResolveTimedOut(true), 10_000);
+    return () => clearTimeout(t);
+  }, [resolving]);
 
   // Hide HTML splash as soon as React has mounted and resolving is done
   useEffect(() => {
@@ -226,6 +236,15 @@ const App = () => {
 
   if (!isOnline) {
     return <OfflineScreen onRetry={() => setIsOnline(navigator.onLine)} />;
+  }
+
+  // If backend resolution stalls (>10s) — show retry screen, not infinite loader
+  if (resolving && resolveTimedOut) {
+    return (
+      <NetworkBlockedScreen
+        onRetry={() => resolveBackend(true)}
+      />
+    );
   }
 
   // Show loader while resolving backend or checking native version or maintenance
