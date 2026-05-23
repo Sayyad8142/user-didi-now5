@@ -97,6 +97,15 @@ export async function resolveBackendUrl(): Promise<string | null> {
 }
 
 async function _doResolve(): Promise<string | null> {
+  // iOS native: skip custom domains entirely. ATS/WKWebView times out on
+  // api.didisnow.com and api2.didisnow.com — go direct to Supabase.
+  if (isIOSNative()) {
+    console.info('[BackendResolver] iOS native detected, using Supabase direct.');
+    _resolvedUrl = DIRECT_SUPABASE_URL;
+    try { localStorage.setItem(STORAGE_KEY, DIRECT_SUPABASE_URL); } catch {}
+    return DIRECT_SUPABASE_URL;
+  }
+
   // 1. Try the cached URL first
   let cached: string | null = null;
   try {
