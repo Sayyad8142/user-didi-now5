@@ -93,20 +93,27 @@ const rootElement = document.getElementById("root");
 if (!rootElement) throw new Error("Root element not found");
 
 mark("react.createRoot");
-createRoot(rootElement).render(
-  <StrictMode>
-    <BrowserRouter>
-      <HelmetProvider>
-        <QueryClientProvider client={queryClient}>
-          <AuthProvider>
-            <ProfileProvider>
-              <PushNotificationProvider>
-                <App />
-              </PushNotificationProvider>
-            </ProfileProvider>
-          </AuthProvider>
-        </QueryClientProvider>
-      </HelmetProvider>
-    </BrowserRouter>
-  </StrictMode>
-);
+try {
+  createRoot(rootElement).render(
+    <StrictMode>
+      <ErrorBoundary fallbackTitle="The app couldn't start">
+        <BrowserRouter>
+          <HelmetProvider>
+            <QueryClientProvider client={queryClient}>
+              <AuthProvider>
+                <ProfileProvider>
+                  <PushNotificationProvider>
+                    <App />
+                  </PushNotificationProvider>
+                </ProfileProvider>
+              </AuthProvider>
+            </QueryClientProvider>
+          </HelmetProvider>
+        </BrowserRouter>
+      </ErrorBoundary>
+    </StrictMode>
+  );
+} catch (err) {
+  console.error("[Startup] createRoot.render threw:", err);
+  window.dispatchEvent(new ErrorEvent("error", { error: err as any }));
+}
