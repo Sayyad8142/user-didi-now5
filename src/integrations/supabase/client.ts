@@ -8,6 +8,8 @@ import {
   clearResolvedUrl,
   BACKEND_CANDIDATES,
 } from "@/lib/backendResolver";
+import { DIRECT_SUPABASE_URL } from "@/lib/constants";
+import { getAppPlatform } from "@/utils/platform";
 
 const SUPABASE_PUBLISHABLE_KEY =
   import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
