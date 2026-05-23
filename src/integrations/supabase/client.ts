@@ -8,6 +8,8 @@ import {
   clearResolvedUrl,
   BACKEND_CANDIDATES,
 } from "@/lib/backendResolver";
+import { DIRECT_SUPABASE_URL } from "@/lib/constants";
+import { getAppPlatform } from "@/utils/platform";
 
 const SUPABASE_PUBLISHABLE_KEY =
   import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
@@ -130,6 +132,12 @@ export async function switchBackend(): Promise<boolean> {
 // second GoTrueClient instance ("Multiple GoTrueClient" warning) on iOS
 // when the cached candidate is unreachable and we fall back to direct.
 function getInitialBackendUrl(): string {
+  // iOS native: always start with Supabase direct. Custom domains time out
+  // under ATS/WKWebView and would force a second createClient call,
+  // triggering "Multiple GoTrueClient instances detected".
+  try {
+    if (getAppPlatform() === 'ios') return DIRECT_SUPABASE_URL;
+  } catch {}
   try {
     const cached = typeof localStorage !== "undefined"
       ? localStorage.getItem("DIDI_BACKEND_URL")

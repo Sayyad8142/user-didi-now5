@@ -8,10 +8,21 @@
 const STORAGE_KEY = "DIDI_BACKEND_URL";
 const TIMEOUT_MS = 3000;
 
-import { PRODUCTION_ANON_KEY, BACKEND_CANDIDATES } from '@/lib/constants';
+import { PRODUCTION_ANON_KEY, BACKEND_CANDIDATES, DIRECT_SUPABASE_URL } from '@/lib/constants';
+import { getAppPlatform } from '@/utils/platform';
 export { BACKEND_CANDIDATES };
 
 const ANON_KEY = PRODUCTION_ANON_KEY;
+
+/** iOS native WKWebView has ATS/TLS issues with custom backend domains.
+ *  Bypass api.didisnow.com candidates entirely and go straight to Supabase. */
+function isIOSNative(): boolean {
+  try {
+    return getAppPlatform() === 'ios';
+  } catch {
+    return false;
+  }
+}
 
 export type BackendTestResult = {
   url: string;
@@ -86,6 +97,15 @@ export async function resolveBackendUrl(): Promise<string | null> {
 }
 
 async function _doResolve(): Promise<string | null> {
+  // iOS native: skip custom domains entirely. ATS/WKWebView times out on
+  // api.didisnow.com and api2.didisnow.com — go direct to Supabase.
+  if (isIOSNative()) {
+    console.info('[BackendResolver] iOS native detected, using Supabase direct.');
+    _resolvedUrl = DIRECT_SUPABASE_URL;
+    try { localStorage.setItem(STORAGE_KEY, DIRECT_SUPABASE_URL); } catch {}
+    return DIRECT_SUPABASE_URL;
+  }
+
   // 1. Try the cached URL first
   let cached: string | null = null;
   try {
