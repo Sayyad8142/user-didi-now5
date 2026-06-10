@@ -41,20 +41,37 @@ export default function VerifyOTP() {
   const { bootstrapProfile } = useProfile();
   const { user: authUser } = useAuth();
   
-  const state = location.state as LocationState;
-  
+  // Read state from location, with sessionStorage fallback for webview/preview
+  // environments that drop history.state across re-mounts.
+  const stateFromLocation = location.state as LocationState | null;
+  const [state] = useState<LocationState | null>(() => {
+    if (stateFromLocation?.phone) return stateFromLocation;
+    try {
+      const raw = sessionStorage.getItem('didi.verifyOtp.payload');
+      if (raw) return JSON.parse(raw) as LocationState;
+    } catch {}
+    return null;
+  });
+
   const phone = state?.phone || "";
   const redirectTo = state?.redirectTo || "/home";
 
   // Track pending redirect after successful OTP verification
   const [pendingRedirect, setPendingRedirect] = useState<string | null>(null);
-  
-  // Redirect if no state
+
+  // Redirect only if we genuinely have no phone (neither in router state nor sessionStorage)
   useEffect(() => {
     if (!phone) {
-      navigate('/auth');
+      navigate('/auth', { replace: true });
     }
   }, [phone, navigate]);
+
+  // Clear the sessionStorage payload once we successfully redirect away after verification
+  useEffect(() => {
+    if (pendingRedirect) {
+      try { sessionStorage.removeItem('didi.verifyOtp.payload'); } catch {}
+    }
+  }, [pendingRedirect]);
 
   // Wait for AuthProvider to pick up the authenticated user, then navigate
   useEffect(() => {

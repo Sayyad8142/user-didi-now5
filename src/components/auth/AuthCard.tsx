@@ -193,15 +193,20 @@ export function AuthCard() {
         return;
       }
 
-      // Navigate to verification with state
-      navigate('/auth/verify', {
-        state: {
-          phone: formattedPhone,
-          mode: activeTab,
-          signupData: isSignUp ? signUpData : null,
-          redirectTo: '/home'
-        }
-      });
+      // Navigate to verification with state.
+      // Also persist to sessionStorage as a fallback — some webview/preview
+      // environments drop history.state across re-mounts, which would
+      // otherwise bounce the user straight back to /auth.
+      const verifyPayload = {
+        phone: formattedPhone,
+        mode: activeTab,
+        signupData: isSignUp ? signUpData : null,
+        redirectTo: '/home',
+      };
+      try {
+        sessionStorage.setItem('didi.verifyOtp.payload', JSON.stringify(verifyPayload));
+      } catch {}
+      navigate('/auth/verify', { state: verifyPayload });
 
       toast({
         title: 'OTP Sent',
