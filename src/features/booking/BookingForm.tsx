@@ -596,6 +596,13 @@ export function BookingForm() {
       } catch (payErr: any) {
         console.error('❌ Payment error:', payErr);
         console.warn('[WALLET_BOOKING_FAILED]', { method: paymentMethod, message: payErr?.message });
+        // Pre-payment supply rejection → busy modal, no retry sheet (no money taken)
+        const paidAlready = payErr instanceof PaymentError && !!payErr.pendingCheckout;
+        if (!paidAlready && payErr?.message?.includes('SUPPLY_FULL')) {
+          refetchSupply();
+          setSupplyModalOpen(true);
+          return;
+        }
         const errType = payErr instanceof PaymentError ? payErr.type : 'payment_failed';
         setRetryErrorType(errType as PaymentErrorType);
         setRetryErrorMessage(payErr?.message);
