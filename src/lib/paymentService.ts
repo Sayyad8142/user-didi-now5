@@ -118,6 +118,7 @@ export function toUserFriendlyPaymentError(err: any): string {
   if (/Payment verification failed|HMAC/i.test(raw)) return 'Payment could not be verified. If money was deducted it will be refunded automatically.';
   if (/Authentication expired|Not authenticated|Profile not found/i.test(raw)) return 'Session expired. Please login again.';
   if (/User ID mismatch|not_owner/i.test(raw)) return 'Account mismatch. Please login again.';
+  if (/PAYMENT_RECEIVED_BOOKING_QUEUED/i.test(raw)) return "We received your payment. We're confirming your booking.";
   if (/SUPPLY_FULL|All experts are busy/i.test(raw)) return 'All experts are busy right now. Please try again in a few minutes.';
   if (/Slot unavailable|Not enough workers/i.test(raw)) return 'No workers are available at this time. Please pick another slot.';
   if (/Razorpay|Unable to create.*order/i.test(raw)) return 'Payment gateway is unavailable. Please try again in a moment.';
@@ -318,6 +319,61 @@ function isNetworkError(err: any): boolean {
 
 async function sleep(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// ─── Pre-Payment Capacity Check (Layer 1) ─────────────────────
+
+export interface CapacityCheckResult {
+  can_accept_booking: boolean;
+  reason: string | null;
+  pending_count: number;
+  online_workers: number;
+  available_workers: number;
+}
+
+/**
+ * Calls the check-booking-capacity edge function BEFORE any payment
+ * is initiated. Returns null on timeout/error (fail-open — the backend
+ * gate in create-razorpay-order and the DB trigger remain authoritative).
+ */
+async function checkBookingCapacity(
+  bookingPayload: Record<string, unknown>,
+): Promise<CapacityCheckResult | null> {
+  const community = (bookingPayload.community as string) || null;
+  const serviceType = (bookingPayload.service_type as string) || null;
+  const bookingType = (bookingPayload.booking_type as string) || 'instant';
+
+  if (bookingType !== 'instant' || !community) return null;
+
+  console.log('CAPACITY_CHECK_REQUESTED', { community, service_type: serviceType, booking_type: bookingType });
+
+  try {
+    const invocation = supabase.functions.invoke('check-booking-capacity', {
+      body: {
+        community_name: community,
+        service_type: serviceType,
+        booking_type: bookingType,
+      },
+    });
+    const timeout = sleep(5000).then(() => null);
+    const res = (await Promise.race([invocation, timeout])) as
+      | { data: CapacityCheckResult | null; error: any }
+      | null;
+
+    if (!res || res.error || !res.data || typeof res.data.can_accept_booking !== 'boolean') {
+      console.warn('CAPACITY_CHECK_FAILED_OPEN', res?.error?.message || 'timeout/empty');
+      return null;
+    }
+
+    console.log(
+      res.data.can_accept_booking ? 'CAPACITY_CHECK_PASSED' : 'CAPACITY_CHECK_REJECTED',
+      res.data,
+    );
+    return res.data;
+  } catch (e: any) {
+    console.warn('CAPACITY_CHECK_FAILED_OPEN', e?.message);
+    return null;
+  }
 }
 
 // ─── Wallet Balance Check ─────────────────────────────────────
