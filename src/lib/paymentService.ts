@@ -615,6 +615,22 @@ export async function executePaymentFlowForNewBooking(
 
   trackPaymentEvent('payment_first_started', { service_type: serviceType, amount: priceInr });
 
+  // Step 0: P0 capacity gate — NEVER initiate payment when supply is full.
+  const capacity = await checkBookingCapacity(bookingPayload);
+  if (capacity && !capacity.can_accept_booking) {
+    console.warn('PAYMENT_PREVENTED_DUE_TO_SUPPLY', capacity);
+    trackPaymentEvent('payment_failed', {
+      error_type: 'supply_full_pre_payment',
+      pending_count: capacity.pending_count,
+      online_workers: capacity.online_workers,
+    });
+    onStatusChange('payment_failed');
+    throw new PaymentError(
+      'SUPPLY_FULL: All experts are busy right now. Please try again in a few minutes.',
+      'payment_failed',
+    );
+  }
+
   // Step 1: Check wallet balance
   onStatusChange('debiting_wallet');
   let walletBalance = 0;
