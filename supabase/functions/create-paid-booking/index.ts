@@ -708,6 +708,54 @@ Deno.serve(async (req) => {
         }
       }
 
+      // ── P0: SUPPLY_FULL after a real payment must NEVER bounce the
+      // customer with "experts are busy". Queue for automatic recovery
+      // (reconcile cron retries every 2 min until supply frees up).
+      const isSupplyFull = /SUPPLY_FULL/i.test(insertErr.message || "");
+      if (isSupplyFull) {
+        console.warn(
+          `[create-paid-booking] POST_PAYMENT_SUPPLY_REJECTION payment=${razorpay_payment_id || "wallet-only"} order=${razorpay_order_id || "n/a"} req=${requestId} wallet_refunded=${walletDebited}`,
+        );
+
+        if (razorpay_payment_id) {
+          // Real money captured → keep the pending row retryable so the
+          // reconcile cron recreates the booking once capacity frees up.
+          if (razorpay_order_id) {
+            try {
+              await supabase
+                .from("pending_bookings")
+                .update({
+                  status: "awaiting_payment",
+                  last_error: `POST_PAYMENT_SUPPLY_REJECTION: ${insertErr.message}`,
+                  last_checked_at: new Date().toISOString(),
+                })
+                .eq("razorpay_order_id", razorpay_order_id);
+            } catch (e) {
+              console.error("[create-paid-booking] supply-queue pending update failed:", e);
+            }
+          }
+          return json(
+            {
+              error:
+                "PAYMENT_RECEIVED_BOOKING_QUEUED: We received your payment. We're confirming your booking.",
+              code: "PAYMENT_RECEIVED_BOOKING_QUEUED",
+              queued: true,
+            },
+            409,
+          );
+        }
+
+        // Wallet-only → wallet was already refunded above; safe to show busy.
+        return json(
+          {
+            error:
+              "SUPPLY_FULL: All experts are busy right now. Please try again in a few minutes. Your wallet was refunded.",
+            code: "SUPPLY_FULL",
+          },
+          409,
+        );
+      }
+
       // P0: payment may have been captured by Razorpay. Do NOT silently
       // lose it — log an orphan_payments row tagged 'manual_review' and
       // flag the pending row so ops can recover.

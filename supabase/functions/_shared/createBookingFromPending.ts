@@ -99,7 +99,7 @@ export interface CreateFromPendingArgs {
 }
 
 export interface CreateFromPendingResult {
-  status: "created" | "already_exists" | "consumed" | "failed_logged_for_review";
+  status: "created" | "already_exists" | "consumed" | "failed_logged_for_review" | "retry_later";
   booking_id?: string;
   error?: string;
 }
@@ -248,6 +248,39 @@ export async function createBookingFromPending(
         await markConsumed(supabase, pending.razorpay_order_id, winner.id);
         return { status: "already_exists", booking_id: winner.id };
       }
+    }
+
+    // ── P0: SUPPLY_FULL with a captured payment is NOT a terminal failure.
+    // Refund any wallet debit from this attempt, keep the pending row
+    // retryable, and let the reconcile cron retry once supply frees up.
+    if (/SUPPLY_FULL/i.test((insertErr as any).message || "")) {
+      console.warn(
+        `${tag} POST_PAYMENT_SUPPLY_REJECTION order=${razorpay_order_id} payment=${razorpay_payment_id} — will retry via reconcile cron`,
+      );
+      if (walletDebited > 0) {
+        try {
+          await supabase.rpc("safe_wallet_increment", {
+            p_user_id: pending.user_id,
+            p_amount_delta: walletDebited,
+            p_min_balance: 0,
+          });
+        } catch (e) {
+          console.error(`${tag} supply-retry wallet refund failed:`, e);
+        }
+      }
+      try {
+        await supabase
+          .from("pending_bookings")
+          .update({
+            status: "awaiting_payment",
+            last_error: `POST_PAYMENT_SUPPLY_REJECTION: ${(insertErr as any).message}`,
+            last_checked_at: now,
+          })
+          .eq("razorpay_order_id", pending.razorpay_order_id);
+      } catch (e) {
+        console.error(`${tag} supply-retry pending update failed:`, e);
+      }
+      return { status: "retry_later", error: (insertErr as any).message };
     }
 
     console.error(

@@ -229,6 +229,12 @@ export function InstantCheckoutScreen() {
         navigate('/home', { replace: true });
       } catch (payErr: any) {
         console.error('❌ Payment error:', payErr);
+        // Pre-payment supply rejection → show busy modal, no retry sheet (no money taken)
+        const paidAlready = payErr instanceof PaymentError && !!payErr.pendingCheckout;
+        if (!paidAlready && payErr?.message?.includes('SUPPLY_FULL')) {
+          setSupplyModalOpen(true);
+          return;
+        }
         const errType = payErr instanceof PaymentError ? payErr.type : 'payment_failed';
         setRetryErrorType(errType as PaymentErrorType);
         setRetryErrorMessage(payErr?.message);

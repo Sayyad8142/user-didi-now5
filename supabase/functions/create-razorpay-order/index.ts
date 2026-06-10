@@ -100,6 +100,44 @@ Deno.serve(async (req) => {
       // Force-sync user_id to the authenticated profile (never trust client).
       const safeBookingData = { ...bookingData, user_id: profile.id };
 
+      // ── P0 CAPACITY GATE (Layer 2, server-side) ──────────────
+      // NEVER take payment when the instant supply cap is full.
+      // Mirrors the DB trigger rule (>= 3 pending/dispatched instant
+      // bookings per community → SUPPLY_FULL). Fail-open on RPC errors
+      // (the DB trigger remains the final authority).
+      const gateBookingType = (safeBookingData.booking_type as string) || "instant";
+      const gateCommunity = (safeBookingData.community as string) || null;
+      if (gateBookingType === "instant" && gateCommunity) {
+        try {
+          const { data: pendingCount, error: supplyErr } = await supabase.rpc(
+            "check_instant_supply",
+            { p_community: gateCommunity },
+          );
+          if (!supplyErr && Number(pendingCount) >= 3) {
+            console.warn(
+              `[create-razorpay-order] PAYMENT_PREVENTED_DUE_TO_SUPPLY community=${gateCommunity} pending=${pendingCount} req=${requestId} user=${profile.id}`,
+            );
+            return json(
+              {
+                error:
+                  "SUPPLY_FULL: All experts are busy right now. Please try again in a few minutes.",
+                code: "SUPPLY_FULL",
+                pending_count: Number(pendingCount),
+              },
+              409,
+            );
+          }
+          console.log(
+            `[create-razorpay-order] CAPACITY_CHECK_PASSED community=${gateCommunity} pending=${pendingCount ?? "n/a"}`,
+          );
+        } catch (gateErr) {
+          console.warn(
+            "[create-razorpay-order] capacity check failed-open:",
+            (gateErr as Error).message,
+          );
+        }
+      }
+
       const receipt = `pf_${profile.id.slice(0, 8)}_${Date.now()}`;
       const prefillName = /^\+?\d{7,15}$/.test((profile.full_name || "").trim())
         ? "User " + (profile.phone || "").slice(-4)
