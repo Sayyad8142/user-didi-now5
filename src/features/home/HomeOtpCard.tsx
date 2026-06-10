@@ -13,10 +13,9 @@ interface OtpBooking {
   created_at: string;
 }
 
-// Show OTP only once the worker has actually started the service.
-// Showing it earlier (assigned/on_the_way) lets users share it before
-// the work is done, which can cause premature completion.
-const OTP_VISIBLE_STATUSES = ['started'];
+// Show OTP once a worker is assigned, accepted, on the way, or started.
+const OTP_VISIBLE_STATUSES = ['assigned', 'accepted', 'on_the_way', 'started'];
+
 
 /**
  * HomeOtpCard

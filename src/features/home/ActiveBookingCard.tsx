@@ -157,14 +157,12 @@ const getHelperLine = (booking: Booking): string | null => {
   if (booking.status === 'pending') {
     return "We'll notify you the moment a worker accepts";
   }
-  if (booking.status === 'started') {
-    return 'Share OTP only after work is fully completed';
-  }
-  if (booking.status === 'assigned' || booking.status === 'accepted' || booking.status === 'on_the_way') {
-    return 'Your expert will be with you shortly';
+  if (booking.status === 'assigned' || booking.status === 'accepted' || booking.status === 'on_the_way' || booking.status === 'started') {
+    return 'Share OTP with worker only after work is fully completed';
   }
   return null;
 };
+
 
 // Check if reach confirmation buttons should be shown
 const shouldShowReachButtons = (booking: Booking): boolean => {
