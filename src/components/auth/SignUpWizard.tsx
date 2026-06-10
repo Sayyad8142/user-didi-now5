@@ -216,15 +216,78 @@ export function SignUpWizard({ data, setData, loading, onSubmit }: Props) {
         )}
 
         {step === 2 && (
-          <div className="animate-in fade-in slide-in-from-right-2 duration-300">
-            <SelectorRow
-              icon={<MapPin className="h-5 w-5 text-pink-500" />}
-              label="Community"
-              value={selectedCommunity?.name}
-              placeholder={communitiesLoading ? 'Loading…' : 'Search your community'}
-              onClick={() => setCommunitySheet(true)}
-              disabled={loading || communitiesLoading}
-            />
+          <div className="animate-in fade-in slide-in-from-right-2 duration-300 space-y-3">
+            {/* Inline search */}
+            <div className="relative">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 pointer-events-none" />
+              <Input
+                value={communityQuery}
+                onChange={e => setCommunityQuery(e.target.value)}
+                placeholder="Search your community"
+                disabled={loading || communitiesLoading}
+                className="h-12 pl-12 rounded-2xl border-gray-200 bg-white shadow-sm focus-visible:ring-2 focus-visible:ring-pink-200 focus-visible:border-pink-400"
+              />
+            </div>
+
+            {/* Community cards list */}
+            <div className="max-h-[340px] overflow-y-auto -mx-1 px-1 space-y-2">
+              {communitiesLoading ? (
+                <div className="text-sm text-muted-foreground text-center py-8">Loading communities…</div>
+              ) : filteredCommunities.length === 0 ? (
+                <div className="text-sm text-muted-foreground text-center py-8">
+                  No communities match "{communityQuery}"
+                </div>
+              ) : (
+                filteredCommunities.map(c => {
+                  const selected = c.id === data.communityId;
+                  return (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() =>
+                        setData(p => ({
+                          ...p,
+                          communityId: c.id,
+                          communityValue: c.value || '',
+                          buildingId: '',
+                          flatId: '',
+                          flatNo: '',
+                        }))
+                      }
+                      disabled={loading}
+                      className={cn(
+                        'w-full flex items-center gap-3 p-3.5 rounded-2xl border-2 text-left transition-all active:scale-[0.99]',
+                        selected
+                          ? 'border-pink-500 bg-pink-50 shadow-md shadow-pink-500/10'
+                          : 'border-gray-200 bg-white hover:border-pink-200'
+                      )}
+                    >
+                      <div
+                        className={cn(
+                          'h-10 w-10 rounded-xl flex items-center justify-center shrink-0',
+                          selected ? 'bg-pink-500' : 'bg-pink-100'
+                        )}
+                      >
+                        <MapPin className={cn('h-5 w-5', selected ? 'text-white' : 'text-pink-500')} />
+                      </div>
+                      <p
+                        className={cn(
+                          'flex-1 text-sm font-semibold',
+                          selected ? 'text-pink-700' : 'text-gray-800'
+                        )}
+                      >
+                        {c.name}
+                      </p>
+                      {selected && (
+                        <div className="h-6 w-6 rounded-full bg-pink-500 flex items-center justify-center shrink-0">
+                          <Check className="h-3.5 w-3.5 text-white" />
+                        </div>
+                      )}
+                    </button>
+                  );
+                })
+              )}
+            </div>
             {errors.communityId && <p className="text-xs text-destructive mt-2">{errors.communityId}</p>}
           </div>
         )}
