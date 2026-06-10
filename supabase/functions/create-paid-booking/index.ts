@@ -677,61 +677,73 @@ Deno.serve(async (req) => {
       // If wallet was debited but insert failed, refund wallet — SAFE increment-based
       if (walletDebited > 0) {
         console.log("[create-paid-booking] 🔄 Refunding wallet due to insert failure, amount:", walletDebited);
-        await supabase.rpc("safe_wallet_increment", {
-          p_user_id: profile.id,
-          p_amount_delta: walletDebited,
-          p_min_balance: 0,
-        }).catch(async (refundErr: any) => {
+        try {
+          const { error: refundErr } = await supabase.rpc("safe_wallet_increment", {
+            p_user_id: profile.id,
+            p_amount_delta: walletDebited,
+            p_min_balance: 0,
+          });
+          if (refundErr) throw refundErr;
+        } catch (refundErr) {
           console.error("[create-paid-booking] safe_wallet_increment RPC failed, trying read+increment:", refundErr);
-          // Fallback: read current balance, add back with optimistic lock
-          const { data: currentWallet } = await supabase
-            .from("user_wallets")
-            .select("balance_inr")
-            .eq("user_id", profile.id)
-            .single();
-          if (currentWallet) {
-            return supabase
+          try {
+            const { data: currentWallet } = await supabase
               .from("user_wallets")
-              .update({
-                balance_inr: currentWallet.balance_inr + walletDebited,
-                updated_at: new Date().toISOString(),
-              })
+              .select("balance_inr")
               .eq("user_id", profile.id)
-              .eq("balance_inr", currentWallet.balance_inr); // Optimistic lock
+              .maybeSingle();
+            if (currentWallet) {
+              await supabase
+                .from("user_wallets")
+                .update({
+                  balance_inr: currentWallet.balance_inr + walletDebited,
+                  updated_at: new Date().toISOString(),
+                })
+                .eq("user_id", profile.id)
+                .eq("balance_inr", currentWallet.balance_inr); // Optimistic lock
+            }
+          } catch (fallbackErr) {
+            console.error("[create-paid-booking] wallet refund fallback failed:", fallbackErr);
           }
-        });
+        }
       }
 
       // P0: payment may have been captured by Razorpay. Do NOT silently
       // lose it — log an orphan_payments row tagged 'manual_review' and
       // flag the pending row so ops can recover.
       if (razorpay_payment_id) {
-        await supabase.from("orphan_payments").upsert(
-          {
-            razorpay_payment_id,
-            razorpay_order_id: razorpay_order_id || null,
-            amount_inr: bookingPriceInr,
-            user_id: profile.id,
-            status: "manual_review",
-            notes: `create-paid-booking insert failed: ${insertErr.message}`,
-          },
-          { onConflict: "razorpay_payment_id" } as any,
-        ).catch((e) =>
-          console.error("[create-paid-booking] orphan_payments upsert failed:", e),
-        );
+        try {
+          await supabase.from("orphan_payments").upsert(
+            {
+              razorpay_payment_id,
+              razorpay_order_id: razorpay_order_id || null,
+              amount_inr: bookingPriceInr,
+              user_id: profile.id,
+              status: "manual_review",
+              notes: `create-paid-booking insert failed: ${insertErr.message}`,
+            },
+            { onConflict: "razorpay_payment_id" } as any,
+          );
+        } catch (e) {
+          console.error("[create-paid-booking] orphan_payments upsert failed:", e);
+        }
 
         if (razorpay_order_id) {
-          await supabase
-            .from("pending_bookings")
-            .update({
-              status: "manual_review",
-              last_error: insertErr.message,
-              last_checked_at: new Date().toISOString(),
-            })
-            .eq("razorpay_order_id", razorpay_order_id)
-            .catch(() => {});
+          try {
+            await supabase
+              .from("pending_bookings")
+              .update({
+                status: "manual_review",
+                last_error: insertErr.message,
+                last_checked_at: new Date().toISOString(),
+              })
+              .eq("razorpay_order_id", razorpay_order_id);
+          } catch (e) {
+            console.error("[create-paid-booking] pending_bookings update failed:", e);
+          }
         }
       }
+
 
       return json(
         { error: "Failed to create booking: " + insertErr.message },
