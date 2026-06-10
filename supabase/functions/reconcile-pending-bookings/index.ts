@@ -111,6 +111,12 @@ Deno.serve(async (req) => {
               `[reconcile-pending-bookings] reconciliation_booking_created booking=${result.booking_id} order=${pending.razorpay_order_id} payment=${captured.id} req=${pending.request_id}`,
             );
             summary.recovered++;
+          } else if (result.status === "retry_later") {
+            // Supply cap full — payment is safe, row stays retryable.
+            summary.still_waiting++;
+            console.warn(
+              `[reconcile-pending-bookings] POST_PAYMENT_SUPPLY_REJECTION retry_later order=${pending.razorpay_order_id} payment=${captured.id}`,
+            );
           } else {
             summary.failed++;
             console.error(
