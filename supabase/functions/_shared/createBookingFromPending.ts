@@ -99,7 +99,7 @@ export interface CreateFromPendingArgs {
 }
 
 export interface CreateFromPendingResult {
-  status: "created" | "already_exists" | "consumed" | "failed_logged_for_review";
+  status: "created" | "already_exists" | "consumed" | "failed_logged_for_review" | "retry_later";
   booking_id?: string;
   error?: string;
 }
