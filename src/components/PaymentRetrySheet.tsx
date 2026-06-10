@@ -165,7 +165,14 @@ export function PaymentRetrySheet({
             {config.message}
           </p>
           {(() => {
-            const friendly = errorMessage ? toUserFriendlyPaymentError({ message: errorMessage }) : '';
+            let friendly = errorMessage ? toUserFriendlyPaymentError({ message: errorMessage }) : '';
+            // POST-PAYMENT RULE: never show "experts are busy" after money was taken.
+            if (
+              errorType === 'verification_failed' &&
+              /SUPPLY_FULL|experts are busy/i.test(errorMessage || '')
+            ) {
+              friendly = "We received your payment. We're confirming your booking.";
+            }
             // Hide if empty, identical to the generic config copy, or still raw "non-2xx"
             if (!friendly || friendly === config.message || /non-2xx/i.test(friendly)) return null;
             return (
