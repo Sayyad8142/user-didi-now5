@@ -146,14 +146,18 @@ Deno.serve(async (req) => {
         console.error(
           `[reconcile-pending-bookings] reconciliation_failed order=${pending.razorpay_order_id} err=${loopErr.message}`,
         );
-        await supabase
-          .from("pending_bookings")
-          .update({
-            last_checked_at: new Date().toISOString(),
-            last_error: loopErr.message?.slice(0, 500),
-          })
-          .eq("razorpay_order_id", pending.razorpay_order_id)
-          .catch(() => {});
+        try {
+          await supabase
+            .from("pending_bookings")
+            .update({
+              last_checked_at: new Date().toISOString(),
+              last_error: loopErr.message?.slice(0, 500),
+            })
+            .eq("razorpay_order_id", pending.razorpay_order_id);
+        } catch (e) {
+          console.error("[reconcile-pending-bookings] pending_bookings update failed:", e);
+        }
+
       }
     }
 
