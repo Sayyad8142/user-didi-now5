@@ -602,44 +602,53 @@ Deno.serve(async (req) => {
         );
         // SAFE: Increment-based refund (adds back the debited amount)
         if (walletDebited > 0) {
-          await supabase.rpc("safe_wallet_increment", {
-            p_user_id: profile.id,
-            p_amount_delta: walletDebited,
-            p_min_balance: 0,
-          }).catch(() => {
-            // Fallback: use raw increment via SQL expression workaround
-            return supabase.rpc("credit_wallet_on_cancel", {
-              p_booking_id: "00000000-0000-0000-0000-000000000000", // dummy, won't match
-            }).catch(() => {
-              // Last resort: read current balance, add back
-              return supabase
+          try {
+            const { error: refundErr } = await supabase.rpc("safe_wallet_increment", {
+              p_user_id: profile.id,
+              p_amount_delta: walletDebited,
+              p_min_balance: 0,
+            });
+            if (refundErr) throw refundErr;
+          } catch (refundErr) {
+            console.error(
+              "[create-paid-booking] race refund safe_wallet_increment failed, falling back to read+update:",
+              refundErr,
+            );
+            try {
+              const { data: currentWallet } = await supabase
                 .from("user_wallets")
                 .select("balance_inr")
                 .eq("user_id", profile.id)
-                .single()
-                .then(({ data }) => {
-                  if (!data) return;
-                  return supabase
-                    .from("user_wallets")
-                    .update({
-                      balance_inr: data.balance_inr + walletDebited,
-                      updated_at: new Date().toISOString(),
-                    })
-                    .eq("user_id", profile.id)
-                    .eq("balance_inr", data.balance_inr); // Optimistic lock
-                });
-            });
-          });
+                .maybeSingle();
+              if (currentWallet) {
+                await supabase
+                  .from("user_wallets")
+                  .update({
+                    balance_inr: currentWallet.balance_inr + walletDebited,
+                    updated_at: new Date().toISOString(),
+                  })
+                  .eq("user_id", profile.id)
+                  .eq("balance_inr", currentWallet.balance_inr); // Optimistic lock
+              }
+            } catch (fallbackErr) {
+              console.error("[create-paid-booking] race refund fallback failed:", fallbackErr);
+            }
+          }
           // Remove the duplicate wallet transaction
-          await supabase
-            .from("wallet_transactions")
-            .delete()
-            .eq("user_id", profile.id)
-            .eq("type", "debit")
-            .is("booking_id", null)
-            .order("created_at", { ascending: false })
-            .limit(1);
+          try {
+            await supabase
+              .from("wallet_transactions")
+              .delete()
+              .eq("user_id", profile.id)
+              .eq("type", "debit")
+              .is("booking_id", null)
+              .order("created_at", { ascending: false })
+              .limit(1);
+          } catch (e) {
+            console.error("[create-paid-booking] race wallet_transactions cleanup failed:", e);
+          }
         }
+
 
         const { data: raceWinner } = await supabase
           .from("bookings")
