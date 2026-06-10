@@ -235,11 +235,15 @@ export async function createBookingFromPending(
       if (winner?.id) {
         // Refund the wallet debit we just made (race winner already debited).
         if (walletDebited > 0) {
-          await supabase.rpc("safe_wallet_increment", {
-            p_user_id: pending.user_id,
-            p_amount_delta: walletDebited,
-            p_min_balance: 0,
-          }).catch(() => {});
+          try {
+            await supabase.rpc("safe_wallet_increment", {
+              p_user_id: pending.user_id,
+              p_amount_delta: walletDebited,
+              p_min_balance: 0,
+            });
+          } catch (e) {
+            console.error(`${tag} race refund failed:`, e);
+          }
         }
         await markConsumed(supabase, pending.razorpay_order_id, winner.id);
         return { status: "already_exists", booking_id: winner.id };
@@ -252,27 +256,36 @@ export async function createBookingFromPending(
     );
 
     // Money was captured but we can't create the booking → log for manual review.
-    await supabase.from("orphan_payments").upsert(
-      {
-        razorpay_payment_id,
-        razorpay_order_id,
-        amount_inr: (args.razorpay_amount_paise ?? 0) / 100 || bookingPriceInr,
-        user_id: pending.user_id,
-        status: "manual_review",
-        notes: `Booking insert failed in ${source}: ${insertErr.message}`,
-        webhook_payload: args.webhook_payload ?? null,
-      },
-      { onConflict: "razorpay_payment_id" } as any,
-    ).catch(() => {});
+    try {
+      await supabase.from("orphan_payments").upsert(
+        {
+          razorpay_payment_id,
+          razorpay_order_id,
+          amount_inr: (args.razorpay_amount_paise ?? 0) / 100 || bookingPriceInr,
+          user_id: pending.user_id,
+          status: "manual_review",
+          notes: `Booking insert failed in ${source}: ${insertErr.message}`,
+          webhook_payload: args.webhook_payload ?? null,
+        },
+        { onConflict: "razorpay_payment_id" } as any,
+      );
+    } catch (e) {
+      console.error(`${tag} orphan_payments upsert failed:`, e);
+    }
 
     // Refund wallet so the customer is not double-charged in money + wallet.
     if (walletDebited > 0) {
-      await supabase.rpc("safe_wallet_increment", {
-        p_user_id: pending.user_id,
-        p_amount_delta: walletDebited,
-        p_min_balance: 0,
-      }).catch(() => {});
+      try {
+        await supabase.rpc("safe_wallet_increment", {
+          p_user_id: pending.user_id,
+          p_amount_delta: walletDebited,
+          p_min_balance: 0,
+        });
+      } catch (e) {
+        console.error(`${tag} wallet refund failed:`, e);
+      }
     }
+
 
     await supabase
       .from("pending_bookings")
