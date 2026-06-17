@@ -8,6 +8,7 @@
  * Payment-first mode is used when no booking exists yet (pay_now flow).
  */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { countActiveInstantBookings } from "../_shared/capacityRules.ts";
 import { verifyFirebaseToken, extractToken, corsHeaders } from "../_shared/firebaseAuth.ts";
 
 const RAZORPAY_KEY_ID = Deno.env.get("RAZORPAY_KEY_ID")!;
@@ -100,40 +101,61 @@ Deno.serve(async (req) => {
       // Force-sync user_id to the authenticated profile (never trust client).
       const safeBookingData = { ...bookingData, user_id: profile.id };
 
-      // ── P0 CAPACITY GATE (Layer 2, server-side) ──────────────
-      // NEVER take payment when the instant supply cap is full.
-      // Mirrors the DB trigger rule (>= 3 pending/dispatched instant
-      // bookings per community → SUPPLY_FULL). Fail-open on RPC errors
-      // (the DB trigger remains the final authority).
+      // ── P0 CAPACITY GATE V2 (Layer 2, server-side) ────────────
+      // Per-service active-instant count on the EXTERNAL DB.
+      // FAIL-CLOSED: any error blocks payment. The DB trigger remains
+      // the final authority post-insert.
       const gateBookingType = (safeBookingData.booking_type as string) || "instant";
       const gateCommunity = (safeBookingData.community as string) || null;
-      if (gateBookingType === "instant" && gateCommunity) {
-        try {
-          const { data: pendingCount, error: supplyErr } = await supabase.rpc(
-            "check_instant_supply",
-            { p_community: gateCommunity },
+      const gateServiceType =
+        (safeBookingData.service_type as string) || service_type || null;
+      if (gateBookingType === "instant") {
+        if (!gateCommunity || !gateServiceType) {
+          console.warn(
+            `[create-razorpay-order] payment_prevented_supply_full reason=missing_inputs req=${requestId} user=${profile.id}`,
           );
-          if (!supplyErr && Number(pendingCount) >= 3) {
+          return json(
+            {
+              error:
+                "SUPPLY_FULL: Currently all experts are busy. Please try again after 20 minutes.",
+              code: "SUPPLY_FULL",
+            },
+            409,
+          );
+        }
+        try {
+          const cap = await countActiveInstantBookings(gateCommunity, gateServiceType);
+          console.log(
+            `[create-razorpay-order] capacity_gate_checked community=${gateCommunity} service=${gateServiceType} active=${cap.active_count}/${cap.limit}`,
+          );
+          if (cap.is_full) {
             console.warn(
-              `[create-razorpay-order] PAYMENT_PREVENTED_DUE_TO_SUPPLY community=${gateCommunity} pending=${pendingCount} req=${requestId} user=${profile.id}`,
+              `[create-razorpay-order] payment_prevented_supply_full community=${gateCommunity} service=${gateServiceType} active=${cap.active_count} limit=${cap.limit} req=${requestId} user=${profile.id}`,
             );
             return json(
               {
                 error:
-                  "SUPPLY_FULL: All experts are busy right now. Please try again in a few minutes.",
+                  "SUPPLY_FULL: Currently all experts are busy. Please try again after 20 minutes.",
                 code: "SUPPLY_FULL",
-                pending_count: Number(pendingCount),
+                pending_count: cap.active_count,
+                limit: cap.limit,
               },
               409,
             );
           }
-          console.log(
-            `[create-razorpay-order] CAPACITY_CHECK_PASSED community=${gateCommunity} pending=${pendingCount ?? "n/a"}`,
-          );
         } catch (gateErr) {
-          console.warn(
-            "[create-razorpay-order] capacity check failed-open:",
+          // FAIL-CLOSED.
+          console.error(
+            `[create-razorpay-order] capacity_gate_blocked reason=check_failed req=${requestId}:`,
             (gateErr as Error).message,
+          );
+          return json(
+            {
+              error:
+                "CAPACITY_CHECK_FAILED: We couldn't confirm expert availability. Please try again in a moment.",
+              code: "CAPACITY_CHECK_FAILED",
+            },
+            503,
           );
         }
       }

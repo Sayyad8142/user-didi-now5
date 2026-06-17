@@ -1,22 +1,28 @@
 /**
- * check-booking-capacity — Pre-payment capacity gate.
+ * check-booking-capacity — Pre-payment capacity gate (V2).
  *
- * Called by the frontend BEFORE creating a Razorpay order (Layer 1)
- * so users are never charged when the instant-booking supply cap is full.
+ * Called by the frontend BEFORE creating a Razorpay order so users
+ * are never charged when the per-service instant supply cap is full.
  *
- * The authoritative guard remains the DB trigger on `bookings` insert
- * (raises SUPPLY_FULL when >= 3 pending/dispatched instant bookings per
- * community). This function mirrors that exact rule for a read-only check.
+ * Source of truth: EXTERNAL Supabase (api.didisnow.com) where the
+ * real `bookings` table lives. Mirrors the DB trigger rule defined
+ * in docs/service-capacity-migration.sql.
  *
- * Input:  { community_name, service_type, booking_type }
- * Output: { can_accept_booking, reason, pending_count, online_workers, available_workers }
+ * Counting rule:
+ *   SELECT count(*) FROM bookings
+ *   WHERE community     = $1
+ *     AND service_type  = $2
+ *     AND booking_type  = 'instant'
+ *     AND status IN ('pending','dispatched','accepted',
+ *                    'confirmed','on_the_way','in_progress');
+ *
+ * Scheduled bookings are excluded (booking_type filter).
+ * FAIL-CLOSED: any error blocks payment.
  */
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-
-const MAX_PENDING_INSTANT = 3; // must match DB trigger + useSupplyCheck.ts
+import {
+  countActiveInstantBookings,
+  limitForService,
+} from "../_shared/capacityRules.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -36,111 +42,85 @@ Deno.serve(async (req) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
-  try {
-    const { community_name, service_type, booking_type } = await req
-      .json()
-      .catch(() => ({}));
+  const { community_name, service_type, booking_type } = await req
+    .json()
+    .catch(() => ({}));
 
-    console.log(
-      `[check-booking-capacity] CAPACITY_CHECK_REQUESTED community=${community_name} service=${service_type} type=${booking_type}`,
+  console.log(
+    `[check-booking-capacity] capacity_gate_checked community=${community_name} service=${service_type} type=${booking_type}`,
+  );
+
+  // Scheduled bookings are governed by slot availability, not the instant cap.
+  if (booking_type && booking_type !== "instant") {
+    return json({
+      can_accept_booking: true,
+      reason: null,
+      service_type,
+      pending_count: 0,
+      limit: 0,
+    });
+  }
+
+  if (!community_name || !service_type) {
+    // FAIL-CLOSED: a malformed check must block payment, not allow it.
+    console.warn(
+      "[check-booking-capacity] capacity_gate_blocked reason=missing_inputs",
     );
-
-    // Scheduled bookings are governed by slot availability, not the instant cap.
-    if (booking_type && booking_type !== "instant") {
-      console.log("[check-booking-capacity] CAPACITY_CHECK_PASSED (non-instant)");
-      return json({
-        can_accept_booking: true,
-        reason: null,
+    return json(
+      {
+        can_accept_booking: false,
+        reason: "missing_inputs",
+        message: "Currently all experts are busy. Please try again after 20 minutes.",
         pending_count: 0,
-        online_workers: 0,
-        available_workers: 0,
-      });
-    }
+        limit: limitForService(service_type),
+      },
+      200,
+    );
+  }
 
-    if (!community_name || typeof community_name !== "string") {
-      // Fail-open: never block payment on a malformed check.
-      console.warn("[check-booking-capacity] missing community_name — fail-open");
-      return json({
-        can_accept_booking: true,
-        reason: "missing_community",
-        pending_count: 0,
-        online_workers: 0,
-        available_workers: 0,
-      });
-    }
+  try {
+    const result = await countActiveInstantBookings(community_name, service_type);
 
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-
-    // 1. Pending instant bookings for this community (same rule as DB trigger)
-    let pendingCount = 0;
-    let pendingKnown = false;
-    try {
-      const { data, error } = await supabase.rpc("check_instant_supply", {
-        p_community: community_name,
-      });
-      if (!error && data !== null && data !== undefined) {
-        pendingCount = Number(data) || 0;
-        pendingKnown = true;
-      } else if (error) {
-        console.warn("[check-booking-capacity] check_instant_supply error:", error.message);
-      }
-    } catch (e) {
-      console.warn("[check-booking-capacity] check_instant_supply threw:", (e as Error).message);
-    }
-
-    // 2. Online worker counts (informational; fail-open on errors)
-    let onlineWorkers = 0;
-    try {
-      const { data, error } = await supabase.rpc("get_online_workers_count", {
-        p_community: community_name,
-      });
-      if (!error && Array.isArray(data)) {
-        for (const row of data as Array<{ service: string; online_count: number }>) {
-          if (!service_type || row.service === service_type) {
-            onlineWorkers += Number(row.online_count) || 0;
-          }
-        }
-      }
-    } catch (e) {
-      console.warn("[check-booking-capacity] get_online_workers_count threw:", (e as Error).message);
-    }
-
-    const supplyFull = pendingKnown && pendingCount >= MAX_PENDING_INSTANT;
-    const availableWorkers = Math.max(0, onlineWorkers - pendingCount);
-
-    if (supplyFull) {
+    if (result.is_full) {
       console.warn(
-        `[check-booking-capacity] CAPACITY_CHECK_REJECTED community=${community_name} pending=${pendingCount} online=${onlineWorkers}`,
+        `[check-booking-capacity] capacity_gate_blocked community=${community_name} service=${service_type} active=${result.active_count} limit=${result.limit}`,
       );
       return json({
         can_accept_booking: false,
         reason: "supply_full",
-        pending_count: pendingCount,
-        online_workers: onlineWorkers,
-        available_workers: availableWorkers,
+        message: "Currently all experts are busy. Please try again after 20 minutes.",
+        service_type,
+        pending_count: result.active_count,
+        limit: result.limit,
       });
     }
 
     console.log(
-      `[check-booking-capacity] CAPACITY_CHECK_PASSED community=${community_name} pending=${pendingCount} known=${pendingKnown} online=${onlineWorkers}`,
+      `[check-booking-capacity] capacity_gate_passed community=${community_name} service=${service_type} active=${result.active_count}/${result.limit}`,
     );
     return json({
       can_accept_booking: true,
-      reason: pendingKnown ? null : "supply_unknown_fail_open",
-      pending_count: pendingCount,
-      online_workers: onlineWorkers,
-      available_workers: availableWorkers,
+      reason: null,
+      service_type,
+      pending_count: result.active_count,
+      limit: result.limit,
     });
   } catch (err) {
-    // Fail-open: a broken capacity check must never block legitimate bookings;
-    // the DB trigger remains the authoritative guard.
-    console.error("[check-booking-capacity] fatal (fail-open):", err);
-    return json({
-      can_accept_booking: true,
-      reason: "check_failed_fail_open",
-      pending_count: 0,
-      online_workers: 0,
-      available_workers: 0,
-    });
+    // FAIL-CLOSED: payment must NEVER start when we can't verify capacity.
+    console.error(
+      "[check-booking-capacity] capacity_gate_blocked reason=check_failed",
+      (err as Error).message,
+    );
+    return json(
+      {
+        can_accept_booking: false,
+        reason: "check_failed",
+        message:
+          "We couldn't confirm expert availability. Please try again in a moment.",
+        pending_count: 0,
+        limit: limitForService(service_type),
+      },
+      200,
+    );
   }
 });

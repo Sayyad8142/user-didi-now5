@@ -119,7 +119,8 @@ export function toUserFriendlyPaymentError(err: any): string {
   if (/Authentication expired|Not authenticated|Profile not found/i.test(raw)) return 'Session expired. Please login again.';
   if (/User ID mismatch|not_owner/i.test(raw)) return 'Account mismatch. Please login again.';
   if (/PAYMENT_RECEIVED_BOOKING_QUEUED/i.test(raw)) return "We received your payment. We're confirming your booking.";
-  if (/SUPPLY_FULL|All experts are busy/i.test(raw)) return 'All experts are busy right now. Please try again in a few minutes.';
+  if (/SUPPLY_FULL|All experts are busy|Currently all experts/i.test(raw)) return 'Currently all experts are busy. Please try again after 20 minutes.';
+  if (/CAPACITY_CHECK_FAILED/i.test(raw)) return "We couldn't confirm expert availability. Please try again in a moment.";
   if (/Slot unavailable|Not enough workers/i.test(raw)) return 'No workers are available at this time. Please pick another slot.';
   if (/Razorpay|Unable to create.*order/i.test(raw)) return 'Payment gateway is unavailable. Please try again in a moment.';
   if (/Load failed|Failed to fetch|NetworkError|network/i.test(raw)) return 'Network error. Please check your connection and try again.';
@@ -333,8 +334,8 @@ export interface CapacityCheckResult {
 
 /**
  * Calls the check-booking-capacity edge function BEFORE any payment
- * is initiated. Returns null on timeout/error (fail-open — the backend
- * gate in create-razorpay-order and the DB trigger remain authoritative).
+ * is initiated. FAIL-CLOSED: a timeout / error blocks payment.
+ * Returns null only for non-instant bookings (capacity does not apply).
  */
 async function checkBookingCapacity(
   bookingPayload: Record<string, unknown>,
@@ -343,9 +344,20 @@ async function checkBookingCapacity(
   const serviceType = (bookingPayload.service_type as string) || null;
   const bookingType = (bookingPayload.booking_type as string) || 'instant';
 
-  if (bookingType !== 'instant' || !community) return null;
+  if (bookingType !== 'instant') return null;
 
-  console.log('CAPACITY_CHECK_REQUESTED', { community, service_type: serviceType, booking_type: bookingType });
+  console.log('capacity_gate_checked', { community, service_type: serviceType, booking_type: bookingType });
+
+  if (!community || !serviceType) {
+    console.warn('capacity_gate_blocked', 'missing_inputs');
+    return {
+      can_accept_booking: false,
+      reason: 'missing_inputs',
+      pending_count: 0,
+      online_workers: 0,
+      available_workers: 0,
+    };
+  }
 
   try {
     const invocation = supabase.functions.invoke('check-booking-capacity', {
@@ -355,24 +367,47 @@ async function checkBookingCapacity(
         booking_type: bookingType,
       },
     });
-    const timeout = sleep(5000).then(() => null);
-    const res = (await Promise.race([invocation, timeout])) as
+    const timeout = sleep(5000).then(() => ({ __timeout: true } as const));
+    const raced = (await Promise.race([invocation, timeout])) as
       | { data: CapacityCheckResult | null; error: any }
-      | null;
+      | { __timeout: true };
 
-    if (!res || res.error || !res.data || typeof res.data.can_accept_booking !== 'boolean') {
-      console.warn('CAPACITY_CHECK_FAILED_OPEN', res?.error?.message || 'timeout/empty');
-      return null;
+    if ('__timeout' in raced) {
+      console.warn('capacity_gate_blocked', 'timeout');
+      return {
+        can_accept_booking: false,
+        reason: 'check_failed',
+        pending_count: 0,
+        online_workers: 0,
+        available_workers: 0,
+      };
+    }
+
+    if (raced.error || !raced.data || typeof raced.data.can_accept_booking !== 'boolean') {
+      console.warn('capacity_gate_blocked', raced.error?.message || 'empty_response');
+      return {
+        can_accept_booking: false,
+        reason: 'check_failed',
+        pending_count: 0,
+        online_workers: 0,
+        available_workers: 0,
+      };
     }
 
     console.log(
-      res.data.can_accept_booking ? 'CAPACITY_CHECK_PASSED' : 'CAPACITY_CHECK_REJECTED',
-      res.data,
+      raced.data.can_accept_booking ? 'capacity_gate_passed' : 'capacity_gate_blocked',
+      raced.data,
     );
-    return res.data;
+    return raced.data;
   } catch (e: any) {
-    console.warn('CAPACITY_CHECK_FAILED_OPEN', e?.message);
-    return null;
+    console.warn('capacity_gate_blocked', e?.message);
+    return {
+      can_accept_booking: false,
+      reason: 'check_failed',
+      pending_count: 0,
+      online_workers: 0,
+      available_workers: 0,
+    };
   }
 }
 
@@ -615,18 +650,25 @@ export async function executePaymentFlowForNewBooking(
 
   trackPaymentEvent('payment_first_started', { service_type: serviceType, amount: priceInr });
 
-  // Step 0: P0 capacity gate — NEVER initiate payment when supply is full.
+  // Step 0: P0 capacity gate (FAIL-CLOSED) — NEVER initiate payment when supply is full
+  // or when capacity cannot be verified.
   const capacity = await checkBookingCapacity(bookingPayload);
   if (capacity && !capacity.can_accept_booking) {
-    console.warn('PAYMENT_PREVENTED_DUE_TO_SUPPLY', capacity);
+    console.warn('payment_prevented_supply_full', capacity);
     trackPaymentEvent('payment_failed', {
-      error_type: 'supply_full_pre_payment',
+      error_type: capacity.reason === 'check_failed' ? 'capacity_check_failed' : 'supply_full_pre_payment',
       pending_count: capacity.pending_count,
       online_workers: capacity.online_workers,
     });
     onStatusChange('payment_failed');
+    if (capacity.reason === 'check_failed') {
+      throw new PaymentError(
+        "CAPACITY_CHECK_FAILED: We couldn't confirm expert availability. Please try again in a moment.",
+        'payment_failed',
+      );
+    }
     throw new PaymentError(
-      'SUPPLY_FULL: All experts are busy right now. Please try again in a few minutes.',
+      'SUPPLY_FULL: Currently all experts are busy. Please try again after 20 minutes.',
       'payment_failed',
     );
   }

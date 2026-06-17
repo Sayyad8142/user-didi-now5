@@ -23,7 +23,7 @@ export function SupplyFullModal({ open, onClose, onSchedule }: SupplyFullModalPr
 
         {/* Message */}
         <p className="text-sm text-muted-foreground mb-6 leading-relaxed">
-          Our Experts are currently busy with other bookings. Please try again after some time.
+          Currently all experts are busy. Please try again after 20 minutes.
         </p>
 
         {/* Buttons */}
