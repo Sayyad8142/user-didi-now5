@@ -334,8 +334,8 @@ export interface CapacityCheckResult {
 
 /**
  * Calls the check-booking-capacity edge function BEFORE any payment
- * is initiated. Returns null on timeout/error (fail-open — the backend
- * gate in create-razorpay-order and the DB trigger remain authoritative).
+ * is initiated. FAIL-CLOSED: a timeout / error blocks payment.
+ * Returns null only for non-instant bookings (capacity does not apply).
  */
 async function checkBookingCapacity(
   bookingPayload: Record<string, unknown>,
@@ -344,9 +344,20 @@ async function checkBookingCapacity(
   const serviceType = (bookingPayload.service_type as string) || null;
   const bookingType = (bookingPayload.booking_type as string) || 'instant';
 
-  if (bookingType !== 'instant' || !community) return null;
+  if (bookingType !== 'instant') return null;
 
-  console.log('CAPACITY_CHECK_REQUESTED', { community, service_type: serviceType, booking_type: bookingType });
+  console.log('capacity_gate_checked', { community, service_type: serviceType, booking_type: bookingType });
+
+  if (!community || !serviceType) {
+    console.warn('capacity_gate_blocked', 'missing_inputs');
+    return {
+      can_accept_booking: false,
+      reason: 'missing_inputs',
+      pending_count: 0,
+      online_workers: 0,
+      available_workers: 0,
+    };
+  }
 
   try {
     const invocation = supabase.functions.invoke('check-booking-capacity', {
@@ -356,24 +367,47 @@ async function checkBookingCapacity(
         booking_type: bookingType,
       },
     });
-    const timeout = sleep(5000).then(() => null);
-    const res = (await Promise.race([invocation, timeout])) as
+    const timeout = sleep(5000).then(() => ({ __timeout: true } as const));
+    const raced = (await Promise.race([invocation, timeout])) as
       | { data: CapacityCheckResult | null; error: any }
-      | null;
+      | { __timeout: true };
 
-    if (!res || res.error || !res.data || typeof res.data.can_accept_booking !== 'boolean') {
-      console.warn('CAPACITY_CHECK_FAILED_OPEN', res?.error?.message || 'timeout/empty');
-      return null;
+    if ('__timeout' in raced) {
+      console.warn('capacity_gate_blocked', 'timeout');
+      return {
+        can_accept_booking: false,
+        reason: 'check_failed',
+        pending_count: 0,
+        online_workers: 0,
+        available_workers: 0,
+      };
+    }
+
+    if (raced.error || !raced.data || typeof raced.data.can_accept_booking !== 'boolean') {
+      console.warn('capacity_gate_blocked', raced.error?.message || 'empty_response');
+      return {
+        can_accept_booking: false,
+        reason: 'check_failed',
+        pending_count: 0,
+        online_workers: 0,
+        available_workers: 0,
+      };
     }
 
     console.log(
-      res.data.can_accept_booking ? 'CAPACITY_CHECK_PASSED' : 'CAPACITY_CHECK_REJECTED',
-      res.data,
+      raced.data.can_accept_booking ? 'capacity_gate_passed' : 'capacity_gate_blocked',
+      raced.data,
     );
-    return res.data;
+    return raced.data;
   } catch (e: any) {
-    console.warn('CAPACITY_CHECK_FAILED_OPEN', e?.message);
-    return null;
+    console.warn('capacity_gate_blocked', e?.message);
+    return {
+      can_accept_booking: false,
+      reason: 'check_failed',
+      pending_count: 0,
+      online_workers: 0,
+      available_workers: 0,
+    };
   }
 }
 
