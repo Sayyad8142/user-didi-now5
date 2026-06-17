@@ -650,18 +650,25 @@ export async function executePaymentFlowForNewBooking(
 
   trackPaymentEvent('payment_first_started', { service_type: serviceType, amount: priceInr });
 
-  // Step 0: P0 capacity gate — NEVER initiate payment when supply is full.
+  // Step 0: P0 capacity gate (FAIL-CLOSED) — NEVER initiate payment when supply is full
+  // or when capacity cannot be verified.
   const capacity = await checkBookingCapacity(bookingPayload);
   if (capacity && !capacity.can_accept_booking) {
-    console.warn('PAYMENT_PREVENTED_DUE_TO_SUPPLY', capacity);
+    console.warn('payment_prevented_supply_full', capacity);
     trackPaymentEvent('payment_failed', {
-      error_type: 'supply_full_pre_payment',
+      error_type: capacity.reason === 'check_failed' ? 'capacity_check_failed' : 'supply_full_pre_payment',
       pending_count: capacity.pending_count,
       online_workers: capacity.online_workers,
     });
     onStatusChange('payment_failed');
+    if (capacity.reason === 'check_failed') {
+      throw new PaymentError(
+        "CAPACITY_CHECK_FAILED: We couldn't confirm expert availability. Please try again in a moment.",
+        'payment_failed',
+      );
+    }
     throw new PaymentError(
-      'SUPPLY_FULL: All experts are busy right now. Please try again in a few minutes.',
+      'SUPPLY_FULL: Currently all experts are busy. Please try again after 20 minutes.',
       'payment_failed',
     );
   }
