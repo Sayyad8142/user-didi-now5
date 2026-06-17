@@ -714,7 +714,7 @@ Deno.serve(async (req) => {
       const isSupplyFull = /SUPPLY_FULL/i.test(insertErr.message || "");
       if (isSupplyFull) {
         console.warn(
-          `[create-paid-booking] POST_PAYMENT_SUPPLY_REJECTION payment=${razorpay_payment_id || "wallet-only"} order=${razorpay_order_id || "n/a"} req=${requestId} wallet_refunded=${walletDebited}`,
+          `[create-paid-booking] post_payment_supply_full payment=${razorpay_payment_id || "wallet-only"} order=${razorpay_order_id || "n/a"} req=${requestId} wallet_refunded=${walletDebited}`,
         );
 
         if (razorpay_payment_id) {
