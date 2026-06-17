@@ -8,6 +8,7 @@
  * Payment-first mode is used when no booking exists yet (pay_now flow).
  */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { countActiveInstantBookings } from "../_shared/capacityRules.ts";
 import { verifyFirebaseToken, extractToken, corsHeaders } from "../_shared/firebaseAuth.ts";
 
 const RAZORPAY_KEY_ID = Deno.env.get("RAZORPAY_KEY_ID")!;
