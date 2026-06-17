@@ -603,6 +603,15 @@ export function BookingForm() {
           setSupplyModalOpen(true);
           return;
         }
+        // Pre-payment capacity-check failure → friendly toast, no retry sheet
+        if (!paidAlready && payErr?.message?.includes('CAPACITY_CHECK_FAILED')) {
+          toast({
+            title: "Couldn't confirm availability",
+            description: "Please try again in a moment.",
+            variant: 'destructive',
+          });
+          return;
+        }
         const errType = payErr instanceof PaymentError ? payErr.type : 'payment_failed';
         setRetryErrorType(errType as PaymentErrorType);
         setRetryErrorMessage(payErr?.message);
