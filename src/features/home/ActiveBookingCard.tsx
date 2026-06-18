@@ -535,36 +535,8 @@ const ActiveBookingCard = memo(() => {
   const isCancelled = activeBooking.status === 'cancelled';
   const isFinding = activeBooking.status === 'pending' && activeBooking.booking_type !== 'scheduled';
 
-  // One-time popup when system auto-cancels due to no worker available
-  const [noWorkerDialogOpen, setNoWorkerDialogOpen] = useState(false);
-  const [walletBalance, setWalletBalance] = useState<number | null>(null);
-  const showNoWorkerPopup = isCancelled && isNoWorkerCancellation(activeBooking);
-  const wasRefunded = activeBooking.payment_status === 'refunded_to_wallet';
-  useEffect(() => {
-    if (!showNoWorkerPopup) return;
-    try {
-      const key = `noWorkerPopup:${activeBooking.id}`;
-      if (localStorage.getItem(key)) return;
-      localStorage.setItem(key, '1');
-      setNoWorkerDialogOpen(true);
-    } catch {
-      setNoWorkerDialogOpen(true);
-    }
-  }, [showNoWorkerPopup, activeBooking.id]);
 
-  // Fetch wallet balance when the no-worker dialog opens so we can show the new balance
-  useEffect(() => {
-    if (!noWorkerDialogOpen || !wasRefunded) return;
-    let cancelled = false;
-    fetchWalletBalanceValue()
-      .then((bal) => {
-        if (!cancelled) setWalletBalance(bal);
-      })
-      .catch(() => {
-        if (!cancelled) setWalletBalance(null);
-      });
-    return () => { cancelled = true; };
-  }, [noWorkerDialogOpen, wasRefunded]);
+
 
 
   return (
