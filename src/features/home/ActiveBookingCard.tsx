@@ -506,6 +506,22 @@ const ActiveBookingCard = memo(() => {
   const isCancelled = activeBooking.status === 'cancelled';
   const isFinding = activeBooking.status === 'pending' && activeBooking.booking_type !== 'scheduled';
 
+  // One-time popup when system auto-cancels due to no worker available
+  const [noWorkerDialogOpen, setNoWorkerDialogOpen] = useState(false);
+  const showNoWorkerPopup = isCancelled && isNoWorkerCancellation(activeBooking);
+  const wasRefunded = activeBooking.payment_status === 'refunded_to_wallet';
+  useEffect(() => {
+    if (!showNoWorkerPopup) return;
+    try {
+      const key = `noWorkerPopup:${activeBooking.id}`;
+      if (localStorage.getItem(key)) return;
+      localStorage.setItem(key, '1');
+      setNoWorkerDialogOpen(true);
+    } catch {
+      setNoWorkerDialogOpen(true);
+    }
+  }, [showNoWorkerPopup, activeBooking.id]);
+
   return (
     <>
       {/* Worker reach confirmation — shared component (handles eligibility, confirmed banners, edge fn + history logging) */}
