@@ -32,6 +32,7 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Wallet } from 'lucide-react';
 import { fetchWalletBalanceValue } from '@/lib/wallet';
+import CallWorkerDialog, { CALLABLE_STATUSES } from '@/features/call/CallWorkerDialog';
 
 
 interface Booking {
@@ -213,6 +214,7 @@ const ActiveBookingCard = memo(() => {
   const [showChangeWorkerSheet, setShowChangeWorkerSheet] = useState(false);
   const [changeWorkerLoading, setChangeWorkerLoading] = useState(false);
   const [assignmentCount, setAssignmentCount] = useState(0);
+  const [showCallDialog, setShowCallDialog] = useState(false);
 
   const fetchActiveBooking = useCallback(async () => {
     if (!profile?.id) return;
@@ -725,6 +727,16 @@ const ActiveBookingCard = memo(() => {
                   Track Booking
                   <ArrowRight className="w-4 h-4 ml-1.5" />
                 </Button>
+                {activeBooking.worker_id && CALLABLE_STATUSES.has(activeBooking.status) && (
+                  <Button
+                    onClick={() => setShowCallDialog(true)}
+                    aria-label="Call Worker"
+                    className="h-12 px-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white shrink-0 font-semibold text-[13px] gap-1.5 shadow-md shadow-emerald-600/25"
+                  >
+                    <PhoneCall className="h-4 w-4" />
+                    Call Worker
+                  </Button>
+                )}
                 <Button
                   variant="outline"
                   onClick={() => openExternalUrl('tel:+918008180018')}
@@ -878,6 +890,18 @@ const ActiveBookingCard = memo(() => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {activeBooking.worker_id && (
+        <CallWorkerDialog
+          open={showCallDialog}
+          onClose={() => setShowCallDialog(false)}
+          bookingId={activeBooking.id}
+          userId={profile?.id || ''}
+          workerName={activeBooking.worker_name}
+          workerPhotoUrl={activeBooking.worker_photo_url}
+          bookingStatus={activeBooking.status}
+        />
+      )}
 
     </>
   );
