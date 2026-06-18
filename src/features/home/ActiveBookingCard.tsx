@@ -891,6 +891,18 @@ const ActiveBookingCard = memo(() => {
         </DialogContent>
       </Dialog>
 
+      {activeBooking.worker_id && (
+        <CallWorkerDialog
+          open={showCallDialog}
+          onClose={() => setShowCallDialog(false)}
+          bookingId={activeBooking.id}
+          userId={profile?.id || ''}
+          workerName={activeBooking.worker_name}
+          workerPhotoUrl={activeBooking.worker_photo_url}
+          bookingStatus={activeBooking.status}
+        />
+      )}
+
     </>
   );
 });
