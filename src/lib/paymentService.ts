@@ -361,31 +361,40 @@ async function checkBookingCapacity(
   }
 
   try {
-    const invocation = supabase.functions.invoke('check-booking-capacity', {
-      body: {
-        community_name: community,
-        service_type: serviceType,
-        booking_type: bookingType,
-      },
-    });
-    const timeout = sleep(5000).then(() => ({ __timeout: true } as const));
-    const raced = (await Promise.race([invocation, timeout])) as
-      | { data: CapacityCheckResult | null; error: any }
-      | { __timeout: true };
-
-    if ('__timeout' in raced) {
-      console.warn('capacity_gate_blocked', 'timeout');
-      return {
-        can_accept_booking: false,
-        reason: 'check_failed',
-        pending_count: 0,
-        online_workers: 0,
-        available_workers: 0,
-      };
+    // IMPORTANT: check-booking-capacity is deployed on Lovable Cloud
+    // (wvuuyrovdfydubmvsfxl), NOT the external Supabase project that
+    // `supabase.functions.invoke` points at. We MUST call it via direct
+    // fetch against LOVABLE_CLOUD_FUNCTIONS_URL — otherwise the request
+    // resolves to a non-existent function on the external project and
+    // returns "Failed to send a request to the Edge Function", which
+    // fails closed and blocks every booking.
+    const url = `${LOVABLE_CLOUD_FUNCTIONS_URL}/functions/v1/check-booking-capacity`;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 5000);
+    let res: Response;
+    try {
+      res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: PRODUCTION_ANON_KEY,
+          Authorization: `Bearer ${PRODUCTION_ANON_KEY}`,
+        },
+        body: JSON.stringify({
+          community_name: community,
+          service_type: serviceType,
+          booking_type: bookingType,
+        }),
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timer);
     }
 
-    if (raced.error || !raced.data || typeof raced.data.can_accept_booking !== 'boolean') {
-      console.warn('capacity_gate_blocked', raced.error?.message || 'empty_response');
+    const data = (await res.json().catch(() => null)) as CapacityCheckResult | null;
+
+    if (!res.ok || !data || typeof data.can_accept_booking !== 'boolean') {
+      console.warn('capacity_gate_blocked', `bad_response status=${res.status}`);
       return {
         can_accept_booking: false,
         reason: 'check_failed',
@@ -396,12 +405,12 @@ async function checkBookingCapacity(
     }
 
     console.log(
-      raced.data.can_accept_booking ? 'capacity_gate_passed' : 'capacity_gate_blocked',
-      raced.data,
+      data.can_accept_booking ? 'capacity_gate_passed' : 'capacity_gate_blocked',
+      data,
     );
-    return raced.data;
+    return data;
   } catch (e: any) {
-    console.warn('capacity_gate_blocked', e?.message);
+    console.warn('capacity_gate_blocked', e?.name === 'AbortError' ? 'timeout' : e?.message);
     return {
       can_accept_booking: false,
       reason: 'check_failed',
