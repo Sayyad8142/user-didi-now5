@@ -78,7 +78,7 @@ export default function CallWorkerDialog({
             <WorkerAvatar
               workerName={workerName || 'Worker'}
               photoUrl={workerPhotoUrl || undefined}
-              size="xl"
+              size="lg"
             />
           </div>
 
