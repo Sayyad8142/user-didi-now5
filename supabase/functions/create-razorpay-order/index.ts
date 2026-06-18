@@ -10,6 +10,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { countActiveInstantBookings } from "../_shared/capacityRules.ts";
 import { verifyFirebaseToken, extractToken, corsHeaders } from "../_shared/firebaseAuth.ts";
+import { applyLoyaltyToBase } from "../_shared/loyaltyPricing.ts";
 
 const RAZORPAY_KEY_ID = Deno.env.get("RAZORPAY_KEY_ID")!;
 const RAZORPAY_KEY_SECRET = Deno.env.get("RAZORPAY_KEY_SECRET")!;
@@ -62,7 +63,7 @@ Deno.serve(async (req) => {
     // 3. Map firebase_uid to profile
     const { data: profile, error: profileErr } = await supabase
       .from("profiles")
-      .select("id, full_name, phone")
+      .select("id, full_name, phone, completed_bookings_count")
       .eq("firebase_uid", firebaseUser.uid)
       .single();
 
@@ -79,11 +80,6 @@ Deno.serve(async (req) => {
     // if the frontend dies between payment + create-paid-booking.
     // ────────────────────────────────────────────────────────────
     if (!booking_id && amount && service_type) {
-      const amountInPaise = Math.round(amount * 100);
-      if (amountInPaise <= 0) {
-        return json({ error: "Invalid amount" }, 400);
-      }
-
       // P0 hardening: require booking_data + request_id so we can
       // reconstruct the booking server-side from the webhook.
       const bookingData = body.booking_data as Record<string, unknown> | undefined;
@@ -98,8 +94,39 @@ Deno.serve(async (req) => {
         return json({ error: "request_id required for payment-first flow" }, 400);
       }
 
+      // ── LOYALTY PRICING — authoritative recompute ──
+      // If client provided base_price_inr, derive the true total payable
+      // from server-side completed_bookings_count and override the
+      // razorpay-share amount so loyalty adjustments cannot be tampered with.
+      let chargeAmount = Number(amount);
+      const clientBasePrice = Number((bookingData as any).base_price_inr ?? NaN);
+      if (Number.isFinite(clientBasePrice) && clientBasePrice >= 0) {
+        const { finalPrice, adjustment } = applyLoyaltyToBase(
+          clientBasePrice,
+          (profile as any).completed_bookings_count,
+        );
+        // The razorpay portion = full price - wallet portion.
+        const expectedRazorpay = Math.max(0, finalPrice - Math.max(0, walletAmount));
+        if (expectedRazorpay !== chargeAmount) {
+          console.warn(
+            `[create-razorpay-order] loyalty_amount_mismatch client_razorpay=${chargeAmount} server_razorpay=${expectedRazorpay} final=${finalPrice} base=${clientBasePrice} wallet=${walletAmount} count=${adjustment.count} — using server value`,
+          );
+        }
+        chargeAmount = expectedRazorpay;
+        // Reflect the recomputed total in stashed booking_data so
+        // create-paid-booking sees a consistent price_inr.
+        (bookingData as any).price_inr = finalPrice;
+      }
+
+      const amountInPaise = Math.round(chargeAmount * 100);
+      if (amountInPaise <= 0) {
+        return json({ error: "Invalid amount" }, 400);
+      }
+
       // Force-sync user_id to the authenticated profile (never trust client).
       const safeBookingData = { ...bookingData, user_id: profile.id };
+
+
 
       // ── P0 CAPACITY GATE V2 (Layer 2, server-side) ────────────
       // Per-service active-instant count on the EXTERNAL DB.
@@ -207,7 +234,7 @@ Deno.serve(async (req) => {
             booking_data: safeBookingData,
             payment_type: paymentType,
             wallet_amount: walletAmount,
-            amount_inr: amount,
+            amount_inr: chargeAmount,
             status: "awaiting_payment",
           },
           { onConflict: "razorpay_order_id" },
