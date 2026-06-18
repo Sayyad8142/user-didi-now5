@@ -677,8 +677,18 @@ export function BookingForm() {
             <Button variant="ghost" size="sm" onClick={() => navigate('/home')} className="p-2">
               <ArrowLeft className="w-5 h-5" />
             </Button>
-            <h1 className="text-xl font-semibold text-foreground ml-4">
+            <h1 className="text-xl font-semibold text-foreground ml-4 flex items-center gap-2">
               Book {prettyServiceName(service_type)}
+              {(service_type === 'maid' || service_type === 'bathroom_cleaning') && (
+                <button
+                  type="button"
+                  onClick={() => setWhatsIncludedOpen(true)}
+                  className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                  aria-label="What's included"
+                >
+                  <Info className="w-4 h-4" />
+                </button>
+              )}
             </h1>
           </div>
 
