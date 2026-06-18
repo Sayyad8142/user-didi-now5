@@ -60,16 +60,51 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // 3. Map firebase_uid to profile
+    // 3. Map firebase_uid to profile (base columns only — loyalty count
+    //    is fetched separately so a missing column never breaks lookup)
     const { data: profile, error: profileErr } = await supabase
       .from("profiles")
-      .select("id, full_name, phone, completed_bookings_count")
+      .select("id, full_name, phone")
       .eq("firebase_uid", firebaseUser.uid)
       .single();
 
     if (profileErr || !profile) {
       console.error("[create-razorpay-order] ❌ Profile lookup failed:", profileErr?.message, "firebase_uid:", firebaseUser.uid);
       return json({ error: "Profile not found", step: "profile_lookup" }, 404);
+    }
+
+    // Loyalty count: best-effort, isolated lookup. null = unavailable.
+    let completedBookingsCount: number | null = null;
+    try {
+      const { data: lc, error: lcErr } = await supabase
+        .from("profiles")
+        .select("completed_bookings_count")
+        .eq("id", profile.id)
+        .maybeSingle();
+      if (lcErr) {
+        console.warn("[loyalty_pricing_lookup_failed]", {
+          user_id: profile.id,
+          reason: lcErr.message,
+          fn: "create-razorpay-order",
+        });
+      } else {
+        const raw = (lc as any)?.completed_bookings_count;
+        if (raw !== null && raw !== undefined && Number.isFinite(Number(raw))) {
+          completedBookingsCount = Number(raw);
+        } else {
+          console.warn("[loyalty_pricing_skipped]", {
+            user_id: profile.id,
+            reason: "completed_bookings_count_missing_or_null",
+            fn: "create-razorpay-order",
+          });
+        }
+      }
+    } catch (e: any) {
+      console.warn("[loyalty_pricing_lookup_failed]", {
+        user_id: profile.id,
+        reason: e?.message || String(e),
+        fn: "create-razorpay-order",
+      });
     }
 
     console.log(`[create-razorpay-order] 👤 profile_id=${profile.id}`);
