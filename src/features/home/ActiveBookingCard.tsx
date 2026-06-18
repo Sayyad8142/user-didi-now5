@@ -31,6 +31,8 @@ import {
 } from '@/features/bookings/NoWorkerStateBlock';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Wallet } from 'lucide-react';
+import { fetchWalletBalanceValue } from '@/lib/wallet';
+
 
 interface Booking {
   id: string;
