@@ -13,8 +13,6 @@ import { PaymentMethodSelector, type PaymentMethod } from '@/components/PaymentM
 import { PaymentRetrySheet } from '@/components/PaymentRetrySheet';
 import { trackPaymentEvent } from '@/lib/paymentAnalytics';
 import { useWalletBalance } from '@/hooks/useWallet';
-import { useLoyalty } from '@/hooks/useLoyalty';
-import { LoyaltyPriceBreakdown, FirstBookingBanner } from './LoyaltyPriceBreakdown';
 
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useProfile } from '@/contexts/ProfileContext';
@@ -57,7 +55,6 @@ export function ScheduleScreen() {
   const { flatSize: autoFlatSize } = useFlatSize();
   const { data: walletData } = useWalletBalance();
   const walletBalance = walletData?.balance_inr ?? 0;
-  const { info: loyaltyInfo, apply: applyLoyaltyToBase } = useLoyalty();
   
 
   const [selectedDate, setSelectedDate] = useState<Date>(() => {
@@ -267,8 +264,7 @@ export function ScheduleScreen() {
       }
 
       const surcharge = getSurge(selectedTime);
-      const baseWithSurge = (price ?? 0) + surcharge;
-      const { finalPrice } = applyLoyaltyToBase(baseWithSurge);
+      const finalPrice = price + surcharge;
 
       const bookingData = {
         user_id: profile.id,
@@ -292,8 +288,6 @@ export function ScheduleScreen() {
           ? GLASS_PARTITION_FEE * parseInt(bathroomCount!)
           : null,
         price_inr: finalPrice,
-        base_price_inr: baseWithSurge,
-        loyalty_adjustment_inr: loyaltyInfo.netAdjustment,
         surcharge_amount: surcharge,
         surcharge_reason: surcharge > 0 ? 'slot_surge' : null,
         cust_name: /^\+?\d{7,15}$/.test(profile.full_name.trim()) ? 'User ' + profile.phone.slice(-4) : profile.full_name,
@@ -499,12 +493,6 @@ export function ScheduleScreen() {
           </h1>
         </div>
 
-        {loyaltyInfo.firstBookingDiscount > 0 && (
-          <div className="mb-4">
-            <FirstBookingBanner amount={loyaltyInfo.firstBookingDiscount} />
-          </div>
-        )}
-
         <div className="space-y-4">
           {/* Date Selection */}
           <Card className="bg-white rounded-2xl shadow-sm border border-gray-100 p-3">
@@ -667,12 +655,7 @@ export function ScheduleScreen() {
                 </span>
               </div>
             ) : (
-              (() => {
-                const surge = selectedTime ? getSurge(selectedTime) : 0;
-                const base = (price ?? 0) + surge;
-                const { finalPrice } = applyLoyaltyToBase(base);
-                return `Confirm Schedule${price ? ` · ₹${finalPrice}` : ''}`;
-              })()
+              `Confirm Schedule${price ? ` · ₹${price + (selectedTime ? getSurge(selectedTime) : 0)}` : ''}`
             )}
           </Button>
         </div>
@@ -688,54 +671,32 @@ export function ScheduleScreen() {
                 Choose how you'd like to pay
               </AlertDialogDescription>
             </AlertDialogHeader>
-            {(() => {
-              const surge = selectedTime ? getSurge(selectedTime) : 0;
-              const base = (price ?? 0) + surge;
-              const { finalPrice } = applyLoyaltyToBase(base);
-              const dueAfterWallet = Math.max(0, finalPrice - Math.min(walletBalance, finalPrice));
-              return (
-                <>
-                  <div className="my-3">
-                    <LoyaltyPriceBreakdown
-                      basePrice={price ?? 0}
-                      info={loyaltyInfo}
-                      extraLineLabel={surge > 0 ? 'Slot surge' : undefined}
-                      extraLineAmount={surge}
-                    />
-                  </div>
-                  <PaymentMethodSelector
-                    selected={paymentMethod}
-                    onChange={setPaymentMethod}
-                    disabled={submitting}
-                    walletBalance={walletBalance}
-                    bookingAmount={finalPrice}
-                  />
-                  <div className="flex gap-2 mt-3">
-                    <Button
-                      variant="outline"
-                      onClick={() => setShowPaymentPicker(false)}
-                      className="flex-1 rounded-xl h-11"
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      onClick={() => {
-                        setShowPaymentPicker(false);
-                        handleConfirmSchedule();
-                      }}
-                      disabled={submitting}
-                      className="flex-1 rounded-xl h-11 font-bold"
-                    >
-                      {paymentMethod === 'pay_after_service'
-                        ? 'Confirm Booking'
-                        : paymentMethod === 'wallet'
-                          ? 'Pay with Wallet'
-                          : `Pay ₹${dueAfterWallet} securely`}
-                    </Button>
-                  </div>
-                </>
-              );
-            })()}
+            <PaymentMethodSelector
+              selected={paymentMethod}
+              onChange={setPaymentMethod}
+              disabled={submitting}
+              walletBalance={walletBalance}
+              bookingAmount={price ? price + (selectedTime ? getSurge(selectedTime) : 0) : 0}
+            />
+            <div className="flex gap-2 mt-3">
+              <Button
+                variant="outline"
+                onClick={() => setShowPaymentPicker(false)}
+                className="flex-1 rounded-xl h-11"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={() => {
+                  setShowPaymentPicker(false);
+                  handleConfirmSchedule();
+                }}
+                disabled={submitting}
+                className="flex-1 rounded-xl h-11 font-bold"
+              >
+                {paymentMethod === 'pay_after_service' ? 'Confirm Booking' : paymentMethod === 'wallet' ? 'Pay with Wallet' : 'Pay securely'}
+              </Button>
+            </div>
           </AlertDialogContent>
         </AlertDialog>
 

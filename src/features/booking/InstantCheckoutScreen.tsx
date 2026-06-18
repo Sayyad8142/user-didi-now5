@@ -22,8 +22,6 @@ import { PaymentMethodSelector, type PaymentMethod } from '@/components/PaymentM
 import { PaymentRetrySheet } from '@/components/PaymentRetrySheet';
 import { trackPaymentEvent } from '@/lib/paymentAnalytics';
 import { useWalletBalance } from '@/hooks/useWallet';
-import { useLoyalty } from '@/hooks/useLoyalty';
-import { LoyaltyPriceBreakdown, FirstBookingBanner } from './LoyaltyPriceBreakdown';
 
 
 export function InstantCheckoutScreen() {
@@ -52,12 +50,10 @@ export function InstantCheckoutScreen() {
   const { flatSize: autoFlatSize } = useFlatSize();
   const { data: walletData } = useWalletBalance();
   const walletBalance = walletData?.balance_inr ?? 0;
-  const { info: loyaltyInfo, apply: applyLoyaltyToBase } = useLoyalty();
   
 
   const priceParam = searchParams.get('price');
-  const basePrice = priceParam ? Number(priceParam) : 0;
-  const { finalPrice: price } = applyLoyaltyToBase(basePrice);
+  const price = priceParam ? Number(priceParam) : 0;
   const tasks = searchParams.get('tasks');
   const dishIntensity = searchParams.get('dish_intensity');
   const dishExtra = searchParams.get('dish_extra');
@@ -142,8 +138,6 @@ export function InstantCheckoutScreen() {
         status: 'pending',
         flat_size: service_type === 'bathroom_cleaning' ? null : autoFlatSize,
         price_inr: price,
-        base_price_inr: basePrice,
-        loyalty_adjustment_inr: loyaltyInfo.netAdjustment,
         family_count: null,
         food_pref: null,
         cook_cuisine_pref: null,
@@ -292,13 +286,6 @@ export function InstantCheckoutScreen() {
             <p className="text-[11px] text-muted-foreground">{serviceName} • arrives in ~10 min</p>
           </div>
         </div>
-
-        {/* First-booking discount banner */}
-        {loyaltyInfo.firstBookingDiscount > 0 && (
-          <div className="mb-4">
-            <FirstBookingBanner amount={loyaltyInfo.firstBookingDiscount} />
-          </div>
-        )}
 
         {/* Expert Selection Card */}
         <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
@@ -538,9 +525,6 @@ export function InstantCheckoutScreen() {
               Choose how you'd like to pay
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <div className="my-3">
-            <LoyaltyPriceBreakdown basePrice={basePrice} info={loyaltyInfo} />
-          </div>
           <PaymentMethodSelector
             selected={paymentMethod}
             onChange={setPaymentMethod}

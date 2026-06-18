@@ -35,8 +35,6 @@ import { PaymentRetrySheet } from '@/components/PaymentRetrySheet';
 import { trackPaymentEvent } from '@/lib/paymentAnalytics';
 import { CreditCard, HandCoins } from 'lucide-react';
 import { useWalletBalance } from '@/hooks/useWallet';
-import { useLoyalty } from '@/hooks/useLoyalty';
-import { LoyaltyPriceBreakdown, FirstBookingBanner } from './LoyaltyPriceBreakdown';
 
 
 // Maid task types and constants
@@ -78,7 +76,6 @@ export function BookingForm() {
   const selectedFlatSize = autoFlatSize as FlatSize | null;
   const { data: walletData } = useWalletBalance();
   const walletBalance = walletData?.balance_inr ?? 0;
-  const { info: loyaltyInfo, apply: applyLoyaltyToBase } = useLoyalty();
   
   const [pricingMap, setPricingMap] = useState<PricingMap>({});
   const [loadingPricing, setLoadingPricing] = useState(true);
@@ -499,9 +496,7 @@ export function BookingForm() {
         notes: null,
         status: 'pending',
         flat_size: service_type === 'bathroom_cleaning' ? null : selectedFlatSize,
-        price_inr: applyLoyaltyToBase(price).finalPrice,
-        base_price_inr: price,
-        loyalty_adjustment_inr: loyaltyInfo.netAdjustment,
+        price_inr: price,
         family_count: null,
         food_pref: null,
         cook_cuisine_pref: null,
@@ -523,12 +518,11 @@ export function BookingForm() {
       const isWallet = paymentMethod === 'wallet';
 
       // ── Wallet pre-check: block creation if balance insufficient ──
-      const finalPriceForCheck = applyLoyaltyToBase(price).finalPrice;
       if (isWallet) {
-        console.log('[WALLET_BALANCE_CHECK]', { balance: walletBalance, required: finalPriceForCheck });
-        if (walletBalance < finalPriceForCheck) {
-          const short = Math.max(0, Math.ceil(finalPriceForCheck - walletBalance));
-          console.warn('[WALLET_INSUFFICIENT]', { short, balance: walletBalance, required: finalPriceForCheck });
+        console.log('[WALLET_BALANCE_CHECK]', { balance: walletBalance, required: price });
+        if (walletBalance < price) {
+          const short = Math.max(0, Math.ceil(price - walletBalance));
+          console.warn('[WALLET_INSUFFICIENT]', { short, balance: walletBalance, required: price });
           toast({
             title: 'Insufficient wallet balance',
             description: `Please add ₹${short} more or pay online.`,
@@ -741,12 +735,6 @@ export function BookingForm() {
             Book {prettyServiceName(service_type)}
           </h1>
         </div>
-
-        {loyaltyInfo.firstBookingDiscount > 0 && (
-          <div className="mb-3">
-            <FirstBookingBanner amount={loyaltyInfo.firstBookingDiscount} />
-          </div>
-        )}
 
         <div className="space-y-3">
           {/* Flat Size (read-only from flats table) */}
@@ -1311,48 +1299,28 @@ export function BookingForm() {
                 Choose how you'd like to pay
               </AlertDialogDescription>
             </AlertDialogHeader>
-            {(() => {
-              const basePrice = service_type === 'maid'
-                ? totalPrice
-                : service_type === 'bathroom_cleaning'
-                  ? bathroomTotalPrice
-                  : (selectedFlatSize ? pricingMap[selectedFlatSize] ?? 0 : 0);
-              const { finalPrice } = applyLoyaltyToBase(basePrice);
-              const dueAfterWallet = Math.max(0, finalPrice - Math.min(walletBalance, finalPrice));
-              return (
-                <>
-                  <div className="my-3">
-                    <LoyaltyPriceBreakdown basePrice={basePrice} info={loyaltyInfo} />
-                  </div>
-                  <PaymentMethodSelector
-                    selected={paymentMethod}
-                    onChange={setPaymentMethod}
-                    walletBalance={walletBalance}
-                    bookingAmount={finalPrice}
-                  />
-                  <div className="flex gap-2 mt-3">
-                    <Button
-                      variant="outline"
-                      className="flex-1 rounded-xl h-11"
-                      onClick={() => setShowPaymentPicker(false)}
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      className="flex-1 rounded-xl h-11 font-bold"
-                      onClick={handleConfirmInstantBooking}
-                      disabled={submitting}
-                    >
-                      {paymentMethod === 'pay_after_service'
-                        ? 'Confirm Booking'
-                        : paymentMethod === 'wallet'
-                          ? 'Pay with Wallet'
-                          : `Pay ₹${dueAfterWallet} securely`}
-                    </Button>
-                  </div>
-                </>
-              );
-            })()}
+            <PaymentMethodSelector
+              selected={paymentMethod}
+              onChange={setPaymentMethod}
+              walletBalance={walletBalance}
+              bookingAmount={service_type === 'maid' ? totalPrice : service_type === 'bathroom_cleaning' ? bathroomTotalPrice : (selectedFlatSize ? pricingMap[selectedFlatSize] ?? 0 : 0)}
+            />
+            <div className="flex gap-2 mt-3">
+              <Button
+                variant="outline"
+                className="flex-1 rounded-xl h-11"
+                onClick={() => setShowPaymentPicker(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="flex-1 rounded-xl h-11 font-bold"
+                onClick={handleConfirmInstantBooking}
+                disabled={submitting}
+              >
+                {paymentMethod === 'pay_after_service' ? 'Confirm Booking' : 'Pay securely'}
+              </Button>
+            </div>
           </AlertDialogContent>
         </AlertDialog>
 

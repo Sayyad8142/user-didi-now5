@@ -18,7 +18,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useFlats } from '@/hooks/useFlats';
 import { useFlatSize } from '@/hooks/useFlatSize';
 import { useWalletBalance } from '@/hooks/useWallet';
-import { LoyaltyCard } from '@/features/profile/LoyaltyCard';
 
 function WalletCard() {
   const navigate = useNavigate();
@@ -234,10 +233,6 @@ export default function Profile() {
         <div className="max-w-md mx-auto px-4 py-8 space-y-6 bg-slate-50">
         {/* Didi Now Wallet */}
         <WalletCard />
-
-        {/* Loyalty status */}
-        <LoyaltyCard />
-
 
         {nameMissing && !isEditing && (
           <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start gap-3">

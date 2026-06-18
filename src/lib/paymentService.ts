@@ -250,38 +250,6 @@ function logCreatePaidBookingDebug(stage: 'request' | 'response' | 'error', deta
   console.log('CREATE_PAID_BOOKING_DEBUG', { stage, ...details });
 }
 
-const CLOUD_ONLY_FUNCTIONS = new Set([
-  'create-paid-booking',
-  'create-razorpay-order',
-  'verify-razorpay-payment',
-]);
-
-async function invokeCloudFunction<T>(functionName: string, body: Record<string, unknown>, token: string): Promise<T> {
-  const res = await fetch(`${LOVABLE_CLOUD_FUNCTIONS_URL}/functions/v1/${functionName}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      apikey: PRODUCTION_ANON_KEY,
-      Authorization: `Bearer ${PRODUCTION_ANON_KEY}`,
-      'x-firebase-token': token,
-    },
-    body: JSON.stringify(body),
-  });
-  const text = await res.text();
-  let parsed: unknown = null;
-  if (text) {
-    try { parsed = JSON.parse(text); } catch { parsed = text; }
-  }
-  if (!res.ok) {
-    const message = formatFunctionErrorMessage(functionName, { message: res.statusText, status: res.status }, parsed);
-    const error = new Error(message || `${functionName} failed`);
-    (error as any).status = res.status;
-    (error as any).responseBody = parsed;
-    throw error;
-  }
-  return parsed as T;
-}
-
 async function invokeWithFirebaseAuth<T>(functionName: string, body: Record<string, unknown>): Promise<T> {
   // Force refresh token for payment-critical calls to avoid stale tokens after checkout
   const forceRefresh = functionName === 'create-paid-booking' || functionName === 'verify-razorpay-payment';
@@ -305,33 +273,6 @@ async function invokeWithFirebaseAuth<T>(functionName: string, body: Record<stri
     }
   }
   if (!token) throw new Error('Authentication expired, please login again');
-
-  if (CLOUD_ONLY_FUNCTIONS.has(functionName)) {
-    try {
-      const cloudData = await invokeCloudFunction<T>(functionName, body, token);
-      if (functionName === 'create-paid-booking') {
-        logCreatePaidBookingDebug('response', {
-          functionName,
-          httpStatus: 200,
-          responseBody: cloudData ?? null,
-          host: 'lovable-cloud',
-        });
-      }
-      return cloudData;
-    } catch (cloudError: any) {
-      if (functionName === 'create-paid-booking') {
-        logCreatePaidBookingDebug('error', {
-          functionName,
-          httpStatus: cloudError?.status ?? null,
-          responseBody: cloudError?.responseBody ?? null,
-          errorMessage: cloudError?.message ?? null,
-          host: 'lovable-cloud',
-        });
-      }
-      console.error(`❌ [${functionName}] Cloud function error:`, cloudError);
-      throw cloudError;
-    }
-  }
 
   const { data, error } = await supabase.functions.invoke(functionName, {
     body,

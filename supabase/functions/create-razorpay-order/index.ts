@@ -10,28 +10,11 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { countActiveInstantBookings } from "../_shared/capacityRules.ts";
 import { verifyFirebaseToken, extractToken, corsHeaders } from "../_shared/firebaseAuth.ts";
-import { applyLoyaltyToBase } from "../_shared/loyaltyPricing.ts";
 
 const RAZORPAY_KEY_ID = Deno.env.get("RAZORPAY_KEY_ID")!;
 const RAZORPAY_KEY_SECRET = Deno.env.get("RAZORPAY_KEY_SECRET")!;
-const SUPABASE_URL =
-  cleanSecret(Deno.env.get("EXTERNAL_SUPABASE_URL")) ||
-  cleanSecret(Deno.env.get("PROFILES_SUPABASE_URL")) ||
-  "https://paywwbuqycovjopryele.supabase.co";
-const SUPABASE_SERVICE_ROLE_KEY =
-  cleanSecret(Deno.env.get("EXTERNAL_SUPABASE_SERVICE_ROLE_KEY")) ||
-  cleanSecret(Deno.env.get("PROFILES_SUPABASE_SERVICE_ROLE_KEY")) ||
-  cleanSecret(Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"));
-
-function cleanSecret(raw?: string | null): string {
-  if (!raw) return "";
-  let value = raw.trim().replace(/^[']|[']$/g, "").replace(/^[\"]|[\"]$/g, "");
-  const equalsIndex = value.indexOf("=");
-  if (equalsIndex > -1 && value.slice(0, equalsIndex).includes("KEY")) {
-    value = value.slice(equalsIndex + 1).trim().replace(/^[']|[']$/g, "").replace(/^[\"]|[\"]$/g, "");
-  }
-  return value;
-}
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 function json(body: Record<string, unknown>, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -76,8 +59,7 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // 3. Map firebase_uid to profile (base columns only — loyalty count
-    //    is fetched separately so a missing column never breaks lookup)
+    // 3. Map firebase_uid to profile
     const { data: profile, error: profileErr } = await supabase
       .from("profiles")
       .select("id, full_name, phone")
@@ -89,40 +71,6 @@ Deno.serve(async (req) => {
       return json({ error: "Profile not found", step: "profile_lookup" }, 404);
     }
 
-    // Loyalty count: best-effort, isolated lookup. null = unavailable.
-    let completedBookingsCount: number | null = null;
-    try {
-      const { data: lc, error: lcErr } = await supabase
-        .from("profiles")
-        .select("completed_bookings_count")
-        .eq("id", profile.id)
-        .maybeSingle();
-      if (lcErr) {
-        console.warn("[loyalty_pricing_lookup_failed]", {
-          user_id: profile.id,
-          reason: lcErr.message,
-          fn: "create-razorpay-order",
-        });
-      } else {
-        const raw = (lc as any)?.completed_bookings_count;
-        if (raw !== null && raw !== undefined && Number.isFinite(Number(raw))) {
-          completedBookingsCount = Number(raw);
-        } else {
-          console.warn("[loyalty_pricing_skipped]", {
-            user_id: profile.id,
-            reason: "completed_bookings_count_missing_or_null",
-            fn: "create-razorpay-order",
-          });
-        }
-      }
-    } catch (e: any) {
-      console.warn("[loyalty_pricing_lookup_failed]", {
-        user_id: profile.id,
-        reason: e?.message || String(e),
-        fn: "create-razorpay-order",
-      });
-    }
-
     console.log(`[create-razorpay-order] 👤 profile_id=${profile.id}`);
 
     // ────────────────────────────────────────────────────────────
@@ -131,6 +79,11 @@ Deno.serve(async (req) => {
     // if the frontend dies between payment + create-paid-booking.
     // ────────────────────────────────────────────────────────────
     if (!booking_id && amount && service_type) {
+      const amountInPaise = Math.round(amount * 100);
+      if (amountInPaise <= 0) {
+        return json({ error: "Invalid amount" }, 400);
+      }
+
       // P0 hardening: require booking_data + request_id so we can
       // reconstruct the booking server-side from the webhook.
       const bookingData = body.booking_data as Record<string, unknown> | undefined;
@@ -145,56 +98,8 @@ Deno.serve(async (req) => {
         return json({ error: "request_id required for payment-first flow" }, 400);
       }
 
-      // ── LOYALTY PRICING — authoritative recompute ──
-      // SAFETY: only override the charge when completed_bookings_count
-      // was successfully retrieved. Otherwise fall back to client amount
-      // (no discount, no surcharge).
-      let chargeAmount = Number(amount);
-      const clientBasePrice = Number((bookingData as any).base_price_inr ?? NaN);
-      if (Number.isFinite(clientBasePrice) && clientBasePrice >= 0) {
-        if (completedBookingsCount === null) {
-          console.warn("[loyalty_pricing_skipped]", {
-            user_id: profile.id,
-            reason: "completed_bookings_count_unavailable",
-            fn: "create-razorpay-order",
-            request_id: requestId,
-          });
-          // Keep chargeAmount + booking_data.price_inr as-is.
-        } else {
-          const { finalPrice, adjustment } = applyLoyaltyToBase(
-            clientBasePrice,
-            completedBookingsCount,
-          );
-          // The razorpay portion = full price - wallet portion.
-          const expectedRazorpay = Math.max(0, finalPrice - Math.max(0, walletAmount));
-          if (expectedRazorpay !== chargeAmount) {
-            console.warn(
-              `[create-razorpay-order] loyalty_amount_mismatch client_razorpay=${chargeAmount} server_razorpay=${expectedRazorpay} final=${finalPrice} base=${clientBasePrice} wallet=${walletAmount} count=${adjustment.count} — using server value`,
-            );
-          }
-          chargeAmount = expectedRazorpay;
-          (bookingData as any).price_inr = finalPrice;
-          console.info("[loyalty_pricing_applied]", {
-            user_id: profile.id,
-            count: adjustment.count,
-            base: clientBasePrice,
-            final: finalPrice,
-            net_adjustment: adjustment.netAdjustment,
-            fn: "create-razorpay-order",
-            request_id: requestId,
-          });
-        }
-      }
-
-      const amountInPaise = Math.round(chargeAmount * 100);
-      if (amountInPaise <= 0) {
-        return json({ error: "Invalid amount" }, 400);
-      }
-
       // Force-sync user_id to the authenticated profile (never trust client).
       const safeBookingData = { ...bookingData, user_id: profile.id };
-
-
 
       // ── P0 CAPACITY GATE V2 (Layer 2, server-side) ────────────
       // Per-service active-instant count on the EXTERNAL DB.
@@ -302,7 +207,7 @@ Deno.serve(async (req) => {
             booking_data: safeBookingData,
             payment_type: paymentType,
             wallet_amount: walletAmount,
-            amount_inr: chargeAmount,
+            amount_inr: amount,
             status: "awaiting_payment",
           },
           { onConflict: "razorpay_order_id" },
