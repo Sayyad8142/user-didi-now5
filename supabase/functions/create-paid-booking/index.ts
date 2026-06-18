@@ -322,19 +322,15 @@ Deno.serve(async (req) => {
     // fall back to client-supplied price_inr (no discount, no surcharge).
     const clientBasePrice = Number((booking_data as any).base_price_inr ?? NaN);
     if (Number.isFinite(clientBasePrice) && clientBasePrice >= 0) {
-      const rawCount = (profile as any)?.completed_bookings_count;
-      const countAvailable =
-        rawCount !== null && rawCount !== undefined && Number.isFinite(Number(rawCount));
-
-      if (!countAvailable) {
+      if (completedBookingsCount === null) {
         console.warn("[loyalty_pricing_skipped]", {
           user_id: profile.id,
-          reason: "completed_bookings_count_missing_or_null",
+          reason: "completed_bookings_count_unavailable",
           fn: "create-paid-booking",
         });
         // Leave booking_data.price_inr untouched (client value wins).
       } else {
-        const { finalPrice, adjustment } = applyLoyaltyToBase(clientBasePrice, rawCount);
+        const { finalPrice, adjustment } = applyLoyaltyToBase(clientBasePrice, completedBookingsCount);
         const clientFinal = Number(booking_data.price_inr ?? NaN);
         if (Number.isFinite(clientFinal) && clientFinal !== finalPrice) {
           console.warn(
