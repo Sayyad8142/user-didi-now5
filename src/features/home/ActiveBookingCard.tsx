@@ -727,6 +727,16 @@ const ActiveBookingCard = memo(() => {
                   Track Booking
                   <ArrowRight className="w-4 h-4 ml-1.5" />
                 </Button>
+                {activeBooking.worker_id && CALLABLE_STATUSES.has(activeBooking.status) && (
+                  <Button
+                    onClick={() => setShowCallDialog(true)}
+                    aria-label="Call Worker"
+                    className="h-12 px-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white shrink-0 font-semibold text-[13px] gap-1.5 shadow-md shadow-emerald-600/25"
+                  >
+                    <PhoneCall className="h-4 w-4" />
+                    Call Worker
+                  </Button>
+                )}
                 <Button
                   variant="outline"
                   onClick={() => openExternalUrl('tel:+918008180018')}
