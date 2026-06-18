@@ -46,19 +46,25 @@ function cleanSecret(raw?: string | null): string {
 
 // Build a client that always points at the EXTERNAL Supabase
 // (api.didisnow.com) where the real `bookings` table lives.
-// Falls back to internal only if external vars are missing —
-// callers should treat fallback as an error path.
+// Lovable Cloud does not expose EXTERNAL_SUPABASE_URL by default in
+// every function isolate, so mirror the production DB URL fallback used
+// by bootstrap-profile/create-paid-booking while still requiring a
+// service-role key from secrets.
 export function getExternalSupabase() {
   const url =
     cleanSecret(Deno.env.get("EXTERNAL_SUPABASE_URL")) ||
-    cleanSecret(Deno.env.get("PROFILES_SUPABASE_URL"));
+    cleanSecret(Deno.env.get("PROFILES_SUPABASE_URL")) ||
+    "https://paywwbuqycovjopryele.supabase.co";
   const key =
     cleanSecret(Deno.env.get("EXTERNAL_SUPABASE_SERVICE_ROLE_KEY")) ||
     cleanSecret(Deno.env.get("PROFILES_SUPABASE_SERVICE_ROLE_KEY"));
   if (!url || !key) {
-    throw new Error("EXTERNAL_SUPABASE_URL / KEY not configured");
+    throw new Error("EXTERNAL_SUPABASE_SERVICE_ROLE_KEY not configured");
   }
-  return createClient(url, key);
+  console.log(`[capacityRules] using DB host=${new URL(url).host}`);
+  return createClient(url, key, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
 }
 
 export interface CapacityResult {
