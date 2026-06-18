@@ -18,6 +18,7 @@ import {
   extractToken,
   corsHeaders,
 } from "../_shared/firebaseAuth.ts";
+import { applyLoyaltyToBase } from "../_shared/loyaltyPricing.ts";
 
 const RAZORPAY_KEY_SECRET = Deno.env.get("RAZORPAY_KEY_SECRET")!;
 const SUPABASE_URL =
@@ -254,14 +255,14 @@ Deno.serve(async (req) => {
     const phone = normalizePhone(firebaseUser.phone || "");
     let { data: profile } = await supabase
       .from("profiles")
-      .select("id")
+      .select("id, completed_bookings_count")
       .eq("firebase_uid", firebaseUser.uid)
       .maybeSingle();
 
     if (!profile?.id && phone) {
       const { data: byPhone } = await supabase
         .from("profiles")
-        .select("id")
+        .select("id, completed_bookings_count")
         .eq("phone", phone)
         .order("updated_at", { ascending: false })
         .limit(1)
@@ -278,6 +279,30 @@ Deno.serve(async (req) => {
     if (booking_data.user_id !== profile.id) {
       return json({ error: "User ID mismatch" }, 403);
     }
+
+    // 4b. LOYALTY PRICING — authoritative recompute from server-side count.
+    // If client supplied base_price_inr, we recompute price_inr from it +
+    // the user's completed_bookings_count. Client-supplied price_inr is
+    // ignored when base_price_inr is present.
+    const clientBasePrice = Number((booking_data as any).base_price_inr ?? NaN);
+    if (Number.isFinite(clientBasePrice) && clientBasePrice >= 0) {
+      const { finalPrice, adjustment } = applyLoyaltyToBase(
+        clientBasePrice,
+        (profile as any).completed_bookings_count,
+      );
+      const clientFinal = Number(booking_data.price_inr ?? NaN);
+      if (Number.isFinite(clientFinal) && clientFinal !== finalPrice) {
+        console.warn(
+          `[create-paid-booking] loyalty_price_mismatch client=${clientFinal} server=${finalPrice} base=${clientBasePrice} count=${adjustment.count} — using server value`,
+        );
+      }
+      (booking_data as any).price_inr = finalPrice;
+      (booking_data as any).loyalty_adjustment_inr = adjustment.netAdjustment;
+    }
+    // Strip client-only metadata that may not be a real column
+    delete (booking_data as any).base_price_inr;
+    delete (booking_data as any).loyalty_adjustment_inr;
+
 
     // 5. Verify payment
     if (payment_type === "razorpay" || payment_type === "wallet_and_razorpay") {
