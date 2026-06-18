@@ -86,6 +86,7 @@ export function BookingForm() {
   const [showPaymentPicker, setShowPaymentPicker] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('pay_now');
   const [paymentStatus, setPaymentStatus] = useState<PaymentFlowStatus | null>(null);
+  const [whatsIncludedOpen, setWhatsIncludedOpen] = useState(false);
 
   // Retry state
   const [retrySheetOpen, setRetrySheetOpen] = useState(false);
