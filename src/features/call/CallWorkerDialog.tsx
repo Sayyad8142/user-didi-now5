@@ -76,7 +76,7 @@ export default function CallWorkerDialog({
         <div className="flex flex-col items-center px-6 pt-10 pb-8">
           <div className="rounded-full ring-4 ring-white/30 shadow-lg">
             <WorkerAvatar
-              workerName={workerName || 'Worker'}
+              name={workerName || 'Worker'}
               photoUrl={workerPhotoUrl || undefined}
               size="lg"
             />
