@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, MapPin, Home, Clock, Calendar, AlertCircle, Check, Zap, ChevronRight, Star, X, Ruler, ChevronDown } from 'lucide-react';
+import { ArrowLeft, MapPin, Home, Clock, Calendar, AlertCircle, Check, Zap, ChevronRight, Star, X, Ruler, ChevronDown, Info } from 'lucide-react';
+import { WhatsIncludedSheet, type IncludedServiceType } from '@/features/services/WhatsIncludedSheet';
 import dishesLightImg from '@/assets/dishes-light.webp';
 import dishesMediumImg from '@/assets/dishes-medium.webp';
 import dishesHeavyImg from '@/assets/dishes-heavy.webp';
@@ -85,6 +86,7 @@ export function BookingForm() {
   const [showPaymentPicker, setShowPaymentPicker] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('pay_now');
   const [paymentStatus, setPaymentStatus] = useState<PaymentFlowStatus | null>(null);
+  const [whatsIncludedOpen, setWhatsIncludedOpen] = useState(false);
 
   // Retry state
   const [retrySheetOpen, setRetrySheetOpen] = useState(false);
@@ -675,8 +677,18 @@ export function BookingForm() {
             <Button variant="ghost" size="sm" onClick={() => navigate('/home')} className="p-2">
               <ArrowLeft className="w-5 h-5" />
             </Button>
-            <h1 className="text-xl font-semibold text-foreground ml-4">
+            <h1 className="text-xl font-semibold text-foreground ml-4 flex items-center gap-2">
               Book {prettyServiceName(service_type)}
+              {(service_type === 'maid' || service_type === 'bathroom_cleaning') && (
+                <button
+                  type="button"
+                  onClick={() => setWhatsIncludedOpen(true)}
+                  className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                  aria-label="What's included"
+                >
+                  <Info className="w-4 h-4" />
+                </button>
+              )}
             </h1>
           </div>
 
@@ -731,8 +743,18 @@ export function BookingForm() {
           <Button variant="ghost" size="sm" onClick={() => navigate('/home')} className="p-2">
             <ArrowLeft className="w-5 h-5" />
           </Button>
-          <h1 className="text-xl font-semibold text-foreground ml-4">
+          <h1 className="text-xl font-semibold text-foreground ml-4 flex items-center gap-2">
             Book {prettyServiceName(service_type)}
+            {(service_type === 'maid' || service_type === 'bathroom_cleaning') && (
+              <button
+                type="button"
+                onClick={() => setWhatsIncludedOpen(true)}
+                className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                aria-label="What's included"
+              >
+                <Info className="w-4 h-4" />
+              </button>
+            )}
           </h1>
         </div>
 
@@ -1361,6 +1383,13 @@ export function BookingForm() {
             toast({ title: "Payment being verified", description: "Your booking will update automatically." });
             navigate('/home', { replace: true });
           }}
+        />
+
+        <WhatsIncludedSheet
+          open={whatsIncludedOpen}
+          onOpenChange={setWhatsIncludedOpen}
+          serviceType={(service_type === 'bathroom_cleaning' ? 'bathroom_cleaning' : 'maid') as IncludedServiceType}
+          source="booking"
         />
       </div>
     </div>;
