@@ -281,23 +281,41 @@ Deno.serve(async (req) => {
     }
 
     // 4b. LOYALTY PRICING — authoritative recompute from server-side count.
-    // If client supplied base_price_inr, we recompute price_inr from it +
-    // the user's completed_bookings_count. Client-supplied price_inr is
-    // ignored when base_price_inr is present.
+    // SAFETY: only apply when completed_bookings_count was successfully
+    // retrieved from the DB. If column is missing/NULL or lookup failed,
+    // fall back to client-supplied price_inr (no discount, no surcharge).
     const clientBasePrice = Number((booking_data as any).base_price_inr ?? NaN);
     if (Number.isFinite(clientBasePrice) && clientBasePrice >= 0) {
-      const { finalPrice, adjustment } = applyLoyaltyToBase(
-        clientBasePrice,
-        (profile as any).completed_bookings_count,
-      );
-      const clientFinal = Number(booking_data.price_inr ?? NaN);
-      if (Number.isFinite(clientFinal) && clientFinal !== finalPrice) {
-        console.warn(
-          `[create-paid-booking] loyalty_price_mismatch client=${clientFinal} server=${finalPrice} base=${clientBasePrice} count=${adjustment.count} — using server value`,
-        );
+      const rawCount = (profile as any)?.completed_bookings_count;
+      const countAvailable =
+        rawCount !== null && rawCount !== undefined && Number.isFinite(Number(rawCount));
+
+      if (!countAvailable) {
+        console.warn("[loyalty_pricing_skipped]", {
+          user_id: profile.id,
+          reason: "completed_bookings_count_missing_or_null",
+          fn: "create-paid-booking",
+        });
+        // Leave booking_data.price_inr untouched (client value wins).
+      } else {
+        const { finalPrice, adjustment } = applyLoyaltyToBase(clientBasePrice, rawCount);
+        const clientFinal = Number(booking_data.price_inr ?? NaN);
+        if (Number.isFinite(clientFinal) && clientFinal !== finalPrice) {
+          console.warn(
+            `[create-paid-booking] loyalty_price_mismatch client=${clientFinal} server=${finalPrice} base=${clientBasePrice} count=${adjustment.count} — using server value`,
+          );
+        }
+        (booking_data as any).price_inr = finalPrice;
+        (booking_data as any).loyalty_adjustment_inr = adjustment.netAdjustment;
+        console.info("[loyalty_pricing_applied]", {
+          user_id: profile.id,
+          count: adjustment.count,
+          base: clientBasePrice,
+          final: finalPrice,
+          net_adjustment: adjustment.netAdjustment,
+          fn: "create-paid-booking",
+        });
       }
-      (booking_data as any).price_inr = finalPrice;
-      (booking_data as any).loyalty_adjustment_inr = adjustment.netAdjustment;
     }
     // Strip client-only metadata that may not be a real column
     delete (booking_data as any).base_price_inr;
