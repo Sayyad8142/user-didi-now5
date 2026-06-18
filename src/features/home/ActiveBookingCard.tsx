@@ -214,6 +214,7 @@ const ActiveBookingCard = memo(() => {
   const [showChangeWorkerSheet, setShowChangeWorkerSheet] = useState(false);
   const [changeWorkerLoading, setChangeWorkerLoading] = useState(false);
   const [assignmentCount, setAssignmentCount] = useState(0);
+  const [showCallDialog, setShowCallDialog] = useState(false);
 
   const fetchActiveBooking = useCallback(async () => {
     if (!profile?.id) return;
