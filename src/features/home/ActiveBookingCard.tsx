@@ -848,16 +848,25 @@ const ActiveBookingCard = memo(() => {
             <DialogTitle className="text-rose-900">Your booking got cancelled</DialogTitle>
             <DialogDescription className="text-foreground/80 leading-relaxed pt-1">
               All our workers are busy right now. Please try again after some time.
-              {wasRefunded && (
-                <>
-                  {' '}Your amount has been added to your Didi Now wallet — you can use it for your next booking, so you don't need to pay again.
-                </>
-              )}
             </DialogDescription>
           </DialogHeader>
           {wasRefunded && (
-            <div className="flex items-center gap-2 mt-1 px-3 py-2 rounded-xl bg-emerald-50 text-emerald-800 text-sm font-medium">
-              <Wallet className="w-4 h-4" /> Amount refunded to wallet
+            <div className="space-y-2 mt-1">
+              <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-50 text-emerald-800 text-sm font-medium">
+                <Wallet className="w-4 h-4 shrink-0" />
+                <span>
+                  ₹{activeBooking.price_inr ?? 0} added to your Didi Now wallet
+                </span>
+              </div>
+              {walletBalance !== null && (
+                <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-muted/60 text-foreground text-sm">
+                  <span className="text-muted-foreground">Wallet balance</span>
+                  <span className="font-semibold">₹{walletBalance}</span>
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground px-1">
+                You can use this amount for your next booking — you don't need to pay again.
+              </p>
             </div>
           )}
           <DialogFooter>
@@ -870,6 +879,7 @@ const ActiveBookingCard = memo(() => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
     </>
   );
 });
