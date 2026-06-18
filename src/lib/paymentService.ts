@@ -25,6 +25,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { getFirebaseIdToken, waitForFirebaseAuthReady } from '@/lib/firebase';
 import { fetchWalletBalanceValue } from '@/lib/wallet';
 import { runCheckout, type CheckoutResult } from './checkoutRunner';
+import { LOVABLE_CLOUD_FUNCTIONS_URL, PRODUCTION_ANON_KEY } from '@/lib/constants';
 import {
   trackPaymentEvent,
   savePreferredMethod,
