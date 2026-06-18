@@ -53,7 +53,7 @@ export function LoyaltyCard() {
       <div className="mt-3 grid grid-cols-3 gap-2 text-center">
         <div className="rounded-xl bg-white/80 p-2">
           <p className="text-[10px] text-gray-500 uppercase">Completed</p>
-          <p className="text-base font-bold text-gray-900">{count}</p>
+          <p className="text-base font-bold text-gray-900">{count ?? 0}</p>
         </div>
         <div className="rounded-xl bg-white/80 p-2">
           <p className="text-[10px] text-gray-500 uppercase">Current Tier</p>
