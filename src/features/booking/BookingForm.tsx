@@ -1384,6 +1384,13 @@ export function BookingForm() {
             navigate('/home', { replace: true });
           }}
         />
+
+        <WhatsIncludedSheet
+          open={whatsIncludedOpen}
+          onOpenChange={setWhatsIncludedOpen}
+          serviceType={(service_type === 'bathroom_cleaning' ? 'bathroom_cleaning' : 'maid') as IncludedServiceType}
+          source="booking"
+        />
       </div>
     </div>;
 }
