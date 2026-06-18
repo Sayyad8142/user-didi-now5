@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, MapPin, Home, Clock, Calendar, AlertCircle, Check, Zap, ChevronRight, Star, X, Ruler, ChevronDown } from 'lucide-react';
+import { ArrowLeft, MapPin, Home, Clock, Calendar, AlertCircle, Check, Zap, ChevronRight, Star, X, Ruler, ChevronDown, Info } from 'lucide-react';
+import { WhatsIncludedSheet, type IncludedServiceType } from '@/features/services/WhatsIncludedSheet';
 import dishesLightImg from '@/assets/dishes-light.webp';
 import dishesMediumImg from '@/assets/dishes-medium.webp';
 import dishesHeavyImg from '@/assets/dishes-heavy.webp';
