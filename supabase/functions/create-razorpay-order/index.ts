@@ -14,8 +14,24 @@ import { applyLoyaltyToBase } from "../_shared/loyaltyPricing.ts";
 
 const RAZORPAY_KEY_ID = Deno.env.get("RAZORPAY_KEY_ID")!;
 const RAZORPAY_KEY_SECRET = Deno.env.get("RAZORPAY_KEY_SECRET")!;
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const SUPABASE_URL =
+  cleanSecret(Deno.env.get("EXTERNAL_SUPABASE_URL")) ||
+  cleanSecret(Deno.env.get("PROFILES_SUPABASE_URL")) ||
+  "https://paywwbuqycovjopryele.supabase.co";
+const SUPABASE_SERVICE_ROLE_KEY =
+  cleanSecret(Deno.env.get("EXTERNAL_SUPABASE_SERVICE_ROLE_KEY")) ||
+  cleanSecret(Deno.env.get("PROFILES_SUPABASE_SERVICE_ROLE_KEY")) ||
+  cleanSecret(Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"));
+
+function cleanSecret(raw?: string | null): string {
+  if (!raw) return "";
+  let value = raw.trim().replace(/^[']|[']$/g, "").replace(/^[\"]|[\"]$/g, "");
+  const equalsIndex = value.indexOf("=");
+  if (equalsIndex > -1 && value.slice(0, equalsIndex).includes("KEY")) {
+    value = value.slice(equalsIndex + 1).trim().replace(/^[']|[']$/g, "").replace(/^[\"]|[\"]$/g, "");
+  }
+  return value;
+}
 
 function json(body: Record<string, unknown>, status = 200) {
   return new Response(JSON.stringify(body), {
