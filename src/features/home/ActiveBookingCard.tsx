@@ -29,6 +29,8 @@ import {
   isNoWorkerCancellation,
   shouldShowDispatchCountdown,
 } from '@/features/bookings/NoWorkerStateBlock';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Wallet } from 'lucide-react';
 
 interface Booking {
   id: string;
@@ -504,6 +506,22 @@ const ActiveBookingCard = memo(() => {
   const isCancelled = activeBooking.status === 'cancelled';
   const isFinding = activeBooking.status === 'pending' && activeBooking.booking_type !== 'scheduled';
 
+  // One-time popup when system auto-cancels due to no worker available
+  const [noWorkerDialogOpen, setNoWorkerDialogOpen] = useState(false);
+  const showNoWorkerPopup = isCancelled && isNoWorkerCancellation(activeBooking);
+  const wasRefunded = activeBooking.payment_status === 'refunded_to_wallet';
+  useEffect(() => {
+    if (!showNoWorkerPopup) return;
+    try {
+      const key = `noWorkerPopup:${activeBooking.id}`;
+      if (localStorage.getItem(key)) return;
+      localStorage.setItem(key, '1');
+      setNoWorkerDialogOpen(true);
+    } catch {
+      setNoWorkerDialogOpen(true);
+    }
+  }, [showNoWorkerPopup, activeBooking.id]);
+
   return (
     <>
       {/* Worker reach confirmation — shared component (handles eligibility, confirmed banners, edge fn + history logging) */}
@@ -804,6 +822,36 @@ const ActiveBookingCard = memo(() => {
 
       {/* unseen badge keeps unseen state warm even though chat moved to details */}
       {hasUnseenMessages && false && <span onClick={markMessagesAsSeen} />}
+
+      {/* Auto-cancelled (no worker) popup — one-time per booking */}
+      <Dialog open={noWorkerDialogOpen} onOpenChange={setNoWorkerDialogOpen}>
+        <DialogContent className="max-w-sm rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-rose-900">Your booking got cancelled</DialogTitle>
+            <DialogDescription className="text-foreground/80 leading-relaxed pt-1">
+              All our workers are busy right now. Please try again after some time.
+              {wasRefunded && (
+                <>
+                  {' '}Your amount has been added to your Didi Now wallet — you can use it for your next booking, so you don't need to pay again.
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          {wasRefunded && (
+            <div className="flex items-center gap-2 mt-1 px-3 py-2 rounded-xl bg-emerald-50 text-emerald-800 text-sm font-medium">
+              <Wallet className="w-4 h-4" /> Amount refunded to wallet
+            </div>
+          )}
+          <DialogFooter>
+            <Button
+              onClick={() => setNoWorkerDialogOpen(false)}
+              className="w-full h-11 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
+            >
+              Got it
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 });
