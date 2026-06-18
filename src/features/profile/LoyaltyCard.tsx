@@ -5,6 +5,7 @@ import { useLoyalty } from '@/hooks/useLoyalty';
 import type { LoyaltyTier } from '@/features/booking/loyalty';
 
 const TIER_STYLES: Record<LoyaltyTier, { ring: string; bg: string; text: string; Icon: typeof Star }> = {
+  unknown: { ring: 'border-gray-200',   bg: 'bg-gray-50',    text: 'text-gray-700',    Icon: Star },
   new:     { ring: 'border-sky-200',    bg: 'bg-sky-50',     text: 'text-sky-700',     Icon: Sparkles },
   regular: { ring: 'border-emerald-200',bg: 'bg-emerald-50', text: 'text-emerald-700', Icon: Star },
   silver:  { ring: 'border-slate-300',  bg: 'bg-slate-50',   text: 'text-slate-700',   Icon: Award },
@@ -12,9 +13,12 @@ const TIER_STYLES: Record<LoyaltyTier, { ring: string; bg: string; text: string;
 };
 
 export function LoyaltyCard() {
-  const { count, info, isLoading } = useLoyalty();
+  const { count, info, isLoading, available } = useLoyalty();
   const s = TIER_STYLES[info.tier];
   const Icon = s.Icon;
+
+  // Loyalty info couldn't be loaded — hide the card rather than show wrong tier.
+  if (!isLoading && !available) return null;
 
   return (
     <div className={`rounded-2xl border ${s.ring} ${s.bg} p-4 shadow-sm`}>
@@ -49,7 +53,7 @@ export function LoyaltyCard() {
       <div className="mt-3 grid grid-cols-3 gap-2 text-center">
         <div className="rounded-xl bg-white/80 p-2">
           <p className="text-[10px] text-gray-500 uppercase">Completed</p>
-          <p className="text-base font-bold text-gray-900">{count}</p>
+          <p className="text-base font-bold text-gray-900">{count ?? 0}</p>
         </div>
         <div className="rounded-xl bg-white/80 p-2">
           <p className="text-[10px] text-gray-500 uppercase">Current Tier</p>

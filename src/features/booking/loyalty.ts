@@ -4,8 +4,17 @@
  * Single source of truth for tier math. Used by both the client
  * (breakdown UI) and server (price enforcement helper mirrors this).
  *
- * Rules:
- *   - count = profiles.completed_bookings_count
+ * SAFETY (V1.1):
+ *   The loyalty system is OPT-IN per request. If the caller cannot
+ *   *successfully* read `profiles.completed_bookings_count` from the
+ *   database, we MUST fall back to normal base pricing — no discount,
+ *   no surcharge. The only way to receive the ₹10 first-booking
+ *   discount is to pass a numeric `count` (including 0) that was
+ *   actually retrieved from the DB.
+ *
+ * Pass `count = null` (or undefined) to explicitly disable loyalty.
+ *
+ * Tier rules (when count is known):
  *   - count === 0      → first-booking discount of ₹10 (no loyalty charge)
  *   - count 1..2       → no charge, no discount
  *   - count 3..5       → +₹10 loyalty charge
@@ -13,19 +22,21 @@
  *   - count 10+        → +₹30 loyalty charge
  */
 
-export type LoyaltyTier = 'new' | 'regular' | 'silver' | 'gold';
+export type LoyaltyTier = 'unknown' | 'new' | 'regular' | 'silver' | 'gold';
 
 export interface LoyaltyInfo {
+  /** Whether the count was successfully retrieved from the DB. */
+  available: boolean;
   count: number;
   tier: LoyaltyTier;
   tierLabel: string;
-  /** Extra ₹ added to base price (0 for new customers). */
+  /** Extra ₹ added to base price (0 for new customers / unknown). */
   loyaltyCharge: number;
   /** ₹ discount applied (only on the very first booking). */
   firstBookingDiscount: number;
   /** loyaltyCharge - firstBookingDiscount. */
   netAdjustment: number;
-  /** Next tier completed-bookings threshold, or null if at top. */
+  /** Next tier completed-bookings threshold, or null if at top / unknown. */
   nextTierAt: number | null;
   nextTierLabel: string | null;
   /** What the loyalty charge will become at the next tier. */
@@ -36,8 +47,31 @@ export interface LoyaltyInfo {
 
 const FIRST_BOOKING_DISCOUNT = 10;
 
+/**
+ * Build a LoyaltyInfo from a *successfully retrieved* count.
+ * Pass `null`/`undefined` when the DB value is missing, NULL, or the
+ * lookup failed — in that case loyalty is fully disabled (no
+ * adjustment, no banner).
+ */
 export function getLoyaltyInfo(rawCount: number | null | undefined): LoyaltyInfo {
-  const count = Math.max(0, Math.floor(Number(rawCount ?? 0)));
+  // Unknown → loyalty disabled (safety fallback).
+  if (rawCount === null || rawCount === undefined || Number.isNaN(Number(rawCount))) {
+    return {
+      available: false,
+      count: 0,
+      tier: 'unknown',
+      tierLabel: 'Customer',
+      loyaltyCharge: 0,
+      firstBookingDiscount: 0,
+      netAdjustment: 0,
+      nextTierAt: null,
+      nextTierLabel: null,
+      nextTierCharge: null,
+      bookingsToNextTier: null,
+    };
+  }
+
+  const count = Math.max(0, Math.floor(Number(rawCount)));
 
   let tier: LoyaltyTier;
   let tierLabel: string;
@@ -59,7 +93,7 @@ export function getLoyaltyInfo(rawCount: number | null | undefined): LoyaltyInfo
     loyaltyCharge = 10;
     nextTierAt = 6; nextTierLabel = 'Silver Customer'; nextTierCharge = 20;
   } else {
-    tier = 'new'; tierLabel = count === 0 ? 'New Customer' : 'New Customer';
+    tier = 'new'; tierLabel = 'New Customer';
     loyaltyCharge = 0;
     nextTierAt = 3; nextTierLabel = 'Regular Customer'; nextTierCharge = 10;
   }
@@ -69,6 +103,7 @@ export function getLoyaltyInfo(rawCount: number | null | undefined): LoyaltyInfo
   const bookingsToNextTier = nextTierAt != null ? Math.max(0, nextTierAt - count) : null;
 
   return {
+    available: true,
     count,
     tier,
     tierLabel,

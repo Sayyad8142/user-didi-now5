@@ -252,17 +252,19 @@ Deno.serve(async (req) => {
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
     // 3. Resolve profile from Firebase UID, then phone for old linked accounts
+    //    (base columns only; loyalty count is fetched separately so a
+    //    missing column never breaks lookup).
     const phone = normalizePhone(firebaseUser.phone || "");
     let { data: profile } = await supabase
       .from("profiles")
-      .select("id, completed_bookings_count")
+      .select("id")
       .eq("firebase_uid", firebaseUser.uid)
       .maybeSingle();
 
     if (!profile?.id && phone) {
       const { data: byPhone } = await supabase
         .from("profiles")
-        .select("id, completed_bookings_count")
+        .select("id")
         .eq("phone", phone)
         .order("updated_at", { ascending: false })
         .limit(1)
@@ -275,29 +277,77 @@ Deno.serve(async (req) => {
 
     if (!profile) return json({ error: "Profile not found" }, 404);
 
+    // Best-effort loyalty count read. null = unavailable → no adjustment.
+    let completedBookingsCount: number | null = null;
+    try {
+      const { data: lc, error: lcErr } = await supabase
+        .from("profiles")
+        .select("completed_bookings_count")
+        .eq("id", profile.id)
+        .maybeSingle();
+      if (lcErr) {
+        console.warn("[loyalty_pricing_lookup_failed]", {
+          user_id: profile.id,
+          reason: lcErr.message,
+          fn: "create-paid-booking",
+        });
+      } else {
+        const raw = (lc as any)?.completed_bookings_count;
+        if (raw !== null && raw !== undefined && Number.isFinite(Number(raw))) {
+          completedBookingsCount = Number(raw);
+        } else {
+          console.warn("[loyalty_pricing_skipped]", {
+            user_id: profile.id,
+            reason: "completed_bookings_count_missing_or_null",
+            fn: "create-paid-booking",
+          });
+        }
+      }
+    } catch (e: any) {
+      console.warn("[loyalty_pricing_lookup_failed]", {
+        user_id: profile.id,
+        reason: e?.message || String(e),
+        fn: "create-paid-booking",
+      });
+    }
+
     // 4. Verify booking_data.user_id matches authenticated user
     if (booking_data.user_id !== profile.id) {
       return json({ error: "User ID mismatch" }, 403);
     }
 
     // 4b. LOYALTY PRICING — authoritative recompute from server-side count.
-    // If client supplied base_price_inr, we recompute price_inr from it +
-    // the user's completed_bookings_count. Client-supplied price_inr is
-    // ignored when base_price_inr is present.
+    // SAFETY: only apply when completed_bookings_count was successfully
+    // retrieved from the DB. If column is missing/NULL or lookup failed,
+    // fall back to client-supplied price_inr (no discount, no surcharge).
     const clientBasePrice = Number((booking_data as any).base_price_inr ?? NaN);
     if (Number.isFinite(clientBasePrice) && clientBasePrice >= 0) {
-      const { finalPrice, adjustment } = applyLoyaltyToBase(
-        clientBasePrice,
-        (profile as any).completed_bookings_count,
-      );
-      const clientFinal = Number(booking_data.price_inr ?? NaN);
-      if (Number.isFinite(clientFinal) && clientFinal !== finalPrice) {
-        console.warn(
-          `[create-paid-booking] loyalty_price_mismatch client=${clientFinal} server=${finalPrice} base=${clientBasePrice} count=${adjustment.count} — using server value`,
-        );
+      if (completedBookingsCount === null) {
+        console.warn("[loyalty_pricing_skipped]", {
+          user_id: profile.id,
+          reason: "completed_bookings_count_unavailable",
+          fn: "create-paid-booking",
+        });
+        // Leave booking_data.price_inr untouched (client value wins).
+      } else {
+        const { finalPrice, adjustment } = applyLoyaltyToBase(clientBasePrice, completedBookingsCount);
+        const clientFinal = Number(booking_data.price_inr ?? NaN);
+        if (Number.isFinite(clientFinal) && clientFinal !== finalPrice) {
+          console.warn(
+            `[create-paid-booking] loyalty_price_mismatch client=${clientFinal} server=${finalPrice} base=${clientBasePrice} count=${adjustment.count} — using server value`,
+          );
+        }
+        (booking_data as any).price_inr = finalPrice;
+        (booking_data as any).loyalty_adjustment_inr = adjustment.netAdjustment;
+        console.info("[loyalty_pricing_applied]", {
+          user_id: profile.id,
+          count: adjustment.count,
+          base: clientBasePrice,
+          final: finalPrice,
+          net_adjustment: adjustment.netAdjustment,
+          fn: "create-paid-booking",
+        });
       }
-      (booking_data as any).price_inr = finalPrice;
-      (booking_data as any).loyalty_adjustment_inr = adjustment.netAdjustment;
     }
     // Strip client-only metadata that may not be a real column
     delete (booking_data as any).base_price_inr;

@@ -60,16 +60,51 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // 3. Map firebase_uid to profile
+    // 3. Map firebase_uid to profile (base columns only — loyalty count
+    //    is fetched separately so a missing column never breaks lookup)
     const { data: profile, error: profileErr } = await supabase
       .from("profiles")
-      .select("id, full_name, phone, completed_bookings_count")
+      .select("id, full_name, phone")
       .eq("firebase_uid", firebaseUser.uid)
       .single();
 
     if (profileErr || !profile) {
       console.error("[create-razorpay-order] ❌ Profile lookup failed:", profileErr?.message, "firebase_uid:", firebaseUser.uid);
       return json({ error: "Profile not found", step: "profile_lookup" }, 404);
+    }
+
+    // Loyalty count: best-effort, isolated lookup. null = unavailable.
+    let completedBookingsCount: number | null = null;
+    try {
+      const { data: lc, error: lcErr } = await supabase
+        .from("profiles")
+        .select("completed_bookings_count")
+        .eq("id", profile.id)
+        .maybeSingle();
+      if (lcErr) {
+        console.warn("[loyalty_pricing_lookup_failed]", {
+          user_id: profile.id,
+          reason: lcErr.message,
+          fn: "create-razorpay-order",
+        });
+      } else {
+        const raw = (lc as any)?.completed_bookings_count;
+        if (raw !== null && raw !== undefined && Number.isFinite(Number(raw))) {
+          completedBookingsCount = Number(raw);
+        } else {
+          console.warn("[loyalty_pricing_skipped]", {
+            user_id: profile.id,
+            reason: "completed_bookings_count_missing_or_null",
+            fn: "create-razorpay-order",
+          });
+        }
+      }
+    } catch (e: any) {
+      console.warn("[loyalty_pricing_lookup_failed]", {
+        user_id: profile.id,
+        reason: e?.message || String(e),
+        fn: "create-razorpay-order",
+      });
     }
 
     console.log(`[create-razorpay-order] 👤 profile_id=${profile.id}`);
@@ -95,27 +130,44 @@ Deno.serve(async (req) => {
       }
 
       // ── LOYALTY PRICING — authoritative recompute ──
-      // If client provided base_price_inr, derive the true total payable
-      // from server-side completed_bookings_count and override the
-      // razorpay-share amount so loyalty adjustments cannot be tampered with.
+      // SAFETY: only override the charge when completed_bookings_count
+      // was successfully retrieved. Otherwise fall back to client amount
+      // (no discount, no surcharge).
       let chargeAmount = Number(amount);
       const clientBasePrice = Number((bookingData as any).base_price_inr ?? NaN);
       if (Number.isFinite(clientBasePrice) && clientBasePrice >= 0) {
-        const { finalPrice, adjustment } = applyLoyaltyToBase(
-          clientBasePrice,
-          (profile as any).completed_bookings_count,
-        );
-        // The razorpay portion = full price - wallet portion.
-        const expectedRazorpay = Math.max(0, finalPrice - Math.max(0, walletAmount));
-        if (expectedRazorpay !== chargeAmount) {
-          console.warn(
-            `[create-razorpay-order] loyalty_amount_mismatch client_razorpay=${chargeAmount} server_razorpay=${expectedRazorpay} final=${finalPrice} base=${clientBasePrice} wallet=${walletAmount} count=${adjustment.count} — using server value`,
+        if (completedBookingsCount === null) {
+          console.warn("[loyalty_pricing_skipped]", {
+            user_id: profile.id,
+            reason: "completed_bookings_count_unavailable",
+            fn: "create-razorpay-order",
+            request_id: requestId,
+          });
+          // Keep chargeAmount + booking_data.price_inr as-is.
+        } else {
+          const { finalPrice, adjustment } = applyLoyaltyToBase(
+            clientBasePrice,
+            completedBookingsCount,
           );
+          // The razorpay portion = full price - wallet portion.
+          const expectedRazorpay = Math.max(0, finalPrice - Math.max(0, walletAmount));
+          if (expectedRazorpay !== chargeAmount) {
+            console.warn(
+              `[create-razorpay-order] loyalty_amount_mismatch client_razorpay=${chargeAmount} server_razorpay=${expectedRazorpay} final=${finalPrice} base=${clientBasePrice} wallet=${walletAmount} count=${adjustment.count} — using server value`,
+            );
+          }
+          chargeAmount = expectedRazorpay;
+          (bookingData as any).price_inr = finalPrice;
+          console.info("[loyalty_pricing_applied]", {
+            user_id: profile.id,
+            count: adjustment.count,
+            base: clientBasePrice,
+            final: finalPrice,
+            net_adjustment: adjustment.netAdjustment,
+            fn: "create-razorpay-order",
+            request_id: requestId,
+          });
         }
-        chargeAmount = expectedRazorpay;
-        // Reflect the recomputed total in stashed booking_data so
-        // create-paid-booking sees a consistent price_inr.
-        (bookingData as any).price_inr = finalPrice;
       }
 
       const amountInPaise = Math.round(chargeAmount * 100);
