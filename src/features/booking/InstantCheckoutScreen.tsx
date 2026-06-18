@@ -538,7 +538,7 @@ export function InstantCheckoutScreen() {
                 ? 'Confirm Booking'
                 : paymentMethod === 'wallet'
                   ? 'Pay with Wallet'
-                  : `Pay ₹${price} securely`}
+                  : `Pay ₹${Math.max(0, Math.ceil(price - Math.min(walletBalance, price)))} securely`}
             </Button>
           </div>
         </AlertDialogContent>
