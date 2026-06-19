@@ -2,8 +2,42 @@ apply plugin: 'com.android.application'
 
 import groovy.json.JsonSlurper
 
-def didiNowVersionCode = 10002
-def didiNowVersionName = "10.0.02"
+// ---------------------------------------------------------------------
+// Load versioning from the single source of truth: android/version.properties
+// Do NOT hardcode versionCode / versionName anywhere else.
+// ---------------------------------------------------------------------
+def versionPropsFile = file('../version.properties')
+if (!versionPropsFile.exists()) {
+    throw new GradleException("Missing android/version.properties — this file is the single source of truth for versionCode and versionName.")
+}
+def versionProps = new Properties()
+versionPropsFile.withInputStream { versionProps.load(it) }
+
+def rawVersionCode = versionProps['versionCode']
+def rawVersionName = versionProps['versionName']
+def rawMinVersionCode = versionProps['minVersionCode']
+
+if (rawVersionCode == null || rawVersionCode.trim().isEmpty()) {
+    throw new GradleException("android/version.properties is missing 'versionCode'.")
+}
+if (rawVersionName == null || rawVersionName.trim().isEmpty()) {
+    throw new GradleException("android/version.properties is missing 'versionName'.")
+}
+if (rawMinVersionCode == null || rawMinVersionCode.trim().isEmpty()) {
+    throw new GradleException("android/version.properties is missing 'minVersionCode' (highest code already published to Play).")
+}
+
+def didiNowVersionCode = rawVersionCode.trim().toInteger()
+def didiNowVersionName = rawVersionName.trim()
+def didiNowMinVersionCode = rawMinVersionCode.trim().toInteger()
+
+if (didiNowVersionCode <= didiNowMinVersionCode) {
+    throw new GradleException(
+        "Invalid versionCode=${didiNowVersionCode} in android/version.properties. " +
+        "Must be strictly greater than minVersionCode=${didiNowMinVersionCode}. " +
+        "Bump versionCode before building a Play Store release."
+    )
+}
 
 android {
     namespace "com.didisnow.app"
@@ -12,7 +46,7 @@ android {
         applicationId "com.didisnow.app"
         minSdkVersion 23
         targetSdkVersion 34
-        // Increase for every Play upload — must be strictly > highest previously uploaded code
+        // Values come from android/version.properties — never edit here.
         versionCode didiNowVersionCode
         versionName didiNowVersionName
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
@@ -70,6 +104,29 @@ androidComponents {
     }
 }
 
+// Pre-build guard: validates version.properties BEFORE any release build runs.
+tasks.register("validateDidiNowReleaseVersion") {
+    def expectedCode = didiNowVersionCode
+    def expectedName = didiNowVersionName
+    def minCode = didiNowMinVersionCode
+    doLast {
+        if (expectedCode == null) {
+            throw new GradleException("versionCode is missing.")
+        }
+        if (expectedName == null || expectedName.isEmpty()) {
+            throw new GradleException("versionName is missing.")
+        }
+        if (expectedCode <= minCode) {
+            throw new GradleException(
+                "versionCode=${expectedCode} must be > minVersionCode=${minCode}. " +
+                "Bump versionCode in android/version.properties before building."
+            )
+        }
+        println "Release version OK: versionCode=${expectedCode}, versionName=${expectedName} (minVersionCode=${minCode})"
+    }
+}
+
+// Post-build guard: confirms the produced AAB actually contains the expected version.
 tasks.register("verifyDidiNowReleaseVersion") {
     def expectedCode = didiNowVersionCode
     def expectedName = didiNowVersionName
@@ -92,7 +149,8 @@ tasks.register("verifyDidiNowReleaseVersion") {
     }
 }
 
-tasks.matching { it.name == "bundleRelease" }.configureEach {
+tasks.matching { it.name == "bundleRelease" || it.name == "assembleRelease" }.configureEach {
+    dependsOn("validateDidiNowReleaseVersion")
     finalizedBy("verifyDidiNowReleaseVersion")
 }
 
