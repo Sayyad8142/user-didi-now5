@@ -103,8 +103,9 @@ export interface FcmDataOnlyResult {
 export async function sendFcmDataOnly(
   token: string,
   data: Record<string, string>,
+  serviceAccountEnvName?: string,
 ): Promise<FcmDataOnlyResult> {
-  const { projectId, clientEmail, privateKey } = getFcmCredentials();
+  const { projectId, clientEmail, privateKey } = getFcmCredentials(serviceAccountEnvName);
   const accessToken = await getAccessToken(clientEmail, privateKey);
   const url = `https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`;
 
