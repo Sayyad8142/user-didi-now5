@@ -144,7 +144,7 @@ Deno.serve(async (req) => {
     const results: Array<Record<string, unknown>> = [];
     for (const [token, source] of tokenMap.entries()) {
       try {
-        const r = await sendFcmDataOnly(token, data);
+        const r = await sendFcmDataOnly(token, data, WORKER_FCM_ENV);
         if (r.ok) sent++;
         results.push({ source, ok: r.ok, status: r.status, name: r.name, error: r.error });
         console.log(
