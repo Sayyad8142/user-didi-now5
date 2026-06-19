@@ -25,7 +25,7 @@ const fmt = (s: number) => {
   return `${m}:${sec}`;
 };
 
-const CALLABLE_STATUSES = new Set(['confirmed', 'on_the_way', 'in_progress', 'started', 'accepted']);
+const CALLABLE_STATUSES = new Set(['assigned', 'confirmed', 'on_the_way', 'in_progress', 'started', 'accepted']);
 
 export default function CallWorkerDialog({
   open, onClose, bookingId, userId, workerName, workerPhotoUrl, bookingStatus,
