@@ -120,7 +120,7 @@ Deno.serve(async (req) => {
     }
 
     console.log(
-      `[notify-worker-call] worker_id=${booking.worker_id} fcm_tokens=${src1} workers.fcm_token=${src2} total=${tokenMap.size} project=${fcmProjectId()}`,
+      `[notify-worker-call] worker_id=${booking.worker_id} fcm_tokens=${src1} workers.fcm_token=${src2} total=${tokenMap.size} project=${fcmProjectId(WORKER_FCM_ENV)} env=${WORKER_FCM_ENV}`,
     );
 
     if (tokenMap.size === 0) {
