@@ -150,6 +150,6 @@ export async function sendFcmDataOnly(
   return { token, ok: true, status: res.status, name: parsed.name };
 }
 
-export function fcmProjectId(): string {
-  try { return getFcmCredentials().projectId; } catch { return "unknown"; }
+export function fcmProjectId(serviceAccountEnvName?: string): string {
+  try { return getFcmCredentials(serviceAccountEnvName).projectId; } catch { return "unknown"; }
 }
