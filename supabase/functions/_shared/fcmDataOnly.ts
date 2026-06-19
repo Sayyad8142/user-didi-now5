@@ -10,8 +10,9 @@ interface FcmCredentials {
   privateKey: string;
 }
 
-function getFcmCredentials(): FcmCredentials {
-  const serviceAccountJson = Deno.env.get("FIREBASE_SERVICE_ACCOUNT");
+function getFcmCredentials(serviceAccountEnvName?: string): FcmCredentials {
+  const envName = serviceAccountEnvName || "FIREBASE_SERVICE_ACCOUNT";
+  const serviceAccountJson = Deno.env.get(envName);
   if (serviceAccountJson) {
     try {
       const sa = JSON.parse(serviceAccountJson);
@@ -21,16 +22,18 @@ function getFcmCredentials(): FcmCredentials {
         privateKey: sa.private_key,
       };
     } catch (e) {
-      console.error("[fcmDataOnly] failed to parse FIREBASE_SERVICE_ACCOUNT:", e);
+      console.error(`[fcmDataOnly] failed to parse ${envName}:`, e);
     }
   }
-  const projectId = Deno.env.get("FCM_PROJECT_ID");
-  const clientEmail = Deno.env.get("FCM_CLIENT_EMAIL");
-  const privateKey = Deno.env.get("FCM_PRIVATE_KEY");
-  if (projectId && clientEmail && privateKey) {
-    return { projectId, clientEmail, privateKey };
+  if (!serviceAccountEnvName) {
+    const projectId = Deno.env.get("FCM_PROJECT_ID");
+    const clientEmail = Deno.env.get("FCM_CLIENT_EMAIL");
+    const privateKey = Deno.env.get("FCM_PRIVATE_KEY");
+    if (projectId && clientEmail && privateKey) {
+      return { projectId, clientEmail, privateKey };
+    }
   }
-  throw new Error("FCM credentials missing");
+  throw new Error(`FCM credentials missing (${envName})`);
 }
 
 async function createSignedJwt(clientEmail: string, privateKey: string): Promise<string> {
