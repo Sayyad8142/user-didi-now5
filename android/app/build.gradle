@@ -2,8 +2,8 @@ apply plugin: 'com.android.application'
 
 import groovy.json.JsonSlurper
 
-def didiNowVersionCode = 8081
-def didiNowVersionName = "8.0.81"
+def didiNowVersionCode = 8082
+def didiNowVersionName = "8.0.82"
 
 android {
     namespace "com.didisnow.app"
