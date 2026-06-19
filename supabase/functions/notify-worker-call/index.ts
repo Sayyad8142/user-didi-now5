@@ -7,7 +7,7 @@
  * channel (`booking_<id>`) using its own agora-token request.
  */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { sendFcmV1Message } from "../_shared/fcmV1.ts";
+import { sendFcmDataOnly, fcmProjectId } from "../_shared/fcmDataOnly.ts";
 import {
   verifyFirebaseToken,
   extractToken,
@@ -87,41 +87,86 @@ Deno.serve(async (req) => {
       return json({ error: `Calling not allowed in status ${booking.status}` }, 409);
     }
 
-    // Fetch worker FCM tokens
-    const { data: tokens } = await supabase
+    // ---- Token discovery from BOTH sources ----------------------------------
+    const tokenMap = new Map<string, string>(); // token -> source
+
+    // Source 1: fcm_tokens table
+    const { data: rows1, error: err1 } = await supabase
       .from("fcm_tokens")
       .select("token")
       .eq("user_id", booking.worker_id);
+    if (err1) console.warn(`[notify-worker-call] fcm_tokens query error: ${err1.message}`);
+    let src1 = 0;
+    for (const r of (rows1 || [])) {
+      const t = (r as any)?.token;
+      if (t && !tokenMap.has(t)) { tokenMap.set(t, "fcm_tokens"); src1++; }
+    }
 
-    const tokenList = (tokens || []).map((t: any) => t.token).filter(Boolean);
-    if (tokenList.length === 0) {
-      console.warn(`[notify-worker-call] no FCM tokens for worker ${booking.worker_id}`);
+    // Source 2: workers.fcm_token (Worker App's source of truth)
+    let src2 = 0;
+    const { data: worker, error: err2 } = await supabase
+      .from("workers")
+      .select("fcm_token, fcm_token_status")
+      .eq("user_id", booking.worker_id)
+      .maybeSingle();
+    if (err2) console.warn(`[notify-worker-call] workers query error: ${err2.message}`);
+    const wt = (worker as any)?.fcm_token;
+    const wts = (worker as any)?.fcm_token_status;
+    if (wt && wts !== "invalid" && !tokenMap.has(wt)) {
+      tokenMap.set(wt, "workers.fcm_token");
+      src2++;
+    }
+
+    console.log(
+      `[notify-worker-call] worker_id=${booking.worker_id} fcm_tokens=${src1} workers.fcm_token=${src2} total=${tokenMap.size} project=${fcmProjectId()}`,
+    );
+
+    if (tokenMap.size === 0) {
       return json({ ok: true, sent: 0, message: "Worker has no devices registered" });
     }
 
-    const data = {
+    // ---- Data-only payload (strings only) -----------------------------------
+    const customer_name = caller.full_name || "Customer";
+    const data: Record<string, string> = {
       type: "incoming_call",
       booking_id: String(booking_id),
       channel_name,
-      caller_name: caller.full_name || "Customer",
-      service_type: booking.service_type || "",
+      customer_name,
+      caller_name: customer_name,
+      service_type: String(booking.service_type || ""),
+      title: "Incoming Call",
+      body: "Customer is calling…",
     };
 
     let sent = 0;
-    for (const token of tokenList) {
+    const results: Array<Record<string, unknown>> = [];
+    for (const [token, source] of tokenMap.entries()) {
       try {
-        await sendFcmV1Message(token, "Incoming Call", "Customer is calling…", data);
-        sent++;
+        const r = await sendFcmDataOnly(token, data);
+        if (r.ok) sent++;
+        results.push({ source, ok: r.ok, status: r.status, name: r.name, error: r.error });
+        console.log(
+          `[notify-worker-call] send source=${source} ok=${r.ok} status=${r.status || "-"} err=${r.error ? r.error.slice(0, 200) : "-"}`,
+        );
       } catch (e) {
-        console.warn("[notify-worker-call] FCM send failed", e);
+        const msg = e instanceof Error ? e.message : String(e);
+        results.push({ source, ok: false, error: msg });
+        console.warn(`[notify-worker-call] send threw source=${source} err=${msg}`);
       }
     }
 
     console.log(
-      `[notify-worker-call] booking_id=${booking_id} worker_id=${booking.worker_id} sent=${sent}/${tokenList.length}`,
+      `[notify-worker-call] DONE booking_id=${booking_id} worker_id=${booking.worker_id} sent=${sent}/${tokenMap.size}`,
     );
 
-    return json({ ok: true, sent, total: tokenList.length, channel_name });
+    return json({
+      ok: true,
+      sent,
+      total: tokenMap.size,
+      channel_name,
+      sources: { fcm_tokens: src1, workers_fcm_token: src2 },
+      results,
+    });
   } catch (err) {
     console.error("[notify-worker-call] fatal:", err);
     const message = err instanceof Error ? err.message : "Unknown error";
