@@ -44,6 +44,8 @@ function json(body: Record<string, unknown>, status = 200) {
   });
 }
 
+const WORKER_FCM_ENV = "WORKER_FIREBASE_SERVICE_ACCOUNT";
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
@@ -118,7 +120,7 @@ Deno.serve(async (req) => {
     }
 
     console.log(
-      `[notify-worker-call] worker_id=${booking.worker_id} fcm_tokens=${src1} workers.fcm_token=${src2} total=${tokenMap.size} project=${fcmProjectId()}`,
+      `[notify-worker-call] worker_id=${booking.worker_id} fcm_tokens=${src1} workers.fcm_token=${src2} total=${tokenMap.size} project=${fcmProjectId(WORKER_FCM_ENV)} env=${WORKER_FCM_ENV}`,
     );
 
     if (tokenMap.size === 0) {
@@ -142,7 +144,7 @@ Deno.serve(async (req) => {
     const results: Array<Record<string, unknown>> = [];
     for (const [token, source] of tokenMap.entries()) {
       try {
-        const r = await sendFcmDataOnly(token, data);
+        const r = await sendFcmDataOnly(token, data, WORKER_FCM_ENV);
         if (r.ok) sent++;
         results.push({ source, ok: r.ok, status: r.status, name: r.name, error: r.error });
         console.log(
