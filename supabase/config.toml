@@ -81,9 +81,3 @@ verify_jwt = false
 
 [functions.submit-worker-rating]
 verify_jwt = false
-
-[functions.agora-token]
-verify_jwt = false
-
-[functions.notify-worker-call]
-verify_jwt = false
