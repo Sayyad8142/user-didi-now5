@@ -13,12 +13,44 @@ import AgoraRTC, {
   type IAgoraRTCRemoteUser,
   type IMicrophoneAudioTrack,
 } from 'agora-rtc-sdk-ng';
-import { getAuth } from 'firebase/auth';
-import { supabase } from '@/integrations/supabase/client';
+import { LOVABLE_CLOUD_FUNCTIONS_URL, PRODUCTION_ANON_KEY } from '@/lib/constants';
+import { getFirebaseIdToken, waitForFirebaseAuthReady } from '@/lib/firebase';
 
 export type CallState = 'idle' | 'connecting' | 'ringing' | 'connected' | 'ended' | 'error';
 
 const MAX_CALL_SECONDS = 10 * 60; // 10 minutes
+
+async function getFreshFirebaseToken(): Promise<string> {
+  let idToken = await getFirebaseIdToken(false);
+  if (!idToken) {
+    const hydrated = await waitForFirebaseAuthReady(8000);
+    if (hydrated) idToken = await hydrated.getIdToken(false);
+  }
+  if (!idToken) throw new Error('Authentication expired, please login again');
+  return idToken;
+}
+
+async function invokeCloudFunction<T>(functionName: string, idToken: string, body: Record<string, unknown>): Promise<T> {
+  const res = await fetch(`${LOVABLE_CLOUD_FUNCTIONS_URL}/functions/v1/${functionName}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      apikey: PRODUCTION_ANON_KEY,
+      Authorization: `Bearer ${PRODUCTION_ANON_KEY}`,
+      'x-firebase-token': idToken,
+    },
+    body: JSON.stringify(body),
+  });
+
+  const data = await res.json().catch(() => null);
+  if (!res.ok) {
+    const message = data && typeof data === 'object' && 'error' in data
+      ? String((data as { error?: unknown }).error || `${functionName} failed`)
+      : `${functionName} failed`;
+    throw new Error(message);
+  }
+  return data as T;
+}
 
 interface UseAgoraCallOptions {
   bookingId: string;
@@ -74,26 +106,19 @@ export function useAgoraCall({ bookingId, userId }: UseAgoraCallOptions) {
     setState('connecting');
 
     try {
-      const idToken = await getAuth().currentUser?.getIdToken();
-      if (!idToken) throw new Error('Not signed in');
+      const idToken = await getFreshFirebaseToken();
 
       // 1. Fetch token from edge function
-      const { data, error: fnErr } = await supabase.functions.invoke('agora-token', {
-        body: { booking_id: bookingId, user_id: userId, role: 'customer' },
-        headers: { 'x-firebase-token': idToken },
-      });
-      if (fnErr) throw new Error(fnErr.message || 'Token request failed');
+      const data = await invokeCloudFunction<{
+        appId: string; channelName: string; token: string; uid: number;
+      }>('agora-token', idToken, { booking_id: bookingId, user_id: userId, role: 'customer' });
       const { appId, channelName, token, uid } = (data || {}) as {
         appId: string; channelName: string; token: string; uid: number;
       };
       if (!appId || !token) throw new Error('Invalid token response');
 
       // 2. Notify worker (best-effort, do not block call setup)
-      supabase.functions
-        .invoke('notify-worker-call', {
-          body: { booking_id: bookingId, channel_name: channelName },
-          headers: { 'x-firebase-token': idToken },
-        })
+      invokeCloudFunction('notify-worker-call', idToken, { booking_id: bookingId, channel_name: channelName })
         .catch((e) => console.warn('[agora] notify-worker-call failed', e));
 
       // 3. Create RTC client
