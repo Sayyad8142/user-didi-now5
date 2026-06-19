@@ -44,6 +44,8 @@ function json(body: Record<string, unknown>, status = 200) {
   });
 }
 
+const WORKER_FCM_ENV = "WORKER_FIREBASE_SERVICE_ACCOUNT";
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
