@@ -34,7 +34,7 @@ const SUPABASE_SERVICE_ROLE_KEY =
   cleanSecret(Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"));
 
 const CALLABLE_STATUSES = new Set([
-  "confirmed", "on_the_way", "in_progress", "started", "accepted",
+  "assigned", "confirmed", "on_the_way", "in_progress", "started", "accepted",
 ]);
 
 function json(body: Record<string, unknown>, status = 200) {
