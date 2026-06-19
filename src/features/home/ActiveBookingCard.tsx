@@ -364,6 +364,35 @@ const ActiveBookingCard = memo(() => {
 
   const workerChangeUsed = assignmentCount >= 2;
 
+  // One-time popup when system auto-cancels due to no worker available
+  const _noWorkerPopupActive =
+    !!activeBooking &&
+    activeBooking.status === 'cancelled' &&
+    isNoWorkerCancellation(activeBooking);
+  const _noWorkerBookingId = activeBooking?.id;
+  const _wasRefundedForEffect = activeBooking?.payment_status === 'refunded_to_wallet';
+  useEffect(() => {
+    if (!_noWorkerPopupActive || !_noWorkerBookingId) return;
+    try {
+      const key = `noWorkerPopup:${_noWorkerBookingId}`;
+      if (localStorage.getItem(key)) return;
+      localStorage.setItem(key, '1');
+      setNoWorkerDialogOpen(true);
+    } catch {
+      setNoWorkerDialogOpen(true);
+    }
+  }, [_noWorkerPopupActive, _noWorkerBookingId]);
+
+  useEffect(() => {
+    if (!noWorkerDialogOpen || !_wasRefundedForEffect) return;
+    let cancelled = false;
+    fetchWalletBalanceValue()
+      .then((bal) => { if (!cancelled) setWalletBalance(bal); })
+      .catch(() => { if (!cancelled) setWalletBalance(null); });
+    return () => { cancelled = true; };
+  }, [noWorkerDialogOpen, _wasRefundedForEffect]);
+
+
   if (loading || !activeBooking) return null;
 
   const handleChangeWorker = async () => {
