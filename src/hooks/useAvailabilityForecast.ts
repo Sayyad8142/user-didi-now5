@@ -24,6 +24,16 @@ interface State {
 const CACHE_TTL_MS = 15 * 60 * 1000;
 const cache = new Map<string, { at: number; data: ForecastSlot[]; source: 'db' | 'fallback' }>();
 
+// DB stores community as slug (e.g. "prestige-high-fields"); profile may carry
+// the display name ("Prestige High Fields"). Normalize before querying.
+function slugifyCommunity(v: string): string {
+  return v
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
 export function useAvailabilityForecast(community: string | undefined | null, service: 'maid' | 'bathroom_cleaning') {
   const [state, setState] = useState<State>({ data: [], loading: true, error: null, source: null });
 
@@ -33,7 +43,8 @@ export function useAvailabilityForecast(community: string | undefined | null, se
       return;
     }
 
-    const key = `${community}::${service}`;
+    const slug = slugifyCommunity(community);
+    const key = `${slug}::${service}`;
     const cached = cache.get(key);
     if (cached && Date.now() - cached.at < CACHE_TTL_MS) {
       setState({ data: cached.data, loading: false, error: null, source: cached.source });
@@ -45,8 +56,9 @@ export function useAvailabilityForecast(community: string | undefined | null, se
 
     (async () => {
       try {
+        console.log('[useAvailabilityForecast] fetching', { community: slug, service });
         const { data, error } = await supabase.functions.invoke('availability-forecast', {
-          body: { community, service },
+          body: { community: slug, service },
         });
         if (cancelled) return;
         if (error) throw error;
