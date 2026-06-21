@@ -25,7 +25,7 @@ import { useInstantBookingAvailability } from '@/hooks/useInstantBookingAvailabi
 import { useSupplyCheck, checkInstantBookingAvailability } from '@/hooks/useSupplyCheck';
 import { SupplyFullModal } from '@/components/SupplyFullModal';
 import { type DishIntensity } from './DishIntensitySheet';
-import { ServiceInclusionsAccordion } from './ServiceInclusionsAccordion';
+import { ServiceInclusionsToggle, ServiceInclusionsPanel } from './ServiceInclusionsAccordion';
 import { useDishIntensityPricing } from '@/hooks/useDishIntensityPricing';
 import { useFlatSize } from '@/hooks/useFlatSize';
 import { MaidPriceChartSheet } from './MaidPriceChartSheet';
@@ -112,6 +112,7 @@ export function BookingForm() {
   const [dishError, setDishError] = useState(false);
   const [dishHighlight, setDishHighlight] = useState(false);
   const dishSectionRef = useRef<HTMLDivElement>(null);
+  const [openInclusions, setOpenInclusions] = useState<Record<string, boolean>>({});
 
   // Bathroom cleaning specific state
   const [bathroomCount, setBathroomCount] = useState(1);
@@ -895,6 +896,8 @@ export function BookingForm() {
                   setSelectedTasks((prev) => [...prev, task]);
                 }
               };
+              const inclusionsOpen = !!openInclusions[task];
+              const panelId = `inclusions-${task}`;
               return (
                  <div
                    key={task}
@@ -904,14 +907,15 @@ export function BookingForm() {
                      "border-primary bg-primary/5" :
                      "border-border bg-card hover:border-primary/50"
                    )}>
-                   <button
-                     type="button"
-                     onClick={toggleTask}
-                     className="w-full flex items-center gap-3 text-left">
+                   <div className="flex items-center gap-3">
+                     <button
+                       type="button"
+                       onClick={toggleTask}
+                       className="flex-1 flex items-center gap-3 text-left min-w-0">
                        <div className={cn(
-                     "w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0",
-                     isSelected ? "border-primary" : "border-muted-foreground"
-                   )}>
+                         "w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0",
+                         isSelected ? "border-primary" : "border-muted-foreground"
+                       )}>
                          {isSelected && <div className="w-2.5 h-2.5 rounded-full bg-primary" />}
                        </div>
                        <div className="flex-1 min-w-0">
@@ -920,7 +924,13 @@ export function BookingForm() {
                        </div>
                        <span className="text-[15px] font-bold text-primary shrink-0">₹{displayTaskPrice(task)}</span>
                      </button>
-                   <ServiceInclusionsAccordion serviceKey={task} />
+                     <ServiceInclusionsToggle
+                       open={inclusionsOpen}
+                       ariaControls={panelId}
+                       onToggle={() => setOpenInclusions((prev) => ({ ...prev, [task]: !prev[task] }))}
+                     />
+                   </div>
+                   <ServiceInclusionsPanel serviceKey={task} open={inclusionsOpen} id={panelId} />
                  </div>);
 
              })}
