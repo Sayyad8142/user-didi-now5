@@ -7,8 +7,7 @@ import { HomeHeader } from './HomeHeader';
 import { HeroCarousel } from './HeroCarousel';
 import { ServicesRow } from './ServicesRow';
 import { ServiceHours } from './ServiceHours';
-import { WorkerAvailabilityCard } from './WorkerAvailabilityCard';
-import { WorkerAvailabilityForecast } from './WorkerAvailabilityForecast';
+import { WorkerAvailabilityUnified } from './WorkerAvailabilityUnified';
 import { FeatureCarousel } from './FeatureCarousel';
 import { ActiveBookingCard } from './ActiveBookingCard';
 import { HomeOtpCard } from './HomeOtpCard';
@@ -83,8 +82,7 @@ export function HomeScreen() {
           </Button>
         </div>
         
-        <WorkerAvailabilityCard counts={counts} loading={loading} onServiceSelect={handleServiceSelect} />
-        <WorkerAvailabilityForecast />
+        <WorkerAvailabilityUnified counts={counts} loading={loading} onServiceSelect={handleServiceSelect} />
         <FeatureCarousel />
 
         <FaqSection />
