@@ -895,31 +895,34 @@ export function BookingForm() {
                 }
               };
               return (
-                <button
-                  key={task}
-                  type="button"
-                  onClick={toggleTask}
-                  className={cn(
-                    "w-full flex items-center gap-3 rounded-xl border-2 p-4 transition-all duration-200 text-left",
-                    isSelected ?
-                    "border-primary bg-primary/5" :
-                    "border-border bg-card hover:border-primary/50"
-                  )}>
+                 <div
+                   key={task}
+                   className={cn(
+                     "rounded-xl border-2 p-3 transition-all duration-200",
+                     isSelected ?
+                     "border-primary bg-primary/5" :
+                     "border-border bg-card hover:border-primary/50"
+                   )}>
+                   <button
+                     type="button"
+                     onClick={toggleTask}
+                     className="w-full flex items-center gap-3 text-left">
+                       <div className={cn(
+                     "w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0",
+                     isSelected ? "border-primary" : "border-muted-foreground"
+                   )}>
+                         {isSelected && <div className="w-2.5 h-2.5 rounded-full bg-primary" />}
+                       </div>
+                       <div className="flex-1 min-w-0">
+                         <p className="font-semibold text-sm text-foreground">{label}</p>
+                         <p className="text-xs text-muted-foreground">{desc}</p>
+                       </div>
+                       <span className="text-[15px] font-bold text-primary shrink-0">₹{displayTaskPrice(task)}</span>
+                     </button>
+                   <ServiceInclusionsAccordion serviceKey={task} />
+                 </div>);
 
-                      <div className={cn(
-                    "w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0",
-                    isSelected ? "border-primary" : "border-muted-foreground"
-                  )}>
-                        {isSelected && <div className="w-2.5 h-2.5 rounded-full bg-primary" />}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-sm text-foreground">{label}</p>
-                        <p className="text-xs text-muted-foreground">{desc}</p>
-                      </div>
-                      <span className="text-[15px] font-bold text-primary shrink-0">₹{displayTaskPrice(task)}</span>
-                    </button>);
-
-            })}
+             })}
               </div>
 
               {/* Dish Intensity — Soft cards with left accent bar */}
