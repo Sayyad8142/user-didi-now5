@@ -25,6 +25,7 @@ import { useInstantBookingAvailability } from '@/hooks/useInstantBookingAvailabi
 import { useSupplyCheck, checkInstantBookingAvailability } from '@/hooks/useSupplyCheck';
 import { SupplyFullModal } from '@/components/SupplyFullModal';
 import { type DishIntensity } from './DishIntensitySheet';
+import { ServiceInclusionsAccordion } from './ServiceInclusionsAccordion';
 import { useDishIntensityPricing } from '@/hooks/useDishIntensityPricing';
 import { useFlatSize } from '@/hooks/useFlatSize';
 import { MaidPriceChartSheet } from './MaidPriceChartSheet';
