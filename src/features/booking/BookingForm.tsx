@@ -112,6 +112,7 @@ export function BookingForm() {
   const [dishError, setDishError] = useState(false);
   const [dishHighlight, setDishHighlight] = useState(false);
   const dishSectionRef = useRef<HTMLDivElement>(null);
+  const [openInclusions, setOpenInclusions] = useState<Record<string, boolean>>({});
 
   // Bathroom cleaning specific state
   const [bathroomCount, setBathroomCount] = useState(1);
