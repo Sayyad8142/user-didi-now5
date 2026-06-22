@@ -46,6 +46,7 @@ const isLimitedAvailabilitySlot = (time: string): boolean => {
 };
 
 type SlotAvailabilityRow = { slot_time: string; worker_count: number | string | null };
+type SlotAvailabilityResponse = { serviceType: string; data: SlotAvailabilityRow[] };
 
 const normalizeSlotTime = (slotTime: string): string => {
   const parts = String(slotTime).split(':');
@@ -63,6 +64,11 @@ const getAvailabilityServiceTypes = (serviceType?: string, tasksParam?: string |
     .map((task) => task.trim())
     .filter(Boolean);
   return selectedMaidTasks.length > 0 ? Array.from(new Set(selectedMaidTasks)) : ['maid'];
+};
+
+const findMatchedAvailabilityRecord = (rows: SlotAvailabilityRow[], slotTime: string): SlotAvailabilityRow | null => {
+  const normalizedSlot = normalizeSlotTime(slotTime);
+  return rows.find((row) => normalizeSlotTime(row.slot_time) === normalizedSlot) ?? null;
 };
 
 export function ScheduleScreen() {
@@ -100,6 +106,7 @@ export function ScheduleScreen() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('pay_now');
   const [showPaymentPicker, setShowPaymentPicker] = useState(false);
   const [slotWorkerCounts, setSlotWorkerCounts] = useState<Record<string, number> | null>(null); // null = loading/unavailable
+  const [slotAvailabilityResponses, setSlotAvailabilityResponses] = useState<SlotAvailabilityResponse[]>([]);
   const [loadingAvailability, setLoadingAvailability] = useState(false);
 
   // Retry state
@@ -163,6 +170,7 @@ export function ScheduleScreen() {
   useEffect(() => {
     if (!selectedDate || !profile?.community || availabilityServiceTypes.length === 0) {
       setSlotWorkerCounts(null);
+      setSlotAvailabilityResponses([]);
       return;
     }
 
@@ -170,15 +178,30 @@ export function ScheduleScreen() {
     const fetchAvailability = async () => {
       setLoadingAvailability(true);
       setSlotWorkerCounts(null); // reset while loading
+      setSlotAvailabilityResponses([]);
       try {
         const dateStr = format(selectedDate, 'yyyy-MM-dd');
-        console.log('[ScheduleSlotAvailability] request', {
+        const requestDetails = {
           selectedDate: dateStr,
+          communitySlug: profile.community,
           routeServiceType: service_type,
           serviceType: availabilityServiceTypes.join(','),
           availabilityServiceTypes,
-          community: profile.community,
+          rpcRequests: availabilityServiceTypes.map((availabilityServiceType) => ({
+            functionName: 'get_scheduled_slot_availability',
+            p_community: profile.community,
+            p_service_type: availabilityServiceType,
+            p_date: dateStr,
+          })),
+        };
+        console.log('[ScheduleSlotAvailability][debug] selected date', dateStr);
+        console.log('[ScheduleSlotAvailability][debug] community slug', profile.community);
+        console.log('[ScheduleSlotAvailability][debug] service type', {
+          routeServiceType: service_type,
+          availabilityServiceTypes,
+          identicalForRpc: service_type === availabilityServiceTypes.join(','),
         });
+        console.log('[ScheduleSlotAvailability][debug] exact rpc request', requestDetails);
         const responses = await Promise.all(
           availabilityServiceTypes.map(async (availabilityServiceType) => {
             const { data, error } = await supabase.rpc('get_scheduled_slot_availability', {
@@ -191,7 +214,16 @@ export function ScheduleScreen() {
           })
         );
         if (cancelled) return;
-        console.log('[ScheduleSlotAvailability] response', responses);
+        console.log('[ScheduleSlotAvailability][debug] raw rpc response', responses);
+        setSlotAvailabilityResponses(responses);
+        console.log('[ScheduleSlotAvailability][debug] availability rows returned?', {
+          anyRowsReturned: responses.some((response) => response.data.length > 0),
+          rowCountsByService: responses.map((response) => ({
+            serviceType: response.serviceType,
+            rowCount: response.data.length,
+          })),
+          emptyResponseTreatedAsZeroWorkers: responses.every((response) => response.data.length === 0),
+        });
         const perServiceCounts = responses.map((response) => {
           const counts: Record<string, number> = {};
           response.data.forEach((row) => {
@@ -618,14 +650,22 @@ export function ScheduleScreen() {
                     const isSlotUnavailable = slotWorkerCounts !== null && matchedWorkerCount < 1;
                     const isSoldOut = isSlotUnavailable && !isPast;
                     const isDisabled = isPast || isSlotUnavailable || isStillLoading;
-                    console.log('[ScheduleSlotAvailability] slot match', {
+                    const matchedAvailabilityRecords = slotAvailabilityResponses.map((response) => ({
+                      serviceType: response.serviceType,
+                      matchedRecord: findMatchedAvailabilityRecord(response.data, slot),
+                    }));
+                    console.log('[ScheduleSlotAvailability][debug] slot-by-slot matching', {
                       selectedDate: format(selectedDate, 'yyyy-MM-dd'),
+                      communitySlug: profile?.community,
                       routeServiceType: service_type,
-                      serviceType: availabilityServiceTypes.join(','),
-                      community: profile?.community,
-                      slotTime: slot,
+                      rpcServiceTypes: availabilityServiceTypes,
+                      uiSlotTime: slot,
+                      slotTimeShownInUi: toDisplay12h(slot),
                       normalizedSlot,
+                      matchedAvailabilityRecords,
+                      slotTimesMatchingCorrectly: matchedAvailabilityRecords.every((record) => record.matchedRecord !== null),
                       workerCount: matchedWorkerCount,
+                      emptyResponseTreatedAsZeroWorkers: slotAvailabilityResponses.every((response) => response.data.length === 0),
                       disabled: isDisabled,
                     });
 
