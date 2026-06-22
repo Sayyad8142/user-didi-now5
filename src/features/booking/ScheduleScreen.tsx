@@ -650,14 +650,22 @@ export function ScheduleScreen() {
                     const isSlotUnavailable = slotWorkerCounts !== null && matchedWorkerCount < 1;
                     const isSoldOut = isSlotUnavailable && !isPast;
                     const isDisabled = isPast || isSlotUnavailable || isStillLoading;
-                    console.log('[ScheduleSlotAvailability] slot match', {
+                    const matchedAvailabilityRecords = slotAvailabilityResponses.map((response) => ({
+                      serviceType: response.serviceType,
+                      matchedRecord: findMatchedAvailabilityRecord(response.data, slot),
+                    }));
+                    console.log('[ScheduleSlotAvailability][debug] slot-by-slot matching', {
                       selectedDate: format(selectedDate, 'yyyy-MM-dd'),
+                      communitySlug: profile?.community,
                       routeServiceType: service_type,
-                      serviceType: availabilityServiceTypes.join(','),
-                      community: profile?.community,
-                      slotTime: slot,
+                      rpcServiceTypes: availabilityServiceTypes,
+                      uiSlotTime: slot,
+                      slotTimeShownInUi: toDisplay12h(slot),
                       normalizedSlot,
+                      matchedAvailabilityRecords,
+                      slotTimesMatchingCorrectly: matchedAvailabilityRecords.every((record) => record.matchedRecord !== null),
                       workerCount: matchedWorkerCount,
+                      emptyResponseTreatedAsZeroWorkers: false,
                       disabled: isDisabled,
                     });
 
