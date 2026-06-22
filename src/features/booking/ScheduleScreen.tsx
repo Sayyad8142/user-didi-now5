@@ -45,6 +45,26 @@ const isLimitedAvailabilitySlot = (time: string): boolean => {
   return hours >= 15 && hours <= 19;
 };
 
+type SlotAvailabilityRow = { slot_time: string; worker_count: number | string | null };
+
+const normalizeSlotTime = (slotTime: string): string => {
+  const parts = String(slotTime).split(':');
+  if (parts.length >= 2) {
+    return `${parts[0].padStart(2, '0')}:${parts[1].padStart(2, '0')}`;
+  }
+  return String(slotTime);
+};
+
+const getAvailabilityServiceTypes = (serviceType?: string, tasksParam?: string | null): string[] => {
+  if (!serviceType) return [];
+  if (serviceType !== 'maid') return [serviceType];
+  const selectedMaidTasks = (tasksParam || '')
+    .split(',')
+    .map((task) => task.trim())
+    .filter(Boolean);
+  return selectedMaidTasks.length > 0 ? Array.from(new Set(selectedMaidTasks)) : ['maid'];
+};
+
 export function ScheduleScreen() {
   const { service_type } = useParams<{ service_type: string }>();
   const [searchParams] = useSearchParams();
@@ -79,7 +99,7 @@ export function ScheduleScreen() {
   const [showAvailabilityWarning, setShowAvailabilityWarning] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('pay_now');
   const [showPaymentPicker, setShowPaymentPicker] = useState(false);
-  const [availableSlots, setAvailableSlots] = useState<Set<string> | null>(null); // null = still loading
+  const [slotWorkerCounts, setSlotWorkerCounts] = useState<Record<string, number> | null>(null); // null = loading/unavailable
   const [loadingAvailability, setLoadingAvailability] = useState(false);
 
   // Retry state
@@ -107,6 +127,10 @@ export function ScheduleScreen() {
   const dishIntensity = searchParams.get('dish_intensity') as 'light' | 'medium' | 'heavy' | null;
   const dishIntensityExtra = parseInt(searchParams.get('dish_extra') || '0');
   const GLASS_PARTITION_FEE = 30;
+  const availabilityServiceTypes = React.useMemo(
+    () => getAvailabilityServiceTypes(service_type, tasksParam),
+    [service_type, tasksParam]
+  );
 
   useEffect(() => {
     // Don't redirect - ProtectedRoute handles auth check
@@ -137,33 +161,55 @@ export function ScheduleScreen() {
 
   // Fetch slot availability when date or community changes — ALLOWLIST approach
   useEffect(() => {
-    if (!selectedDate || !profile?.community || !service_type) {
-      setAvailableSlots(null);
+    if (!selectedDate || !profile?.community || availabilityServiceTypes.length === 0) {
+      setSlotWorkerCounts(null);
       return;
     }
 
     let cancelled = false;
     const fetchAvailability = async () => {
       setLoadingAvailability(true);
-      setAvailableSlots(null); // reset while loading
+      setSlotWorkerCounts(null); // reset while loading
       try {
         const dateStr = format(selectedDate, 'yyyy-MM-dd');
-        const { data, error } = await supabase.rpc('get_scheduled_slot_availability', {
-          p_community: profile.community,
-          p_service_type: service_type,
-          p_date: dateStr,
+        console.log('[ScheduleSlotAvailability] request', {
+          selectedDate: dateStr,
+          routeServiceType: service_type,
+          serviceType: availabilityServiceTypes.join(','),
+          availabilityServiceTypes,
+          community: profile.community,
         });
-        if (error || cancelled) return;
-        const allowed = new Set<string>();
-        ((data as any[]) || []).forEach((row: { slot_time: string; worker_count: number }) => {
-          if (row.worker_count >= 1) {
-            const normalized = row.slot_time.length > 5 ? row.slot_time.slice(0, 5) : row.slot_time;
-            allowed.add(normalized);
-          }
+        const responses = await Promise.all(
+          availabilityServiceTypes.map(async (availabilityServiceType) => {
+            const { data, error } = await supabase.rpc('get_scheduled_slot_availability', {
+              p_community: profile.community,
+              p_service_type: availabilityServiceType,
+              p_date: dateStr,
+            });
+            if (error) throw error;
+            return { serviceType: availabilityServiceType, data: (data as SlotAvailabilityRow[]) || [] };
+          })
+        );
+        if (cancelled) return;
+        console.log('[ScheduleSlotAvailability] response', responses);
+        const perServiceCounts = responses.map((response) => {
+          const counts: Record<string, number> = {};
+          response.data.forEach((row) => {
+            counts[normalizeSlotTime(row.slot_time)] = Number(row.worker_count ?? 0);
+          });
+          return counts;
         });
-        if (!cancelled) setAvailableSlots(allowed);
+        const returnedSlots = new Set<string>();
+        perServiceCounts.forEach((counts) => {
+          Object.keys(counts).forEach((slot) => returnedSlots.add(slot));
+        });
+        const counts: Record<string, number> = {};
+        returnedSlots.forEach((slot) => {
+          counts[slot] = Math.min(...perServiceCounts.map((serviceCounts) => serviceCounts[slot] ?? 0));
+        });
+        if (!cancelled) setSlotWorkerCounts(counts);
       } catch (err) {
-        console.error('Slot availability fetch failed:', err);
+        console.error('[ScheduleSlotAvailability] fetch failed:', err);
       } finally {
         if (!cancelled) setLoadingAvailability(false);
       }
@@ -173,14 +219,14 @@ export function ScheduleScreen() {
     return () => {
       cancelled = true;
     };
-  }, [selectedDate, profile?.community, service_type]);
+  }, [selectedDate, profile?.community, service_type, availabilityServiceTypes]);
 
   // Auto-clear selected slot if it becomes unavailable after availability loads
   useEffect(() => {
-    if (availableSlots !== null && selectedTime && !availableSlots.has(selectedTime)) {
+    if (slotWorkerCounts !== null && selectedTime && (slotWorkerCounts[normalizeSlotTime(selectedTime)] ?? 0) < 1) {
       setSelectedTime('');
     }
-  }, [availableSlots, selectedTime]);
+  }, [slotWorkerCounts, selectedTime]);
 
   useEffect(() => {
     if (priceParam) {
@@ -212,7 +258,7 @@ export function ScheduleScreen() {
     if (service_type === 'bathroom_cleaning' && !bathroomCount) return;
 
     const isThirtyMinuteSlot = /^\d{1,2}:(00|30)$/.test(selectedTime);
-    const isSelectedSlotAvailable = availableSlots !== null && availableSlots.has(selectedTime);
+    const isSelectedSlotAvailable = slotWorkerCounts !== null && (slotWorkerCounts[normalizeSlotTime(selectedTime)] ?? 0) >= 1;
 
     if (!isThirtyMinuteSlot || !isSelectedSlotAvailable) {
       toast({
@@ -477,8 +523,17 @@ export function ScheduleScreen() {
     timeSegments[activeSegment].end,
     30
   );
+  const allDaySlots = (Object.keys(timeSegments) as TimeSegment[]).flatMap((segment) =>
+    makeSlots(timeSegments[segment].start, timeSegments[segment].end, 30)
+  );
+  const selectedSlotWorkerCount = selectedTime && slotWorkerCounts !== null
+    ? slotWorkerCounts[normalizeSlotTime(selectedTime)] ?? 0
+    : 0;
+  const hasNoWorkersForDay = slotWorkerCounts !== null && allDaySlots.every((slot) =>
+    (slotWorkerCounts[normalizeSlotTime(slot)] ?? 0) < 1
+  );
 
-  const canConfirm = selectedDate && selectedTime && !submitting;
+  const canConfirm = selectedDate && selectedTime && !submitting && slotWorkerCounts !== null && selectedSlotWorkerCount >= 1;
 
   return (
     <div className="min-h-screen bg-background">
@@ -530,7 +585,7 @@ export function ScheduleScreen() {
               Slots reflect live worker availability for the selected day.
             </p>
 
-            {availableSlots !== null && availableSlots.size === 0 ? (
+            {hasNoWorkersForDay ? (
               <div className="flex flex-col items-center gap-2 py-8 px-4 text-center bg-red-50 border border-red-100 rounded-xl">
                 <AlertCircle className="h-7 w-7 text-red-500" />
                 <p className="text-sm font-semibold text-red-700">
@@ -557,12 +612,22 @@ export function ScheduleScreen() {
                     const isPast = isPastToday(slot, selectedDate);
                     const isSelected = selectedTime === slot;
                     const slotSurge = getSurge(slot);
-                    // Allowlist: slot must be explicitly returned as available by backend
-                    // While loading (availableSlots === null), disable all slots
-                    const isSlotUnavailable = availableSlots !== null && !availableSlots.has(slot);
-                    const isStillLoading = availableSlots === null && loadingAvailability;
+                    const normalizedSlot = normalizeSlotTime(slot);
+                    const matchedWorkerCount = slotWorkerCounts?.[normalizedSlot] ?? 0;
+                    const isStillLoading = slotWorkerCounts === null || loadingAvailability;
+                    const isSlotUnavailable = slotWorkerCounts !== null && matchedWorkerCount < 1;
                     const isSoldOut = isSlotUnavailable && !isPast;
                     const isDisabled = isPast || isSlotUnavailable || isStillLoading;
+                    console.log('[ScheduleSlotAvailability] slot match', {
+                      selectedDate: format(selectedDate, 'yyyy-MM-dd'),
+                      routeServiceType: service_type,
+                      serviceType: availabilityServiceTypes.join(','),
+                      community: profile?.community,
+                      slotTime: slot,
+                      normalizedSlot,
+                      workerCount: matchedWorkerCount,
+                      disabled: isDisabled,
+                    });
 
                     return (
                       <Button
