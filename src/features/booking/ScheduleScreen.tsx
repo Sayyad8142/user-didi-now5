@@ -222,7 +222,7 @@ export function ScheduleScreen() {
             serviceType: response.serviceType,
             rowCount: response.data.length,
           })),
-          emptyResponseTreatedAsZeroWorkers: false,
+          emptyResponseTreatedAsZeroWorkers: responses.every((response) => response.data.length === 0),
         });
         const perServiceCounts = responses.map((response) => {
           const counts: Record<string, number> = {};
@@ -665,7 +665,7 @@ export function ScheduleScreen() {
                       matchedAvailabilityRecords,
                       slotTimesMatchingCorrectly: matchedAvailabilityRecords.every((record) => record.matchedRecord !== null),
                       workerCount: matchedWorkerCount,
-                      emptyResponseTreatedAsZeroWorkers: false,
+                      emptyResponseTreatedAsZeroWorkers: slotAvailabilityResponses.every((response) => response.data.length === 0),
                       disabled: isDisabled,
                     });
 
