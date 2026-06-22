@@ -15,6 +15,7 @@ import { PayWorkerManualSheet } from '@/components/PayWorkerManualSheet';
 import { toast } from 'sonner';
 import { RateWorker } from '@/features/bookings/RateWorker';
 import { openExternalUrl } from '@/lib/nativeOpen';
+import { shareOtpOnWhatsApp } from '@/lib/whatsappShare';
 import ChatSheet from '@/features/chat/ChatSheet';
 import { LoadingWorkerBadge } from '@/components/LoadingWorkerBadge';
 import { WorkerRatingsModal } from '@/features/bookings/WorkerRatingsModal';
