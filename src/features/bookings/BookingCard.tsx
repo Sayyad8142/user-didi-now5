@@ -497,6 +497,69 @@ export function BookingCard({
         </div>
       )}
 
+      {/* Check-in OTP block — visible once worker is assigned/active */}
+      {showOtpBlock && (
+        <div className="mt-4 ml-1 mr-1">
+          <div className="rounded-2xl ring-1 ring-emerald-200 bg-emerald-50 p-3 animate-fade-in">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 rounded-lg bg-emerald-100 ring-1 ring-emerald-200 shrink-0">
+                <KeyRound className="w-3.5 h-3.5 text-emerald-700" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-emerald-700">Check-in OTP</p>
+                <p className="text-[10px] text-emerald-800/70">Share with worker only after work is done</p>
+              </div>
+              <div className="flex items-center gap-1 ml-auto">
+                {(row.completion_otp || '').split('').map((d, i) => (
+                  <span
+                    key={i}
+                    className="w-7 h-8 flex items-center justify-center bg-white ring-1 ring-emerald-300 rounded-md text-base font-extrabold text-emerald-900 tabular-nums"
+                  >
+                    {d}
+                  </span>
+                ))}
+              </div>
+            </div>
+            <div className="mt-2.5 pt-2.5 border-t border-emerald-200/70 flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-[11px] font-semibold text-emerald-900 leading-tight">Booked for someone else?</p>
+                <p className="text-[10px] text-emerald-800/70 leading-tight">Share OTP & details on WhatsApp</p>
+              </div>
+              <button
+                type="button"
+                onClick={async () => {
+                  const { shareOtpOnWhatsApp } = await import('@/lib/whatsappShare');
+                  const ok = await shareOtpOnWhatsApp({
+                    workerName: row.worker_name,
+                    serviceType: row.service_type,
+                    otp: row.completion_otp,
+                    amount: row.price_inr ?? undefined,
+                  });
+                  if (ok) {
+                    try {
+                      console.log('[analytics] otp_shared_whatsapp', {
+                        booking_id: row.id,
+                        worker_id: row.worker_id,
+                        timestamp: Date.now(),
+                      });
+                    } catch {}
+                  } else {
+                    toast.error('WhatsApp is not installed on this device.');
+                  }
+                }}
+                aria-label="Share OTP on WhatsApp"
+                className="inline-flex items-center gap-1.5 h-9 px-3 rounded-xl bg-[#25D366] hover:bg-[#1ebe57] text-white font-semibold text-[12px] shadow-sm transition-colors active:scale-[0.99] shrink-0"
+              >
+                <svg viewBox="0 0 32 32" className="w-3.5 h-3.5" fill="currentColor" aria-hidden>
+                  <path d="M19.11 17.27c-.27-.14-1.6-.79-1.85-.88-.25-.09-.43-.14-.61.14-.18.27-.7.88-.86 1.06-.16.18-.32.2-.59.07-.27-.14-1.14-.42-2.17-1.34-.8-.71-1.34-1.59-1.5-1.86-.16-.27-.02-.41.12-.55.12-.12.27-.32.41-.48.14-.16.18-.27.27-.45.09-.18.05-.34-.02-.48-.07-.14-.61-1.47-.84-2.01-.22-.53-.45-.46-.61-.47l-.52-.01c-.18 0-.48.07-.73.34-.25.27-.95.93-.95 2.27 0 1.34.98 2.64 1.11 2.82.14.18 1.93 2.95 4.68 4.13.65.28 1.16.45 1.56.58.65.21 1.25.18 1.72.11.52-.08 1.6-.65 1.83-1.28.23-.63.23-1.17.16-1.28-.07-.11-.25-.18-.52-.32zM16.05 5.33c-5.91 0-10.71 4.81-10.71 10.72 0 1.89.49 3.73 1.43 5.36L5 27l5.74-1.5a10.7 10.7 0 0 0 5.31 1.4h.01c5.9 0 10.71-4.81 10.71-10.72 0-2.86-1.12-5.55-3.15-7.58a10.65 10.65 0 0 0-7.57-3.17zm0 19.55h-.01a8.83 8.83 0 0 1-4.52-1.24l-.32-.19-3.41.89.91-3.32-.21-.34a8.84 8.84 0 0 1-1.36-4.74c0-4.92 4-8.92 8.92-8.92 2.38 0 4.62.93 6.31 2.62a8.86 8.86 0 0 1 2.61 6.31c0 4.92-4 8.92-8.92 8.92z"/>
+                </svg>
+                Share
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Completed booking — extra details (your rating, payment, completed at) */}
       {isCompleted && (
         <div className="mt-3 ml-1 mr-1 rounded-2xl bg-muted/40 ring-1 ring-border/60 px-3 py-2.5 space-y-2 animate-fade-in">
