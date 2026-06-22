@@ -800,6 +800,46 @@ const ActiveBookingCard = memo(() => {
           <p className="mt-6 text-center text-xs text-muted-foreground">
             Sharing OTP early may complete the booking before the work is done.
           </p>
+
+          {/* Booked for someone else? — WhatsApp share */}
+          <div className="mt-6 rounded-2xl ring-1 ring-emerald-200 bg-emerald-50/60 p-3">
+            <p className="text-[12px] font-semibold text-emerald-900">
+              Booked for someone else?
+            </p>
+            <p className="text-[11px] text-emerald-800/80 mt-0.5">
+              Share the OTP and booking details on WhatsApp.
+            </p>
+            <button
+              type="button"
+              onClick={async () => {
+                const ok = await shareOtpOnWhatsApp({
+                  workerName: activeBooking.worker_name,
+                  serviceType: activeBooking.service_type,
+                  otp: activeBooking.completion_otp,
+                  amount: activeBooking.price_inr ?? undefined,
+                });
+                if (ok) {
+                  try {
+                    console.log('[analytics] otp_shared_whatsapp', {
+                      booking_id: activeBooking.id,
+                      worker_id: activeBooking.worker_id,
+                      timestamp: Date.now(),
+                    });
+                  } catch {}
+                } else {
+                  toast.error('WhatsApp is not installed on this device.');
+                }
+              }}
+              className="mt-2.5 w-full inline-flex items-center justify-center gap-2 h-11 rounded-xl bg-[#25D366] hover:bg-[#1ebe57] text-white font-semibold text-[14px] shadow-sm transition-colors active:scale-[0.99]"
+              aria-label="Share OTP on WhatsApp"
+            >
+              {/* WhatsApp glyph */}
+              <svg viewBox="0 0 32 32" className="w-4 h-4" fill="currentColor" aria-hidden>
+                <path d="M19.11 17.27c-.27-.14-1.6-.79-1.85-.88-.25-.09-.43-.14-.61.14-.18.27-.7.88-.86 1.06-.16.18-.32.2-.59.07-.27-.14-1.14-.42-2.17-1.34-.8-.71-1.34-1.59-1.5-1.86-.16-.27-.02-.41.12-.55.12-.12.27-.32.41-.48.14-.16.18-.27.27-.45.09-.18.05-.34-.02-.48-.07-.14-.61-1.47-.84-2.01-.22-.53-.45-.46-.61-.47l-.52-.01c-.18 0-.48.07-.73.34-.25.27-.95.93-.95 2.27 0 1.34.98 2.64 1.11 2.82.14.18 1.93 2.95 4.68 4.13.65.28 1.16.45 1.56.58.65.21 1.25.18 1.72.11.52-.08 1.6-.65 1.83-1.28.23-.63.23-1.17.16-1.28-.07-.11-.25-.18-.52-.32zM16.05 5.33c-5.91 0-10.71 4.81-10.71 10.72 0 1.89.49 3.73 1.43 5.36L5 27l5.74-1.5a10.7 10.7 0 0 0 5.31 1.4h.01c5.9 0 10.71-4.81 10.71-10.72 0-2.86-1.12-5.55-3.15-7.58a10.65 10.65 0 0 0-7.57-3.17zm0 19.55h-.01a8.83 8.83 0 0 1-4.52-1.24l-.32-.19-3.41.89.91-3.32-.21-.34a8.84 8.84 0 0 1-1.36-4.74c0-4.92 4-8.92 8.92-8.92 2.38 0 4.62.93 6.31 2.62a8.86 8.86 0 0 1 2.61 6.31c0 4.92-4 8.92-8.92 8.92z"/>
+              </svg>
+              Share OTP on WhatsApp
+            </button>
+          </div>
         </SheetContent>
       </Sheet>
       )}
