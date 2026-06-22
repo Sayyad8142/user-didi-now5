@@ -46,6 +46,7 @@ const isLimitedAvailabilitySlot = (time: string): boolean => {
 };
 
 type SlotAvailabilityRow = { slot_time: string; worker_count: number | string | null };
+type SlotAvailabilityResponse = { serviceType: string; data: SlotAvailabilityRow[] };
 
 const normalizeSlotTime = (slotTime: string): string => {
   const parts = String(slotTime).split(':');
@@ -105,6 +106,7 @@ export function ScheduleScreen() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('pay_now');
   const [showPaymentPicker, setShowPaymentPicker] = useState(false);
   const [slotWorkerCounts, setSlotWorkerCounts] = useState<Record<string, number> | null>(null); // null = loading/unavailable
+  const [slotAvailabilityResponses, setSlotAvailabilityResponses] = useState<SlotAvailabilityResponse[]>([]);
   const [loadingAvailability, setLoadingAvailability] = useState(false);
 
   // Retry state
@@ -168,6 +170,7 @@ export function ScheduleScreen() {
   useEffect(() => {
     if (!selectedDate || !profile?.community || availabilityServiceTypes.length === 0) {
       setSlotWorkerCounts(null);
+      setSlotAvailabilityResponses([]);
       return;
     }
 
@@ -175,6 +178,7 @@ export function ScheduleScreen() {
     const fetchAvailability = async () => {
       setLoadingAvailability(true);
       setSlotWorkerCounts(null); // reset while loading
+      setSlotAvailabilityResponses([]);
       try {
         const dateStr = format(selectedDate, 'yyyy-MM-dd');
         const requestDetails = {
@@ -211,6 +215,7 @@ export function ScheduleScreen() {
         );
         if (cancelled) return;
         console.log('[ScheduleSlotAvailability][debug] raw rpc response', responses);
+        setSlotAvailabilityResponses(responses);
         console.log('[ScheduleSlotAvailability][debug] availability rows returned?', {
           anyRowsReturned: responses.some((response) => response.data.length > 0),
           rowCountsByService: responses.map((response) => ({
