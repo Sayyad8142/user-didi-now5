@@ -229,7 +229,7 @@ export function ScheduleScreen() {
     if (service_type === 'bathroom_cleaning' && !bathroomCount) return;
 
     const isThirtyMinuteSlot = /^\d{1,2}:(00|30)$/.test(selectedTime);
-    const isSelectedSlotAvailable = availableSlots !== null && availableSlots.has(selectedTime);
+    const isSelectedSlotAvailable = slotWorkerCounts !== null && (slotWorkerCounts[normalizeSlotTime(selectedTime)] ?? 0) >= 1;
 
     if (!isThirtyMinuteSlot || !isSelectedSlotAvailable) {
       toast({
@@ -494,8 +494,17 @@ export function ScheduleScreen() {
     timeSegments[activeSegment].end,
     30
   );
+  const allDaySlots = (Object.keys(timeSegments) as TimeSegment[]).flatMap((segment) =>
+    makeSlots(timeSegments[segment].start, timeSegments[segment].end, 30)
+  );
+  const selectedSlotWorkerCount = selectedTime && slotWorkerCounts !== null
+    ? slotWorkerCounts[normalizeSlotTime(selectedTime)] ?? 0
+    : 0;
+  const hasNoWorkersForDay = slotWorkerCounts !== null && allDaySlots.every((slot) =>
+    (slotWorkerCounts[normalizeSlotTime(slot)] ?? 0) < 1
+  );
 
-  const canConfirm = selectedDate && selectedTime && !submitting;
+  const canConfirm = selectedDate && selectedTime && !submitting && slotWorkerCounts !== null && selectedSlotWorkerCount >= 1;
 
   return (
     <div className="min-h-screen bg-background">
@@ -547,7 +556,7 @@ export function ScheduleScreen() {
               Slots reflect live worker availability for the selected day.
             </p>
 
-            {availableSlots !== null && availableSlots.size === 0 ? (
+            {hasNoWorkersForDay ? (
               <div className="flex flex-col items-center gap-2 py-8 px-4 text-center bg-red-50 border border-red-100 rounded-xl">
                 <AlertCircle className="h-7 w-7 text-red-500" />
                 <p className="text-sm font-semibold text-red-700">
@@ -574,12 +583,21 @@ export function ScheduleScreen() {
                     const isPast = isPastToday(slot, selectedDate);
                     const isSelected = selectedTime === slot;
                     const slotSurge = getSurge(slot);
-                    // Allowlist: slot must be explicitly returned as available by backend
-                    // While loading (availableSlots === null), disable all slots
-                    const isSlotUnavailable = availableSlots !== null && !availableSlots.has(slot);
-                    const isStillLoading = availableSlots === null && loadingAvailability;
+                    const normalizedSlot = normalizeSlotTime(slot);
+                    const matchedWorkerCount = slotWorkerCounts?.[normalizedSlot] ?? 0;
+                    const isStillLoading = slotWorkerCounts === null || loadingAvailability;
+                    const isSlotUnavailable = slotWorkerCounts !== null && matchedWorkerCount < 1;
                     const isSoldOut = isSlotUnavailable && !isPast;
                     const isDisabled = isPast || isSlotUnavailable || isStillLoading;
+                    console.log('[ScheduleSlotAvailability] slot match', {
+                      selectedDate: format(selectedDate, 'yyyy-MM-dd'),
+                      serviceType: service_type,
+                      community: profile?.community,
+                      slotTime: slot,
+                      normalizedSlot,
+                      workerCount: matchedWorkerCount,
+                      disabled: isDisabled,
+                    });
 
                     return (
                       <Button
