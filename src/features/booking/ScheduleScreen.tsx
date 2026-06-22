@@ -45,6 +45,16 @@ const isLimitedAvailabilitySlot = (time: string): boolean => {
   return hours >= 15 && hours <= 19;
 };
 
+type SlotAvailabilityRow = { slot_time: string; worker_count: number | string | null };
+
+const normalizeSlotTime = (slotTime: string): string => {
+  const parts = String(slotTime).split(':');
+  if (parts.length >= 2) {
+    return `${parts[0].padStart(2, '0')}:${parts[1].padStart(2, '0')}`;
+  }
+  return String(slotTime);
+};
+
 export function ScheduleScreen() {
   const { service_type } = useParams<{ service_type: string }>();
   const [searchParams] = useSearchParams();
@@ -79,7 +89,7 @@ export function ScheduleScreen() {
   const [showAvailabilityWarning, setShowAvailabilityWarning] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('pay_now');
   const [showPaymentPicker, setShowPaymentPicker] = useState(false);
-  const [availableSlots, setAvailableSlots] = useState<Set<string> | null>(null); // null = still loading
+  const [slotWorkerCounts, setSlotWorkerCounts] = useState<Record<string, number> | null>(null); // null = loading/unavailable
   const [loadingAvailability, setLoadingAvailability] = useState(false);
 
   // Retry state
@@ -138,32 +148,39 @@ export function ScheduleScreen() {
   // Fetch slot availability when date or community changes — ALLOWLIST approach
   useEffect(() => {
     if (!selectedDate || !profile?.community || !service_type) {
-      setAvailableSlots(null);
+      setSlotWorkerCounts(null);
       return;
     }
 
     let cancelled = false;
     const fetchAvailability = async () => {
       setLoadingAvailability(true);
-      setAvailableSlots(null); // reset while loading
+      setSlotWorkerCounts(null); // reset while loading
       try {
         const dateStr = format(selectedDate, 'yyyy-MM-dd');
+        console.log('[ScheduleSlotAvailability] request', {
+          selectedDate: dateStr,
+          serviceType: service_type,
+          community: profile.community,
+        });
         const { data, error } = await supabase.rpc('get_scheduled_slot_availability', {
           p_community: profile.community,
           p_service_type: service_type,
           p_date: dateStr,
         });
-        if (error || cancelled) return;
-        const allowed = new Set<string>();
-        ((data as any[]) || []).forEach((row: { slot_time: string; worker_count: number }) => {
-          if (row.worker_count >= 1) {
-            const normalized = row.slot_time.length > 5 ? row.slot_time.slice(0, 5) : row.slot_time;
-            allowed.add(normalized);
-          }
+        if (error || cancelled) {
+          if (error) console.error('[ScheduleSlotAvailability] error', error);
+          return;
+        }
+        console.log('[ScheduleSlotAvailability] response', data);
+        const counts: Record<string, number> = {};
+        ((data as SlotAvailabilityRow[]) || []).forEach((row) => {
+          const normalized = normalizeSlotTime(row.slot_time);
+          counts[normalized] = Number(row.worker_count ?? 0);
         });
-        if (!cancelled) setAvailableSlots(allowed);
+        if (!cancelled) setSlotWorkerCounts(counts);
       } catch (err) {
-        console.error('Slot availability fetch failed:', err);
+        console.error('[ScheduleSlotAvailability] fetch failed:', err);
       } finally {
         if (!cancelled) setLoadingAvailability(false);
       }
@@ -177,10 +194,10 @@ export function ScheduleScreen() {
 
   // Auto-clear selected slot if it becomes unavailable after availability loads
   useEffect(() => {
-    if (availableSlots !== null && selectedTime && !availableSlots.has(selectedTime)) {
+    if (slotWorkerCounts !== null && selectedTime && (slotWorkerCounts[normalizeSlotTime(selectedTime)] ?? 0) < 1) {
       setSelectedTime('');
     }
-  }, [availableSlots, selectedTime]);
+  }, [slotWorkerCounts, selectedTime]);
 
   useEffect(() => {
     if (priceParam) {
