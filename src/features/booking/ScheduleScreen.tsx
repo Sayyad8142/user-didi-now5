@@ -65,6 +65,11 @@ const getAvailabilityServiceTypes = (serviceType?: string, tasksParam?: string |
   return selectedMaidTasks.length > 0 ? Array.from(new Set(selectedMaidTasks)) : ['maid'];
 };
 
+const findMatchedAvailabilityRecord = (rows: SlotAvailabilityRow[], slotTime: string): SlotAvailabilityRow | null => {
+  const normalizedSlot = normalizeSlotTime(slotTime);
+  return rows.find((row) => normalizeSlotTime(row.slot_time) === normalizedSlot) ?? null;
+};
+
 export function ScheduleScreen() {
   const { service_type } = useParams<{ service_type: string }>();
   const [searchParams] = useSearchParams();
@@ -172,13 +177,27 @@ export function ScheduleScreen() {
       setSlotWorkerCounts(null); // reset while loading
       try {
         const dateStr = format(selectedDate, 'yyyy-MM-dd');
-        console.log('[ScheduleSlotAvailability] request', {
+        const requestDetails = {
           selectedDate: dateStr,
+          communitySlug: profile.community,
           routeServiceType: service_type,
           serviceType: availabilityServiceTypes.join(','),
           availabilityServiceTypes,
-          community: profile.community,
+          rpcRequests: availabilityServiceTypes.map((availabilityServiceType) => ({
+            functionName: 'get_scheduled_slot_availability',
+            p_community: profile.community,
+            p_service_type: availabilityServiceType,
+            p_date: dateStr,
+          })),
+        };
+        console.log('[ScheduleSlotAvailability][debug] selected date', dateStr);
+        console.log('[ScheduleSlotAvailability][debug] community slug', profile.community);
+        console.log('[ScheduleSlotAvailability][debug] service type', {
+          routeServiceType: service_type,
+          availabilityServiceTypes,
+          identicalForRpc: service_type === availabilityServiceTypes.join(','),
         });
+        console.log('[ScheduleSlotAvailability][debug] exact rpc request', requestDetails);
         const responses = await Promise.all(
           availabilityServiceTypes.map(async (availabilityServiceType) => {
             const { data, error } = await supabase.rpc('get_scheduled_slot_availability', {
@@ -191,7 +210,15 @@ export function ScheduleScreen() {
           })
         );
         if (cancelled) return;
-        console.log('[ScheduleSlotAvailability] response', responses);
+        console.log('[ScheduleSlotAvailability][debug] raw rpc response', responses);
+        console.log('[ScheduleSlotAvailability][debug] availability rows returned?', {
+          anyRowsReturned: responses.some((response) => response.data.length > 0),
+          rowCountsByService: responses.map((response) => ({
+            serviceType: response.serviceType,
+            rowCount: response.data.length,
+          })),
+          emptyResponseTreatedAsZeroWorkers: false,
+        });
         const perServiceCounts = responses.map((response) => {
           const counts: Record<string, number> = {};
           response.data.forEach((row) => {
