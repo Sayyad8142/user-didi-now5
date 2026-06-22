@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Home, MapPin, Wallet } from 'lucide-react';
+import { ArrowLeft, Home, MapPin, Wallet, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -523,10 +523,24 @@ export function ScheduleScreen() {
 
           {/* Time Selection */}
           <Card className="bg-white rounded-2xl shadow-sm border border-gray-100 p-3">
-            <h2 className="text-base font-semibold text-foreground mb-3">
+            <h2 className="text-base font-semibold text-foreground mb-1">
               Select start time of service
             </h2>
-            
+            <p className="text-[11px] text-muted-foreground mb-3">
+              Slots reflect live worker availability for the selected day.
+            </p>
+
+            {availableSlots !== null && availableSlots.size === 0 ? (
+              <div className="flex flex-col items-center gap-2 py-8 px-4 text-center bg-red-50 border border-red-100 rounded-xl">
+                <AlertCircle className="h-7 w-7 text-red-500" />
+                <p className="text-sm font-semibold text-red-700">
+                  No workers available for the selected date.
+                </p>
+                <p className="text-xs text-red-600/80">
+                  Please choose another date.
+                </p>
+              </div>
+            ) : (
             <Tabs value={activeSegment} onValueChange={(value) => {
               setActiveSegment(value as TimeSegment);
               setSelectedTime(''); // Reset time when segment changes
@@ -547,30 +561,37 @@ export function ScheduleScreen() {
                     // While loading (availableSlots === null), disable all slots
                     const isSlotUnavailable = availableSlots !== null && !availableSlots.has(slot);
                     const isStillLoading = availableSlots === null && loadingAvailability;
+                    const isSoldOut = isSlotUnavailable && !isPast;
                     const isDisabled = isPast || isSlotUnavailable || isStillLoading;
-                    
+
                     return (
                       <Button
                         key={slot}
                         variant="outline"
                         disabled={isDisabled}
+                        aria-disabled={isDisabled}
                         onClick={() => {
+                          if (isDisabled) return;
                           setSelectedTime(slot);
                           if (isLimitedAvailabilitySlot(slot)) {
                             setShowAvailabilityWarning(true);
                           }
                         }}
-                        className={`relative rounded-xl border-2 h-auto min-h-[3rem] px-2 text-xs flex flex-col items-center justify-center py-1.5 ${
+                        className={`relative rounded-xl border-2 h-auto min-h-[3.25rem] px-2 text-xs flex flex-col items-center justify-center py-1.5 ${
                           isSelected
                             ? 'border-primary bg-primary/10 text-primary'
+                            : isSoldOut
+                            ? 'border-red-200 bg-red-50 text-red-400 cursor-not-allowed'
                             : isDisabled
                             ? 'border-gray-200 text-gray-400 bg-gray-50 opacity-50'
                             : 'border-gray-200 bg-white text-foreground hover:border-primary/50'
                         }`}
                       >
-                        <span className={`font-medium ${isSlotUnavailable ? 'line-through' : ''}`}>{toDisplay12h(slot)}</span>
-                        {isSlotUnavailable && !isPast && (
-                          <span className="text-[9px] text-destructive font-normal">Unavailable</span>
+                        <span className={`font-medium ${isSoldOut ? 'line-through' : ''}`}>{toDisplay12h(slot)}</span>
+                        {isSoldOut && (
+                          <span className="mt-0.5 inline-flex items-center rounded-full bg-red-500 text-white text-[8px] leading-none font-bold uppercase tracking-wide px-1.5 py-0.5">
+                            Sold Out
+                          </span>
                         )}
                         {!isSlotUnavailable && !isStillLoading && slotSurge > 0 && (
                           <span className={`text-[10px] font-semibold mt-0.5 ${
@@ -592,6 +613,7 @@ export function ScheduleScreen() {
                 </div>
               </TabsContent>
             </Tabs>
+            )}
           </Card>
         </div>
 
