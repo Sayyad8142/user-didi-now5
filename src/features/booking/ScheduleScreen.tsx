@@ -174,7 +174,8 @@ export function ScheduleScreen() {
         const dateStr = format(selectedDate, 'yyyy-MM-dd');
         console.log('[ScheduleSlotAvailability] request', {
           selectedDate: dateStr,
-          serviceType: service_type,
+          routeServiceType: service_type,
+          serviceType: availabilityServiceTypes.join(','),
           availabilityServiceTypes,
           community: profile.community,
         });
@@ -619,7 +620,8 @@ export function ScheduleScreen() {
                     const isDisabled = isPast || isSlotUnavailable || isStillLoading;
                     console.log('[ScheduleSlotAvailability] slot match', {
                       selectedDate: format(selectedDate, 'yyyy-MM-dd'),
-                      serviceType: service_type,
+                      routeServiceType: service_type,
+                      serviceType: availabilityServiceTypes.join(','),
                       community: profile?.community,
                       slotTime: slot,
                       normalizedSlot,
