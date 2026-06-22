@@ -56,14 +56,11 @@ const normalizeSlotTime = (slotTime: string): string => {
   return String(slotTime);
 };
 
-const getAvailabilityServiceTypes = (serviceType?: string, tasksParam?: string | null): string[] => {
+const getAvailabilityServiceTypes = (serviceType?: string, _tasksParam?: string | null): string[] => {
   if (!serviceType) return [];
-  if (serviceType !== 'maid') return [serviceType];
-  const selectedMaidTasks = (tasksParam || '')
-    .split(',')
-    .map((task) => task.trim())
-    .filter(Boolean);
-  return selectedMaidTasks.length > 0 ? Array.from(new Set(selectedMaidTasks)) : ['maid'];
+  // Availability is always checked at the booking service level (maid, bathroom_cleaning, floor_cleaning),
+  // never at the task level. Task selections (floor_cleaning, dish_washing) affect pricing only.
+  return [serviceType];
 };
 
 const findMatchedAvailabilityRecord = (rows: SlotAvailabilityRow[], slotTime: string): SlotAvailabilityRow | null => {
