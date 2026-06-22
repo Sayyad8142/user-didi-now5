@@ -55,6 +55,16 @@ const normalizeSlotTime = (slotTime: string): string => {
   return String(slotTime);
 };
 
+const getAvailabilityServiceTypes = (serviceType?: string, tasksParam?: string | null): string[] => {
+  if (!serviceType) return [];
+  if (serviceType !== 'maid') return [serviceType];
+  const selectedMaidTasks = (tasksParam || '')
+    .split(',')
+    .map((task) => task.trim())
+    .filter(Boolean);
+  return selectedMaidTasks.length > 0 ? Array.from(new Set(selectedMaidTasks)) : ['maid'];
+};
+
 export function ScheduleScreen() {
   const { service_type } = useParams<{ service_type: string }>();
   const [searchParams] = useSearchParams();
@@ -117,6 +127,10 @@ export function ScheduleScreen() {
   const dishIntensity = searchParams.get('dish_intensity') as 'light' | 'medium' | 'heavy' | null;
   const dishIntensityExtra = parseInt(searchParams.get('dish_extra') || '0');
   const GLASS_PARTITION_FEE = 30;
+  const availabilityServiceTypes = React.useMemo(
+    () => getAvailabilityServiceTypes(service_type, tasksParam),
+    [service_type, tasksParam]
+  );
 
   useEffect(() => {
     // Don't redirect - ProtectedRoute handles auth check
@@ -147,7 +161,7 @@ export function ScheduleScreen() {
 
   // Fetch slot availability when date or community changes — ALLOWLIST approach
   useEffect(() => {
-    if (!selectedDate || !profile?.community || !service_type) {
+    if (!selectedDate || !profile?.community || availabilityServiceTypes.length === 0) {
       setSlotWorkerCounts(null);
       return;
     }
@@ -161,22 +175,36 @@ export function ScheduleScreen() {
         console.log('[ScheduleSlotAvailability] request', {
           selectedDate: dateStr,
           serviceType: service_type,
+          availabilityServiceTypes,
           community: profile.community,
         });
-        const { data, error } = await supabase.rpc('get_scheduled_slot_availability', {
-          p_community: profile.community,
-          p_service_type: service_type,
-          p_date: dateStr,
+        const responses = await Promise.all(
+          availabilityServiceTypes.map(async (availabilityServiceType) => {
+            const { data, error } = await supabase.rpc('get_scheduled_slot_availability', {
+              p_community: profile.community,
+              p_service_type: availabilityServiceType,
+              p_date: dateStr,
+            });
+            if (error) throw error;
+            return { serviceType: availabilityServiceType, data: (data as SlotAvailabilityRow[]) || [] };
+          })
+        );
+        if (cancelled) return;
+        console.log('[ScheduleSlotAvailability] response', responses);
+        const perServiceCounts = responses.map((response) => {
+          const counts: Record<string, number> = {};
+          response.data.forEach((row) => {
+            counts[normalizeSlotTime(row.slot_time)] = Number(row.worker_count ?? 0);
+          });
+          return counts;
         });
-        if (error || cancelled) {
-          if (error) console.error('[ScheduleSlotAvailability] error', error);
-          return;
-        }
-        console.log('[ScheduleSlotAvailability] response', data);
+        const returnedSlots = new Set<string>();
+        perServiceCounts.forEach((counts) => {
+          Object.keys(counts).forEach((slot) => returnedSlots.add(slot));
+        });
         const counts: Record<string, number> = {};
-        ((data as SlotAvailabilityRow[]) || []).forEach((row) => {
-          const normalized = normalizeSlotTime(row.slot_time);
-          counts[normalized] = Number(row.worker_count ?? 0);
+        returnedSlots.forEach((slot) => {
+          counts[slot] = Math.min(...perServiceCounts.map((serviceCounts) => serviceCounts[slot] ?? 0));
         });
         if (!cancelled) setSlotWorkerCounts(counts);
       } catch (err) {
@@ -190,7 +218,7 @@ export function ScheduleScreen() {
     return () => {
       cancelled = true;
     };
-  }, [selectedDate, profile?.community, service_type]);
+  }, [selectedDate, profile?.community, service_type, availabilityServiceTypes]);
 
   // Auto-clear selected slot if it becomes unavailable after availability loads
   useEffect(() => {
