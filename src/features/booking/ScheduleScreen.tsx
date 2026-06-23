@@ -570,7 +570,7 @@ export function ScheduleScreen() {
                       >
                         <span className={`font-medium ${isSlotUnavailable ? 'line-through' : ''}`}>{toDisplay12h(slot)}</span>
                         {isSlotUnavailable && !isPast && (
-                          <span className="text-[9px] text-destructive font-normal">Unavailable</span>
+                          <span className="text-[9px] text-destructive font-normal">Sold out</span>
                         )}
                         {!isSlotUnavailable && !isStillLoading && slotSurge > 0 && (
                           <span className={`text-[10px] font-semibold mt-0.5 ${
