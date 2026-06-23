@@ -1,22 +1,31 @@
--- Fix off-by-one day-of-week mismatch between worker app (Mon=0..Sun=6)
--- and PostgreSQL's extract(dow) (Sun=0..Sat=6).
+-- =============================================================================
+-- Fix: day_of_week mismatch between worker app (Mon=0..Sun=6) and
+--      PostgreSQL extract(dow ...) (Sun=0..Sat=6).
 --
--- Symptom: Worker selects slots on Saturday in worker app, but those slots
--- show up on Friday in user app's schedule screen.
+-- Symptom: Worker roster saved for Saturday appears in user app under Friday.
 --
--- Root cause: worker_availability.day_of_week is written by the worker app
--- using JS Mon-first index (Mon=0, ..., Sat=5, Sun=6).
--- The user app RPC + validation trigger used extract(dow) which is Sun-first
--- (Sun=0, ..., Sat=6). So for a Friday (PG dow=5) it returned Saturday's data.
+-- Affected functions (all replaced in this migration):
+--   1. public.get_scheduled_slot_availability(text, text, date)
+--   2. public.validate_scheduled_booking_slot()        (trigger fn on bookings)
+--   3. public.get_online_workers_count(text)
+--   4. public.get_eligible_workers(text, text, int)
 --
--- Conversion: worker_dow = (pg_dow + 6) % 7
---   PG  Sun=0 -> Worker 6 (Sun)
---   PG  Mon=1 -> Worker 0 (Mon)
---   ...
---   PG  Sat=6 -> Worker 5 (Sat)
+-- Conversion applied in every function:
+--   v_dow := (extract(dow FROM <date|now>)::int + 6) % 7;
 --
--- Run this against the EXTERNAL Supabase DB (api.didisnow.com).
+-- Run on EXTERNAL Supabase (api.didisnow.com) as a service-role user.
+-- Idempotent: each statement uses CREATE OR REPLACE.
+-- =============================================================================
 
+BEGIN;
+
+-- -----------------------------------------------------------------------------
+-- 1) get_scheduled_slot_availability
+--    Used by: src/features/booking/ScheduleScreen.tsx (slot allowlist).
+--    Latest prior definition: migration 20260222232139.
+--    Change: line `v_dow := extract(dow FROM p_date)::int;`
+--         -> `v_dow := (extract(dow FROM p_date)::int + 6) % 7;`
+-- -----------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.get_scheduled_slot_availability(
   p_community text,
   p_service_type text,
@@ -32,7 +41,7 @@ DECLARE
   v_slot_start text;
   v_slot_end text;
 BEGIN
-  -- Convert PG dow (Sun=0..Sat=6) to worker app dow (Mon=0..Sun=6)
+  -- Convert PG dow (Sun=0..Sat=6) to worker-app dow (Mon=0..Sun=6)
   v_dow := (extract(dow FROM p_date)::int + 6) % 7;
 
   IF p_service_type = 'cook' THEN
@@ -71,6 +80,11 @@ BEGIN
 END;
 $$;
 
+-- -----------------------------------------------------------------------------
+-- 2) validate_scheduled_booking_slot  (BEFORE INSERT/UPDATE trigger on bookings)
+--    Latest prior definition: migration 20260304203024.
+--    Change: same v_dow conversion.
+-- -----------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.validate_scheduled_booking_slot()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -81,12 +95,15 @@ DECLARE
   v_dow int;
   v_slot_full text;
   v_count int;
+  v_min_workers constant int := 1;
 BEGIN
-  IF NEW.booking_type != 'scheduled' OR NEW.scheduled_date IS NULL OR NEW.scheduled_time IS NULL THEN
+  IF NEW.booking_type != 'scheduled'
+     OR NEW.scheduled_date IS NULL
+     OR NEW.scheduled_time IS NULL THEN
     RETURN NEW;
   END IF;
 
-  -- Convert PG dow (Sun=0..Sat=6) to worker app dow (Mon=0..Sun=6)
+  -- Convert PG dow (Sun=0..Sat=6) to worker-app dow (Mon=0..Sun=6)
   v_dow := (extract(dow FROM NEW.scheduled_date)::int + 6) % 7;
   v_slot_full := lpad(NEW.scheduled_time::text, 8, '0');
 
@@ -99,13 +116,143 @@ BEGIN
     AND wa.day_of_week = v_dow
     AND v_slot_full = ANY(wa.slots);
 
-  IF v_count = 0 THEN
-    RAISE EXCEPTION 'No workers available for this slot. Please choose another time.';
+  IF v_count < v_min_workers THEN
+    RAISE EXCEPTION 'Slot unavailable: No workers are available at this time. Please choose another time slot.';
   END IF;
 
   RETURN NEW;
 END;
 $$;
 
--- Also fix the scheduled-dispatch matcher if it uses the same convention.
--- Check: SELECT prosrc FROM pg_proc WHERE proname ILIKE '%dispatch%' OR proname ILIKE '%scheduled%';
+-- -----------------------------------------------------------------------------
+-- 3) get_online_workers_count
+--    Used by: src/hooks/useOnlineWorkerCounts.ts (home live counters).
+--    Latest prior definition: migration 20260303132321.
+--    Change: same v_dow conversion against now() AT TIME ZONE 'Asia/Kolkata'.
+-- -----------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.get_online_workers_count(p_community text)
+RETURNS TABLE(service text, online_count bigint)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_now timestamptz := now() AT TIME ZONE 'Asia/Kolkata';
+  -- Convert PG dow (Sun=0..Sat=6) to worker-app dow (Mon=0..Sun=6)
+  v_dow int := (EXTRACT(DOW FROM v_now)::int + 6) % 7;
+  v_current_slot text := to_char(
+    date_trunc('hour', v_now::time)
+    + (floor(EXTRACT(MINUTE FROM v_now::time) / 30) * interval '30 minutes'),
+    'HH24:MI:SS'
+  );
+BEGIN
+  RETURN QUERY
+  SELECT
+    svc AS service,
+    count(DISTINCT w.id) AS online_count
+  FROM workers w
+  CROSS JOIN unnest(w.service_types) AS svc
+  INNER JOIN worker_availability wa
+    ON wa.worker_id = w.id
+    AND wa.day_of_week = v_dow
+    AND v_current_slot = ANY(wa.slots)
+  WHERE p_community = ANY(w.communities)
+    AND w.is_active = true
+    AND w.is_available = true
+    AND (w.is_busy = false OR w.is_busy IS NULL)
+  GROUP BY svc;
+END;
+$$;
+
+-- -----------------------------------------------------------------------------
+-- 4) get_eligible_workers
+--    Used by: instant-booking eligible-pool reads.
+--    Latest prior definition: migration 20260223100850.
+--    Change: same v_dow conversion against now() AT TIME ZONE 'Asia/Kolkata'.
+-- -----------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.get_eligible_workers(
+  p_service   text,
+  p_community text,
+  p_limit     int DEFAULT 50
+)
+RETURNS TABLE(
+  worker_id uuid,
+  full_name text,
+  photo_url text,
+  rating_avg numeric,
+  rating_count int,
+  completed_bookings_count int,
+  last_seen_at timestamptz
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_dow  int;
+  v_slot text;
+BEGIN
+  -- Convert PG dow (Sun=0..Sat=6) to worker-app dow (Mon=0..Sun=6)
+  v_dow := (extract(dow FROM now() AT TIME ZONE 'Asia/Kolkata')::int + 6) % 7;
+  v_slot := to_char(
+    date_trunc('hour', now() AT TIME ZONE 'Asia/Kolkata')
+    + interval '30 min'
+      * floor(extract(minute FROM now() AT TIME ZONE 'Asia/Kolkata') / 30),
+    'HH24:MI:SS'
+  );
+
+  RETURN QUERY
+  SELECT
+    w.id                                            AS worker_id,
+    w.full_name,
+    w.photo_url,
+    COALESCE(w.rating, 5.0)                         AS rating_avg,
+    COALESCE(w.total_ratings, 0)::int               AS rating_count,
+    COALESCE(w.total_bookings_completed, 0)::int    AS completed_bookings_count,
+    w.last_seen_at
+  FROM workers w
+  JOIN worker_availability wa ON wa.worker_id = w.id
+  WHERE w.is_active = true
+    AND w.is_available = true
+    AND (w.is_busy = false OR w.is_busy IS NULL)
+    AND p_service = ANY(w.service_types)
+    AND (
+      w.communities IS NULL
+      OR array_length(w.communities, 1) IS NULL
+      OR p_community = ANY(w.communities)
+    )
+    AND wa.day_of_week = v_dow
+    AND v_slot = ANY(wa.slots)
+  ORDER BY
+    COALESCE(w.rating, 5.0) DESC,
+    COALESCE(w.total_bookings_completed, 0) DESC,
+    w.last_seen_at DESC NULLS LAST
+  LIMIT p_limit;
+END;
+$$;
+
+COMMIT;
+
+-- =============================================================================
+-- OPTIONAL AUDIT (read-only) — run separately after the migration commits.
+-- Lists future scheduled bookings whose slot is NOT covered by the worker
+-- roster under the corrected day-of-week mapping. These were let through by
+-- the old trigger and may need manual review / re-scheduling.
+-- =============================================================================
+-- SELECT b.id, b.user_id, b.community, b.service_type,
+--        b.scheduled_date, b.scheduled_time, b.status
+-- FROM public.bookings b
+-- WHERE b.booking_type = 'scheduled'
+--   AND b.scheduled_date >= current_date
+--   AND b.status IN ('pending','dispatched','accepted','confirmed','on_the_way')
+--   AND NOT EXISTS (
+--     SELECT 1
+--     FROM public.workers w
+--     JOIN public.worker_availability wa ON wa.worker_id = w.id
+--     WHERE w.is_active = true
+--       AND b.community = ANY(w.communities)
+--       AND b.service_type = ANY(w.service_types)
+--       AND wa.day_of_week = (extract(dow FROM b.scheduled_date)::int + 6) % 7
+--       AND lpad(b.scheduled_time::text, 8, '0') = ANY(wa.slots)
+--   )
+-- ORDER BY b.scheduled_date, b.scheduled_time;
