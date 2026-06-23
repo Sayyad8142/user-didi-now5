@@ -36,6 +36,7 @@ BEGIN
       i,
       lpad(((v_base_minute + i*30) / 60)::text, 2, '0') || ':' ||
         lpad(((v_base_minute + i*30) % 60)::text, 2, '0')                                    AS st,
+      make_time(((v_base_minute + i*30) / 60)::int, ((v_base_minute + i*30) % 60)::int, 0)       AS st_time,
       ((p_date::timestamp + make_interval(mins => v_base_minute + i*30))
         AT TIME ZONE 'Asia/Kolkata')                                                          AS slot_ts
     FROM generate_series(0, v_slot_count - 1) AS i
@@ -60,10 +61,7 @@ BEGIN
      AND b.community      = p_community
      AND b.status IN ('pending','dispatched','accepted','assigned',
                       'confirmed','on_the_way','in_progress')
-     AND (
-          b.scheduled_time = s.st
-       OR b.scheduled_time = (s.st || ':00')
-     )
+     AND b.scheduled_time = s.st_time
     GROUP BY s.i
   )
   SELECT
@@ -144,7 +142,7 @@ BEGIN
     AND b.community      = NEW.community
     AND b.status IN ('pending','dispatched','accepted','assigned',
                      'confirmed','on_the_way','in_progress')
-    AND (b.scheduled_time = v_st OR b.scheduled_time = (v_st || ':00'));
+    AND b.scheduled_time = v_st::time;
 
   v_remaining := GREATEST(0, v_rostered - v_booked);
 
