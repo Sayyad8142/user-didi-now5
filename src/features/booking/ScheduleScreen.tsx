@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Home, MapPin, Wallet, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Home, MapPin, Wallet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -45,29 +45,6 @@ const isLimitedAvailabilitySlot = (time: string): boolean => {
   return hours >= 15 && hours <= 19;
 };
 
-type SlotAvailabilityRow = { slot_time: string; worker_count: number | string | null };
-type SlotAvailabilityResponse = { serviceType: string; data: SlotAvailabilityRow[] };
-
-const normalizeSlotTime = (slotTime: string): string => {
-  const parts = String(slotTime).split(':');
-  if (parts.length >= 2) {
-    return `${parts[0].padStart(2, '0')}:${parts[1].padStart(2, '0')}`;
-  }
-  return String(slotTime);
-};
-
-const getAvailabilityServiceTypes = (serviceType?: string, _tasksParam?: string | null): string[] => {
-  if (!serviceType) return [];
-  // Availability is always checked at the booking service level (maid, bathroom_cleaning, floor_cleaning),
-  // never at the task level. Task selections (floor_cleaning, dish_washing) affect pricing only.
-  return [serviceType];
-};
-
-const findMatchedAvailabilityRecord = (rows: SlotAvailabilityRow[], slotTime: string): SlotAvailabilityRow | null => {
-  const normalizedSlot = normalizeSlotTime(slotTime);
-  return rows.find((row) => normalizeSlotTime(row.slot_time) === normalizedSlot) ?? null;
-};
-
 export function ScheduleScreen() {
   const { service_type } = useParams<{ service_type: string }>();
   const [searchParams] = useSearchParams();
@@ -102,8 +79,7 @@ export function ScheduleScreen() {
   const [showAvailabilityWarning, setShowAvailabilityWarning] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('pay_now');
   const [showPaymentPicker, setShowPaymentPicker] = useState(false);
-  const [slotWorkerCounts, setSlotWorkerCounts] = useState<Record<string, number> | null>(null); // null = loading/unavailable
-  const [slotAvailabilityResponses, setSlotAvailabilityResponses] = useState<SlotAvailabilityResponse[]>([]);
+  const [availableSlots, setAvailableSlots] = useState<Set<string> | null>(null); // null = still loading
   const [loadingAvailability, setLoadingAvailability] = useState(false);
 
   // Retry state
@@ -131,10 +107,6 @@ export function ScheduleScreen() {
   const dishIntensity = searchParams.get('dish_intensity') as 'light' | 'medium' | 'heavy' | null;
   const dishIntensityExtra = parseInt(searchParams.get('dish_extra') || '0');
   const GLASS_PARTITION_FEE = 30;
-  const availabilityServiceTypes = React.useMemo(
-    () => getAvailabilityServiceTypes(service_type, tasksParam),
-    [service_type, tasksParam]
-  );
 
   useEffect(() => {
     // Don't redirect - ProtectedRoute handles auth check
@@ -165,80 +137,33 @@ export function ScheduleScreen() {
 
   // Fetch slot availability when date or community changes — ALLOWLIST approach
   useEffect(() => {
-    if (!selectedDate || !profile?.community || availabilityServiceTypes.length === 0) {
-      setSlotWorkerCounts(null);
-      setSlotAvailabilityResponses([]);
+    if (!selectedDate || !profile?.community || !service_type) {
+      setAvailableSlots(null);
       return;
     }
 
     let cancelled = false;
     const fetchAvailability = async () => {
       setLoadingAvailability(true);
-      setSlotWorkerCounts(null); // reset while loading
-      setSlotAvailabilityResponses([]);
+      setAvailableSlots(null); // reset while loading
       try {
         const dateStr = format(selectedDate, 'yyyy-MM-dd');
-        const requestDetails = {
-          selectedDate: dateStr,
-          communitySlug: profile.community,
-          routeServiceType: service_type,
-          serviceType: availabilityServiceTypes.join(','),
-          availabilityServiceTypes,
-          rpcRequests: availabilityServiceTypes.map((availabilityServiceType) => ({
-            functionName: 'get_scheduled_slot_availability',
-            p_community: profile.community,
-            p_service_type: availabilityServiceType,
-            p_date: dateStr,
-          })),
-        };
-        console.log('[ScheduleSlotAvailability][debug] selected date', dateStr);
-        console.log('[ScheduleSlotAvailability][debug] community slug', profile.community);
-        console.log('[ScheduleSlotAvailability][debug] service type', {
-          routeServiceType: service_type,
-          availabilityServiceTypes,
-          identicalForRpc: service_type === availabilityServiceTypes.join(','),
+        const { data, error } = await supabase.rpc('get_scheduled_slot_availability', {
+          p_community: profile.community,
+          p_service_type: service_type,
+          p_date: dateStr,
         });
-        console.log('[ScheduleSlotAvailability][debug] exact rpc request', requestDetails);
-        const responses = await Promise.all(
-          availabilityServiceTypes.map(async (availabilityServiceType) => {
-            const { data, error } = await supabase.rpc('get_scheduled_slot_availability', {
-              p_community: profile.community,
-              p_service_type: availabilityServiceType,
-              p_date: dateStr,
-            });
-            if (error) throw error;
-            return { serviceType: availabilityServiceType, data: (data as SlotAvailabilityRow[]) || [] };
-          })
-        );
-        if (cancelled) return;
-        console.log('[ScheduleSlotAvailability][debug] raw rpc response', responses);
-        setSlotAvailabilityResponses(responses);
-        console.log('[ScheduleSlotAvailability][debug] availability rows returned?', {
-          anyRowsReturned: responses.some((response) => response.data.length > 0),
-          rowCountsByService: responses.map((response) => ({
-            serviceType: response.serviceType,
-            rowCount: response.data.length,
-          })),
-          emptyResponseTreatedAsZeroWorkers: responses.every((response) => response.data.length === 0),
+        if (error || cancelled) return;
+        const allowed = new Set<string>();
+        ((data as any[]) || []).forEach((row: { slot_time: string; worker_count: number }) => {
+          if (row.worker_count >= 1) {
+            const normalized = row.slot_time.length > 5 ? row.slot_time.slice(0, 5) : row.slot_time;
+            allowed.add(normalized);
+          }
         });
-        const perServiceCounts = responses.map((response) => {
-          const counts: Record<string, number> = {};
-          response.data.forEach((row) => {
-            counts[normalizeSlotTime(row.slot_time)] = Number(row.worker_count ?? 0);
-          });
-          return counts;
-        });
-        const returnedSlots = new Set<string>();
-        perServiceCounts.forEach((counts) => {
-          Object.keys(counts).forEach((slot) => returnedSlots.add(slot));
-        });
-        const counts: Record<string, number> = {};
-        returnedSlots.forEach((slot) => {
-          counts[slot] = Math.min(...perServiceCounts.map((serviceCounts) => serviceCounts[slot] ?? 0));
-        });
-        if (!cancelled) setSlotWorkerCounts(counts);
+        if (!cancelled) setAvailableSlots(allowed);
       } catch (err) {
-        console.error('[ScheduleSlotAvailability] fetch failed:', err);
+        console.error('Slot availability fetch failed:', err);
       } finally {
         if (!cancelled) setLoadingAvailability(false);
       }
@@ -248,14 +173,14 @@ export function ScheduleScreen() {
     return () => {
       cancelled = true;
     };
-  }, [selectedDate, profile?.community, service_type, availabilityServiceTypes]);
+  }, [selectedDate, profile?.community, service_type]);
 
   // Auto-clear selected slot if it becomes unavailable after availability loads
   useEffect(() => {
-    if (slotWorkerCounts !== null && selectedTime && (slotWorkerCounts[normalizeSlotTime(selectedTime)] ?? 0) < 1) {
+    if (availableSlots !== null && selectedTime && !availableSlots.has(selectedTime)) {
       setSelectedTime('');
     }
-  }, [slotWorkerCounts, selectedTime]);
+  }, [availableSlots, selectedTime]);
 
   useEffect(() => {
     if (priceParam) {
@@ -287,7 +212,7 @@ export function ScheduleScreen() {
     if (service_type === 'bathroom_cleaning' && !bathroomCount) return;
 
     const isThirtyMinuteSlot = /^\d{1,2}:(00|30)$/.test(selectedTime);
-    const isSelectedSlotAvailable = slotWorkerCounts !== null && (slotWorkerCounts[normalizeSlotTime(selectedTime)] ?? 0) >= 1;
+    const isSelectedSlotAvailable = availableSlots !== null && availableSlots.has(selectedTime);
 
     if (!isThirtyMinuteSlot || !isSelectedSlotAvailable) {
       toast({
@@ -552,17 +477,8 @@ export function ScheduleScreen() {
     timeSegments[activeSegment].end,
     30
   );
-  const allDaySlots = (Object.keys(timeSegments) as TimeSegment[]).flatMap((segment) =>
-    makeSlots(timeSegments[segment].start, timeSegments[segment].end, 30)
-  );
-  const selectedSlotWorkerCount = selectedTime && slotWorkerCounts !== null
-    ? slotWorkerCounts[normalizeSlotTime(selectedTime)] ?? 0
-    : 0;
-  const hasNoWorkersForDay = slotWorkerCounts !== null && allDaySlots.every((slot) =>
-    (slotWorkerCounts[normalizeSlotTime(slot)] ?? 0) < 1
-  );
 
-  const canConfirm = selectedDate && selectedTime && !submitting && slotWorkerCounts !== null && selectedSlotWorkerCount >= 1;
+  const canConfirm = selectedDate && selectedTime && !submitting;
 
   return (
     <div className="min-h-screen bg-background">
@@ -607,24 +523,10 @@ export function ScheduleScreen() {
 
           {/* Time Selection */}
           <Card className="bg-white rounded-2xl shadow-sm border border-gray-100 p-3">
-            <h2 className="text-base font-semibold text-foreground mb-1">
+            <h2 className="text-base font-semibold text-foreground mb-3">
               Select start time of service
             </h2>
-            <p className="text-[11px] text-muted-foreground mb-3">
-              Slots reflect live worker availability for the selected day.
-            </p>
-
-            {hasNoWorkersForDay ? (
-              <div className="flex flex-col items-center gap-2 py-8 px-4 text-center bg-red-50 border border-red-100 rounded-xl">
-                <AlertCircle className="h-7 w-7 text-red-500" />
-                <p className="text-sm font-semibold text-red-700">
-                  No workers available for the selected date.
-                </p>
-                <p className="text-xs text-red-600/80">
-                  Please choose another date.
-                </p>
-              </div>
-            ) : (
+            
             <Tabs value={activeSegment} onValueChange={(value) => {
               setActiveSegment(value as TimeSegment);
               setSelectedTime(''); // Reset time when segment changes
@@ -641,59 +543,34 @@ export function ScheduleScreen() {
                     const isPast = isPastToday(slot, selectedDate);
                     const isSelected = selectedTime === slot;
                     const slotSurge = getSurge(slot);
-                    const normalizedSlot = normalizeSlotTime(slot);
-                    const matchedWorkerCount = slotWorkerCounts?.[normalizedSlot] ?? 0;
-                    const isStillLoading = slotWorkerCounts === null || loadingAvailability;
-                    const isSlotUnavailable = slotWorkerCounts !== null && matchedWorkerCount < 1;
-                    const isSoldOut = isSlotUnavailable && !isPast;
+                    // Allowlist: slot must be explicitly returned as available by backend
+                    // While loading (availableSlots === null), disable all slots
+                    const isSlotUnavailable = availableSlots !== null && !availableSlots.has(slot);
+                    const isStillLoading = availableSlots === null && loadingAvailability;
                     const isDisabled = isPast || isSlotUnavailable || isStillLoading;
-                    const matchedAvailabilityRecords = slotAvailabilityResponses.map((response) => ({
-                      serviceType: response.serviceType,
-                      matchedRecord: findMatchedAvailabilityRecord(response.data, slot),
-                    }));
-                    console.log('[ScheduleSlotAvailability][debug] slot-by-slot matching', {
-                      selectedDate: format(selectedDate, 'yyyy-MM-dd'),
-                      communitySlug: profile?.community,
-                      routeServiceType: service_type,
-                      rpcServiceTypes: availabilityServiceTypes,
-                      uiSlotTime: slot,
-                      slotTimeShownInUi: toDisplay12h(slot),
-                      normalizedSlot,
-                      matchedAvailabilityRecords,
-                      slotTimesMatchingCorrectly: matchedAvailabilityRecords.every((record) => record.matchedRecord !== null),
-                      workerCount: matchedWorkerCount,
-                      emptyResponseTreatedAsZeroWorkers: slotAvailabilityResponses.every((response) => response.data.length === 0),
-                      disabled: isDisabled,
-                    });
-
+                    
                     return (
                       <Button
                         key={slot}
                         variant="outline"
                         disabled={isDisabled}
-                        aria-disabled={isDisabled}
                         onClick={() => {
-                          if (isDisabled) return;
                           setSelectedTime(slot);
                           if (isLimitedAvailabilitySlot(slot)) {
                             setShowAvailabilityWarning(true);
                           }
                         }}
-                        className={`relative rounded-xl border-2 h-auto min-h-[3.25rem] px-2 text-xs flex flex-col items-center justify-center py-1.5 ${
+                        className={`relative rounded-xl border-2 h-auto min-h-[3rem] px-2 text-xs flex flex-col items-center justify-center py-1.5 ${
                           isSelected
                             ? 'border-primary bg-primary/10 text-primary'
-                            : isSoldOut
-                            ? 'border-red-200 bg-red-50 text-red-400 cursor-not-allowed'
                             : isDisabled
                             ? 'border-gray-200 text-gray-400 bg-gray-50 opacity-50'
                             : 'border-gray-200 bg-white text-foreground hover:border-primary/50'
                         }`}
                       >
-                        <span className={`font-medium ${isSoldOut ? 'line-through' : ''}`}>{toDisplay12h(slot)}</span>
-                        {isSoldOut && (
-                          <span className="mt-0.5 inline-flex items-center rounded-full bg-red-500 text-white text-[8px] leading-none font-bold uppercase tracking-wide px-1.5 py-0.5">
-                            Sold Out
-                          </span>
+                        <span className={`font-medium ${isSlotUnavailable ? 'line-through' : ''}`}>{toDisplay12h(slot)}</span>
+                        {isSlotUnavailable && !isPast && (
+                          <span className="text-[9px] text-destructive font-normal">Unavailable</span>
                         )}
                         {!isSlotUnavailable && !isStillLoading && slotSurge > 0 && (
                           <span className={`text-[10px] font-semibold mt-0.5 ${
@@ -715,7 +592,6 @@ export function ScheduleScreen() {
                 </div>
               </TabsContent>
             </Tabs>
-            )}
           </Card>
         </div>
 
