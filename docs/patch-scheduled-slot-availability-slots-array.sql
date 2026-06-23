@@ -49,7 +49,9 @@ BEGIN
     WHERE w.is_active = true
       AND p_service_type = ANY(w.service_types)
       AND p_community    = ANY(w.communities)
-      AND COALESCE(wa.slots[s.i + 1], false) = true   -- arrays are 1-indexed
+      AND wa.slots IS NOT NULL
+      AND array_length(wa.slots, 1) >= (s.i + 1)
+      AND LOWER(COALESCE(wa.slots[s.i + 1], 'false')) = 'true'   -- text[] array, 1-indexed
     GROUP BY s.i, s.st, s.slot_ts
   ),
   booked AS (
