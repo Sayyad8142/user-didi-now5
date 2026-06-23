@@ -134,7 +134,9 @@ BEGIN
     AND w.is_active = true
     AND NEW.service_type = ANY(w.service_types)
     AND NEW.community    = ANY(w.communities)
-    AND COALESCE(wa.slots[v_idx + 1], false) = true;
+    AND wa.slots IS NOT NULL
+    AND array_length(wa.slots, 1) >= (v_idx + 1)
+    AND LOWER(COALESCE(wa.slots[v_idx + 1], 'false')) = 'true';
 
   SELECT COUNT(*)::int INTO v_booked
   FROM public.bookings b
