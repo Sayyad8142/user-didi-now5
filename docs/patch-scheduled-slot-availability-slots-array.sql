@@ -146,8 +146,16 @@ BEGIN
     AND NEW.service_type = ANY(w.service_types)
     AND NEW.community    = ANY(w.communities)
     AND wa.slots IS NOT NULL
-    -- slots is text[] of slot labels like '06:00:00'; match either HH:MM or HH:MM:SS
-    AND ((v_st || ':00') = ANY(wa.slots) OR v_st = ANY(wa.slots));
+    AND array_length(wa.slots, 1) > 0
+    -- Support both schemas (label array OR boolean-string array). See RPC above.
+    AND (
+      CASE
+        WHEN wa.slots[1] IN ('true','false')
+          THEN array_length(wa.slots, 1) >= (v_idx + 1)
+               AND LOWER(wa.slots[v_idx + 1]) = 'true'
+        ELSE ((v_st || ':00') = ANY(wa.slots) OR v_st = ANY(wa.slots))
+      END
+    );
 
   SELECT COUNT(*)::int INTO v_booked
   FROM public.bookings b
