@@ -50,9 +50,19 @@ BEGIN
       AND p_service_type = ANY(w.service_types)
       AND p_community    = ANY(w.communities)
       AND wa.slots IS NOT NULL
-      -- worker_availability.slots is text[] of slot labels (e.g. '06:00:00','06:30:00',...,'18:30:00').
-      -- A worker is rostered for slot s.i if its label exists in the array.
-      AND ((s.st || ':00') = ANY(wa.slots) OR s.st = ANY(wa.slots))
+      AND array_length(wa.slots, 1) > 0
+      -- worker_availability.slots has TWO live schemas:
+      --   Schema A (labels): ['06:00:00','06:30:00',...]  -> rostered if label ∈ array
+      --   Schema B (bools):  ['false','true',...]         -> rostered if slots[i+1]='true'
+      -- Detect via first element; support both until data is migrated.
+      AND (
+        CASE
+          WHEN wa.slots[1] IN ('true','false')
+            THEN array_length(wa.slots, 1) >= (s.i + 1)
+                 AND LOWER(wa.slots[s.i + 1]) = 'true'
+          ELSE ((s.st || ':00') = ANY(wa.slots) OR s.st = ANY(wa.slots))
+        END
+      )
     GROUP BY s.i, s.st, s.slot_ts
   ),
   booked AS (
