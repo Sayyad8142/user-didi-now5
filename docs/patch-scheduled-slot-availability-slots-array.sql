@@ -50,8 +50,9 @@ BEGIN
       AND p_service_type = ANY(w.service_types)
       AND p_community    = ANY(w.communities)
       AND wa.slots IS NOT NULL
-      AND array_length(wa.slots, 1) >= (s.i + 1)
-      AND LOWER(COALESCE(wa.slots[s.i + 1], 'false')) = 'true'   -- text[] array, 1-indexed
+      -- worker_availability.slots is text[] of slot labels (e.g. '06:00:00','06:30:00',...,'18:30:00').
+      -- A worker is rostered for slot s.i if its label exists in the array.
+      AND ((s.st || ':00') = ANY(wa.slots) OR s.st = ANY(wa.slots))
     GROUP BY s.i, s.st, s.slot_ts
   ),
   booked AS (
