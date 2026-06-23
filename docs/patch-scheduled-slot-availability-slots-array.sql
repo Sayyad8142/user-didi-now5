@@ -1,15 +1,15 @@
 -- =====================================================================
 -- FIX: get_scheduled_slot_availability + validate_scheduled_booking_slot
--- Reason: worker_availability uses slots boolean[] (26 entries, 06:00..18:30
--- in 30-min steps), NOT start_time/end_time. Prior RPC silently capped at
--- 13:30 and never returned afternoon slots, so the user app marked them
--- as SOLD OUT even when workers were rostered.
--- Logic: available = rostered (slots[i] = true) − active bookings at that slot
+-- worker_availability.slots is text[] of slot LABELS (e.g. '06:00:00',
+-- '06:30:00', ... '18:30:00'). A worker is rostered for a slot when its
+-- label is present in the array (matches admin Slot Availability logic).
+-- Previous patch wrongly treated it as boolean[] -> all slots SOLD OUT.
+-- available = rostered (label ∈ wa.slots) − active bookings at that slot
 -- Active statuses: pending, dispatched, accepted, assigned, confirmed,
 --                  on_the_way, in_progress
--- 30-min safety buffer applied for today's slots.
--- Safe to re-run.
+-- 30-min safety buffer applied for today's slots. Safe to re-run.
 -- =====================================================================
+
 
 CREATE OR REPLACE FUNCTION public.get_scheduled_slot_availability(
   p_community    text,
@@ -50,8 +50,9 @@ BEGIN
       AND p_service_type = ANY(w.service_types)
       AND p_community    = ANY(w.communities)
       AND wa.slots IS NOT NULL
-      AND array_length(wa.slots, 1) >= (s.i + 1)
-      AND LOWER(COALESCE(wa.slots[s.i + 1], 'false')) = 'true'   -- text[] array, 1-indexed
+      -- worker_availability.slots is text[] of slot labels (e.g. '06:00:00','06:30:00',...,'18:30:00').
+      -- A worker is rostered for slot s.i if its label exists in the array.
+      AND ((s.st || ':00') = ANY(wa.slots) OR s.st = ANY(wa.slots))
     GROUP BY s.i, s.st, s.slot_ts
   ),
   booked AS (
@@ -135,8 +136,8 @@ BEGIN
     AND NEW.service_type = ANY(w.service_types)
     AND NEW.community    = ANY(w.communities)
     AND wa.slots IS NOT NULL
-    AND array_length(wa.slots, 1) >= (v_idx + 1)
-    AND LOWER(COALESCE(wa.slots[v_idx + 1], 'false')) = 'true';
+    -- slots is text[] of slot labels like '06:00:00'; match either HH:MM or HH:MM:SS
+    AND ((v_st || ':00') = ANY(wa.slots) OR v_st = ANY(wa.slots));
 
   SELECT COUNT(*)::int INTO v_booked
   FROM public.bookings b
