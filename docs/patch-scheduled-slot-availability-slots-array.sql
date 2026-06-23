@@ -1,15 +1,15 @@
 -- =====================================================================
 -- FIX: get_scheduled_slot_availability + validate_scheduled_booking_slot
--- Reason: worker_availability uses slots boolean[] (26 entries, 06:00..18:30
--- in 30-min steps), NOT start_time/end_time. Prior RPC silently capped at
--- 13:30 and never returned afternoon slots, so the user app marked them
--- as SOLD OUT even when workers were rostered.
--- Logic: available = rostered (slots[i] = true) − active bookings at that slot
+-- worker_availability.slots is text[] of slot LABELS (e.g. '06:00:00',
+-- '06:30:00', ... '18:30:00'). A worker is rostered for a slot when its
+-- label is present in the array (matches admin Slot Availability logic).
+-- Previous patch wrongly treated it as boolean[] -> all slots SOLD OUT.
+-- available = rostered (label ∈ wa.slots) − active bookings at that slot
 -- Active statuses: pending, dispatched, accepted, assigned, confirmed,
 --                  on_the_way, in_progress
--- 30-min safety buffer applied for today's slots.
--- Safe to re-run.
+-- 30-min safety buffer applied for today's slots. Safe to re-run.
 -- =====================================================================
+
 
 CREATE OR REPLACE FUNCTION public.get_scheduled_slot_availability(
   p_community    text,
