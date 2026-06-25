@@ -8,6 +8,7 @@ import { HeroCarousel } from './HeroCarousel';
 import { ServicesRow } from './ServicesRow';
 import { ServiceHours } from './ServiceHours';
 import { WorkerAvailabilityUnified } from './WorkerAvailabilityUnified';
+import { BestTimeCard } from './BestTimeCard';
 import { FeatureCarousel } from './FeatureCarousel';
 import { ActiveBookingCard } from './ActiveBookingCard';
 import { HomeOtpCard } from './HomeOtpCard';
@@ -83,6 +84,7 @@ export function HomeScreen() {
         </div>
         
         <WorkerAvailabilityUnified counts={counts} loading={loading} onServiceSelect={handleServiceSelect} />
+        <BestTimeCard />
         <FeatureCarousel />
 
         <FaqSection />

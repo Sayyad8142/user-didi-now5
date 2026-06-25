@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import {
   Users,
@@ -6,25 +6,12 @@ import {
   CheckCircle2,
   AlertCircle,
   Flame,
-  Clock,
-  Sparkles,
-  ChevronDown,
-  TrendingUp,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useProfile } from '@/contexts/ProfileContext';
-import {
-  useAvailabilityForecast,
-  type ForecastSlot,
-  type AvailabilityBucket,
-} from '@/hooks/useAvailabilityForecast';
+
 
 type Service = 'maid' | 'bathroom_cleaning';
-
-const SERVICE_TABS: { id: Service; label: string }[] = [
-  { id: 'maid', label: 'Maids' },
-  { id: 'bathroom_cleaning', label: 'Bathroom' },
-];
 
 const serviceLabels: Record<string, string> = {
   maid: 'Maids',
@@ -37,82 +24,7 @@ interface Props {
   onServiceSelect?: (service: Service) => void;
 }
 
-function formatHour(h: number) {
-  const suffix = h >= 12 ? 'PM' : 'AM';
-  const display = h === 0 ? 12 : h > 12 ? h - 12 : h;
-  return `${display}:00 ${suffix}`;
-}
 
-// Group contiguous hours by tier into ranges
-type Tier = 'best' | 'good' | 'low';
-function tierFor(slot: ForecastSlot): Tier {
-  if (slot.availability_pct >= 60) return 'best';
-  if (slot.availability_pct >= 40) return 'good';
-  return 'low';
-}
-
-function buildBands(slots: ForecastSlot[]) {
-  const bands: { tier: Tier; start: number; end: number }[] = [];
-  if (!slots.length) return bands;
-  let curTier = tierFor(slots[0]);
-  let curStart = slots[0].hour_of_day;
-  let prevHour = slots[0].hour_of_day;
-  for (let i = 1; i < slots.length; i++) {
-    const t = tierFor(slots[i]);
-    const h = slots[i].hour_of_day;
-    if (t === curTier && h === prevHour + 1) {
-      prevHour = h;
-      continue;
-    }
-    bands.push({ tier: curTier, start: curStart, end: prevHour + 1 });
-    curTier = t;
-    curStart = h;
-    prevHour = h;
-  }
-  bands.push({ tier: curTier, start: curStart, end: prevHour + 1 });
-  return bands;
-}
-
-function pickTopBands(slots: ForecastSlot[]) {
-  const bands = buildBands(slots);
-  const pickLongest = (tier: Tier) =>
-    bands
-      .filter((b) => b.tier === tier)
-      .sort((a, b) => b.end - b.start - (a.end - a.start))[0] || null;
-  return {
-    best: pickLongest('best'),
-    good: pickLongest('good'),
-    low: pickLongest('low'),
-  };
-}
-
-function buildInsight(
-  slots: ForecastSlot[],
-  service: Service,
-  community: string | null | undefined,
-): string | null {
-  if (!slots.length) return null;
-  const label = service === 'maid' ? 'maid' : 'bathroom cleaner';
-  const bands = pickTopBands(slots);
-  const place = community && community !== 'other' ? ` in your society` : '';
-
-  if (bands.best) {
-    const a = formatHour(bands.best.start);
-    const b = formatHour(bands.best.end);
-    if (bands.low) {
-      return `Best time to book a ${label}${place}: ${a} – ${b}. Availability drops between ${formatHour(
-        bands.low.start,
-      )} – ${formatHour(bands.low.end)}.`;
-    }
-    return `Booking a ${label} between ${a} – ${b} gives the highest chance of instant assignment.`;
-  }
-  if (bands.low) {
-    return `Worker shortage usually observed ${formatHour(
-      bands.low.start,
-    )} – ${formatHour(bands.low.end)}. Try scheduling earlier in the day.`;
-  }
-  return `${label[0].toUpperCase() + label.slice(1)} availability looks steady throughout the day.`;
-}
 
 function LiveRow({
   service,
@@ -197,49 +109,13 @@ function LiveRow({
   );
 }
 
-function TierRow({
-  tier,
-  band,
-}: {
-  tier: Tier;
-  band: { start: number; end: number } | null;
-}) {
-  const meta =
-    tier === 'best'
-      ? { dot: 'bg-emerald-500', label: 'Best', text: 'text-emerald-700' }
-      : tier === 'good'
-      ? { dot: 'bg-amber-400', label: 'Good', text: 'text-amber-700' }
-      : { dot: 'bg-rose-500', label: 'Low', text: 'text-rose-600' };
 
-  return (
-    <div className="flex items-center justify-between py-1.5">
-      <div className="flex items-center gap-2">
-        <span className={cn('w-2.5 h-2.5 rounded-full', meta.dot)} />
-        <span className="text-xs font-medium text-foreground">
-          {band ? `${formatHour(band.start)} – ${formatHour(band.end)}` : '—'}
-        </span>
-      </div>
-      <span className={cn('text-[11px] font-semibold', meta.text)}>{meta.label}</span>
-    </div>
-  );
-}
+
 
 export function WorkerAvailabilityUnified({ counts, loading, onServiceSelect }: Props) {
   const { profile } = useProfile();
-  const [forecastService, setForecastService] = useState<Service>('maid');
-  const [open, setOpen] = useState(false);
-
   const hasCommunity = !!profile?.community && profile.community !== 'other';
-  const { data: forecast, loading: forecastLoading, source } = useAvailabilityForecast(
-    profile?.community,
-    forecastService,
-  );
 
-  const bands = useMemo(() => pickTopBands(forecast), [forecast]);
-  const insight = useMemo(
-    () => buildInsight(forecast, forecastService, profile?.community),
-    [forecast, forecastService, profile?.community],
-  );
 
   const workerCounts = Object.entries(counts)
     .filter(([service]) => service !== 'cook')
@@ -311,86 +187,6 @@ export function WorkerAvailabilityUnified({ counts, loading, onServiceSelect }: 
           )}
         </div>
 
-        {/* Section 2 — Forecast (collapsible) */}
-        {hasCommunity && (
-          <div className="border-t border-border/50 pt-3">
-            <button
-              type="button"
-              onClick={() => setOpen((v) => !v)}
-              aria-expanded={open}
-              className="w-full flex items-center justify-between gap-2 py-1.5"
-            >
-              <div className="flex items-center gap-2">
-                <Clock className="w-4 h-4 text-primary" />
-                <span className="text-sm font-semibold text-foreground">
-                  Best time to book today
-                </span>
-              </div>
-              <ChevronDown
-                className={cn(
-                  'w-4 h-4 text-muted-foreground transition-transform',
-                  open && 'rotate-180',
-                )}
-              />
-            </button>
-
-            {open && (
-              <div className="mt-3">
-                {/* Service tabs */}
-                <div className="flex gap-1 p-1 bg-muted/40 rounded-full mb-3">
-                  {SERVICE_TABS.map((t) => {
-                    const active = t.id === forecastService;
-                    return (
-                      <button
-                        key={t.id}
-                        onClick={() => setForecastService(t.id)}
-                        className={cn(
-                          'flex-1 h-8 rounded-full text-xs font-semibold transition-all',
-                          active
-                            ? 'bg-white text-foreground shadow-sm'
-                            : 'text-muted-foreground hover:text-foreground',
-                        )}
-                      >
-                        {t.label}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {forecastLoading ? (
-                  <div className="h-24 rounded-2xl bg-muted/30 animate-pulse" />
-                ) : forecast.length === 0 ? (
-                  <div className="text-center text-xs text-muted-foreground py-4">
-                    Forecast unavailable right now.
-                  </div>
-                ) : (
-                  <div className="rounded-2xl bg-background/80 border border-border/50 px-3 py-2">
-                    <TierRow tier="best" band={bands.best} />
-                    <TierRow tier="good" band={bands.good} />
-                    <TierRow tier="low" band={bands.low} />
-                  </div>
-                )}
-
-                {/* Section 3 — Insight */}
-                {!forecastLoading && insight && (
-                  <div className="mt-3 flex items-start gap-2 p-3 rounded-2xl bg-primary/5 border border-primary/10">
-                    <Sparkles className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
-                    <p className="text-xs font-medium text-foreground leading-relaxed">
-                      {insight}
-                    </p>
-                  </div>
-                )}
-
-                {source === 'fallback' && (
-                  <p className="text-[10px] text-muted-foreground mt-2 flex items-center gap-1">
-                    <TrendingUp className="w-3 h-3" />
-                    Showing typical pattern — society history will appear soon.
-                  </p>
-                )}
-              </div>
-            )}
-          </div>
-        )}
       </CardContent>
     </Card>
   );
