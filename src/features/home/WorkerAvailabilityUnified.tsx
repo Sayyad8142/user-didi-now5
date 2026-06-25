@@ -13,11 +13,6 @@ import { useProfile } from '@/contexts/ProfileContext';
 
 type Service = 'maid' | 'bathroom_cleaning';
 
-const SERVICE_TABS: { id: Service; label: string }[] = [
-  { id: 'maid', label: 'Maids' },
-  { id: 'bathroom_cleaning', label: 'Bathroom' },
-];
-
 const serviceLabels: Record<string, string> = {
   maid: 'Maids',
   bathroom_cleaning: 'Bathroom Cleaners',
@@ -29,82 +24,7 @@ interface Props {
   onServiceSelect?: (service: Service) => void;
 }
 
-function formatHour(h: number) {
-  const suffix = h >= 12 ? 'PM' : 'AM';
-  const display = h === 0 ? 12 : h > 12 ? h - 12 : h;
-  return `${display}:00 ${suffix}`;
-}
 
-// Group contiguous hours by tier into ranges
-type Tier = 'best' | 'good' | 'low';
-function tierFor(slot: ForecastSlot): Tier {
-  if (slot.availability_pct >= 60) return 'best';
-  if (slot.availability_pct >= 40) return 'good';
-  return 'low';
-}
-
-function buildBands(slots: ForecastSlot[]) {
-  const bands: { tier: Tier; start: number; end: number }[] = [];
-  if (!slots.length) return bands;
-  let curTier = tierFor(slots[0]);
-  let curStart = slots[0].hour_of_day;
-  let prevHour = slots[0].hour_of_day;
-  for (let i = 1; i < slots.length; i++) {
-    const t = tierFor(slots[i]);
-    const h = slots[i].hour_of_day;
-    if (t === curTier && h === prevHour + 1) {
-      prevHour = h;
-      continue;
-    }
-    bands.push({ tier: curTier, start: curStart, end: prevHour + 1 });
-    curTier = t;
-    curStart = h;
-    prevHour = h;
-  }
-  bands.push({ tier: curTier, start: curStart, end: prevHour + 1 });
-  return bands;
-}
-
-function pickTopBands(slots: ForecastSlot[]) {
-  const bands = buildBands(slots);
-  const pickLongest = (tier: Tier) =>
-    bands
-      .filter((b) => b.tier === tier)
-      .sort((a, b) => b.end - b.start - (a.end - a.start))[0] || null;
-  return {
-    best: pickLongest('best'),
-    good: pickLongest('good'),
-    low: pickLongest('low'),
-  };
-}
-
-function buildInsight(
-  slots: ForecastSlot[],
-  service: Service,
-  community: string | null | undefined,
-): string | null {
-  if (!slots.length) return null;
-  const label = service === 'maid' ? 'maid' : 'bathroom cleaner';
-  const bands = pickTopBands(slots);
-  const place = community && community !== 'other' ? ` in your society` : '';
-
-  if (bands.best) {
-    const a = formatHour(bands.best.start);
-    const b = formatHour(bands.best.end);
-    if (bands.low) {
-      return `Best time to book a ${label}${place}: ${a} – ${b}. Availability drops between ${formatHour(
-        bands.low.start,
-      )} – ${formatHour(bands.low.end)}.`;
-    }
-    return `Booking a ${label} between ${a} – ${b} gives the highest chance of instant assignment.`;
-  }
-  if (bands.low) {
-    return `Worker shortage usually observed ${formatHour(
-      bands.low.start,
-    )} – ${formatHour(bands.low.end)}. Try scheduling earlier in the day.`;
-  }
-  return `${label[0].toUpperCase() + label.slice(1)} availability looks steady throughout the day.`;
-}
 
 function LiveRow({
   service,
