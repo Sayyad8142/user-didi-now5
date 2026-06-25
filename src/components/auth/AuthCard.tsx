@@ -225,25 +225,33 @@ export function AuthCard() {
   };
 
   const handleContinueAsGuest = async () => {
+    // 1. Persist guest session FIRST so any auth listener (including the one
+    //    fired by signOut below) sees isDemoMode()=true and keeps the user.
     try {
-      // Sign out from Firebase first to ensure guest mode takes precedence
-      await firebaseSignOut();
+      setGuestSession();
     } catch (error) {
-      console.error('Error signing out:', error);
+      console.error('Error setting guest session:', error);
     }
-    
-    // Set guest session - this will trigger demo-mode-changed event
-    setGuestSession();
-    
+
     toast({
       title: 'Welcome Guest!',
       description: 'You can browse and explore our services.'
     });
-    
-    // Small delay to ensure AuthProvider processes the event
+
+    // 2. Fire-and-forget sign out — don't block navigation on Firebase.
+    firebaseSignOut().catch((error) => {
+      console.error('Error signing out:', error);
+    });
+
+    // 3. Hard navigation guarantees a clean mount with guest session applied,
+    //    avoiding rare races where ProtectedRoute reads stale auth state.
     setTimeout(() => {
-      navigate("/home", { replace: true });
-    }, 100);
+      try {
+        window.location.assign('/home');
+      } catch {
+        navigate('/home', { replace: true });
+      }
+    }, 50);
   };
 
   return (
