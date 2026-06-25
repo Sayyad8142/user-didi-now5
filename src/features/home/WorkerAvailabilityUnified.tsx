@@ -226,20 +226,8 @@ function TierRow({
 
 export function WorkerAvailabilityUnified({ counts, loading, onServiceSelect }: Props) {
   const { profile } = useProfile();
-  const [forecastService, setForecastService] = useState<Service>('maid');
-  const [open, setOpen] = useState(false);
-
   const hasCommunity = !!profile?.community && profile.community !== 'other';
-  const { data: forecast, loading: forecastLoading, source } = useAvailabilityForecast(
-    profile?.community,
-    forecastService,
-  );
 
-  const bands = useMemo(() => pickTopBands(forecast), [forecast]);
-  const insight = useMemo(
-    () => buildInsight(forecast, forecastService, profile?.community),
-    [forecast, forecastService, profile?.community],
-  );
 
   const workerCounts = Object.entries(counts)
     .filter(([service]) => service !== 'cook')
