@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import {
   Users,
@@ -6,18 +6,10 @@ import {
   CheckCircle2,
   AlertCircle,
   Flame,
-  Clock,
-  Sparkles,
-  ChevronDown,
-  TrendingUp,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useProfile } from '@/contexts/ProfileContext';
-import {
-  useAvailabilityForecast,
-  type ForecastSlot,
-  type AvailabilityBucket,
-} from '@/hooks/useAvailabilityForecast';
+
 
 type Service = 'maid' | 'bathroom_cleaning';
 
