@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useProfile } from '@/contexts/ProfileContext';
+import { BestTimeInline } from './BestTimeCard';
 
 
 type Service = 'maid' | 'bathroom_cleaning';
@@ -186,6 +187,8 @@ export function WorkerAvailabilityUnified({ counts, loading, onServiceSelect }: 
             </div>
           )}
         </div>
+
+        <BestTimeInline />
 
       </CardContent>
     </Card>
