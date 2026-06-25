@@ -1,6 +1,4 @@
 import React, { useMemo } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
-import { Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useProfile } from '@/contexts/ProfileContext';
 import {
@@ -68,21 +66,23 @@ function Row({
   if (!band) return null;
   const meta = TIER_META[tier];
   return (
-    <div className="flex items-center justify-between">
-      <div className="flex items-center gap-2 min-w-0">
-        <span className={cn('w-2 h-2 rounded-full shrink-0', meta.dot)} />
-        <span className={cn('text-[11px] font-semibold w-9', meta.text)}>
-          {meta.label}
-        </span>
-        <span className="text-xs font-medium text-foreground truncate">
-          {formatHour(band.start)} – {formatHour(band.end)}
-        </span>
-      </div>
+    <div className="flex items-center gap-2 min-w-0">
+      <span className={cn('w-2 h-2 rounded-full shrink-0', meta.dot)} />
+      <span className={cn('text-[11px] font-semibold w-9', meta.text)}>
+        {meta.label}
+      </span>
+      <span className="text-xs font-medium text-foreground truncate">
+        {formatHour(band.start)} – {formatHour(band.end)}
+      </span>
     </div>
   );
 }
 
-export function BestTimeCard() {
+/**
+ * Inline section rendered inside the Worker Availability card.
+ * Returns null if no community or no forecast data is available.
+ */
+export function BestTimeInline() {
   const { profile } = useProfile();
   const hasCommunity = !!profile?.community && profile.community !== 'other';
   const { data: forecast, loading } = useAvailabilityForecast(
@@ -103,29 +103,23 @@ export function BestTimeCard() {
   if (!loading && forecast.length === 0) return null;
 
   return (
-    <Card className="border border-border/50 bg-white rounded-2xl shadow-sm">
-      <CardContent className="p-3.5">
-        <div className="flex items-center gap-2 mb-2">
-          <Clock className="w-4 h-4 text-primary" />
-          <h4 className="text-sm font-bold text-foreground">
-            Best time to book today
-          </h4>
+    <div className="mt-4 pt-4 border-t border-border/50">
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+        Best time to book today
+      </p>
+      {loading ? (
+        <div className="space-y-1.5">
+          <div className="h-4 rounded bg-muted/40 animate-pulse" />
+          <div className="h-4 rounded bg-muted/40 animate-pulse" />
+          <div className="h-4 rounded bg-muted/40 animate-pulse" />
         </div>
-
-        {loading ? (
-          <div className="space-y-1.5">
-            <div className="h-4 rounded bg-muted/40 animate-pulse" />
-            <div className="h-4 rounded bg-muted/40 animate-pulse" />
-            <div className="h-4 rounded bg-muted/40 animate-pulse" />
-          </div>
-        ) : (
-          <div className="space-y-1.5">
-            <Row tier="best" band={bands.best} />
-            <Row tier="good" band={bands.good} />
-            <Row tier="low" band={bands.low} />
-          </div>
-        )}
-      </CardContent>
-    </Card>
+      ) : (
+        <div className="p-3 rounded-2xl bg-background/80 border border-border/50 space-y-1.5">
+          <Row tier="best" band={bands.best} />
+          <Row tier="good" band={bands.good} />
+          <Row tier="low" band={bands.low} />
+        </div>
+      )}
+    </div>
   );
 }
