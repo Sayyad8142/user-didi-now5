@@ -109,32 +109,8 @@ function LiveRow({
   );
 }
 
-function TierRow({
-  tier,
-  band,
-}: {
-  tier: Tier;
-  band: { start: number; end: number } | null;
-}) {
-  const meta =
-    tier === 'best'
-      ? { dot: 'bg-emerald-500', label: 'Best', text: 'text-emerald-700' }
-      : tier === 'good'
-      ? { dot: 'bg-amber-400', label: 'Good', text: 'text-amber-700' }
-      : { dot: 'bg-rose-500', label: 'Low', text: 'text-rose-600' };
 
-  return (
-    <div className="flex items-center justify-between py-1.5">
-      <div className="flex items-center gap-2">
-        <span className={cn('w-2.5 h-2.5 rounded-full', meta.dot)} />
-        <span className="text-xs font-medium text-foreground">
-          {band ? `${formatHour(band.start)} – ${formatHour(band.end)}` : '—'}
-        </span>
-      </div>
-      <span className={cn('text-[11px] font-semibold', meta.text)}>{meta.label}</span>
-    </div>
-  );
-}
+
 
 export function WorkerAvailabilityUnified({ counts, loading, onServiceSelect }: Props) {
   const { profile } = useProfile();
