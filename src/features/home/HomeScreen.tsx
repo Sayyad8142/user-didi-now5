@@ -84,6 +84,7 @@ export function HomeScreen() {
         </div>
         
         <WorkerAvailabilityUnified counts={counts} loading={loading} onServiceSelect={handleServiceSelect} />
+        <BestTimeCard />
         <FeatureCarousel />
 
         <FaqSection />
