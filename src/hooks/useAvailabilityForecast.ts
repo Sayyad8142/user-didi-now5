@@ -57,11 +57,21 @@ export function useAvailabilityForecast(community: string | undefined | null, se
     (async () => {
       try {
         console.log('[useAvailabilityForecast] fetching', { community: slug, service });
-        const { data, error } = await supabase.functions.invoke('availability-forecast', {
-          body: { community: slug, service },
-        });
+        const res = await fetch(
+          `${LOVABLE_CLOUD_FUNCTIONS_URL}/functions/v1/availability-forecast`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              apikey: PRODUCTION_ANON_KEY,
+              Authorization: `Bearer ${PRODUCTION_ANON_KEY}`,
+            },
+            body: JSON.stringify({ community: slug, service }),
+          },
+        );
         if (cancelled) return;
-        if (error) throw error;
+        if (!res.ok) throw new Error(`forecast http ${res.status}`);
+        const data = await res.json();
         const forecast: ForecastSlot[] = data?.forecast ?? [];
         const source = (data?.source ?? 'fallback') as 'db' | 'fallback';
         cache.set(key, { at: Date.now(), data: forecast, source });
