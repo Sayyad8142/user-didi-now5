@@ -109,21 +109,39 @@ export async function bootstrapProfileViaEdge(
   const callOnce = async (url: string, token: string, refresh: boolean) => {
     const useToken = refresh ? (await getFirebaseIdToken(true)) || token : token;
     if (!useToken) throw new Error("Not signed in");
-    return fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        apikey: PRODUCTION_ANON_KEY,
-        Authorization: `Bearer ${PRODUCTION_ANON_KEY}`,
-        "x-firebase-token": useToken,
-      },
-      body: JSON.stringify({
-        phone: input.phone ?? null,
-        mode: input.mode ?? null,
-        signupData: input.signupData ?? null,
-        profileUpdates: input.profileUpdates ?? null,
-      }),
-    });
+    // Network-level retry: mobile networks occasionally drop the first POST
+    // to *.supabase.co with TypeError "Failed to fetch". Retry up to 2 times
+    // with backoff before bubbling the error up.
+    const doFetch = () =>
+      fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: PRODUCTION_ANON_KEY,
+          Authorization: `Bearer ${PRODUCTION_ANON_KEY}`,
+          "x-firebase-token": useToken,
+        },
+        body: JSON.stringify({
+          phone: input.phone ?? null,
+          mode: input.mode ?? null,
+          signupData: input.signupData ?? null,
+          profileUpdates: input.profileUpdates ?? null,
+        }),
+      });
+    let lastErr: any = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        return await doFetch();
+      } catch (e: any) {
+        lastErr = e;
+        const msg = String(e?.message || e || '');
+        const retriable = /Failed to fetch|Load failed|NetworkError|TypeError|timed out|ENOTFOUND/i.test(msg);
+        log('fetch.error', { attempt, msg, retriable });
+        if (!retriable || attempt === 2) throw e;
+        await new Promise((r) => setTimeout(r, 400 * (attempt + 1)));
+      }
+    }
+    throw lastErr || new Error('Network error');
   };
 
   const tryUrl = async (url: string, token: string): Promise<BootstrappedProfile> => {
