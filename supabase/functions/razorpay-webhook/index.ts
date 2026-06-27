@@ -158,16 +158,21 @@ Deno.serve(async (req) => {
         console.warn(`[razorpay-webhook] webhook_orphan_payment order=${razorpayOrderId} payment=${razorpayPaymentId}`);
         const userId = payment.notes?.user_id || pending?.user_id || null;
 
-        await supabase.from("orphan_payments").insert({
-          razorpay_payment_id: razorpayPaymentId,
-          razorpay_order_id: razorpayOrderId,
-          amount_inr: amountInPaise / 100,
-          currency: payment.currency || "INR",
-          user_id: userId,
-          status: "unmapped",
-          notes: `Webhook event: ${eventType}. No booking and no pending_bookings stash.`,
-          webhook_payload: event,
-        });
+        // Idempotent insert — unique index on razorpay_payment_id protects against
+        // duplicate Razorpay webhook deliveries creating duplicate orphan rows.
+        await supabase.from("orphan_payments").upsert(
+          {
+            razorpay_payment_id: razorpayPaymentId,
+            razorpay_order_id: razorpayOrderId,
+            amount_inr: amountInPaise / 100,
+            currency: payment.currency || "INR",
+            user_id: userId,
+            status: "unmapped",
+            notes: `Webhook event: ${eventType}. No booking and no pending_bookings stash.`,
+            webhook_payload: event,
+          },
+          { onConflict: "razorpay_payment_id", ignoreDuplicates: true },
+        );
 
         return new Response(JSON.stringify({ status: "orphan_logged" }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
