@@ -23,7 +23,12 @@ export type PaymentEventName =
   | 'payment_method_selected'
   | 'payment_verification_pending'
   | 'payment_verified_success'
-  | 'payment_recovered_after_dismiss';
+  | 'payment_recovered_after_dismiss'
+  | 'favorite_worker_selected'
+  | 'favorite_worker_assigned'
+  | 'favorite_worker_unavailable'
+  | 'favorite_worker_fallback_used'
+  | 'favorite_worker_refunded';
 
 export interface PaymentEventPayload {
   booking_id?: string;
