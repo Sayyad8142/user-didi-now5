@@ -80,6 +80,12 @@ export function InstantCheckoutScreen() {
       setSelectedWorker(null);
     } else {
       setSelectedWorker(worker);
+      trackPaymentEvent('favorite_worker_selected', {
+        worker_id: worker.worker_id,
+        worker_name: worker.full_name,
+        service_type,
+        community: profile?.community,
+      });
     }
   };
 
