@@ -80,6 +80,12 @@ export function InstantCheckoutScreen() {
       setSelectedWorker(null);
     } else {
       setSelectedWorker(worker);
+      trackPaymentEvent('favorite_worker_selected', {
+        worker_id: worker.worker_id,
+        worker_name: worker.full_name,
+        service_type,
+        community: profile?.community,
+      });
     }
   };
 
@@ -183,7 +189,8 @@ export function InstantCheckoutScreen() {
           payment_status: 'pay_after_service',
         };
 
-        const { data, error } = await insertBookingWithCompat(payAfterData);
+        const { data, error, preferred_worker_fallback_used } =
+          (await insertBookingWithCompat(payAfterData)) as any;
 
         if (error) {
           console.error('❌ Booking error:', error);
@@ -205,10 +212,41 @@ export function InstantCheckoutScreen() {
 
         sessionStorage.removeItem(`preferred_worker_${service_type}`);
         console.log('✅ [InstantCheckout] pay-after booking created → navigating to /home');
-        toast({
-          title: "Booking confirmed!",
-          description: "Worker will arrive in ~10 minutes. Pay after service is done."
-        });
+
+        // Favorite-worker fallback analytics + UX
+        if (selectedWorker) {
+          if (preferred_worker_fallback_used) {
+            trackPaymentEvent('favorite_worker_unavailable', {
+              worker_id: selectedWorker.worker_id,
+              booking_id: (data as any)?.[0]?.id,
+              service_type,
+            });
+            trackPaymentEvent('favorite_worker_fallback_used', {
+              worker_id: selectedWorker.worker_id,
+              booking_id: (data as any)?.[0]?.id,
+              service_type,
+            });
+            toast({
+              title: "Booking confirmed",
+              description: `${selectedWorker.full_name} is unavailable. We've assigned the next available expert.`,
+            });
+          } else {
+            trackPaymentEvent('favorite_worker_assigned', {
+              worker_id: selectedWorker.worker_id,
+              booking_id: (data as any)?.[0]?.id,
+              service_type,
+            });
+            toast({
+              title: "Booking confirmed!",
+              description: "Worker will arrive in ~10 minutes. Pay after service is done."
+            });
+          }
+        } else {
+          toast({
+            title: "Booking confirmed!",
+            description: "Worker will arrive in ~10 minutes. Pay after service is done."
+          });
+        }
         navigate('/home', { replace: true });
         return;
       }
@@ -222,10 +260,41 @@ export function InstantCheckoutScreen() {
 
         console.log('✅ [InstantCheckout] payment-first booking created:', result.booking_id, '→ navigating to /home');
         sessionStorage.removeItem(`preferred_worker_${service_type}`);
-        toast({
-          title: "Payment successful!",
-          description: "Your booking is confirmed. Worker will arrive in ~10 minutes."
-        });
+
+        // Favorite-worker fallback analytics + UX
+        if (selectedWorker) {
+          if (result.preferred_worker_fallback_used) {
+            trackPaymentEvent('favorite_worker_unavailable', {
+              worker_id: selectedWorker.worker_id,
+              booking_id: result.booking_id,
+              service_type,
+            });
+            trackPaymentEvent('favorite_worker_fallback_used', {
+              worker_id: selectedWorker.worker_id,
+              booking_id: result.booking_id,
+              service_type,
+            });
+            toast({
+              title: "Booking confirmed",
+              description: `${selectedWorker.full_name} is unavailable. We've assigned the next available expert.`,
+            });
+          } else {
+            trackPaymentEvent('favorite_worker_assigned', {
+              worker_id: selectedWorker.worker_id,
+              booking_id: result.booking_id,
+              service_type,
+            });
+            toast({
+              title: "Payment successful!",
+              description: "Your booking is confirmed. Worker will arrive in ~10 minutes."
+            });
+          }
+        } else {
+          toast({
+            title: "Payment successful!",
+            description: "Your booking is confirmed. Worker will arrive in ~10 minutes."
+          });
+        }
         navigate('/home', { replace: true });
       } catch (payErr: any) {
         console.error('❌ Payment error:', payErr);
@@ -240,6 +309,24 @@ export function InstantCheckoutScreen() {
           toast({
             title: "Couldn't confirm availability",
             description: "Please try again in a moment.",
+            variant: 'destructive',
+          });
+          return;
+        }
+        // Auto-refunded booking failure (e.g. both insert + fallback failed) →
+        // backend already issued Razorpay/wallet refund; show info toast,
+        // no retry sheet (user has nothing to retry, money is back).
+        if (!paidAlready && /BOOKING_INSERT_FAILED|could not be created/i.test(payErr?.message || '')) {
+          if (selectedWorker) {
+            trackPaymentEvent('favorite_worker_refunded', {
+              worker_id: selectedWorker.worker_id,
+              service_type,
+              reason: payErr?.message,
+            });
+          }
+          toast({
+            title: "Booking could not be created",
+            description: payErr.message,
             variant: 'destructive',
           });
           return;

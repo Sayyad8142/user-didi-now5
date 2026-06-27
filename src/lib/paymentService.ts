@@ -54,6 +54,8 @@ export interface PaymentResult {
   payment_id?: string;
   payment_method?: string;
   error?: string;
+  preferred_worker_fallback_used?: boolean;
+  requested_preferred_worker_id?: string | null;
 }
 
 export interface WalletPayResult {

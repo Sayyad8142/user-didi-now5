@@ -641,6 +641,8 @@ Deno.serve(async (req) => {
     // WITHOUT preferred_worker_id so the normal dispatcher can assign
     // any available worker — money was already taken, so the booking
     // must succeed if at all possible.
+    let preferredWorkerFallbackUsed = false;
+    const requestedPreferredWorkerId = bookingRow.preferred_worker_id ?? null;
     if (
       insertErr &&
       hadPreferredWorker &&
@@ -655,10 +657,11 @@ Deno.serve(async (req) => {
       const retry = await insertBookingWithCompatibilityFallback(supabase, fallbackRow);
       if (!retry.error) {
         console.log(
-          `[create-paid-booking] ✅ preferred_worker fallback succeeded booking=${(retry.data as any)?.id}`,
+          `[create-paid-booking] ✅ preferred_worker fallback succeeded booking=${(retry.data as any)?.id} original_preferred=${requestedPreferredWorkerId}`,
         );
         newBooking = retry.data;
         insertErr = null as any;
+        preferredWorkerFallbackUsed = true;
       } else {
         console.error(
           `[create-paid-booking] ❌ preferred_worker fallback ALSO failed: ${retry.error.message}`,
@@ -666,6 +669,7 @@ Deno.serve(async (req) => {
         insertErr = retry.error;
       }
     }
+
 
 
     if (insertErr) {
@@ -941,6 +945,8 @@ Deno.serve(async (req) => {
       payment_id: razorpay_payment_id || null,
       payment_method: paymentMethod,
       wallet_debited: walletDebited,
+      preferred_worker_fallback_used: preferredWorkerFallbackUsed,
+      requested_preferred_worker_id: requestedPreferredWorkerId,
     });
   } catch (err: any) {
     console.error("[create-paid-booking] Error:", err);
