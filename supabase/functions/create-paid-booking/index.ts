@@ -614,6 +614,7 @@ Deno.serve(async (req) => {
       bookingRow.request_id = requestId;
     }
 
+    const hadPreferredWorker = bookingRow.preferred_worker_id != null;
     console.log(
       "[create-paid-booking] 📝 Inserting booking:",
       JSON.stringify({
@@ -622,14 +623,50 @@ Deno.serve(async (req) => {
         price_inr: bookingRow.price_inr,
         payment_method: bookingRow.payment_method,
         wallet_used: walletDebited,
+        preferred_worker_id: bookingRow.preferred_worker_id ?? null,
+        request_id: requestId ?? null,
       }),
     );
 
     // 9. Insert booking
-    const { data: newBooking, error: insertErr } = await insertBookingWithCompatibilityFallback(
+    let { data: newBooking, error: insertErr } = await insertBookingWithCompatibilityFallback(
       supabase,
       bookingRow,
     );
+
+    // 9-pre. FAVORITE WORKER FALLBACK ─────────────────────────────
+    // If the insert failed AND a preferred_worker_id was set, the DB
+    // likely rejected the row because the chosen worker is no longer
+    // online / eligible (validation trigger on external DB). Retry once
+    // WITHOUT preferred_worker_id so the normal dispatcher can assign
+    // any available worker — money was already taken, so the booking
+    // must succeed if at all possible.
+    if (
+      insertErr &&
+      hadPreferredWorker &&
+      !/SUPPLY_FULL/i.test(insertErr.message || "") &&
+      !(insertErr.code === "23505" || /uq_bookings_request_id|razorpay_payment_id/i.test(insertErr.message || ""))
+    ) {
+      console.warn(
+        `[create-paid-booking] ⚠️ preferred_worker fallback — first insert failed (${insertErr.message}), retrying without preferred_worker_id=${bookingRow.preferred_worker_id}`,
+      );
+      const fallbackRow = { ...bookingRow };
+      delete fallbackRow.preferred_worker_id;
+      const retry = await insertBookingWithCompatibilityFallback(supabase, fallbackRow);
+      if (!retry.error) {
+        console.log(
+          `[create-paid-booking] ✅ preferred_worker fallback succeeded booking=${(retry.data as any)?.id}`,
+        );
+        newBooking = retry.data;
+        insertErr = null as any;
+      } else {
+        console.error(
+          `[create-paid-booking] ❌ preferred_worker fallback ALSO failed: ${retry.error.message}`,
+        );
+        insertErr = retry.error;
+      }
+    }
+
 
     if (insertErr) {
       // 9a. Race condition: unique index violation means another request won the race
