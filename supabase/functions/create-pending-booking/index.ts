@@ -162,14 +162,50 @@ Deno.serve(async (req) => {
       return json({ error: "Invalid payment_status for pending booking" }, 400);
     }
 
-    const result = await insertWithCompat(supabase, booking_data);
+    const requestedPreferredWorkerId =
+      (booking_data as any).preferred_worker_id ?? null;
+    let preferredWorkerFallbackUsed = false;
+
+    let result = await insertWithCompat(supabase, booking_data);
+
+    // Favorite worker fallback — retry once without preferred_worker_id
+    // when the DB rejects the row (worker offline / ineligible / etc.).
+    if (
+      result.error &&
+      requestedPreferredWorkerId &&
+      !/SUPPLY_FULL/i.test(result.error.message || "")
+    ) {
+      console.warn(
+        `[create-pending-booking] ⚠️ preferred_worker fallback — first insert failed (${result.error.message}), retrying without preferred_worker_id=${requestedPreferredWorkerId}`,
+      );
+      const fallbackData = { ...booking_data };
+      delete (fallbackData as any).preferred_worker_id;
+      const retry = await insertWithCompat(supabase, fallbackData);
+      if (!retry.error) {
+        console.log(
+          `[create-pending-booking] ✅ preferred_worker fallback succeeded booking=${(retry.data as any)?.id}`,
+        );
+        result = retry;
+        preferredWorkerFallbackUsed = true;
+      } else {
+        console.error(
+          `[create-pending-booking] ❌ preferred_worker fallback ALSO failed: ${retry.error.message}`,
+        );
+        result = retry;
+      }
+    }
 
     if (result.error) {
       console.error("[create-pending-booking] insert failed:", result.error);
       return json({ error: result.error.message || "Insert failed" }, 400);
     }
 
-    return json({ success: true, booking: result.data });
+    return json({
+      success: true,
+      booking: result.data,
+      preferred_worker_fallback_used: preferredWorkerFallbackUsed,
+      requested_preferred_worker_id: requestedPreferredWorkerId,
+    });
   } catch (err) {
     console.error("[create-pending-booking] fatal:", err);
     const message = err instanceof Error ? err.message : "Unknown error";
