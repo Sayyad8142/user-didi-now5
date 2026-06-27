@@ -122,6 +122,7 @@ export function toUserFriendlyPaymentError(err: any): string {
   if (/PAYMENT_RECEIVED_BOOKING_QUEUED/i.test(raw)) return "We received your payment. We're confirming your booking.";
   if (/SUPPLY_FULL|All experts are busy|Currently all experts/i.test(raw)) return 'Currently all experts are busy. Please try again after 20 minutes.';
   if (/CAPACITY_CHECK_FAILED/i.test(raw)) return "We couldn't confirm expert availability. Please try again in a moment.";
+  if (/BOOKING_INSERT_FAILED|could not be created/i.test(raw)) return raw.length < 220 ? raw : 'Booking could not be created. Amount has been refunded.';
   if (/Slot unavailable|Not enough workers/i.test(raw)) return 'No workers are available at this time. Please pick another slot.';
   if (/Razorpay|Unable to create.*order/i.test(raw)) return 'Payment gateway is unavailable. Please try again in a moment.';
   if (/Load failed|Failed to fetch|NetworkError|network/i.test(raw)) return 'Network error. Please check your connection and try again.';

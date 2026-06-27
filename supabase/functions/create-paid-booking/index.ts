@@ -81,6 +81,43 @@ function generateOtp(): string {
 }
 
 /**
+ * Issue a Razorpay refund for a captured payment.
+ * Returns the refund id on success, null on failure (caller still
+ * logs orphan_payments so ops can recover manually).
+ */
+async function razorpayRefund(
+  paymentId: string,
+  amountPaise: number | null,
+  reason: string,
+): Promise<string | null> {
+  try {
+    const keyId = Deno.env.get("RAZORPAY_KEY_ID")!;
+    const keySecret = Deno.env.get("RAZORPAY_KEY_SECRET")!;
+    const auth = "Basic " + btoa(`${keyId}:${keySecret}`);
+    const body: Record<string, unknown> = {
+      speed: "optimum",
+      notes: { reason: reason.slice(0, 250) },
+    };
+    if (amountPaise && amountPaise > 0) body.amount = amountPaise;
+    const res = await fetch(`https://api.razorpay.com/v1/payments/${paymentId}/refund`, {
+      method: "POST",
+      headers: { Authorization: auth, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const j = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      console.error(`[razorpayRefund] FAILED payment=${paymentId} status=${res.status} body=${JSON.stringify(j)}`);
+      return null;
+    }
+    console.log(`[razorpayRefund] ✅ refunded payment=${paymentId} refund_id=${(j as any).id}`);
+    return (j as any).id || null;
+  } catch (e) {
+    console.error(`[razorpayRefund] EXCEPTION payment=${paymentId}:`, e);
+    return null;
+  }
+}
+
+/**
  * Mark a pending_bookings row as consumed once a booking exists for it.
  * Safe to call even if no pending row exists (no-op).
  */
@@ -577,6 +614,7 @@ Deno.serve(async (req) => {
       bookingRow.request_id = requestId;
     }
 
+    const hadPreferredWorker = bookingRow.preferred_worker_id != null;
     console.log(
       "[create-paid-booking] 📝 Inserting booking:",
       JSON.stringify({
@@ -585,14 +623,50 @@ Deno.serve(async (req) => {
         price_inr: bookingRow.price_inr,
         payment_method: bookingRow.payment_method,
         wallet_used: walletDebited,
+        preferred_worker_id: bookingRow.preferred_worker_id ?? null,
+        request_id: requestId ?? null,
       }),
     );
 
     // 9. Insert booking
-    const { data: newBooking, error: insertErr } = await insertBookingWithCompatibilityFallback(
+    let { data: newBooking, error: insertErr } = await insertBookingWithCompatibilityFallback(
       supabase,
       bookingRow,
     );
+
+    // 9-pre. FAVORITE WORKER FALLBACK ─────────────────────────────
+    // If the insert failed AND a preferred_worker_id was set, the DB
+    // likely rejected the row because the chosen worker is no longer
+    // online / eligible (validation trigger on external DB). Retry once
+    // WITHOUT preferred_worker_id so the normal dispatcher can assign
+    // any available worker — money was already taken, so the booking
+    // must succeed if at all possible.
+    if (
+      insertErr &&
+      hadPreferredWorker &&
+      !/SUPPLY_FULL/i.test(insertErr.message || "") &&
+      !(insertErr.code === "23505" || /uq_bookings_request_id|razorpay_payment_id/i.test(insertErr.message || ""))
+    ) {
+      console.warn(
+        `[create-paid-booking] ⚠️ preferred_worker fallback — first insert failed (${insertErr.message}), retrying without preferred_worker_id=${bookingRow.preferred_worker_id}`,
+      );
+      const fallbackRow = { ...bookingRow };
+      delete fallbackRow.preferred_worker_id;
+      const retry = await insertBookingWithCompatibilityFallback(supabase, fallbackRow);
+      if (!retry.error) {
+        console.log(
+          `[create-paid-booking] ✅ preferred_worker fallback succeeded booking=${(retry.data as any)?.id}`,
+        );
+        newBooking = retry.data;
+        insertErr = null as any;
+      } else {
+        console.error(
+          `[create-paid-booking] ❌ preferred_worker fallback ALSO failed: ${retry.error.message}`,
+        );
+        insertErr = retry.error;
+      }
+    }
+
 
     if (insertErr) {
       // 9a. Race condition: unique index violation means another request won the race
@@ -756,10 +830,19 @@ Deno.serve(async (req) => {
         );
       }
 
-      // P0: payment may have been captured by Razorpay. Do NOT silently
-      // lose it — log an orphan_payments row tagged 'manual_review' and
-      // flag the pending row so ops can recover.
+      // P0: payment was captured by Razorpay but booking insert failed.
+      // Auto-issue a Razorpay refund so the customer is never charged for a
+      // booking that doesn't exist. If the refund call itself fails we still
+      // log orphan_payments for manual recovery.
+      let refundId: string | null = null;
       if (razorpay_payment_id) {
+        const amountPaise = Number(razorpay_amount ?? bookingPriceInr * 100);
+        refundId = await razorpayRefund(
+          razorpay_payment_id,
+          Number.isFinite(amountPaise) ? amountPaise : null,
+          `booking_insert_failed: ${insertErr.message}`,
+        );
+
         try {
           await supabase.from("orphan_payments").upsert(
             {
@@ -767,8 +850,12 @@ Deno.serve(async (req) => {
               razorpay_order_id: razorpay_order_id || null,
               amount_inr: bookingPriceInr,
               user_id: profile.id,
-              status: "manual_review",
-              notes: `create-paid-booking insert failed: ${insertErr.message}`,
+              status: refundId ? "refunded" : "manual_review",
+              notes: refundId
+                ? `Auto-refunded (refund_id=${refundId}). Insert failed: ${insertErr.message}`
+                : `create-paid-booking insert failed: ${insertErr.message}`,
+              resolved_at: refundId ? new Date().toISOString() : null,
+              resolved_by: refundId ? "auto_refund" : null,
             },
             { onConflict: "razorpay_payment_id" } as any,
           );
@@ -781,7 +868,7 @@ Deno.serve(async (req) => {
             await supabase
               .from("pending_bookings")
               .update({
-                status: "manual_review",
+                status: refundId ? "refunded" : "manual_review",
                 last_error: insertErr.message,
                 last_checked_at: new Date().toISOString(),
               })
@@ -792,12 +879,18 @@ Deno.serve(async (req) => {
         }
       }
 
+      const userMsg = refundId
+        ? "Booking could not be created. Amount has been refunded to your original payment method (3–5 business days)."
+        : walletDebited > 0
+          ? "Booking could not be created. Amount has been refunded to your wallet."
+          : "Booking could not be created. If money was deducted it will be refunded automatically.";
 
       return json(
-        { error: "Failed to create booking: " + insertErr.message },
+        { error: userMsg, code: "BOOKING_INSERT_FAILED", refund_id: refundId, detail: insertErr.message },
         500,
       );
     }
+
 
     console.log(
       `[create-paid-booking] create_paid_booking_success booking=${newBooking.id} payment=${razorpay_payment_id} order=${razorpay_order_id} req=${requestId}`,
