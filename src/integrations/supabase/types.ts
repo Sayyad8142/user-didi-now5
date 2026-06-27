@@ -83,6 +83,51 @@ export type Database = {
         }
         Relationships: []
       }
+      favorite_worker_events: {
+        Row: {
+          booking_id: string | null
+          community: string | null
+          created_at: string
+          event_name: string
+          fallback_latency_ms: number | null
+          id: string
+          metadata: Json | null
+          request_id: string | null
+          requested_preferred_worker_id: string | null
+          service_type: string | null
+          user_id: string | null
+          worker_id: string | null
+        }
+        Insert: {
+          booking_id?: string | null
+          community?: string | null
+          created_at?: string
+          event_name: string
+          fallback_latency_ms?: number | null
+          id?: string
+          metadata?: Json | null
+          request_id?: string | null
+          requested_preferred_worker_id?: string | null
+          service_type?: string | null
+          user_id?: string | null
+          worker_id?: string | null
+        }
+        Update: {
+          booking_id?: string | null
+          community?: string | null
+          created_at?: string
+          event_name?: string
+          fallback_latency_ms?: number | null
+          id?: string
+          metadata?: Json | null
+          request_id?: string | null
+          requested_preferred_worker_id?: string | null
+          service_type?: string | null
+          user_id?: string | null
+          worker_id?: string | null
+        }
+        Relationships: []
+      }
       orphan_payments: {
         Row: {
           amount_inr: number | null
