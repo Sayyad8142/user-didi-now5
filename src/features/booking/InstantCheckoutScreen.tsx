@@ -218,12 +218,12 @@ export function InstantCheckoutScreen() {
           if (preferred_worker_fallback_used) {
             trackPaymentEvent('favorite_worker_unavailable', {
               worker_id: selectedWorker.worker_id,
-              booking_id: (data as any)?.id,
+              booking_id: (data as any)?.[0]?.id,
               service_type,
             });
             trackPaymentEvent('favorite_worker_fallback_used', {
               worker_id: selectedWorker.worker_id,
-              booking_id: (data as any)?.id,
+              booking_id: (data as any)?.[0]?.id,
               service_type,
             });
             toast({
@@ -233,7 +233,7 @@ export function InstantCheckoutScreen() {
           } else {
             trackPaymentEvent('favorite_worker_assigned', {
               worker_id: selectedWorker.worker_id,
-              booking_id: (data as any)?.id,
+              booking_id: (data as any)?.[0]?.id,
               service_type,
             });
             toast({
