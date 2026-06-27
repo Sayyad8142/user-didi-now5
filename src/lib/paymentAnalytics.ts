@@ -62,6 +62,46 @@ const sessionStats: PaymentStats = {
 
 // ─── Core dispatch (async, non-blocking) ──────────────────────
 
+const FAVORITE_WORKER_EVENTS = new Set<PaymentEventName>([
+  'favorite_worker_selected',
+  'favorite_worker_assigned',
+  'favorite_worker_unavailable',
+  'favorite_worker_fallback_used',
+  'favorite_worker_refunded',
+]);
+
+async function persistFavoriteWorkerEvent(event: PaymentEventName, payload: PaymentEventPayload) {
+  try {
+    const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/track-favorite-worker-event`;
+    const anon = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined;
+    await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(anon ? { apikey: anon, Authorization: `Bearer ${anon}` } : {}),
+      },
+      body: JSON.stringify({
+        event_name: event,
+        user_id: payload.user_id ?? null,
+        booking_id: payload.booking_id ?? null,
+        worker_id: (payload as any).worker_id ?? null,
+        requested_preferred_worker_id:
+          (payload as any).requested_preferred_worker_id ??
+          (payload as any).preferred_worker_id ??
+          null,
+        service_type: (payload as any).service_type ?? null,
+        community: (payload as any).community ?? null,
+        fallback_latency_ms: (payload as any).fallback_latency_ms ?? null,
+        request_id: (payload as any).request_id ?? null,
+        metadata: { platform: payload.platform || getAppPlatform() },
+      }),
+      keepalive: true,
+    });
+  } catch (e) {
+    console.warn('[favorite_worker_event persist] failed', e);
+  }
+}
+
 function dispatch(event: PaymentEventName, payload: PaymentEventPayload) {
   // Non-blocking — fire and forget
   queueMicrotask(() => {
@@ -82,6 +122,11 @@ function dispatch(event: PaymentEventName, payload: PaymentEventPayload) {
     if (event === 'payment_cancelled') sessionStats.cancelled++;
     if (event === 'payment_retry_clicked' && payload.retry_count && payload.retry_count > 1) {
       // Will be counted as retrySuccess if followed by success
+    }
+
+    // Persist favorite-worker analytics to DB
+    if (FAVORITE_WORKER_EVENTS.has(event)) {
+      void persistFavoriteWorkerEvent(event, payload);
     }
 
     // Future: send to analytics provider here
