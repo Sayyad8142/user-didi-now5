@@ -81,6 +81,43 @@ function generateOtp(): string {
 }
 
 /**
+ * Issue a Razorpay refund for a captured payment.
+ * Returns the refund id on success, null on failure (caller still
+ * logs orphan_payments so ops can recover manually).
+ */
+async function razorpayRefund(
+  paymentId: string,
+  amountPaise: number | null,
+  reason: string,
+): Promise<string | null> {
+  try {
+    const keyId = Deno.env.get("RAZORPAY_KEY_ID")!;
+    const keySecret = Deno.env.get("RAZORPAY_KEY_SECRET")!;
+    const auth = "Basic " + btoa(`${keyId}:${keySecret}`);
+    const body: Record<string, unknown> = {
+      speed: "optimum",
+      notes: { reason: reason.slice(0, 250) },
+    };
+    if (amountPaise && amountPaise > 0) body.amount = amountPaise;
+    const res = await fetch(`https://api.razorpay.com/v1/payments/${paymentId}/refund`, {
+      method: "POST",
+      headers: { Authorization: auth, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const j = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      console.error(`[razorpayRefund] FAILED payment=${paymentId} status=${res.status} body=${JSON.stringify(j)}`);
+      return null;
+    }
+    console.log(`[razorpayRefund] ✅ refunded payment=${paymentId} refund_id=${(j as any).id}`);
+    return (j as any).id || null;
+  } catch (e) {
+    console.error(`[razorpayRefund] EXCEPTION payment=${paymentId}:`, e);
+    return null;
+  }
+}
+
+/**
  * Mark a pending_bookings row as consumed once a booking exists for it.
  * Safe to call even if no pending row exists (no-op).
  */
