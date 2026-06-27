@@ -189,7 +189,8 @@ export function InstantCheckoutScreen() {
           payment_status: 'pay_after_service',
         };
 
-        const { data, error } = await insertBookingWithCompat(payAfterData);
+        const { data, error, preferred_worker_fallback_used } =
+          (await insertBookingWithCompat(payAfterData)) as any;
 
         if (error) {
           console.error('❌ Booking error:', error);
@@ -211,10 +212,41 @@ export function InstantCheckoutScreen() {
 
         sessionStorage.removeItem(`preferred_worker_${service_type}`);
         console.log('✅ [InstantCheckout] pay-after booking created → navigating to /home');
-        toast({
-          title: "Booking confirmed!",
-          description: "Worker will arrive in ~10 minutes. Pay after service is done."
-        });
+
+        // Favorite-worker fallback analytics + UX
+        if (selectedWorker) {
+          if (preferred_worker_fallback_used) {
+            trackPaymentEvent('favorite_worker_unavailable', {
+              worker_id: selectedWorker.worker_id,
+              booking_id: (data as any)?.id,
+              service_type,
+            });
+            trackPaymentEvent('favorite_worker_fallback_used', {
+              worker_id: selectedWorker.worker_id,
+              booking_id: (data as any)?.id,
+              service_type,
+            });
+            toast({
+              title: "Booking confirmed",
+              description: `${selectedWorker.full_name} is unavailable. We've assigned the next available expert.`,
+            });
+          } else {
+            trackPaymentEvent('favorite_worker_assigned', {
+              worker_id: selectedWorker.worker_id,
+              booking_id: (data as any)?.id,
+              service_type,
+            });
+            toast({
+              title: "Booking confirmed!",
+              description: "Worker will arrive in ~10 minutes. Pay after service is done."
+            });
+          }
+        } else {
+          toast({
+            title: "Booking confirmed!",
+            description: "Worker will arrive in ~10 minutes. Pay after service is done."
+          });
+        }
         navigate('/home', { replace: true });
         return;
       }
