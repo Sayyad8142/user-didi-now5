@@ -945,6 +945,8 @@ Deno.serve(async (req) => {
       payment_id: razorpay_payment_id || null,
       payment_method: paymentMethod,
       wallet_debited: walletDebited,
+      preferred_worker_fallback_used: preferredWorkerFallbackUsed,
+      requested_preferred_worker_id: requestedPreferredWorkerId,
     });
   } catch (err: any) {
     console.error("[create-paid-booking] Error:", err);
