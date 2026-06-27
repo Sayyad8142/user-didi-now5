@@ -63,5 +63,10 @@ export async function insertBookingWithCompat(payload: Record<string, any>) {
 
   // Match the previous return shape: array of booking rows
   const booking = (data as any)?.booking;
-  return { data: booking ? [booking] : [], error: null as any };
+  return {
+    data: booking ? [booking] : [],
+    error: null as any,
+    preferred_worker_fallback_used: Boolean((data as any)?.preferred_worker_fallback_used),
+    requested_preferred_worker_id: (data as any)?.requested_preferred_worker_id ?? null,
+  };
 }
