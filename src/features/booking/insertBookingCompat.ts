@@ -11,7 +11,13 @@ import { LOVABLE_CLOUD_FUNCTIONS_URL, PRODUCTION_ANON_KEY } from '@/lib/constant
  *   service role. It also handles schema-compat column stripping server-side.
  */
 export async function insertBookingWithCompat(payload: Record<string, any>) {
-  // Get Firebase ID token (with hydration retry — same pattern as paymentService)
+  const preferredWorkerId = (payload as any)?.preferred_worker_id ?? null;
+  console.log('[FAV_TRACE] insertBookingWithCompat START', {
+    preferred_worker_id: preferredWorkerId,
+    payment_method: (payload as any)?.payment_method ?? null,
+    payment_status: (payload as any)?.payment_status ?? null,
+  });
+
   let token = await getFirebaseIdToken(false);
   if (!token) {
     const hydrated = await waitForFirebaseAuthReady(8000);
