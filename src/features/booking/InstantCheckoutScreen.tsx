@@ -346,13 +346,17 @@ export function InstantCheckoutScreen() {
         }
         navigate('/home', { replace: true });
       } catch (payErr: any) {
-        console.error('[FAV_FLOW] ❌ Payment error', {
+        console.error('[FAV_TRACE] 7T. executePaymentFlowForNewBooking THREW', {
+          traceId,
           name: payErr?.name,
           message: payErr?.message,
-          stack: payErr?.stack,
           type: payErr?.type,
+          fileName: payErr?.fileName,
+          lineNumber: payErr?.lineNumber,
+          stack: payErr?.stack,
           preferred_worker_id: (bookingData as any).preferred_worker_id,
         });
+
         // Pre-payment supply rejection → show busy modal, no retry sheet (no money taken)
         const paidAlready = payErr instanceof PaymentError && !!payErr.pendingCheckout;
         if (!paidAlready && payErr?.message?.includes('SUPPLY_FULL')) {
