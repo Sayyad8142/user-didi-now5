@@ -499,8 +499,36 @@ async function createPaidBooking(params: CreatePaidBookingParams): Promise<Payme
     payload: maskedPayload,
   });
 
-  return invokeWithFirebaseAuth<PaymentResult>('create-paid-booking', payload);
+  const preferredWorkerId = (sanitizedBookingData as any).preferred_worker_id ?? null;
+  console.log('[FAV_TRACE] PS.createPaidBooking → invoke START', {
+    request_id: requestId,
+    payment_type: params.payment_type,
+    razorpay_payment_id: params.razorpay_payment_id ?? null,
+    preferred_worker_id: preferredWorkerId,
+    price_inr: (sanitizedBookingData as any).price_inr,
+  });
+  try {
+    const result = await invokeWithFirebaseAuth<PaymentResult>('create-paid-booking', payload);
+    console.log('[FAV_TRACE] PS.createPaidBooking → invoke END', {
+      request_id: requestId,
+      booking_id: result?.booking_id,
+      payment_id: result?.payment_id,
+      preferred_worker_fallback_used: result?.preferred_worker_fallback_used,
+      requested_preferred_worker_id: result?.requested_preferred_worker_id,
+    });
+    return result;
+  } catch (e: any) {
+    console.error('[FAV_TRACE] PS.createPaidBooking → invoke THREW', {
+      request_id: requestId,
+      preferred_worker_id: preferredWorkerId,
+      name: e?.name,
+      message: e?.message,
+      stack: e?.stack,
+    });
+    throw e;
+  }
 }
+
 
 // ─── QR Payment Recovery ──────────────────────────────────────
 
@@ -562,9 +590,17 @@ function shouldUseQrRecovery(checkoutResult: { razorpay_signature?: string } | n
 // ─── Legacy Helpers (for existing booking retries) ────────────
 
 export async function debitWalletForBooking(bookingId: string): Promise<WalletPayResult> {
-  console.log('💰 Debiting wallet for booking:', bookingId);
-  return invokeWithFirebaseAuth<WalletPayResult>('wallet-pay', { booking_id: bookingId });
+  console.log('[FAV_TRACE] PS.debitWalletForBooking → wallet-pay START', { booking_id: bookingId });
+  try {
+    const result = await invokeWithFirebaseAuth<WalletPayResult>('wallet-pay', { booking_id: bookingId });
+    console.log('[FAV_TRACE] PS.debitWalletForBooking → wallet-pay END', { booking_id: bookingId, ...result });
+    return result;
+  } catch (e: any) {
+    console.error('[FAV_TRACE] PS.debitWalletForBooking → wallet-pay THREW', { booking_id: bookingId, name: e?.name, message: e?.message });
+    throw e;
+  }
 }
+
 
 export async function createRazorpayOrder(bookingId: string): Promise<RazorpayOrderResponse> {
   console.log('🛒 Creating Razorpay order for booking:', bookingId);
@@ -660,8 +696,16 @@ export async function executePaymentFlowForNewBooking(
   const priceInr = bookingPayload.price_inr as number;
   const userId = bookingPayload.user_id as string;
   const serviceType = bookingPayload.service_type as string;
+  const preferredWorkerId = (bookingPayload as any).preferred_worker_id ?? null;
+  console.log('[FAV_TRACE] PS.executePaymentFlowForNewBooking START', {
+    preferred_worker_id: preferredWorkerId,
+    price_inr: priceInr,
+    service_type: serviceType,
+    user_id: userId,
+  });
 
   trackPaymentEvent('payment_first_started', { service_type: serviceType, amount: priceInr });
+
 
   // Step 0: P0 capacity gate (FAIL-CLOSED) — NEVER initiate payment when supply is full
   // or when capacity cannot be verified.

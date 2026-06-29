@@ -11,7 +11,13 @@ import { LOVABLE_CLOUD_FUNCTIONS_URL, PRODUCTION_ANON_KEY } from '@/lib/constant
  *   service role. It also handles schema-compat column stripping server-side.
  */
 export async function insertBookingWithCompat(payload: Record<string, any>) {
-  // Get Firebase ID token (with hydration retry — same pattern as paymentService)
+  const preferredWorkerId = (payload as any)?.preferred_worker_id ?? null;
+  console.log('[FAV_TRACE] insertBookingWithCompat START', {
+    preferred_worker_id: preferredWorkerId,
+    payment_method: (payload as any)?.payment_method ?? null,
+    payment_status: (payload as any)?.payment_status ?? null,
+  });
+
   let token = await getFirebaseIdToken(false);
   if (!token) {
     const hydrated = await waitForFirebaseAuthReady(8000);
@@ -31,8 +37,13 @@ export async function insertBookingWithCompat(payload: Record<string, any>) {
   }
 
   let data: any = null;
+  const url = `${LOVABLE_CLOUD_FUNCTIONS_URL}/functions/v1/create-pending-booking`;
+  console.log('[FAV_TRACE] insertBookingWithCompat → fetch START', {
+    url,
+    preferred_worker_id: preferredWorkerId,
+  });
   try {
-    const res = await fetch(`${LOVABLE_CLOUD_FUNCTIONS_URL}/functions/v1/create-pending-booking`, {
+    const res = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -44,6 +55,13 @@ export async function insertBookingWithCompat(payload: Record<string, any>) {
     });
 
     data = await res.json().catch(() => ({}));
+    console.log('[FAV_TRACE] insertBookingWithCompat → fetch END', {
+      status: res.status,
+      ok: res.ok,
+      booking_id: data?.booking?.id ?? null,
+      preferred_worker_fallback_used: data?.preferred_worker_fallback_used ?? false,
+      error: data?.error ?? null,
+    });
     if (!res.ok) {
       return {
         data: null,
@@ -51,6 +69,12 @@ export async function insertBookingWithCompat(payload: Record<string, any>) {
       };
     }
   } catch (error: any) {
+    console.error('[FAV_TRACE] insertBookingWithCompat → fetch THREW', {
+      preferred_worker_id: preferredWorkerId,
+      name: error?.name,
+      message: error?.message,
+      stack: error?.stack,
+    });
     return {
       data: null,
       error: { message: error?.message || 'Booking service unreachable' } as any,
@@ -70,3 +94,4 @@ export async function insertBookingWithCompat(payload: Record<string, any>) {
     requested_preferred_worker_id: (data as any)?.requested_preferred_worker_id ?? null,
   };
 }
+

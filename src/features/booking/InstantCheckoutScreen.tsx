@@ -69,7 +69,14 @@ export function InstantCheckoutScreen() {
     .sort((a, b) => Number(b.is_online) - Number(a.is_online));
 
   const handleSelect = (worker: FavoriteWorker) => {
+    console.log('[FAV_TRACE] 1. handleSelect tapped', {
+      worker_id: worker.worker_id,
+      worker_name: worker.full_name,
+      is_online: worker.is_online,
+      currentlySelected: selectedWorker?.worker_id || null,
+    });
     if (!worker.is_online) {
+      console.log('[FAV_TRACE] 1a. worker offline — selection rejected');
       toast({
         title: 'Expert is offline',
         description: 'This expert is offline right now. Try another or book without preference.',
@@ -77,8 +84,10 @@ export function InstantCheckoutScreen() {
       return;
     }
     if (selectedWorker?.worker_id === worker.worker_id) {
+      console.log('[FAV_TRACE] 1b. deselect worker', { worker_id: worker.worker_id });
       setSelectedWorker(null);
     } else {
+      console.log('[FAV_TRACE] 2. setSelectedWorker →', { worker_id: worker.worker_id });
       setSelectedWorker(worker);
       trackPaymentEvent('favorite_worker_selected', {
         worker_id: worker.worker_id,
@@ -90,35 +99,50 @@ export function InstantCheckoutScreen() {
   };
 
   const clearSelection = useCallback(() => {
+    console.log('[FAV_TRACE] clearSelection');
     setSelectedWorker(null);
   }, []);
 
   const handleBookNow = () => {
+    console.log('[FAV_TRACE] 3. handleBookNow tapped', {
+      selectedWorker_id: selectedWorker?.worker_id || null,
+      selectedWorker_name: selectedWorker?.full_name || null,
+    });
     setShowPaymentPicker(true);
   };
 
+
   const confirmBooking = async () => {
     const buildId = (typeof __APP_BUILD_ID__ !== 'undefined') ? __APP_BUILD_ID__ : 'dev';
-    console.log('[FAV_FLOW] confirmBooking() entered', {
-      hasSelectedWorker: !!selectedWorker,
+    const traceId = (typeof crypto !== 'undefined' && (crypto as any).randomUUID)
+      ? (crypto as any).randomUUID()
+      : `trace_${Date.now()}`;
+    console.log('[FAV_TRACE] 4. confirmBooking START', {
+      traceId,
+      selectedWorker: selectedWorker ? { id: selectedWorker.worker_id, name: selectedWorker.full_name } : null,
       preferred_worker_id: selectedWorker?.worker_id || null,
       paymentMethod,
+      price,
       build: buildId,
     });
     setShowPaymentPicker(false);
     if (!profile || !service_type || !user) {
-      console.warn('[FAV_FLOW] aborted: missing profile/service_type/user');
+      console.warn('[FAV_TRACE] 4a. ABORT missing profile/service_type/user', { traceId });
       return;
     }
 
     // Server-side supply check
     if (profile.community) {
+      console.log('[FAV_TRACE] 5. checkInstantBookingAvailability START', { traceId, community: profile.community });
       const available = await checkInstantBookingAvailability(profile.community);
+      console.log('[FAV_TRACE] 5. checkInstantBookingAvailability END', { traceId, available });
       if (!available) {
         setSupplyModalOpen(true);
         return;
       }
     }
+
+
 
     if (!profile.community || profile.community === 'other') {
       toast({
@@ -262,23 +286,29 @@ export function InstantCheckoutScreen() {
       }
 
       // ── Pay Now: PAYMENT-FIRST — no booking inserted until payment verified ──
-      console.log('[FAV_FLOW] starting payment-first flow', {
+      console.log('[FAV_TRACE] 6. payment-first flow START', {
+        traceId,
         preferred_worker_id: (bookingData as any).preferred_worker_id,
         price_inr: bookingData.price_inr,
+        paymentMethod,
       });
       try {
-        console.log('[FAV_FLOW] → executePaymentFlowForNewBooking');
+        console.log('[FAV_TRACE] 7. executePaymentFlowForNewBooking START', { traceId });
         const result = await executePaymentFlowForNewBooking(bookingData, (status) => {
-          console.log('[FAV_FLOW] payment status:', status);
+          console.log('[FAV_TRACE] 7a. payment status →', { traceId, status });
           setPaymentStatus(status);
         });
 
-        console.log('[FAV_FLOW] ← executePaymentFlowForNewBooking result:', {
+        console.log('[FAV_TRACE] 8. executePaymentFlowForNewBooking END', {
+          traceId,
           booking_id: result.booking_id,
+          payment_id: result.payment_id || null,
+          payment_method: result.payment_method,
           fallback_used: result.preferred_worker_fallback_used,
           requested_preferred_worker_id: result.requested_preferred_worker_id,
         });
         sessionStorage.removeItem(`preferred_worker_${service_type}`);
+
 
         // Favorite-worker fallback analytics + UX
         if (selectedWorker) {
@@ -316,13 +346,17 @@ export function InstantCheckoutScreen() {
         }
         navigate('/home', { replace: true });
       } catch (payErr: any) {
-        console.error('[FAV_FLOW] ❌ Payment error', {
+        console.error('[FAV_TRACE] 7T. executePaymentFlowForNewBooking THREW', {
+          traceId,
           name: payErr?.name,
           message: payErr?.message,
-          stack: payErr?.stack,
           type: payErr?.type,
+          fileName: payErr?.fileName,
+          lineNumber: payErr?.lineNumber,
+          stack: payErr?.stack,
           preferred_worker_id: (bookingData as any).preferred_worker_id,
         });
+
         // Pre-payment supply rejection → show busy modal, no retry sheet (no money taken)
         const paidAlready = payErr instanceof PaymentError && !!payErr.pendingCheckout;
         if (!paidAlready && payErr?.message?.includes('SUPPLY_FULL')) {
