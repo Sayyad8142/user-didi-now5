@@ -590,9 +590,17 @@ function shouldUseQrRecovery(checkoutResult: { razorpay_signature?: string } | n
 // ─── Legacy Helpers (for existing booking retries) ────────────
 
 export async function debitWalletForBooking(bookingId: string): Promise<WalletPayResult> {
-  console.log('💰 Debiting wallet for booking:', bookingId);
-  return invokeWithFirebaseAuth<WalletPayResult>('wallet-pay', { booking_id: bookingId });
+  console.log('[FAV_TRACE] PS.debitWalletForBooking → wallet-pay START', { booking_id: bookingId });
+  try {
+    const result = await invokeWithFirebaseAuth<WalletPayResult>('wallet-pay', { booking_id: bookingId });
+    console.log('[FAV_TRACE] PS.debitWalletForBooking → wallet-pay END', { booking_id: bookingId, ...result });
+    return result;
+  } catch (e: any) {
+    console.error('[FAV_TRACE] PS.debitWalletForBooking → wallet-pay THREW', { booking_id: bookingId, name: e?.name, message: e?.message });
+    throw e;
+  }
 }
+
 
 export async function createRazorpayOrder(bookingId: string): Promise<RazorpayOrderResponse> {
   console.log('🛒 Creating Razorpay order for booking:', bookingId);
