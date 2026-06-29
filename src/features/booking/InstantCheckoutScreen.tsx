@@ -69,7 +69,14 @@ export function InstantCheckoutScreen() {
     .sort((a, b) => Number(b.is_online) - Number(a.is_online));
 
   const handleSelect = (worker: FavoriteWorker) => {
+    console.log('[FAV_TRACE] 1. handleSelect tapped', {
+      worker_id: worker.worker_id,
+      worker_name: worker.full_name,
+      is_online: worker.is_online,
+      currentlySelected: selectedWorker?.worker_id || null,
+    });
     if (!worker.is_online) {
+      console.log('[FAV_TRACE] 1a. worker offline — selection rejected');
       toast({
         title: 'Expert is offline',
         description: 'This expert is offline right now. Try another or book without preference.',
@@ -77,8 +84,10 @@ export function InstantCheckoutScreen() {
       return;
     }
     if (selectedWorker?.worker_id === worker.worker_id) {
+      console.log('[FAV_TRACE] 1b. deselect worker', { worker_id: worker.worker_id });
       setSelectedWorker(null);
     } else {
+      console.log('[FAV_TRACE] 2. setSelectedWorker →', { worker_id: worker.worker_id });
       setSelectedWorker(worker);
       trackPaymentEvent('favorite_worker_selected', {
         worker_id: worker.worker_id,
@@ -90,12 +99,18 @@ export function InstantCheckoutScreen() {
   };
 
   const clearSelection = useCallback(() => {
+    console.log('[FAV_TRACE] clearSelection');
     setSelectedWorker(null);
   }, []);
 
   const handleBookNow = () => {
+    console.log('[FAV_TRACE] 3. handleBookNow tapped', {
+      selectedWorker_id: selectedWorker?.worker_id || null,
+      selectedWorker_name: selectedWorker?.full_name || null,
+    });
     setShowPaymentPicker(true);
   };
+
 
   const confirmBooking = async () => {
     const buildId = (typeof __APP_BUILD_ID__ !== 'undefined') ? __APP_BUILD_ID__ : 'dev';
