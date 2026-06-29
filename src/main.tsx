@@ -45,6 +45,32 @@ import "./index.css";
   };
   window.addEventListener("error", (e) => showStartupError("error", e.error || e.message));
   window.addEventListener("unhandledrejection", (e) => showStartupError("unhandledrejection", e.reason));
+
+  // Always-on runtime stack capture for production debugging.
+  // Logs full stack trace + filename + line for any uncaught error, even after React mounts.
+  window.addEventListener("error", (e) => {
+    try {
+      const err: any = e.error || {};
+      console.error("[RUNTIME_ERROR]", {
+        message: e.message || err?.message,
+        filename: (e as any).filename,
+        lineno: (e as any).lineno,
+        colno: (e as any).colno,
+        name: err?.name,
+        stack: err?.stack,
+      });
+    } catch {}
+  });
+  window.addEventListener("unhandledrejection", (e) => {
+    try {
+      const r: any = (e as any).reason || {};
+      console.error("[UNHANDLED_REJECTION]", {
+        message: r?.message ?? String(r),
+        name: r?.name,
+        stack: r?.stack,
+      });
+    } catch {}
+  });
 })();
 
 // @ts-ignore - injected by Vite define

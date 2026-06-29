@@ -98,8 +98,18 @@ export function InstantCheckoutScreen() {
   };
 
   const confirmBooking = async () => {
+    const buildId = (typeof __APP_BUILD_ID__ !== 'undefined') ? __APP_BUILD_ID__ : 'dev';
+    console.log('[FAV_FLOW] confirmBooking() entered', {
+      hasSelectedWorker: !!selectedWorker,
+      preferred_worker_id: selectedWorker?.worker_id || null,
+      paymentMethod,
+      build: buildId,
+    });
     setShowPaymentPicker(false);
-    if (!profile || !service_type || !user) return;
+    if (!profile || !service_type || !user) {
+      console.warn('[FAV_FLOW] aborted: missing profile/service_type/user');
+      return;
+    }
 
     // Server-side supply check
     if (profile.community) {
@@ -252,13 +262,22 @@ export function InstantCheckoutScreen() {
       }
 
       // ── Pay Now: PAYMENT-FIRST — no booking inserted until payment verified ──
-      console.log('💳 Starting payment-first flow for instant booking');
+      console.log('[FAV_FLOW] starting payment-first flow', {
+        preferred_worker_id: (bookingData as any).preferred_worker_id,
+        price_inr: bookingData.price_inr,
+      });
       try {
+        console.log('[FAV_FLOW] → executePaymentFlowForNewBooking');
         const result = await executePaymentFlowForNewBooking(bookingData, (status) => {
+          console.log('[FAV_FLOW] payment status:', status);
           setPaymentStatus(status);
         });
 
-        console.log('✅ [InstantCheckout] payment-first booking created:', result.booking_id, '→ navigating to /home');
+        console.log('[FAV_FLOW] ← executePaymentFlowForNewBooking result:', {
+          booking_id: result.booking_id,
+          fallback_used: result.preferred_worker_fallback_used,
+          requested_preferred_worker_id: result.requested_preferred_worker_id,
+        });
         sessionStorage.removeItem(`preferred_worker_${service_type}`);
 
         // Favorite-worker fallback analytics + UX
@@ -297,7 +316,13 @@ export function InstantCheckoutScreen() {
         }
         navigate('/home', { replace: true });
       } catch (payErr: any) {
-        console.error('❌ Payment error:', payErr);
+        console.error('[FAV_FLOW] ❌ Payment error', {
+          name: payErr?.name,
+          message: payErr?.message,
+          stack: payErr?.stack,
+          type: payErr?.type,
+          preferred_worker_id: (bookingData as any).preferred_worker_id,
+        });
         // Pre-payment supply rejection → show busy modal, no retry sheet (no money taken)
         const paidAlready = payErr instanceof PaymentError && !!payErr.pendingCheckout;
         if (!paidAlready && payErr?.message?.includes('SUPPLY_FULL')) {
@@ -343,7 +368,12 @@ export function InstantCheckoutScreen() {
         setRetrySheetOpen(true);
       }
     } catch (err: any) {
-      console.error('❌ Booking error:', err);
+      console.error('[FAV_FLOW] ❌ Outer booking error', {
+        name: err?.name,
+        message: err?.message,
+        stack: err?.stack,
+        preferred_worker_id: selectedWorker?.worker_id || null,
+      });
       const isNetworkError = err?.message?.includes('Load failed') || err?.message?.includes('Failed to fetch') || err?.message?.includes('NetworkError');
       toast({
         title: "Booking Failed",
