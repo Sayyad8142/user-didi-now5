@@ -368,7 +368,12 @@ export function InstantCheckoutScreen() {
         setRetrySheetOpen(true);
       }
     } catch (err: any) {
-      console.error('❌ Booking error:', err);
+      console.error('[FAV_FLOW] ❌ Outer booking error', {
+        name: err?.name,
+        message: err?.message,
+        stack: err?.stack,
+        preferred_worker_id: selectedWorker?.worker_id || null,
+      });
       const isNetworkError = err?.message?.includes('Load failed') || err?.message?.includes('Failed to fetch') || err?.message?.includes('NetworkError');
       toast({
         title: "Booking Failed",
