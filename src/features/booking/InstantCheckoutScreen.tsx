@@ -262,14 +262,22 @@ export function InstantCheckoutScreen() {
       }
 
       // ── Pay Now: PAYMENT-FIRST — no booking inserted until payment verified ──
-      console.log('💳 Starting payment-first flow for instant booking');
+      console.log('[FAV_FLOW] starting payment-first flow', {
+        preferred_worker_id: (bookingData as any).preferred_worker_id,
+        price_inr: bookingData.price_inr,
+      });
       try {
+        console.log('[FAV_FLOW] → executePaymentFlowForNewBooking');
         const result = await executePaymentFlowForNewBooking(bookingData, (status) => {
+          console.log('[FAV_FLOW] payment status:', status);
           setPaymentStatus(status);
         });
 
-        console.log('✅ [InstantCheckout] payment-first booking created:', result.booking_id, '→ navigating to /home');
-        sessionStorage.removeItem(`preferred_worker_${service_type}`);
+        console.log('[FAV_FLOW] ← executePaymentFlowForNewBooking result:', {
+          booking_id: result.booking_id,
+          fallback_used: result.preferred_worker_fallback_used,
+          requested_preferred_worker_id: result.requested_preferred_worker_id,
+        });
 
         // Favorite-worker fallback analytics + UX
         if (selectedWorker) {
