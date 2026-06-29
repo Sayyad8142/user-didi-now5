@@ -114,15 +114,6 @@ export function InstantCheckoutScreen() {
 
   const confirmBooking = async () => {
     const buildId = (typeof __APP_BUILD_ID__ !== 'undefined') ? __APP_BUILD_ID__ : 'dev';
-    console.log('[FAV_FLOW] confirmBooking() entered', {
-      hasSelectedWorker: !!selectedWorker,
-      preferred_worker_id: selectedWorker?.worker_id || null,
-      paymentMethod,
-      build: buildId,
-    });
-    setShowPaymentPicker(false);
-  const confirmBooking = async () => {
-    const buildId = (typeof __APP_BUILD_ID__ !== 'undefined') ? __APP_BUILD_ID__ : 'dev';
     const traceId = (typeof crypto !== 'undefined' && (crypto as any).randomUUID)
       ? (crypto as any).randomUUID()
       : `trace_${Date.now()}`;
@@ -134,17 +125,23 @@ export function InstantCheckoutScreen() {
       price,
       build: buildId,
     });
-    console.log('[FAV_FLOW] confirmBooking() entered', {
-      hasSelectedWorker: !!selectedWorker,
-      preferred_worker_id: selectedWorker?.worker_id || null,
-      paymentMethod,
-      build: buildId,
-    });
     setShowPaymentPicker(false);
     if (!profile || !service_type || !user) {
       console.warn('[FAV_TRACE] 4a. ABORT missing profile/service_type/user', { traceId });
       return;
     }
+
+    // Server-side supply check
+    if (profile.community) {
+      console.log('[FAV_TRACE] 5. checkInstantBookingAvailability START', { traceId, community: profile.community });
+      const available = await checkInstantBookingAvailability(profile.community);
+      console.log('[FAV_TRACE] 5. checkInstantBookingAvailability END', { traceId, available });
+      if (!available) {
+        setSupplyModalOpen(true);
+        return;
+      }
+    }
+
 
 
     if (!profile.community || profile.community === 'other') {
