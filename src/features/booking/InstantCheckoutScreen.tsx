@@ -98,8 +98,18 @@ export function InstantCheckoutScreen() {
   };
 
   const confirmBooking = async () => {
+    const buildId = (typeof (window as any).__APP_BUILD_ID__ !== 'undefined') ? (window as any).__APP_BUILD_ID__ : ((import.meta as any)?.env?.VITE_BUILD_ID || 'dev');
+    console.log('[FAV_FLOW] confirmBooking() entered', {
+      hasSelectedWorker: !!selectedWorker,
+      preferred_worker_id: selectedWorker?.worker_id || null,
+      paymentMethod,
+      build: buildId,
+    });
     setShowPaymentPicker(false);
-    if (!profile || !service_type || !user) return;
+    if (!profile || !service_type || !user) {
+      console.warn('[FAV_FLOW] aborted: missing profile/service_type/user');
+      return;
+    }
 
     // Server-side supply check
     if (profile.community) {
