@@ -660,8 +660,16 @@ export async function executePaymentFlowForNewBooking(
   const priceInr = bookingPayload.price_inr as number;
   const userId = bookingPayload.user_id as string;
   const serviceType = bookingPayload.service_type as string;
+  const preferredWorkerId = (bookingPayload as any).preferred_worker_id ?? null;
+  console.log('[FAV_TRACE] PS.executePaymentFlowForNewBooking START', {
+    preferred_worker_id: preferredWorkerId,
+    price_inr: priceInr,
+    service_type: serviceType,
+    user_id: userId,
+  });
 
   trackPaymentEvent('payment_first_started', { service_type: serviceType, amount: priceInr });
+
 
   // Step 0: P0 capacity gate (FAIL-CLOSED) — NEVER initiate payment when supply is full
   // or when capacity cannot be verified.
