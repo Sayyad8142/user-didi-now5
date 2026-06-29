@@ -278,6 +278,7 @@ export function InstantCheckoutScreen() {
           fallback_used: result.preferred_worker_fallback_used,
           requested_preferred_worker_id: result.requested_preferred_worker_id,
         });
+        sessionStorage.removeItem(`preferred_worker_${service_type}`);
 
         // Favorite-worker fallback analytics + UX
         if (selectedWorker) {
