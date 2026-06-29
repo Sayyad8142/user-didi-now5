@@ -103,41 +103,52 @@ async function persistFavoriteWorkerEvent(event: PaymentEventName, payload: Paym
 }
 
 function dispatch(event: PaymentEventName, payload: PaymentEventPayload) {
-  // Non-blocking — fire and forget
+  // Non-blocking — fire and forget. ALL work runs inside try/catch so
+  // analytics can NEVER throw or surface errors to the booking flow.
   queueMicrotask(() => {
-    const enriched = {
-      event,
-      ...payload,
-      platform: payload.platform || getAppPlatform(),
-      timestamp: new Date().toISOString(),
-    };
+    try {
+      const enriched = {
+        event,
+        ...payload,
+        platform: payload.platform || getAppPlatform(),
+        timestamp: new Date().toISOString(),
+      };
 
-    // Console log for debugging (structured)
-    console.log(`📊 [payment_analytics] ${event}`, enriched);
+      try { console.log(`📊 [payment_analytics] ${event}`, enriched); } catch { /* ignore */ }
 
-    // Update session stats
-    if (event === 'payment_started') sessionStats.total++;
-    if (event === 'payment_success') sessionStats.success++;
-    if (event === 'payment_failed') sessionStats.failed++;
-    if (event === 'payment_cancelled') sessionStats.cancelled++;
-    if (event === 'payment_retry_clicked' && payload.retry_count && payload.retry_count > 1) {
-      // Will be counted as retrySuccess if followed by success
+      if (event === 'payment_started') sessionStats.total++;
+      if (event === 'payment_success') sessionStats.success++;
+      if (event === 'payment_failed') sessionStats.failed++;
+      if (event === 'payment_cancelled') sessionStats.cancelled++;
+
+      // Persist favorite-worker analytics to DB (best-effort; never throws)
+      if (FAVORITE_WORKER_EVENTS.has(event)) {
+        try {
+          const p = persistFavoriteWorkerEvent(event, payload);
+          if (p && typeof (p as any).catch === 'function') {
+            (p as Promise<void>).catch((e) => {
+              try { console.warn('[favorite_worker_event persist] async failed', e); } catch { /* ignore */ }
+            });
+          }
+        } catch (persistErr) {
+          try { console.warn('[favorite_worker_event persist] sync failed', persistErr); } catch { /* ignore */ }
+        }
+      }
+    } catch (dispatchErr) {
+      try { console.warn('[payment_analytics] dispatch failed', dispatchErr); } catch { /* ignore */ }
     }
-
-    // Persist favorite-worker analytics to DB
-    if (FAVORITE_WORKER_EVENTS.has(event)) {
-      void persistFavoriteWorkerEvent(event, payload);
-    }
-
-    // Future: send to analytics provider here
-    // e.g. firebase.analytics().logEvent(event, enriched);
   });
 }
 
 // ─── Public API ───────────────────────────────────────────────
 
 export function trackPaymentEvent(event: PaymentEventName, payload: PaymentEventPayload = {}) {
-  dispatch(event, payload);
+  // Bulletproof: analytics must NEVER throw into the caller (booking flow).
+  try {
+    dispatch(event, payload);
+  } catch (e) {
+    try { console.warn('[payment_analytics] trackPaymentEvent failed', e); } catch { /* ignore */ }
+  }
 }
 
 export function getPaymentStats(): PaymentStats {
