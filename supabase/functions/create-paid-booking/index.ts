@@ -18,6 +18,7 @@ import {
   extractToken,
   corsHeaders,
 } from "../_shared/firebaseAuth.ts";
+import { getExpectedSurge, validateBookingSurge } from "../_shared/userSurge.ts";
 
 const RAZORPAY_KEY_SECRET = Deno.env.get("RAZORPAY_KEY_SECRET")!;
 const SUPABASE_URL =
@@ -150,6 +151,8 @@ const OPTIONAL_BOOKING_INSERT_COLUMNS = new Set([
   "razorpay_paid_amount",
   "request_id",
   "wallet_used_amount",
+  "loyalty_surge_amount",
+  "base_price_inr",
   // Newer location columns — may not exist in older schemas
   "building_id",
   "community_id",
@@ -315,6 +318,26 @@ Deno.serve(async (req) => {
     if (booking_data.user_id !== profile.id) {
       return json({ error: "User ID mismatch" }, 403);
     }
+
+    // 4b. Server-side loyalty surge enforcement
+    const expectedSurge = await getExpectedSurge(supabase, profile.id);
+    const surgeCheck = validateBookingSurge(booking_data, expectedSurge);
+    if (!surgeCheck.ok) {
+      console.warn(
+        `[create-paid-booking] ❌ PRICE_MISMATCH user=${profile.id} expected=₹${surgeCheck.expectedSurge} client=₹${surgeCheck.clientSurge} reason=${surgeCheck.reason}`,
+      );
+      return json(
+        {
+          error: "Price has changed. Please refresh and try again.",
+          code: "PRICE_MISMATCH",
+          expected_surge: surgeCheck.expectedSurge,
+          received_surge: surgeCheck.clientSurge,
+        },
+        400,
+      );
+    }
+    // Always persist the server-trusted surge value
+    booking_data.loyalty_surge_amount = expectedSurge;
 
     // 5. Verify payment
     if (payment_type === "razorpay" || payment_type === "wallet_and_razorpay") {

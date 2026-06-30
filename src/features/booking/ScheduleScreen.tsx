@@ -13,6 +13,7 @@ import { PaymentMethodSelector, type PaymentMethod } from '@/components/PaymentM
 import { PaymentRetrySheet } from '@/components/PaymentRetrySheet';
 import { trackPaymentEvent } from '@/lib/paymentAnalytics';
 import { useWalletBalance } from '@/hooks/useWallet';
+import { useUserSurge } from '@/hooks/useUserSurge';
 
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useProfile } from '@/contexts/ProfileContext';
@@ -93,6 +94,8 @@ export function ScheduleScreen() {
 
   // Dynamic slot surge pricing
   const { getSurge } = useSlotSurge(profile?.community_id, service_type || 'maid');
+  const { surge: userSurge } = useUserSurge();
+  const loyaltySurgeAmount = userSurge.amount;
 
   // Use flat size from hook (admin-managed) instead of URL param
   const flatSize = autoFlatSize || searchParams.get('flat');
@@ -288,6 +291,8 @@ export function ScheduleScreen() {
           ? GLASS_PARTITION_FEE * parseInt(bathroomCount!)
           : null,
         price_inr: finalPrice,
+        base_price_inr: Math.max(0, finalPrice - loyaltySurgeAmount),
+        loyalty_surge_amount: loyaltySurgeAmount,
         surcharge_amount: surcharge,
         surcharge_reason: surcharge > 0 ? 'slot_surge' : null,
         cust_name: /^\+?\d{7,15}$/.test(profile.full_name.trim()) ? 'User ' + profile.phone.slice(-4) : profile.full_name,

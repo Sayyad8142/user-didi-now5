@@ -17,6 +17,7 @@ import {
   extractToken,
   corsHeaders,
 } from "../_shared/firebaseAuth.ts";
+import { getExpectedSurge, validateBookingSurge } from "../_shared/userSurge.ts";
 
 function cleanSecret(raw?: string | null): string {
   if (!raw) return "";
@@ -63,6 +64,8 @@ const OPTIONAL_BOOKING_INSERT_COLUMNS = new Set([
   "glass_partition_fee",
   "surcharge_amount",
   "surcharge_reason",
+  "loyalty_surge_amount",
+  "base_price_inr",
 ]);
 
 function extractMissingColumnName(message?: string): string | null {
@@ -155,6 +158,25 @@ Deno.serve(async (req) => {
 
     // Force the user_id server-side (don't trust the client)
     booking_data.user_id = profile.id;
+
+    // Server-side loyalty surge enforcement
+    const expectedSurge = await getExpectedSurge(supabase, profile.id);
+    const surgeCheck = validateBookingSurge(booking_data, expectedSurge);
+    if (!surgeCheck.ok) {
+      console.warn(
+        `[create-pending-booking] ❌ PRICE_MISMATCH user=${profile.id} expected=₹${surgeCheck.expectedSurge} client=₹${surgeCheck.clientSurge} reason=${surgeCheck.reason}`,
+      );
+      return json(
+        {
+          error: "Price has changed. Please refresh and try again.",
+          code: "PRICE_MISMATCH",
+          expected_surge: surgeCheck.expectedSurge,
+          received_surge: surgeCheck.clientSurge,
+        },
+        400,
+      );
+    }
+    booking_data.loyalty_surge_amount = expectedSurge;
 
     // Sanity guard: this function is for non-online payments only
     const ps = booking_data.payment_status;
