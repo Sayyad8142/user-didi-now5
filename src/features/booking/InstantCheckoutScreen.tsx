@@ -51,6 +51,8 @@ export function InstantCheckoutScreen() {
   const { flatSize: autoFlatSize } = useFlatSize();
   const { data: walletData } = useWalletBalance();
   const walletBalance = walletData?.balance_inr ?? 0;
+  const { surge: userSurge } = useUserSurge();
+  const surgeAmount = userSurge.amount;
   
 
   const priceParam = searchParams.get('price');
