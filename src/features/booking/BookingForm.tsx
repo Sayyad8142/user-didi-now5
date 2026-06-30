@@ -1268,7 +1268,7 @@ export function BookingForm() {
                     return;
                   }
                   const price = pricingMap[selectedFlatSize];
-                  navigate(`/book/${service_type}/schedule?flat=${selectedFlatSize}&price=${price}`);
+                  navigate(`/book/${service_type}/schedule?flat=${selectedFlatSize}&price=${(price ?? 0) + surgeAmount}`);
                 }
               }}
               disabled={service_type === 'maid' ? !selectedFlatSize || selectedTasks.length === 0 || selectedTasks.includes('dish_washing') && !dishIntensity : service_type === 'bathroom_cleaning' ? false : !selectedFlatSize}
