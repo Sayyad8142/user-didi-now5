@@ -1177,7 +1177,7 @@ export function BookingForm() {
                     if (!selectedFlatSize) return;
                     const price = pricingMap[selectedFlatSize];
                     if (!price) {toast({ title: "Error", description: "Price not available.", variant: "destructive" });return;}
-                    navigate(`/book/${service_type}/instant?flat=${selectedFlatSize}&price=${price}`);
+                    navigate(`/book/${service_type}/instant?flat=${selectedFlatSize}&price=${price + surgeAmount}`);
                   }
                 }}
                 className="w-full flex items-center gap-2 px-2.5 py-2 mt-2 rounded-xl border border-border bg-card hover:bg-accent/50 transition-colors">
