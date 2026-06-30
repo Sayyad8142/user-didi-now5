@@ -15,6 +15,13 @@ import { insertBookingWithCompat } from './insertBookingCompat';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useProfile } from '@/contexts/ProfileContext';
 import { prettyServiceName, serviceIcon, isValidServiceType, getPricingMap, FLAT_SIZES, type FlatSize, type PricingMap } from './pricing';
+import { useUserSurge } from '@/hooks/useUserSurge';
+
+const ordinal = (n: number): string => {
+  const s = ['th', 'st', 'nd', 'rd'];
+  const v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+};
 import { isOpenNow, getOpenStatusText, getServiceHoursText } from '@/features/home/time';
 import { ScheduleSheet } from './ScheduleSheet';
 import { cn } from '@/lib/utils';
@@ -244,14 +251,22 @@ export function BookingForm() {
   const dishIntensityExtra = selectedTasks.includes('dish_washing') && dishIntensity ? getIntensityExtra(dishIntensity) : 0;
   // totalPrice uses ONLY live prices. If anything is missing, totalPrice = 0
   // and booking entry points block submission with a clear error toast.
-  const totalPrice = service_type === 'maid' && selectedTasks.length > 0 && maidPricingReady ?
+  const baseTotalPrice = service_type === 'maid' && selectedTasks.length > 0 && maidPricingReady ?
   selectedTasks.reduce((sum, task) => sum + (livePrice(task) as number), 0) + dishIntensityExtra :
   0;
 
   // Bathroom pricing calculation
   const bathroomBasePrice = service_type === 'bathroom_cleaning' ? (bathroomUnitPrice ?? 250) * Math.max(1, bathroomCount) : 0;
   const glassPartitionFee = service_type === 'bathroom_cleaning' && hasGlassPartition ? GLASS_PARTITION_FEE * Math.max(1, bathroomCount) : 0;
-  const bathroomTotalPrice = bathroomBasePrice + glassPartitionFee;
+  const baseBathroomTotalPrice = bathroomBasePrice + glassPartitionFee;
+
+  // Per-user loyalty surge (₹0 / ₹10 / ₹30 / ₹60+ based on booking count)
+  const { surge: userSurge } = useUserSurge();
+  const surgeAmount = userSurge.amount;
+
+  // Final prices include surge. Only applied when there IS a base price.
+  const totalPrice = baseTotalPrice > 0 ? baseTotalPrice + surgeAmount : 0;
+  const bathroomTotalPrice = baseBathroomTotalPrice > 0 ? baseBathroomTotalPrice + surgeAmount : 0;
   useEffect(() => {
     // Don't redirect - ProtectedRoute handles auth check
     if (service_type && !isValidServiceType(service_type)) {
@@ -376,9 +391,9 @@ export function BookingForm() {
       await createBooking('instant', null, null, bathroomTotalPrice);
     } else {
       if (!selectedFlatSize) return;
-      const price = pricingMap[selectedFlatSize];
-      if (!price) return;
-      await createBooking('instant', null, null, price);
+      const basePrice = pricingMap[selectedFlatSize];
+      if (!basePrice) return;
+      await createBooking('instant', null, null, basePrice + surgeAmount);
     }
   };
   const handleSchedule = () => {
@@ -432,7 +447,7 @@ export function BookingForm() {
         return;
       }
       params.set('flat', selectedFlatSize);
-      params.set('price', price.toString());
+      params.set('price', (price + surgeAmount).toString());
     }
 
     navigate(`/schedule/${service_type}?${params.toString()}`);
@@ -653,9 +668,11 @@ export function BookingForm() {
       </div>;
   }
   const ServiceIcon = serviceIcon(service_type);
+  const legacyBase = selectedFlatSize ? pricingMap[selectedFlatSize] : null;
+  const legacyWithSurge = legacyBase != null ? legacyBase + surgeAmount : null;
   const currentPrice = service_type === 'maid' ? selectedFlatSize && selectedTasks.length > 0 ? totalPrice : null :
   service_type === 'bathroom_cleaning' ? bathroomTotalPrice :
-  selectedFlatSize ? pricingMap[selectedFlatSize] : null;
+  legacyWithSurge;
   const isServiceOpen = isOpenNow(service_type);
 
 
@@ -1032,6 +1049,12 @@ export function BookingForm() {
                     }
                         </div>
                   }
+                  {surgeAmount > 0 && currentPrice != null && currentPrice > 0 &&
+                    <div className="mt-2 inline-flex items-center gap-1.5 text-[11px] font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2.5 py-1">
+                      <span>Loyalty pricing: +₹{surgeAmount}</span>
+                      <span className="text-amber-600">· your {ordinal(userSurge.bookingNumber)} booking</span>
+                    </div>
+                  }
                     </>}
                 </div>
               </CardContent>
@@ -1166,7 +1189,7 @@ export function BookingForm() {
                     if (!selectedFlatSize) return;
                     const price = pricingMap[selectedFlatSize];
                     if (!price) {toast({ title: "Error", description: "Price not available.", variant: "destructive" });return;}
-                    navigate(`/book/${service_type}/instant?flat=${selectedFlatSize}&price=${price}`);
+                    navigate(`/book/${service_type}/instant?flat=${selectedFlatSize}&price=${price + surgeAmount}`);
                   }
                 }}
                 className="w-full flex items-center gap-2 px-2.5 py-2 mt-2 rounded-xl border border-border bg-card hover:bg-accent/50 transition-colors">
@@ -1257,7 +1280,7 @@ export function BookingForm() {
                     return;
                   }
                   const price = pricingMap[selectedFlatSize];
-                  navigate(`/book/${service_type}/schedule?flat=${selectedFlatSize}&price=${price}`);
+                  navigate(`/book/${service_type}/schedule?flat=${selectedFlatSize}&price=${(price ?? 0) + surgeAmount}`);
                 }
               }}
               disabled={service_type === 'maid' ? !selectedFlatSize || selectedTasks.length === 0 || selectedTasks.includes('dish_washing') && !dishIntensity : service_type === 'bathroom_cleaning' ? false : !selectedFlatSize}
@@ -1317,7 +1340,7 @@ export function BookingForm() {
               selected={paymentMethod}
               onChange={setPaymentMethod}
               walletBalance={walletBalance}
-              bookingAmount={service_type === 'maid' ? totalPrice : service_type === 'bathroom_cleaning' ? bathroomTotalPrice : (selectedFlatSize ? pricingMap[selectedFlatSize] ?? 0 : 0)}
+              bookingAmount={service_type === 'maid' ? totalPrice : service_type === 'bathroom_cleaning' ? bathroomTotalPrice : (selectedFlatSize ? (pricingMap[selectedFlatSize] ?? 0) + surgeAmount : 0)}
             />
             <div className="flex gap-2 mt-3">
               <Button
