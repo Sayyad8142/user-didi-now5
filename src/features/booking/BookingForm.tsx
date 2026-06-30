@@ -441,7 +441,7 @@ export function BookingForm() {
         return;
       }
       params.set('flat', selectedFlatSize);
-      params.set('price', price.toString());
+      params.set('price', (price + surgeAmount).toString());
     }
 
     navigate(`/schedule/${service_type}?${params.toString()}`);
