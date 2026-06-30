@@ -1328,7 +1328,7 @@ export function BookingForm() {
               selected={paymentMethod}
               onChange={setPaymentMethod}
               walletBalance={walletBalance}
-              bookingAmount={service_type === 'maid' ? totalPrice : service_type === 'bathroom_cleaning' ? bathroomTotalPrice : (selectedFlatSize ? pricingMap[selectedFlatSize] ?? 0 : 0)}
+              bookingAmount={service_type === 'maid' ? totalPrice : service_type === 'bathroom_cleaning' ? bathroomTotalPrice : (selectedFlatSize ? (pricingMap[selectedFlatSize] ?? 0) + surgeAmount : 0)}
             />
             <div className="flex gap-2 mt-3">
               <Button
