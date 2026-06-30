@@ -12,6 +12,13 @@
  *
  * Pure function — safe to use in both client and edge functions.
  */
+
+/**
+ * Dynamic Pricing launch date — only bookings COMPLETED on or after this
+ * date count toward the user's loyalty tier.
+ */
+export const LOYALTY_SURGE_LAUNCH_DATE = '2026-07-01';
+
 export interface SurgeResult {
   /** Extra ₹ to add to base price */
   amount: number;
