@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useProfile } from '@/contexts/ProfileContext';
-import { computeUserSurge, type SurgeResult } from '@/lib/userSurge';
+import { computeUserSurge, LOYALTY_SURGE_LAUNCH_DATE, type SurgeResult } from '@/lib/userSurge';
 
 /**
  * Returns the current user's loyalty surge based on how many
