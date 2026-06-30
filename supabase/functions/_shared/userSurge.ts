@@ -60,13 +60,14 @@ export async function getExpectedSurge(supabase: any, userId: string | null | un
   }
 
 
-  // Fallback: count non-cancelled bookings
+  // Fallback: count ONLY completed bookings since launch date
   try {
     const { count, error } = await supabase
       .from("bookings")
       .select("id", { count: "exact", head: true })
       .eq("user_id", userId)
-      .not("status", "in", `(${CANCELLED_STATUSES.join(",")})`);
+      .eq("status", "completed")
+      .gte("created_at", LOYALTY_SURGE_LAUNCH_DATE);
     if (error) {
       console.warn("[userSurge] count fallback failed:", error.message);
       return 0;
