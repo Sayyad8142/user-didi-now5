@@ -514,6 +514,8 @@ export function BookingForm() {
         status: 'pending',
         flat_size: service_type === 'bathroom_cleaning' ? null : selectedFlatSize,
         price_inr: price,
+        base_price_inr: Math.max(0, price - surgeAmount),
+        loyalty_surge_amount: surgeAmount,
         family_count: null,
         food_pref: null,
         cook_cuisine_pref: null,
