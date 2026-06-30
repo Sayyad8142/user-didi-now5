@@ -151,6 +151,8 @@ const OPTIONAL_BOOKING_INSERT_COLUMNS = new Set([
   "razorpay_paid_amount",
   "request_id",
   "wallet_used_amount",
+  "loyalty_surge_amount",
+  "base_price_inr",
   // Newer location columns — may not exist in older schemas
   "building_id",
   "community_id",
