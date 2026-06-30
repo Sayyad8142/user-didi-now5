@@ -102,6 +102,42 @@ Deno.serve(async (req) => {
       // Force-sync user_id to the authenticated profile (never trust client).
       const safeBookingData = { ...bookingData, user_id: profile.id };
 
+      // ── Server-side loyalty surge enforcement ─────────────────
+      const expectedSurge = await getExpectedSurge(supabase, profile.id);
+      const surgeCheck = validateBookingSurge(safeBookingData, expectedSurge);
+      if (!surgeCheck.ok) {
+        console.warn(
+          `[create-razorpay-order] ❌ PRICE_MISMATCH user=${profile.id} expected=₹${surgeCheck.expectedSurge} client=₹${surgeCheck.clientSurge} reason=${surgeCheck.reason}`,
+        );
+        return json(
+          {
+            error: "Price has changed. Please refresh and try again.",
+            code: "PRICE_MISMATCH",
+            expected_surge: surgeCheck.expectedSurge,
+            received_surge: surgeCheck.clientSurge,
+          },
+          400,
+        );
+      }
+      safeBookingData.loyalty_surge_amount = expectedSurge;
+
+      // The Razorpay charge amount must match the booking's price_inr
+      // (after server-validated surge). Otherwise a tampered client could
+      // pay less than the booking price.
+      const expectedPriceInr = Number(safeBookingData.price_inr ?? amount);
+      if (Math.abs(amount - expectedPriceInr) > 1) {
+        console.warn(
+          `[create-razorpay-order] ❌ AMOUNT_MISMATCH user=${profile.id} amount=₹${amount} price_inr=₹${expectedPriceInr}`,
+        );
+        return json(
+          {
+            error: "Amount does not match booking price.",
+            code: "AMOUNT_MISMATCH",
+          },
+          400,
+        );
+      }
+
       // ── P0 CAPACITY GATE V2 (Layer 2, server-side) ────────────
       // Per-service active-instant count on the EXTERNAL DB.
       // FAIL-CLOSED: any error blocks payment. The DB trigger remains
