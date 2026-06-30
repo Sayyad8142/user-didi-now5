@@ -17,6 +17,7 @@ import {
   extractToken,
   corsHeaders,
 } from "../_shared/firebaseAuth.ts";
+import { getExpectedSurge, validateBookingSurge } from "../_shared/userSurge.ts";
 
 function cleanSecret(raw?: string | null): string {
   if (!raw) return "";
