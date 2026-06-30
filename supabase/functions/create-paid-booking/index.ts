@@ -18,6 +18,7 @@ import {
   extractToken,
   corsHeaders,
 } from "../_shared/firebaseAuth.ts";
+import { getExpectedSurge, validateBookingSurge } from "../_shared/userSurge.ts";
 
 const RAZORPAY_KEY_SECRET = Deno.env.get("RAZORPAY_KEY_SECRET")!;
 const SUPABASE_URL =
