@@ -662,9 +662,11 @@ export function BookingForm() {
       </div>;
   }
   const ServiceIcon = serviceIcon(service_type);
+  const legacyBase = selectedFlatSize ? pricingMap[selectedFlatSize] : null;
+  const legacyWithSurge = legacyBase != null ? legacyBase + surgeAmount : null;
   const currentPrice = service_type === 'maid' ? selectedFlatSize && selectedTasks.length > 0 ? totalPrice : null :
   service_type === 'bathroom_cleaning' ? bathroomTotalPrice :
-  selectedFlatSize ? pricingMap[selectedFlatSize] : null;
+  legacyWithSurge;
   const isServiceOpen = isOpenNow(service_type);
 
 
