@@ -245,14 +245,22 @@ export function BookingForm() {
   const dishIntensityExtra = selectedTasks.includes('dish_washing') && dishIntensity ? getIntensityExtra(dishIntensity) : 0;
   // totalPrice uses ONLY live prices. If anything is missing, totalPrice = 0
   // and booking entry points block submission with a clear error toast.
-  const totalPrice = service_type === 'maid' && selectedTasks.length > 0 && maidPricingReady ?
+  const baseTotalPrice = service_type === 'maid' && selectedTasks.length > 0 && maidPricingReady ?
   selectedTasks.reduce((sum, task) => sum + (livePrice(task) as number), 0) + dishIntensityExtra :
   0;
 
   // Bathroom pricing calculation
   const bathroomBasePrice = service_type === 'bathroom_cleaning' ? (bathroomUnitPrice ?? 250) * Math.max(1, bathroomCount) : 0;
   const glassPartitionFee = service_type === 'bathroom_cleaning' && hasGlassPartition ? GLASS_PARTITION_FEE * Math.max(1, bathroomCount) : 0;
-  const bathroomTotalPrice = bathroomBasePrice + glassPartitionFee;
+  const baseBathroomTotalPrice = bathroomBasePrice + glassPartitionFee;
+
+  // Per-user loyalty surge (₹0 / ₹10 / ₹30 / ₹60+ based on booking count)
+  const { surge: userSurge } = useUserSurge();
+  const surgeAmount = userSurge.amount;
+
+  // Final prices include surge. Only applied when there IS a base price.
+  const totalPrice = baseTotalPrice > 0 ? baseTotalPrice + surgeAmount : 0;
+  const bathroomTotalPrice = baseBathroomTotalPrice > 0 ? baseBathroomTotalPrice + surgeAmount : 0;
   useEffect(() => {
     // Don't redirect - ProtectedRoute handles auth check
     if (service_type && !isValidServiceType(service_type)) {
