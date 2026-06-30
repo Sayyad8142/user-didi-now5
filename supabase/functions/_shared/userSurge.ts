@@ -39,7 +39,11 @@ export async function getExpectedSurge(supabase: any, userId: string | null | un
   try {
     const { data, error } = await supabase.rpc("get_user_surge_amount", { p_user_id: userId });
     if (!error && data !== null && data !== undefined) {
-      const n = Number(data);
+      // New RPC returns TABLE → array of rows with surge_amount.
+      // Old RPC returned a scalar integer. Support both.
+      const row = Array.isArray(data) ? data[0] : data;
+      const raw = row && typeof row === "object" ? (row as any).surge_amount : row;
+      const n = Number(raw);
       if (Number.isFinite(n) && n >= 0) return Math.round(n);
     }
     if (error) {
@@ -48,6 +52,7 @@ export async function getExpectedSurge(supabase: any, userId: string | null | un
   } catch (e) {
     console.warn("[userSurge] RPC threw, falling back to count:", (e as Error).message);
   }
+
 
   // Fallback: count non-cancelled bookings
   try {
