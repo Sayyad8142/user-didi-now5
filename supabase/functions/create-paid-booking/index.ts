@@ -319,6 +319,26 @@ Deno.serve(async (req) => {
       return json({ error: "User ID mismatch" }, 403);
     }
 
+    // 4b. Server-side loyalty surge enforcement
+    const expectedSurge = await getExpectedSurge(supabase, profile.id);
+    const surgeCheck = validateBookingSurge(booking_data, expectedSurge);
+    if (!surgeCheck.ok) {
+      console.warn(
+        `[create-paid-booking] ❌ PRICE_MISMATCH user=${profile.id} expected=₹${surgeCheck.expectedSurge} client=₹${surgeCheck.clientSurge} reason=${surgeCheck.reason}`,
+      );
+      return json(
+        {
+          error: "Price has changed. Please refresh and try again.",
+          code: "PRICE_MISMATCH",
+          expected_surge: surgeCheck.expectedSurge,
+          received_surge: surgeCheck.clientSurge,
+        },
+        400,
+      );
+    }
+    // Always persist the server-trusted surge value
+    booking_data.loyalty_surge_amount = expectedSurge;
+
     // 5. Verify payment
     if (payment_type === "razorpay" || payment_type === "wallet_and_razorpay") {
       if (qr_recovery) {
