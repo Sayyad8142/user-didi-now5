@@ -24,7 +24,8 @@ export function useUserSurge(): { surge: SurgeResult; loading: boolean } {
         .from('bookings')
         .select('id', { count: 'exact', head: true })
         .eq('user_id', profileId!)
-        .not('status', 'in', '(cancelled,failed,rejected)');
+        .eq('status', 'completed')
+        .gte('created_at', LOYALTY_SURGE_LAUNCH_DATE);
 
       if (error) {
         console.warn('[useUserSurge] count error → defaulting to 0', error);
