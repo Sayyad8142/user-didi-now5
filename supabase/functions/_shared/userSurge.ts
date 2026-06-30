@@ -12,7 +12,13 @@
  *   Each next tier of 4 → +₹30 more
  */
 
-const CANCELLED_STATUSES = ["cancelled", "failed", "rejected"];
+/**
+ * Dynamic Pricing launch date — only bookings COMPLETED on or after this
+ * date count toward the user's loyalty tier. Override with the
+ * LOYALTY_SURGE_LAUNCH_DATE env var (ISO date, e.g. "2026-07-01").
+ */
+export const LOYALTY_SURGE_LAUNCH_DATE =
+  Deno.env.get("LOYALTY_SURGE_LAUNCH_DATE") || "2026-07-01";
 
 export function computeSurgeFromCount(completedCount: number): number {
   const bookingNumber = Math.max(0, completedCount) + 1;
@@ -54,13 +60,14 @@ export async function getExpectedSurge(supabase: any, userId: string | null | un
   }
 
 
-  // Fallback: count non-cancelled bookings
+  // Fallback: count ONLY completed bookings since launch date
   try {
     const { count, error } = await supabase
       .from("bookings")
       .select("id", { count: "exact", head: true })
       .eq("user_id", userId)
-      .not("status", "in", `(${CANCELLED_STATUSES.join(",")})`);
+      .eq("status", "completed")
+      .gte("created_at", LOYALTY_SURGE_LAUNCH_DATE);
     if (error) {
       console.warn("[userSurge] count fallback failed:", error.message);
       return 0;
