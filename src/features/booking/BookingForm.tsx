@@ -385,9 +385,9 @@ export function BookingForm() {
       await createBooking('instant', null, null, bathroomTotalPrice);
     } else {
       if (!selectedFlatSize) return;
-      const price = pricingMap[selectedFlatSize];
-      if (!price) return;
-      await createBooking('instant', null, null, price);
+      const basePrice = pricingMap[selectedFlatSize];
+      if (!basePrice) return;
+      await createBooking('instant', null, null, basePrice + surgeAmount);
     }
   };
   const handleSchedule = () => {
