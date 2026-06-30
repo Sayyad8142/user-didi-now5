@@ -1043,6 +1043,12 @@ export function BookingForm() {
                     }
                         </div>
                   }
+                  {surgeAmount > 0 && currentPrice != null && currentPrice > 0 &&
+                    <div className="mt-2 inline-flex items-center gap-1.5 text-[11px] font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2.5 py-1">
+                      <span>Loyalty pricing: +₹{surgeAmount}</span>
+                      <span className="text-amber-600">· your {ordinal(userSurge.bookingNumber)} booking</span>
+                    </div>
+                  }
                     </>}
                 </div>
               </CardContent>
