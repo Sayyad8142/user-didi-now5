@@ -12,7 +12,13 @@
  *   Each next tier of 4 → +₹30 more
  */
 
-const CANCELLED_STATUSES = ["cancelled", "failed", "rejected"];
+/**
+ * Dynamic Pricing launch date — only bookings COMPLETED on or after this
+ * date count toward the user's loyalty tier. Override with the
+ * LOYALTY_SURGE_LAUNCH_DATE env var (ISO date, e.g. "2026-07-01").
+ */
+export const LOYALTY_SURGE_LAUNCH_DATE =
+  Deno.env.get("LOYALTY_SURGE_LAUNCH_DATE") || "2026-07-01";
 
 export function computeSurgeFromCount(completedCount: number): number {
   const bookingNumber = Math.max(0, completedCount) + 1;
