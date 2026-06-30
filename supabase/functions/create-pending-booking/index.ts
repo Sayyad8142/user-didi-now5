@@ -64,6 +64,8 @@ const OPTIONAL_BOOKING_INSERT_COLUMNS = new Set([
   "glass_partition_fee",
   "surcharge_amount",
   "surcharge_reason",
+  "loyalty_surge_amount",
+  "base_price_inr",
 ]);
 
 function extractMissingColumnName(message?: string): string | null {
