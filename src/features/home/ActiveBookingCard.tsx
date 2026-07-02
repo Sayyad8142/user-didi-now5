@@ -313,11 +313,30 @@ const ActiveBookingCard = memo(() => {
         (payload) => {
           console.log('[HOME_REALTIME_EVENT] bookings', (payload as any)?.eventType);
           fetchActiveBooking();
+          // Re-fetch shortly after in case the edge function's cache/read-replica
+          // is momentarily behind the realtime event (RLS eventual consistency).
+          setTimeout(() => fetchActiveBooking(), 1500);
         }
       )
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [profile?.id, fetchActiveBooking]);
+
+  // Safety poller: while the booking is still in "assigning" (pending instant),
+  // realtime is occasionally missed (WebSocket drop, backend switch, RLS lag).
+  // Poll every 6s so the card reliably flips to "Assigned" once a worker is set.
+  useEffect(() => {
+    if (!profile?.id) return;
+    const isAssigning =
+      activeBooking?.status === 'pending' &&
+      activeBooking?.booking_type !== 'scheduled';
+    if (!isAssigning) return;
+    const id = setInterval(() => {
+      console.log('[HOME_POLL] ActiveBookingCard pending → refetch');
+      fetchActiveBooking();
+    }, 6000);
+    return () => clearInterval(id);
+  }, [profile?.id, activeBooking?.status, activeBooking?.booking_type, fetchActiveBooking]);
 
   useEffect(() => {
     if (!activeBooking) { setReachButtonsVisible(false); return; }
