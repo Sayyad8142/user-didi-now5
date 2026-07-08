@@ -17,11 +17,23 @@ import {
   createBookingFromPending,
   fetchPendingByOrderId,
 } from "../_shared/createBookingFromPending.ts";
+import {
+  EXTERNAL_SUPABASE_URL,
+  EXTERNAL_SUPABASE_SERVICE_ROLE_KEY,
+  FUNCTIONS_BASE_URL,
+} from "../_shared/externalSupabaseEnv.ts";
 
 
 const RAZORPAY_WEBHOOK_SECRET = Deno.env.get("RAZORPAY_WEBHOOK_SECRET") || "";
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+// CRITICAL: bookings + pending_bookings + orphan_payments live on the
+// EXTERNAL DB. Using the Lovable-injected SUPABASE_URL/SERVICE_ROLE_KEY
+// would silently point the webhook at the wrong DB and break payment
+// reconciliation (schema cache miss on pending_bookings).
+const SUPABASE_URL = EXTERNAL_SUPABASE_URL;
+const SUPABASE_SERVICE_ROLE_KEY = EXTERNAL_SUPABASE_SERVICE_ROLE_KEY;
+// The dispatch edge function is hosted on Lovable Cloud, not the
+// external DB project — call it via its own base URL.
+const DISPATCH_BASE_URL = FUNCTIONS_BASE_URL || SUPABASE_URL;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -213,7 +225,7 @@ Deno.serve(async (req) => {
       if (booking.booking_type === "instant" && booking.status === "pending") {
         console.log(`[DISPATCH_FLOW_DEBUG][razorpay-webhook] booking=${booking.id} type=instant → dispatch-pending-bookings`);
         try {
-          await fetch(`${SUPABASE_URL}/functions/v1/dispatch-pending-bookings`, {
+          await fetch(`${DISPATCH_BASE_URL}/functions/v1/dispatch-pending-bookings`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",

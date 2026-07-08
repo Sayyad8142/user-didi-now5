@@ -17,11 +17,20 @@ import {
   createBookingFromPending,
   type PendingBookingRow,
 } from "../_shared/createBookingFromPending.ts";
+import {
+  EXTERNAL_SUPABASE_URL,
+  EXTERNAL_SUPABASE_SERVICE_ROLE_KEY,
+} from "../_shared/externalSupabaseEnv.ts";
 
 const RAZORPAY_KEY_ID = Deno.env.get("RAZORPAY_KEY_ID")!;
 const RAZORPAY_KEY_SECRET = Deno.env.get("RAZORPAY_KEY_SECRET")!;
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+// CRITICAL: pending_bookings, bookings, orphan_payments live on the
+// EXTERNAL Supabase project. Using the Lovable-injected SUPABASE_URL
+// here causes "Could not find the table 'public.pending_bookings' in
+// the schema cache" and silently breaks the entire recovery path for
+// paid-but-not-created bookings (including favourite-worker flow).
+const SUPABASE_URL = EXTERNAL_SUPABASE_URL;
+const SUPABASE_SERVICE_ROLE_KEY = EXTERNAL_SUPABASE_SERVICE_ROLE_KEY;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
