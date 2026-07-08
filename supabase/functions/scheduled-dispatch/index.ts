@@ -1,5 +1,9 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import {
+  EXTERNAL_SUPABASE_URL,
+  EXTERNAL_SUPABASE_SERVICE_ROLE_KEY,
+} from "../_shared/externalSupabaseEnv.ts"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -13,10 +17,14 @@ serve(async (req) => {
   }
 
   try {
-    // Create Supabase client
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    const supabase = createClient(supabaseUrl, supabaseKey)
+    // CRITICAL: run_scheduled_prealerts() is defined on the EXTERNAL
+    // Supabase project alongside the bookings table. The Lovable-injected
+    // SUPABASE_URL points at Lovable Cloud where this RPC does not exist,
+    // so scheduled dispatch was silently no-oping in production.
+    const supabase = createClient(
+      EXTERNAL_SUPABASE_URL,
+      EXTERNAL_SUPABASE_SERVICE_ROLE_KEY,
+    )
 
     console.log('Scheduled Dispatch: Starting check for bookings due in 15 minutes...')
 

@@ -11,11 +11,20 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { countActiveInstantBookings } from "../_shared/capacityRules.ts";
 import { verifyFirebaseToken, extractToken, corsHeaders } from "../_shared/firebaseAuth.ts";
 import { getExpectedSurge, validateBookingSurge } from "../_shared/userSurge.ts";
+import {
+  EXTERNAL_SUPABASE_URL,
+  EXTERNAL_SUPABASE_SERVICE_ROLE_KEY,
+} from "../_shared/externalSupabaseEnv.ts";
 
 const RAZORPAY_KEY_ID = Deno.env.get("RAZORPAY_KEY_ID")!;
 const RAZORPAY_KEY_SECRET = Deno.env.get("RAZORPAY_KEY_SECRET")!;
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+// CRITICAL: profiles / bookings / pending_bookings live on the EXTERNAL
+// Supabase project (paywwbuqycovjopryele). Using the Lovable-injected
+// SUPABASE_URL here causes "Could not find the table 'public.profiles'
+// in the schema cache" and breaks Razorpay order creation for retries
+// and the payment-first flow.
+const SUPABASE_URL = EXTERNAL_SUPABASE_URL;
+const SUPABASE_SERVICE_ROLE_KEY = EXTERNAL_SUPABASE_SERVICE_ROLE_KEY;
 
 function json(body: Record<string, unknown>, status = 200) {
   return new Response(JSON.stringify(body), {
