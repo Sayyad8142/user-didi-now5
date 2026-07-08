@@ -1,9 +1,16 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { verifyFirebaseToken, extractToken, corsHeaders } from "../_shared/firebaseAuth.ts";
+import {
+  EXTERNAL_SUPABASE_URL,
+  EXTERNAL_SUPABASE_SERVICE_ROLE_KEY,
+  FUNCTIONS_BASE_URL,
+} from "../_shared/externalSupabaseEnv.ts";
 
 const RAZORPAY_KEY_SECRET = Deno.env.get("RAZORPAY_KEY_SECRET")!;
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+// bookings + profiles live on the EXTERNAL DB.
+const SUPABASE_URL = EXTERNAL_SUPABASE_URL;
+const SUPABASE_SERVICE_ROLE_KEY = EXTERNAL_SUPABASE_SERVICE_ROLE_KEY;
+const DISPATCH_BASE_URL = FUNCTIONS_BASE_URL || SUPABASE_URL;
 
 function hmacSha256Verify(data: string, signature: string, secret: string): Promise<boolean> {
   return (async () => {
