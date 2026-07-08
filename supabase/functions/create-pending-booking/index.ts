@@ -190,22 +190,35 @@ Deno.serve(async (req) => {
 
     let result = await insertWithCompat(supabase, booking_data);
 
+    const firstErrMsg = result.error?.message || "";
+    const isHttpQueueNullUrl =
+      /http_request_queue/i.test(firstErrMsg) &&
+      /"?url"?/i.test(firstErrMsg) &&
+      /not[- ]?null/i.test(firstErrMsg);
+    if (result.error) {
+      console.error(
+        `[create-pending-booking] ❌ insert failed preferred_worker_id=${requestedPreferredWorkerId} msg="${firstErrMsg}" http_queue_null_url=${isHttpQueueNullUrl}`,
+      );
+    }
+
     // Favorite worker fallback — retry once without preferred_worker_id
-    // when the DB rejects the row (worker offline / ineligible / etc.).
+    // when the DB rejects the row (worker offline / ineligible / broken
+    // preferred-worker trigger that enqueues a NULL pg_net URL, see
+    // docs/fix-preferred-worker-http-queue-null-url.sql).
     if (
       result.error &&
       requestedPreferredWorkerId &&
-      !/SUPPLY_FULL/i.test(result.error.message || "")
+      !/SUPPLY_FULL/i.test(firstErrMsg)
     ) {
       console.warn(
-        `[create-pending-booking] ⚠️ preferred_worker fallback — first insert failed (${result.error.message}), retrying without preferred_worker_id=${requestedPreferredWorkerId}`,
+        `[create-pending-booking] ⚠️ preferred_worker fallback — first insert failed (${firstErrMsg}), retrying without preferred_worker_id=${requestedPreferredWorkerId} http_queue_null_url=${isHttpQueueNullUrl}`,
       );
       const fallbackData = { ...booking_data };
       delete (fallbackData as any).preferred_worker_id;
       const retry = await insertWithCompat(supabase, fallbackData);
       if (!retry.error) {
         console.log(
-          `[create-pending-booking] ✅ preferred_worker fallback succeeded booking=${(retry.data as any)?.id}`,
+          `[create-pending-booking] ✅ preferred_worker fallback succeeded booking=${(retry.data as any)?.id} recovered_from_http_queue_null_url=${isHttpQueueNullUrl}`,
         );
         result = retry;
         preferredWorkerFallbackUsed = true;

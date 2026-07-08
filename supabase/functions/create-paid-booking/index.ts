@@ -648,6 +648,8 @@ Deno.serve(async (req) => {
         wallet_used: walletDebited,
         preferred_worker_id: bookingRow.preferred_worker_id ?? null,
         request_id: requestId ?? null,
+        razorpay_order_id: razorpay_order_id ?? null,
+        razorpay_payment_id: razorpay_payment_id ?? null,
       }),
     );
 
@@ -660,34 +662,44 @@ Deno.serve(async (req) => {
     // 9-pre. FAVORITE WORKER FALLBACK ─────────────────────────────
     // If the insert failed AND a preferred_worker_id was set, the DB
     // likely rejected the row because the chosen worker is no longer
-    // online / eligible (validation trigger on external DB). Retry once
-    // WITHOUT preferred_worker_id so the normal dispatcher can assign
-    // any available worker — money was already taken, so the booking
-    // must succeed if at all possible.
+    // online / eligible (validation trigger on external DB) OR because
+    // a downstream trigger tried to enqueue a pg_net call with a NULL
+    // URL (see docs/fix-preferred-worker-http-queue-null-url.sql).
+    // Retry once WITHOUT preferred_worker_id so the normal dispatcher
+    // can assign any available worker — money was already taken, so
+    // the booking must succeed if at all possible.
     let preferredWorkerFallbackUsed = false;
     const requestedPreferredWorkerId = bookingRow.preferred_worker_id ?? null;
+    const errMsg = insertErr?.message || "";
+    const isHttpQueueNullUrl =
+      /http_request_queue/i.test(errMsg) && /"?url"?/i.test(errMsg) && /not[- ]?null/i.test(errMsg);
+    if (insertErr) {
+      console.error(
+        `[create-paid-booking] ❌ insert failed booking_request_id=${requestId} preferred_worker_id=${requestedPreferredWorkerId} payment=${razorpay_payment_id ?? "wallet-only"} order=${razorpay_order_id ?? "n/a"} code=${(insertErr as any).code ?? "n/a"} msg="${errMsg}" http_queue_null_url=${isHttpQueueNullUrl}`,
+      );
+    }
     if (
       insertErr &&
       hadPreferredWorker &&
-      !/SUPPLY_FULL/i.test(insertErr.message || "") &&
-      !(insertErr.code === "23505" || /uq_bookings_request_id|razorpay_payment_id/i.test(insertErr.message || ""))
+      !/SUPPLY_FULL/i.test(errMsg) &&
+      !(insertErr.code === "23505" || /uq_bookings_request_id|razorpay_payment_id/i.test(errMsg))
     ) {
       console.warn(
-        `[create-paid-booking] ⚠️ preferred_worker fallback — first insert failed (${insertErr.message}), retrying without preferred_worker_id=${bookingRow.preferred_worker_id}`,
+        `[create-paid-booking] ⚠️ preferred_worker fallback — first insert failed (${errMsg}), retrying without preferred_worker_id=${bookingRow.preferred_worker_id} http_queue_null_url=${isHttpQueueNullUrl}`,
       );
       const fallbackRow = { ...bookingRow };
       delete fallbackRow.preferred_worker_id;
       const retry = await insertBookingWithCompatibilityFallback(supabase, fallbackRow);
       if (!retry.error) {
         console.log(
-          `[create-paid-booking] ✅ preferred_worker fallback succeeded booking=${(retry.data as any)?.id} original_preferred=${requestedPreferredWorkerId}`,
+          `[create-paid-booking] ✅ preferred_worker fallback succeeded booking=${(retry.data as any)?.id} original_preferred=${requestedPreferredWorkerId} recovered_from_http_queue_null_url=${isHttpQueueNullUrl}`,
         );
         newBooking = retry.data;
         insertErr = null as any;
         preferredWorkerFallbackUsed = true;
       } else {
         console.error(
-          `[create-paid-booking] ❌ preferred_worker fallback ALSO failed: ${retry.error.message}`,
+          `[create-paid-booking] ❌ preferred_worker fallback ALSO failed: ${retry.error.message} (original_preferred=${requestedPreferredWorkerId}, http_queue_null_url_first=${isHttpQueueNullUrl})`,
         );
         insertErr = retry.error;
       }
