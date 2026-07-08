@@ -158,7 +158,7 @@ Deno.serve(async (req) => {
     if (booking.booking_type === "instant") {
       console.log(`[DISPATCH_FLOW_DEBUG][verify-razorpay-payment] booking=${booking_id} type=instant → dispatch-pending-bookings`);
       try {
-        await fetch(`${SUPABASE_URL}/functions/v1/dispatch-pending-bookings`, {
+        await fetch(`${DISPATCH_BASE_URL}/functions/v1/dispatch-pending-bookings`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
