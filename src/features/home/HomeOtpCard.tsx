@@ -102,6 +102,27 @@ export function HomeOtpCard() {
   if (booking.completed_at || booking.otp_verified_at) return null;
 
   const digits = booking.completion_otp.split('');
+  const { hasPending, openRatingSheet } = useMandatoryRating();
+  const gated = hasPending;
+
+  // Analytics: gate shown
+  useEffect(() => {
+    if (gated) {
+      try {
+        console.log('[analytics] otp_rating_gate_shown', {
+          booking_id: booking.id,
+          timestamp: Date.now(),
+        });
+      } catch {}
+    }
+  }, [gated, booking.id]);
+
+  const handleReveal = () => {
+    try {
+      console.log('[analytics] otp_gate_eye_clicked', { booking_id: booking.id });
+    } catch {}
+    openRatingSheet();
+  };
 
   const handleShare = async () => {
     const ok = await shareOtpOnWhatsApp({
@@ -127,7 +148,7 @@ export function HomeOtpCard() {
   return (
     <section
       aria-label="Completion OTP"
-      className="my-2 px-3 py-2.5 rounded-xl bg-emerald-50 ring-1 ring-emerald-200"
+      className="my-2 px-3 py-2.5 rounded-xl bg-emerald-50 ring-1 ring-emerald-200 relative overflow-hidden"
     >
       <div className="flex items-center gap-2">
         <div className="p-1.5 rounded-lg bg-emerald-100 ring-1 ring-emerald-200 shrink-0">
@@ -136,17 +157,39 @@ export function HomeOtpCard() {
         <p className="text-[11px] font-semibold uppercase tracking-wider text-emerald-700 shrink-0">
           OTP
         </p>
-        <div className="flex items-center gap-0.5 ml-auto">
+        <div
+          className={`flex items-center gap-0.5 ml-auto transition-all duration-300 ${
+            gated ? 'blur-md select-none pointer-events-none' : ''
+          }`}
+          aria-hidden={gated}
+        >
           {digits.map((digit, i) => (
             <span
               key={i}
               className="w-6 h-7 flex items-center justify-center bg-white ring-1 ring-emerald-300 rounded text-sm font-extrabold text-emerald-900 tabular-nums"
             >
-              {digit}
+              {gated ? '•' : digit}
             </span>
           ))}
         </div>
       </div>
+
+      {gated && (
+        <button
+          type="button"
+          onClick={handleReveal}
+          aria-label="Rate previous service to reveal OTP"
+          className="mt-2 w-full flex items-center justify-center gap-2 h-11 rounded-xl bg-white ring-1 ring-emerald-300 text-emerald-800 font-semibold text-[12px] shadow-sm hover:bg-emerald-50 active:scale-[0.99] transition"
+        >
+          <span className="relative inline-flex items-center justify-center">
+            <Eye className="w-4 h-4" />
+            <Lock className="w-2.5 h-2.5 absolute -bottom-1 -right-1 text-emerald-600 bg-white rounded-full p-[1px] ring-1 ring-emerald-200 animate-pulse" />
+          </span>
+          Tap to reveal · Rate your last service first
+        </button>
+      )}
+      {!gated && (
+
       <div className="mt-2 pt-2 border-t border-emerald-200/70 flex items-center justify-between gap-2">
         <div className="min-w-0">
           <p className="text-[11px] font-semibold text-emerald-900 leading-tight">Booked for someone else?</p>
