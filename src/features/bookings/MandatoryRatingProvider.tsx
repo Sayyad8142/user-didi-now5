@@ -223,7 +223,10 @@ export function MandatoryRatingProvider({ children }: { children: React.ReactNod
   };
 
   return (
-    <Ctx.Provider value={{ refresh }}>
+    <Ctx.Provider value={{ refresh, hasPending: queue.length > 0, openRatingSheet: () => {
+      if (queue[0]) sessionDismissed.delete(queue[0].id);
+      setOpen(true);
+    } }}>
       {children}
       <Sheet
         open={open}
