@@ -32,6 +32,7 @@ const OTP_VISIBLE_STATUSES = ['assigned', 'accepted', 'on_the_way', 'started'];
 export function HomeOtpCard() {
   const { profile } = useProfile();
   const [booking, setBooking] = useState<OtpBooking | null>(null);
+  const { hasPending, openRatingSheet } = useMandatoryRating();
 
   const fetchLatestOtpBooking = useCallback(async () => {
     if (!profile?.id) {
