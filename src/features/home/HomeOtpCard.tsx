@@ -207,7 +207,9 @@ export function HomeOtpCard() {
           Share
         </button>
       </div>
+      )}
     </section>
+
   );
 }
 
