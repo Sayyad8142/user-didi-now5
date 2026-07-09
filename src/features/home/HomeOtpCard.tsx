@@ -1,10 +1,11 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { KeyRound } from 'lucide-react';
+import { KeyRound, Eye, Lock } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useProfile } from '@/contexts/ProfileContext';
 import { fetchMyBookings } from '@/features/bookings/bookingsReadClient';
 import { shareOtpOnWhatsApp } from '@/lib/whatsappShare';
+import { useMandatoryRating } from '@/features/bookings/MandatoryRatingProvider';
 
 interface OtpBooking {
   id: string;
