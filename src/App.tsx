@@ -40,7 +40,6 @@ import NotFound from "./pages/NotFound";
 // Lazy load non-critical pages
 const Home = lazy(() => import("./pages/Home"));
 const Bookings = lazy(() => import("./pages/Bookings"));
-const Kitchen = lazy(() => import("./pages/Kitchen"));
 const Profile = lazy(() => import("./pages/Profile"));
 const FAQs = lazy(() => import("./pages/FAQs"));
 const BookingForm = lazy(() => import("./features/booking/BookingForm").then(m => ({ default: m.BookingForm })));
@@ -124,7 +123,6 @@ const AppContent = () => {
         <Route path="/legal/terms" element={<TermsScreen />} />
         <Route path="/home" element={<ProtectedRoute><ProtectedLayout><Home /></ProtectedLayout></ProtectedRoute>} />
         <Route path="/bookings" element={<ProtectedRoute><ProtectedLayout><Bookings /></ProtectedLayout></ProtectedRoute>} />
-        <Route path="/kitchen" element={<ProtectedRoute><ProtectedLayout><Kitchen /></ProtectedLayout></ProtectedRoute>} />
         <Route path="/booking/:id" element={<ProtectedRoute><ProtectedLayout><BookingDetail /></ProtectedLayout></ProtectedRoute>} />
         <Route path="/profile" element={<ProtectedRoute><ProtectedLayout><Profile /></ProtectedLayout></ProtectedRoute>} />
         <Route path="/profile/account" element={<ProtectedRoute><ProtectedLayout><AccountSettings /></ProtectedLayout></ProtectedRoute>} />
