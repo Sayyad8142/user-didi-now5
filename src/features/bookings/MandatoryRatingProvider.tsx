@@ -29,9 +29,15 @@ interface PendingRatingBooking {
 
 interface MandatoryRatingContextType {
   refresh: () => Promise<void>;
+  hasPending: boolean;
+  openRatingSheet: () => void;
 }
 
-const Ctx = createContext<MandatoryRatingContextType>({ refresh: async () => {} });
+const Ctx = createContext<MandatoryRatingContextType>({
+  refresh: async () => {},
+  hasPending: false,
+  openRatingSheet: () => {},
+});
 export const useMandatoryRating = () => useContext(Ctx);
 
 // Session-only dismissed booking IDs (cleared on app restart)
