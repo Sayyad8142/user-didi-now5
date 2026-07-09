@@ -103,7 +103,6 @@ export function HomeOtpCard() {
   if (booking.completed_at || booking.otp_verified_at) return null;
 
   const digits = booking.completion_otp.split('');
-  const { hasPending, openRatingSheet } = useMandatoryRating();
   const gated = hasPending;
 
   // Analytics: gate shown
