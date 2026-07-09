@@ -98,16 +98,11 @@ export function HomeOtpCard() {
     };
   }, [profile?.id, fetchLatestOtpBooking]);
 
-  if (!booking || !booking.completion_otp) return null;
-  if (!OTP_VISIBLE_STATUSES.includes(booking.status)) return null;
-  if (booking.completed_at || booking.otp_verified_at) return null;
-
-  const digits = booking.completion_otp.split('');
   const gated = hasPending;
 
   // Analytics: gate shown
   useEffect(() => {
-    if (gated) {
+    if (gated && booking?.id) {
       try {
         console.log('[analytics] otp_rating_gate_shown', {
           booking_id: booking.id,
@@ -115,7 +110,13 @@ export function HomeOtpCard() {
         });
       } catch {}
     }
-  }, [gated, booking.id]);
+  }, [gated, booking?.id]);
+
+  if (!booking || !booking.completion_otp) return null;
+  if (!OTP_VISIBLE_STATUSES.includes(booking.status)) return null;
+  if (booking.completed_at || booking.otp_verified_at) return null;
+
+  const digits = booking.completion_otp.split('');
 
   const handleReveal = () => {
     try {
