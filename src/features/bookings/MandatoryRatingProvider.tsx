@@ -29,9 +29,15 @@ interface PendingRatingBooking {
 
 interface MandatoryRatingContextType {
   refresh: () => Promise<void>;
+  hasPending: boolean;
+  openRatingSheet: () => void;
 }
 
-const Ctx = createContext<MandatoryRatingContextType>({ refresh: async () => {} });
+const Ctx = createContext<MandatoryRatingContextType>({
+  refresh: async () => {},
+  hasPending: false,
+  openRatingSheet: () => {},
+});
 export const useMandatoryRating = () => useContext(Ctx);
 
 // Session-only dismissed booking IDs (cleared on app restart)
@@ -217,7 +223,10 @@ export function MandatoryRatingProvider({ children }: { children: React.ReactNod
   };
 
   return (
-    <Ctx.Provider value={{ refresh }}>
+    <Ctx.Provider value={{ refresh, hasPending: queue.length > 0, openRatingSheet: () => {
+      if (queue[0]) sessionDismissed.delete(queue[0].id);
+      setOpen(true);
+    } }}>
       {children}
       <Sheet
         open={open}
