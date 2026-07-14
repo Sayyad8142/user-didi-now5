@@ -34,7 +34,13 @@ serve(async (req) => {
       return jsonResponse({ error: "Missing Firebase token" }, 401);
     }
 
-    const { uid } = await verifyFirebaseToken(idToken);
+    let uid: string;
+    try {
+      ({ uid } = await verifyFirebaseToken(idToken));
+    } catch (verifyErr: any) {
+      console.warn("[wallet-read] Token verification failed", verifyErr?.message);
+      return jsonResponse({ error: verifyErr?.message || "Invalid or expired token" }, 401);
+    }
     const payload = (await req.json().catch(() => ({}))) as WalletRequest;
 
     if (!payload.action) {
