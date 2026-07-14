@@ -140,6 +140,7 @@ export function BookingCard({
   const [retryingPayment, setRetryingPayment] = useState(false);
   const [myRating, setMyRating] = useState<{ rating: number; comment: string | null } | null>(null);
   const now = useNow(); // ticks every 30s
+  const { hasPending: ratingGated, openRatingSheet } = useMandatoryRating();
   
   // Subscribe to real-time updates for this specific booking
   useBookingRealtime(booking.id, (updatedBooking) => setRow(updatedBooking));
