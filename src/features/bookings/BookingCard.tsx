@@ -579,6 +579,7 @@ export function BookingCard({
                 Share
               </button>
             </div>
+            )}
           </div>
         </div>
       )}
