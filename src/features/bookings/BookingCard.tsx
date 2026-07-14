@@ -28,6 +28,8 @@ import { WorkerRatingsModal } from './WorkerRatingsModal';
 import { useUnseenMessages } from '@/hooks/useUnseenMessages';
 import { useProfile } from '@/contexts/ProfileContext';
 import { WorkerReachConfirmationCard } from './WorkerReachConfirmationCard';
+import { Eye, Lock } from 'lucide-react';
+import { useMandatoryRating } from './MandatoryRatingProvider';
 import { ReportIssueButton } from './ReportIssueSheet';
 import {
   FindingWorkerCountdown,
