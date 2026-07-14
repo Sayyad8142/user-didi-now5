@@ -512,17 +512,37 @@ export function BookingCard({
                 <p className="text-[11px] font-semibold uppercase tracking-wider text-emerald-700">Check-in OTP</p>
                 <p className="text-[10px] text-emerald-800/70">Share with worker only after work is done</p>
               </div>
-              <div className="flex items-center gap-1 ml-auto">
+              <div
+                className={`flex items-center gap-1 ml-auto transition-all duration-300 ${ratingGated ? 'blur-md select-none pointer-events-none' : ''}`}
+                aria-hidden={ratingGated}
+              >
                 {(row.completion_otp || '').split('').map((d, i) => (
                   <span
                     key={i}
                     className="w-7 h-8 flex items-center justify-center bg-white ring-1 ring-emerald-300 rounded-md text-base font-extrabold text-emerald-900 tabular-nums"
                   >
-                    {d}
+                    {ratingGated ? '•' : d}
                   </span>
                 ))}
               </div>
             </div>
+            {ratingGated ? (
+              <button
+                type="button"
+                onClick={() => {
+                  try { console.log('[analytics] otp_gate_eye_clicked', { booking_id: row.id, source: 'booking_card' }); } catch {}
+                  openRatingSheet();
+                }}
+                aria-label="Rate previous service to reveal OTP"
+                className="mt-2.5 w-full flex items-center justify-center gap-2 h-11 rounded-xl bg-white ring-1 ring-emerald-300 text-emerald-800 font-semibold text-[12px] shadow-sm hover:bg-emerald-50 active:scale-[0.99] transition"
+              >
+                <span className="relative inline-flex items-center justify-center">
+                  <Eye className="w-4 h-4" />
+                  <Lock className="w-2.5 h-2.5 absolute -bottom-1 -right-1 text-emerald-600 bg-white rounded-full p-[1px] ring-1 ring-emerald-200 animate-pulse" />
+                </span>
+                Tap to reveal · Rate your previous service first
+              </button>
+            ) : (
             <div className="mt-2.5 pt-2.5 border-t border-emerald-200/70 flex items-center justify-between gap-2">
               <div className="min-w-0">
                 <p className="text-[11px] font-semibold text-emerald-900 leading-tight">Booked for someone else?</p>
