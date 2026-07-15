@@ -406,7 +406,7 @@ export function BookingForm() {
       if (!selectedFlatSize) return;
       const basePrice = pricingMap[selectedFlatSize];
       if (!basePrice) return;
-      await createBooking('instant', null, null, basePrice + surgeAmount);
+      await createBooking('instant', null, null, basePrice + surgeAmount + slotSurgeAmount);
     }
   };
   const handleSchedule = () => {
