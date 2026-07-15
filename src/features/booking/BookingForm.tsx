@@ -686,7 +686,14 @@ export function BookingForm() {
   }
   const ServiceIcon = serviceIcon(service_type);
   const legacyBase = selectedFlatSize ? pricingMap[selectedFlatSize] : null;
-  const legacyWithSurge = legacyBase != null ? legacyBase + surgeAmount : null;
+  const legacyWithSurge = legacyBase != null ? legacyBase + surgeAmount + slotSurgeAmount : null;
+  // Base subtotal for the breakdown UI (no loyalty, no slot surge).
+  const baseSubtotal =
+    service_type === 'maid'
+      ? baseTotalPrice
+      : service_type === 'bathroom_cleaning'
+      ? baseBathroomTotalPrice
+      : (legacyBase ?? 0);
   const currentPrice = service_type === 'maid' ? selectedFlatSize && selectedTasks.length > 0 ? totalPrice : null :
   service_type === 'bathroom_cleaning' ? bathroomTotalPrice :
   legacyWithSurge;
