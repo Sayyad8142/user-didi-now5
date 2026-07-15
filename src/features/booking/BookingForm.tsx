@@ -1326,13 +1326,13 @@ export function BookingForm() {
                     toast({ title: "Pricing is temporarily unavailable", description: "Please try again in a moment.", variant: "destructive" });
                     return;
                   }
-                  const price = totalPrice;
+                  const price = totalPriceForSchedule;
                   const dishParams = selectedTasks.includes('dish_washing') ?
                   `&dish_intensity=${dishIntensity}&dish_extra=${dishIntensityExtra}` :
                   '';
                   navigate(`/book/${service_type}/schedule?flat=${selectedFlatSize}&tasks=${selectedTasks.join(',')}&price=${price}${dishParams}`);
                 } else if (service_type === 'bathroom_cleaning') {
-                  const price = bathroomTotalPrice;
+                  const price = bathroomTotalPriceForSchedule;
                   navigate(`/book/${service_type}/schedule?bathrooms=${bathroomCount}&glass=${hasGlassPartition ? '1' : '0'}&price=${price}`);
                 } else {
                   if (!selectedFlatSize) {
