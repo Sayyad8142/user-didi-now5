@@ -1246,14 +1246,17 @@ export function BookingForm() {
                       return;
                     }
                     const dishParams = selectedTasks.includes('dish_washing') ? `&dish_intensity=${dishIntensity}&dish_extra=${dishIntensityExtra}` : '';
-                    navigate(`/book/${service_type}/instant?flat=${selectedFlatSize}&tasks=${selectedTasks.join(',')}&price=${totalPrice}${dishParams}`);
+                    const surgeParams = `&surge=${slotSurgeAmount}${slotSurgeReason ? `&surge_reason=${slotSurgeReason}` : ''}`;
+                    navigate(`/book/${service_type}/instant?flat=${selectedFlatSize}&tasks=${selectedTasks.join(',')}&price=${totalPrice}${dishParams}${surgeParams}`);
                   } else if (service_type === 'bathroom_cleaning') {
-                    navigate(`/book/${service_type}/instant?bathrooms=${bathroomCount}&glass=${hasGlassPartition ? '1' : '0'}&price=${bathroomTotalPrice}`);
+                    const surgeParams = `&surge=${slotSurgeAmount}${slotSurgeReason ? `&surge_reason=${slotSurgeReason}` : ''}`;
+                    navigate(`/book/${service_type}/instant?bathrooms=${bathroomCount}&glass=${hasGlassPartition ? '1' : '0'}&price=${bathroomTotalPrice}${surgeParams}`);
                   } else {
                     if (!selectedFlatSize) return;
                     const price = pricingMap[selectedFlatSize];
                     if (!price) {toast({ title: "Error", description: "Price not available.", variant: "destructive" });return;}
-                    navigate(`/book/${service_type}/instant?flat=${selectedFlatSize}&price=${price + surgeAmount}`);
+                    const surgeParams = `&surge=${slotSurgeAmount}${slotSurgeReason ? `&surge_reason=${slotSurgeReason}` : ''}`;
+                    navigate(`/book/${service_type}/instant?flat=${selectedFlatSize}&price=${price + surgeAmount + slotSurgeAmount}${surgeParams}`);
                   }
                 }}
                 className="w-full flex items-center gap-2 px-2.5 py-2 mt-2 rounded-xl border border-border bg-card hover:bg-accent/50 transition-colors">
