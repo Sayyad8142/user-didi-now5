@@ -1073,7 +1073,32 @@ export function BookingForm() {
                     }
                         </div>
                   }
-                  {surgeAmount > 0 && currentPrice != null && currentPrice > 0 &&
+                  {slotSurgeAmount !== 0 && currentPrice != null && currentPrice > 0 &&
+                    <div className="mt-3 text-left text-xs space-y-1 border-t border-primary/20 pt-2">
+                      <div className="flex justify-between text-muted-foreground">
+                        <span>Base Price</span>
+                        <span>₹{baseSubtotal}</span>
+                      </div>
+                      {surgeAmount > 0 &&
+                        <div className="flex justify-between text-amber-700">
+                          <span>Loyalty pricing</span>
+                          <span>+₹{surgeAmount}</span>
+                        </div>
+                      }
+                      <div className={cn(
+                        "flex justify-between font-medium",
+                        slotSurgeAmount > 0 ? "text-orange-600" : "text-emerald-600"
+                      )}>
+                        <span>{slotSurgeAmount > 0 ? 'Peak Hour Surge' : 'Current Discount'}</span>
+                        <span>{slotSurgeAmount > 0 ? `+₹${slotSurgeAmount}` : `-₹${Math.abs(slotSurgeAmount)}`}</span>
+                      </div>
+                      <div className="flex justify-between font-bold text-foreground pt-1 border-t border-primary/10">
+                        <span>Total</span>
+                        <span>₹{currentPrice}</span>
+                      </div>
+                    </div>
+                  }
+                  {slotSurgeAmount === 0 && surgeAmount > 0 && currentPrice != null && currentPrice > 0 &&
                     <div className="mt-2 inline-flex items-center gap-1.5 text-[11px] font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2.5 py-1">
                       <span>Loyalty pricing: +₹{surgeAmount}</span>
                       <span className="text-amber-600">· your {ordinal(userSurge.bookingNumber)} booking</span>
