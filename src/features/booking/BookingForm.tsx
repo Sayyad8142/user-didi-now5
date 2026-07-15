@@ -16,6 +16,7 @@ import { useAuth } from '@/components/auth/AuthProvider';
 import { useProfile } from '@/contexts/ProfileContext';
 import { prettyServiceName, serviceIcon, isValidServiceType, getPricingMap, FLAT_SIZES, type FlatSize, type PricingMap } from './pricing';
 import { useUserSurge } from '@/hooks/useUserSurge';
+import { useCurrentSlotSurge } from '@/hooks/useCurrentSlotSurge';
 
 const ordinal = (n: number): string => {
   const s = ['th', 'st', 'nd', 'rd'];
