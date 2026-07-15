@@ -265,9 +265,21 @@ export function BookingForm() {
   const { surge: userSurge } = useUserSurge();
   const surgeAmount = userSurge.amount;
 
-  // Final prices include surge. Only applied when there IS a base price.
-  const totalPrice = baseTotalPrice > 0 ? baseTotalPrice + surgeAmount : 0;
-  const bathroomTotalPrice = baseBathroomTotalPrice > 0 ? baseBathroomTotalPrice + surgeAmount : 0;
+  // Current-slot surge/discount for INSTANT bookings — updates every minute.
+  const {
+    amount: slotSurgeAmount,
+    slotTime: slotSurgeTime,
+    label: slotSurgeLabel,
+    reason: slotSurgeReason,
+  } = useCurrentSlotSurge(profile?.community_id, service_type || 'maid');
+
+  // Final prices include loyalty + current-slot surge. Only when there IS a base.
+  const totalPrice = baseTotalPrice > 0 ? baseTotalPrice + surgeAmount + slotSurgeAmount : 0;
+  const bathroomTotalPrice = baseBathroomTotalPrice > 0 ? baseBathroomTotalPrice + surgeAmount + slotSurgeAmount : 0;
+  // Prices used for the "Schedule" flow must NOT include the current-slot surge
+  // (the schedule screen picks its own slot). Loyalty surge still applies.
+  const totalPriceForSchedule = baseTotalPrice > 0 ? baseTotalPrice + surgeAmount : 0;
+  const bathroomTotalPriceForSchedule = baseBathroomTotalPrice > 0 ? baseBathroomTotalPrice + surgeAmount : 0;
   useEffect(() => {
     // Don't redirect - ProtectedRoute handles auth check
     if (service_type && !isValidServiceType(service_type)) {
