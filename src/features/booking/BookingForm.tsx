@@ -1174,6 +1174,21 @@ export function BookingForm() {
                   <div className="text-xs text-muted-foreground mt-0.5">
                     {isSupplyFull ? "Not Available Right Now" : "Get help in 10 mins"}
                   </div>
+                  {!isSupplyFull && isServiceOpen && slotSurgeAmount !== 0 && (
+                    <div className={cn(
+                      "mt-1.5 inline-flex items-center gap-1 text-[10px] font-semibold rounded-full px-2 py-0.5",
+                      slotSurgeAmount > 0
+                        ? "bg-orange-50 text-orange-600 border border-orange-200"
+                        : "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                    )}>
+                      <span className={cn(
+                        "w-1.5 h-1.5 rounded-full",
+                        slotSurgeAmount > 0 ? "bg-orange-500" : "bg-emerald-500"
+                      )} />
+                      <span>{slotSurgeLabel}</span>
+                      <span>{slotSurgeAmount > 0 ? `+₹${slotSurgeAmount}` : `-₹${Math.abs(slotSurgeAmount)}`}</span>
+                    </div>
+                  )}
                 </div>
                 {submitting && !(!isServiceOpen || instantBlocked) ?
                 <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin absolute top-4 right-4" /> :
