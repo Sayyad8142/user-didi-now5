@@ -62,6 +62,8 @@ export function InstantCheckoutScreen() {
   const dishExtra = searchParams.get('dish_extra');
   const bathroomCount = searchParams.get('bathrooms');
   const hasGlass = searchParams.get('glass') === '1';
+  const slotSurgeAmount = Number(searchParams.get('surge') ?? 0) || 0;
+  const slotSurgeReason = searchParams.get('surge_reason');
 
   const [selectedWorker, setSelectedWorker] = useState<FavoriteWorker | null>(null);
 
@@ -181,8 +183,10 @@ export function InstantCheckoutScreen() {
         status: 'pending',
         flat_size: service_type === 'bathroom_cleaning' ? null : autoFlatSize,
         price_inr: price,
-        base_price_inr: Math.max(0, price - surgeAmount),
+        base_price_inr: Math.max(0, price - surgeAmount - slotSurgeAmount),
         loyalty_surge_amount: surgeAmount,
+        surcharge_amount: slotSurgeAmount,
+        surcharge_reason: slotSurgeAmount !== 0 ? (slotSurgeReason || 'slot_surge') : null,
         family_count: null,
         food_pref: null,
         cook_cuisine_pref: null,

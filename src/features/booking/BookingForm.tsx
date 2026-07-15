@@ -16,6 +16,7 @@ import { useAuth } from '@/components/auth/AuthProvider';
 import { useProfile } from '@/contexts/ProfileContext';
 import { prettyServiceName, serviceIcon, isValidServiceType, getPricingMap, FLAT_SIZES, type FlatSize, type PricingMap } from './pricing';
 import { useUserSurge } from '@/hooks/useUserSurge';
+import { useCurrentSlotSurge } from '@/hooks/useCurrentSlotSurge';
 
 const ordinal = (n: number): string => {
   const s = ['th', 'st', 'nd', 'rd'];
@@ -264,9 +265,21 @@ export function BookingForm() {
   const { surge: userSurge } = useUserSurge();
   const surgeAmount = userSurge.amount;
 
-  // Final prices include surge. Only applied when there IS a base price.
-  const totalPrice = baseTotalPrice > 0 ? baseTotalPrice + surgeAmount : 0;
-  const bathroomTotalPrice = baseBathroomTotalPrice > 0 ? baseBathroomTotalPrice + surgeAmount : 0;
+  // Current-slot surge/discount for INSTANT bookings — updates every minute.
+  const {
+    amount: slotSurgeAmount,
+    slotTime: slotSurgeTime,
+    label: slotSurgeLabel,
+    reason: slotSurgeReason,
+  } = useCurrentSlotSurge(profile?.community_id, service_type || 'maid');
+
+  // Final prices include loyalty + current-slot surge. Only when there IS a base.
+  const totalPrice = baseTotalPrice > 0 ? baseTotalPrice + surgeAmount + slotSurgeAmount : 0;
+  const bathroomTotalPrice = baseBathroomTotalPrice > 0 ? baseBathroomTotalPrice + surgeAmount + slotSurgeAmount : 0;
+  // Prices used for the "Schedule" flow must NOT include the current-slot surge
+  // (the schedule screen picks its own slot). Loyalty surge still applies.
+  const totalPriceForSchedule = baseTotalPrice > 0 ? baseTotalPrice + surgeAmount : 0;
+  const bathroomTotalPriceForSchedule = baseBathroomTotalPrice > 0 ? baseBathroomTotalPrice + surgeAmount : 0;
   useEffect(() => {
     // Don't redirect - ProtectedRoute handles auth check
     if (service_type && !isValidServiceType(service_type)) {
@@ -393,7 +406,7 @@ export function BookingForm() {
       if (!selectedFlatSize) return;
       const basePrice = pricingMap[selectedFlatSize];
       if (!basePrice) return;
-      await createBooking('instant', null, null, basePrice + surgeAmount);
+      await createBooking('instant', null, null, basePrice + surgeAmount + slotSurgeAmount);
     }
   };
   const handleSchedule = () => {
@@ -430,11 +443,11 @@ export function BookingForm() {
         return;
       }
       params.set('flat', selectedFlatSize);
-      params.set('price', totalPrice.toString());
+      params.set('price', totalPriceForSchedule.toString());
     } else if (service_type === 'bathroom_cleaning') {
       params.set('bathrooms', bathroomCount.toString());
       params.set('glass', hasGlassPartition ? '1' : '0');
-      params.set('price', bathroomTotalPrice.toString());
+      params.set('price', bathroomTotalPriceForSchedule.toString());
     } else {
       if (!selectedFlatSize) return;
       const price = pricingMap[selectedFlatSize];
@@ -514,8 +527,10 @@ export function BookingForm() {
         status: 'pending',
         flat_size: service_type === 'bathroom_cleaning' ? null : selectedFlatSize,
         price_inr: price,
-        base_price_inr: Math.max(0, price - surgeAmount),
+        base_price_inr: Math.max(0, price - surgeAmount - slotSurgeAmount),
         loyalty_surge_amount: surgeAmount,
+        surcharge_amount: slotSurgeAmount,
+        surcharge_reason: slotSurgeAmount !== 0 ? (slotSurgeReason || 'slot_surge') : null,
         family_count: null,
         food_pref: null,
         cook_cuisine_pref: null,
@@ -671,7 +686,14 @@ export function BookingForm() {
   }
   const ServiceIcon = serviceIcon(service_type);
   const legacyBase = selectedFlatSize ? pricingMap[selectedFlatSize] : null;
-  const legacyWithSurge = legacyBase != null ? legacyBase + surgeAmount : null;
+  const legacyWithSurge = legacyBase != null ? legacyBase + surgeAmount + slotSurgeAmount : null;
+  // Base subtotal for the breakdown UI (no loyalty, no slot surge).
+  const baseSubtotal =
+    service_type === 'maid'
+      ? baseTotalPrice
+      : service_type === 'bathroom_cleaning'
+      ? baseBathroomTotalPrice
+      : (legacyBase ?? 0);
   const currentPrice = service_type === 'maid' ? selectedFlatSize && selectedTasks.length > 0 ? totalPrice : null :
   service_type === 'bathroom_cleaning' ? bathroomTotalPrice :
   legacyWithSurge;
@@ -1051,7 +1073,32 @@ export function BookingForm() {
                     }
                         </div>
                   }
-                  {surgeAmount > 0 && currentPrice != null && currentPrice > 0 &&
+                  {slotSurgeAmount !== 0 && currentPrice != null && currentPrice > 0 &&
+                    <div className="mt-3 text-left text-xs space-y-1 border-t border-primary/20 pt-2">
+                      <div className="flex justify-between text-muted-foreground">
+                        <span>Base Price</span>
+                        <span>₹{baseSubtotal}</span>
+                      </div>
+                      {surgeAmount > 0 &&
+                        <div className="flex justify-between text-amber-700">
+                          <span>Loyalty pricing</span>
+                          <span>+₹{surgeAmount}</span>
+                        </div>
+                      }
+                      <div className={cn(
+                        "flex justify-between font-medium",
+                        slotSurgeAmount > 0 ? "text-orange-600" : "text-emerald-600"
+                      )}>
+                        <span>{slotSurgeAmount > 0 ? 'Peak Hour Surge' : 'Current Discount'}</span>
+                        <span>{slotSurgeAmount > 0 ? `+₹${slotSurgeAmount}` : `-₹${Math.abs(slotSurgeAmount)}`}</span>
+                      </div>
+                      <div className="flex justify-between font-bold text-foreground pt-1 border-t border-primary/10">
+                        <span>Total</span>
+                        <span>₹{currentPrice}</span>
+                      </div>
+                    </div>
+                  }
+                  {slotSurgeAmount === 0 && surgeAmount > 0 && currentPrice != null && currentPrice > 0 &&
                     <div className="mt-2 inline-flex items-center gap-1.5 text-[11px] font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2.5 py-1">
                       <span>Loyalty pricing: +₹{surgeAmount}</span>
                       <span className="text-amber-600">· your {ordinal(userSurge.bookingNumber)} booking</span>
@@ -1127,6 +1174,21 @@ export function BookingForm() {
                   <div className="text-xs text-muted-foreground mt-0.5">
                     {isSupplyFull ? "Not Available Right Now" : "Get help in 10 mins"}
                   </div>
+                  {!isSupplyFull && isServiceOpen && slotSurgeAmount !== 0 && (
+                    <div className={cn(
+                      "mt-1.5 inline-flex items-center gap-1 text-[10px] font-semibold rounded-full px-2 py-0.5",
+                      slotSurgeAmount > 0
+                        ? "bg-orange-50 text-orange-600 border border-orange-200"
+                        : "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                    )}>
+                      <span className={cn(
+                        "w-1.5 h-1.5 rounded-full",
+                        slotSurgeAmount > 0 ? "bg-orange-500" : "bg-emerald-500"
+                      )} />
+                      <span>{slotSurgeLabel}</span>
+                      <span>{slotSurgeAmount > 0 ? `+₹${slotSurgeAmount}` : `-₹${Math.abs(slotSurgeAmount)}`}</span>
+                    </div>
+                  )}
                 </div>
                 {submitting && !(!isServiceOpen || instantBlocked) ?
                 <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin absolute top-4 right-4" /> :
@@ -1184,14 +1246,17 @@ export function BookingForm() {
                       return;
                     }
                     const dishParams = selectedTasks.includes('dish_washing') ? `&dish_intensity=${dishIntensity}&dish_extra=${dishIntensityExtra}` : '';
-                    navigate(`/book/${service_type}/instant?flat=${selectedFlatSize}&tasks=${selectedTasks.join(',')}&price=${totalPrice}${dishParams}`);
+                    const surgeParams = `&surge=${slotSurgeAmount}${slotSurgeReason ? `&surge_reason=${slotSurgeReason}` : ''}`;
+                    navigate(`/book/${service_type}/instant?flat=${selectedFlatSize}&tasks=${selectedTasks.join(',')}&price=${totalPrice}${dishParams}${surgeParams}`);
                   } else if (service_type === 'bathroom_cleaning') {
-                    navigate(`/book/${service_type}/instant?bathrooms=${bathroomCount}&glass=${hasGlassPartition ? '1' : '0'}&price=${bathroomTotalPrice}`);
+                    const surgeParams = `&surge=${slotSurgeAmount}${slotSurgeReason ? `&surge_reason=${slotSurgeReason}` : ''}`;
+                    navigate(`/book/${service_type}/instant?bathrooms=${bathroomCount}&glass=${hasGlassPartition ? '1' : '0'}&price=${bathroomTotalPrice}${surgeParams}`);
                   } else {
                     if (!selectedFlatSize) return;
                     const price = pricingMap[selectedFlatSize];
                     if (!price) {toast({ title: "Error", description: "Price not available.", variant: "destructive" });return;}
-                    navigate(`/book/${service_type}/instant?flat=${selectedFlatSize}&price=${price + surgeAmount}`);
+                    const surgeParams = `&surge=${slotSurgeAmount}${slotSurgeReason ? `&surge_reason=${slotSurgeReason}` : ''}`;
+                    navigate(`/book/${service_type}/instant?flat=${selectedFlatSize}&price=${price + surgeAmount + slotSurgeAmount}${surgeParams}`);
                   }
                 }}
                 className="w-full flex items-center gap-2 px-2.5 py-2 mt-2 rounded-xl border border-border bg-card hover:bg-accent/50 transition-colors">
@@ -1264,13 +1329,13 @@ export function BookingForm() {
                     toast({ title: "Pricing is temporarily unavailable", description: "Please try again in a moment.", variant: "destructive" });
                     return;
                   }
-                  const price = totalPrice;
+                  const price = totalPriceForSchedule;
                   const dishParams = selectedTasks.includes('dish_washing') ?
                   `&dish_intensity=${dishIntensity}&dish_extra=${dishIntensityExtra}` :
                   '';
                   navigate(`/book/${service_type}/schedule?flat=${selectedFlatSize}&tasks=${selectedTasks.join(',')}&price=${price}${dishParams}`);
                 } else if (service_type === 'bathroom_cleaning') {
-                  const price = bathroomTotalPrice;
+                  const price = bathroomTotalPriceForSchedule;
                   navigate(`/book/${service_type}/schedule?bathrooms=${bathroomCount}&glass=${hasGlassPartition ? '1' : '0'}&price=${price}`);
                 } else {
                   if (!selectedFlatSize) {
