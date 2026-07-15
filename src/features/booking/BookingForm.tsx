@@ -443,11 +443,11 @@ export function BookingForm() {
         return;
       }
       params.set('flat', selectedFlatSize);
-      params.set('price', totalPrice.toString());
+      params.set('price', totalPriceForSchedule.toString());
     } else if (service_type === 'bathroom_cleaning') {
       params.set('bathrooms', bathroomCount.toString());
       params.set('glass', hasGlassPartition ? '1' : '0');
-      params.set('price', bathroomTotalPrice.toString());
+      params.set('price', bathroomTotalPriceForSchedule.toString());
     } else {
       if (!selectedFlatSize) return;
       const price = pricingMap[selectedFlatSize];
