@@ -62,6 +62,8 @@ export function InstantCheckoutScreen() {
   const dishExtra = searchParams.get('dish_extra');
   const bathroomCount = searchParams.get('bathrooms');
   const hasGlass = searchParams.get('glass') === '1';
+  const slotSurgeAmount = Number(searchParams.get('surge') ?? 0) || 0;
+  const slotSurgeReason = searchParams.get('surge_reason');
 
   const [selectedWorker, setSelectedWorker] = useState<FavoriteWorker | null>(null);
 
