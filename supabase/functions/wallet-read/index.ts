@@ -47,8 +47,23 @@ serve(async (req) => {
       return jsonResponse({ error: "Missing action" }, 400);
     }
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const clean = (raw?: string | null) => {
+      if (!raw) return "";
+      let v = raw.trim().replace(/^['"]|['"]$/g, "");
+      const eq = v.indexOf("=");
+      if (eq > -1 && v.slice(0, eq).includes("KEY")) {
+        v = v.slice(eq + 1).trim().replace(/^['"]|['"]$/g, "");
+      }
+      return v;
+    };
+    const supabaseUrl =
+      clean(Deno.env.get("EXTERNAL_SUPABASE_URL")) ||
+      clean(Deno.env.get("PROFILES_SUPABASE_URL")) ||
+      "https://paywwbuqycovjopryele.supabase.co";
+    const serviceRoleKey =
+      clean(Deno.env.get("EXTERNAL_SUPABASE_SERVICE_ROLE_KEY")) ||
+      clean(Deno.env.get("PROFILES_SUPABASE_SERVICE_ROLE_KEY")) ||
+      clean(Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"));
 
     if (!supabaseUrl || !serviceRoleKey) {
       console.error("[wallet-read] Missing env vars", {
