@@ -18,7 +18,7 @@ interface Props {
 const HOURS = [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19];
 
 function hourLabel(h: number): string {
-  const period = h >= 12 ? 'p' : 'a';
+  const period = h >= 12 ? 'pm' : 'am';
   const display = h === 12 ? 12 : h > 12 ? h - 12 : h;
   return `${display}${period}`;
 }
