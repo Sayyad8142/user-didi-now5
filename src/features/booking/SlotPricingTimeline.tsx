@@ -54,8 +54,10 @@ export function SlotPricingTimeline({ communityId, serviceKey }: Props) {
 
   const currentRow = rows.find((r) => r.hour === currentHour);
   const selectedRow = selected != null ? rows.find((r) => r.hour === selected) : null;
+  const hasAnySurge = rows.some((r) => r.amount >= 10 || r.amount <= -10);
 
   if (!communityId) return null;
+  if (!loading && !hasAnySurge) return null;
 
   return (
     <div className="mt-3 pt-3 border-t border-border/50">
