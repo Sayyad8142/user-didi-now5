@@ -18,7 +18,7 @@ interface Props {
 const HOURS = [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19];
 
 function hourLabel(h: number): string {
-  const period = h >= 12 ? 'p' : 'a';
+  const period = h >= 12 ? 'pm' : 'am';
   const display = h === 12 ? 12 : h > 12 ? h - 12 : h;
   return `${display}${period}`;
 }
@@ -54,8 +54,10 @@ export function SlotPricingTimeline({ communityId, serviceKey }: Props) {
 
   const currentRow = rows.find((r) => r.hour === currentHour);
   const selectedRow = selected != null ? rows.find((r) => r.hour === selected) : null;
+  const hasAnySurge = rows.some((r) => r.amount >= 10 || r.amount <= -10);
 
   if (!communityId) return null;
+  if (!loading && !hasAnySurge) return null;
 
   return (
     <div className="mt-3 pt-3 border-t border-border/50">
