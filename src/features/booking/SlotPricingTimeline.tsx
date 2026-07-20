@@ -58,7 +58,7 @@ export function SlotPricingTimeline({ communityId, serviceKey }: Props) {
   if (!communityId) return null;
 
   return (
-    <div className="mt-3 rounded-2xl border border-primary/15 bg-white/70 backdrop-blur-sm p-3">
+    <div className="mt-3 pt-3 border-t border-border/50">
       {/* Header */}
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-1.5">

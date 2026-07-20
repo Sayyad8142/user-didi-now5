@@ -1107,13 +1107,12 @@ export function BookingForm() {
                   }
                     </>}
                 </div>
+                <SlotPricingTimeline
+                  communityId={profile?.community_id}
+                  serviceKey={service_type === 'bathroom_cleaning' ? 'bathroom_cleaning' : 'maid'}
+                />
               </CardContent>
             </Card>
-
-            <SlotPricingTimeline
-              communityId={profile?.community_id}
-              serviceKey={service_type === 'bathroom_cleaning' ? 'bathroom_cleaning' : 'maid'}
-            />
           </div>}
 
           {/* Choose Booking Type */}
