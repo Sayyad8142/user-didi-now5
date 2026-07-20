@@ -17,6 +17,7 @@ import { useProfile } from '@/contexts/ProfileContext';
 import { prettyServiceName, serviceIcon, isValidServiceType, getPricingMap, FLAT_SIZES, type FlatSize, type PricingMap } from './pricing';
 import { useUserSurge } from '@/hooks/useUserSurge';
 import { useCurrentSlotSurge } from '@/hooks/useCurrentSlotSurge';
+import { SlotPricingTimeline } from './SlotPricingTimeline';
 
 const ordinal = (n: number): string => {
   const s = ['th', 'st', 'nd', 'rd'];
@@ -1108,7 +1109,11 @@ export function BookingForm() {
                 </div>
               </CardContent>
             </Card>
-            
+
+            <SlotPricingTimeline
+              communityId={profile?.community_id}
+              serviceKey={service_type === 'bathroom_cleaning' ? 'bathroom_cleaning' : 'maid'}
+            />
           </div>}
 
           {/* Choose Booking Type */}
