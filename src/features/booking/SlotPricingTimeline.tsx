@@ -112,12 +112,14 @@ export function SlotPricingTimeline({ communityId, serviceKey }: Props) {
                   )}
                   <span
                     className={cn(
-                      'relative w-2.5 h-2.5 rounded-full',
-                      isSurge && 'bg-red-500',
-                      isDiscount && 'bg-emerald-500',
-                      !isSurge && !isDiscount && 'bg-muted-foreground/40',
+                      'relative w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold leading-none tabular-nums',
+                      isSurge && 'bg-red-500 text-white',
+                      isDiscount && 'bg-emerald-500 text-white',
+                      !isSurge && !isDiscount && 'w-2 h-2 bg-muted-foreground/40',
                     )}
-                  />
+                  >
+                    {(isSurge || isDiscount) && Math.abs(amount)}
+                  </span>
                 </button>
               );
             })}
