@@ -88,8 +88,8 @@ export function SlotPricingTimeline({ communityId, serviceKey }: Props) {
       ) : (
         <div
           ref={scrollRef}
-          className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 snap-x snap-mandatory scrollbar-hide"
-          style={{ WebkitOverflowScrolling: 'touch' }}
+          className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 snap-x snap-mandatory"
+          style={{ WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none' }}
         >
           {rows.map(({ hour, amount }) => {
             const isNow = hour === currentHour;
