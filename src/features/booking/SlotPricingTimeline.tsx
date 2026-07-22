@@ -106,12 +106,6 @@ export function SlotPricingTimeline({ communityId, serviceKey }: Props) {
                   className="relative flex-1 h-8 flex items-center justify-center group"
                   aria-label={`${fullTime(hour)} ${amount > 0 ? `+₹${amount}` : amount < 0 ? `-₹${Math.abs(amount)}` : 'base price'}`}
                 >
-                  {isNow && (
-                    <span
-                      aria-hidden
-                      className="absolute inset-x-1 inset-y-0 rounded-lg bg-primary/10 ring-1 ring-primary/40 animate-pulse"
-                    />
-                  )}
                   <span
                     className={cn(
                       'relative w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold leading-none tabular-nums',
