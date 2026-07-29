@@ -151,6 +151,35 @@
     </style>
     
     <div id="root"></div>
+    <script>
+      // Earliest possible capture for iOS WKWebView errors that can happen
+      // before the React module installs its own handlers.
+      (function installEarlyStartupErrorHandlers() {
+        if (window.__didInstallEarlyStartupErrorHandlers) return;
+        window.__didInstallEarlyStartupErrorHandlers = true;
+        function serializeError(err, event) {
+          return {
+            message: (event && event.message) || (err && err.message) || String(err),
+            code: err && err.code,
+            name: err && err.name,
+            filename: event && event.filename,
+            lineNumber: event && event.lineno,
+            columnNumber: event && event.colno,
+            stack: err && err.stack,
+          };
+        }
+        window.addEventListener('error', function (event) {
+          try {
+            console.error('[Startup] GLOBAL_JS_ERROR', serializeError(event.error || {}, event));
+          } catch (e) { /* noop */ }
+        });
+        window.addEventListener('unhandledrejection', function (event) {
+          try {
+            console.error('[Startup] UNHANDLED_PROMISE_REJECTION', serializeError(event.reason || {}));
+          } catch (e) { /* noop */ }
+        });
+      })();
+    </script>
     <!-- Razorpay Checkout SDK -->
     <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
     <script type="module" src="/src/main.tsx"></script>
