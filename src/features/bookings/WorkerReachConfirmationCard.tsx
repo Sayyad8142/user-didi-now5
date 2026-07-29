@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
-import { getAuth } from 'firebase/auth';
+import { getFirebaseAuth } from '@/lib/firebase';
 import { toast } from 'sonner';
 import { useProfile } from '@/contexts/ProfileContext';
 
@@ -110,8 +110,8 @@ export function WorkerReachConfirmationCard({
         // PRIMARY: edge function (also writes worker_reach_events + admin alerts)
         let edgeOk = false;
         try {
-          const auth = getAuth();
-          const token = await auth.currentUser?.getIdToken();
+          const auth = getFirebaseAuth();
+          const token = await auth?.currentUser?.getIdToken();
           const { data, error } = await supabase.functions.invoke('confirm-worker-reach', {
             body: { booking_id: booking.id, reached },
             headers: token ? { 'x-firebase-token': token } : undefined,

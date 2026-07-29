@@ -18,6 +18,15 @@ import "./index.css";
 // "JS Eval error: A JavaScript exception occurred" gets a real stack trace.
 (function installGlobalErrorHandlers() {
   if (typeof window === "undefined") return;
+  const serializeError = (err: any, event?: ErrorEvent) => ({
+    message: event?.message || err?.message || String(err),
+    code: err?.code,
+    name: err?.name,
+    filename: event?.filename,
+    lineNumber: event?.lineno,
+    columnNumber: event?.colno,
+    stack: err?.stack,
+  });
   const showStartupError = (label: string, err: unknown) => {
     try {
       const msg =
@@ -43,8 +52,19 @@ import "./index.css";
       }
     } catch {}
   };
-  window.addEventListener("error", (e) => showStartupError("error", e.error || e.message));
-  window.addEventListener("unhandledrejection", (e) => showStartupError("unhandledrejection", e.reason));
+  window.addEventListener("error", (e) => {
+    try {
+      console.error("[Startup] GLOBAL_JS_ERROR", serializeError(e.error || {}, e));
+    } catch {}
+    showStartupError("error", e.error || e.message);
+  });
+  window.addEventListener("unhandledrejection", (e) => {
+    try {
+      const reason: any = e.reason || {};
+      console.error("[Startup] UNHANDLED_PROMISE_REJECTION", serializeError(reason));
+    } catch {}
+    showStartupError("unhandledrejection", e.reason);
+  });
 
   // Always-on runtime stack capture for production debugging.
   // Logs full stack trace + filename + line for any uncaught error, even after React mounts.
@@ -53,6 +73,7 @@ import "./index.css";
       const err: any = e.error || {};
       console.error("[RUNTIME_ERROR]", {
         message: e.message || err?.message,
+        code: err?.code,
         filename: (e as any).filename,
         lineno: (e as any).lineno,
         colno: (e as any).colno,
@@ -66,6 +87,7 @@ import "./index.css";
       const r: any = (e as any).reason || {};
       console.error("[UNHANDLED_REJECTION]", {
         message: r?.message ?? String(r),
+        code: r?.code,
         name: r?.name,
         stack: r?.stack,
       });
