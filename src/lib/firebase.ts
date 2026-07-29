@@ -223,7 +223,24 @@ export const onFirebaseAuthStateChanged = (
     console.warn('⚠️ Auth not available for state listener');
     return () => {};
   }
-  return onAuthStateChanged(a, callback, onError);
+  console.info('[Startup] AUTH_LISTENER_ATTACHED', {
+    currentUserPresent: !!a.currentUser,
+  });
+  return onAuthStateChanged(
+    a,
+    (user) => {
+      console.info('[Startup] AUTH_LISTENER_CALLBACK', { hasUser: !!user });
+      callback(user);
+    },
+    (error) => {
+      console.error('[Startup] AUTH_LISTENER_ERROR', {
+        message: error?.message,
+        code: (error as any)?.code,
+        stack: error?.stack,
+      });
+      onError?.(error);
+    },
+  );
 };
 
 export const signOut = async (): Promise<void> => {
