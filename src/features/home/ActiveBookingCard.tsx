@@ -4,7 +4,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Sparkles, ChefHat, ShowerHead, ArrowRight, X, PhoneCall, Star, CheckCircle, XCircle, KeyRound, Loader2, ChevronRight, Calendar, Navigation, PlayCircle, Loader, MapPin } from 'lucide-react';
-import { getAuth } from 'firebase/auth';
+import { getFirebaseAuth } from '@/lib/firebase';
 import { WorkerAvatar } from '@/components/WorkerAvatar';
 import { supabase } from '@/integrations/supabase/client';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
@@ -504,8 +504,8 @@ const ActiveBookingCard = memo(() => {
       // PRIMARY: try edge function (sends admin alerts on 'not_reached')
       let edgeOk = false;
       try {
-        const auth = getAuth();
-        const token = await auth.currentUser?.getIdToken();
+        const auth = getFirebaseAuth();
+        const token = await auth?.currentUser?.getIdToken();
         const { data, error } = await supabase.functions.invoke('confirm-worker-reach', {
           body: { booking_id: activeBooking.id, reached },
           headers: token ? { 'x-firebase-token': token } : undefined,

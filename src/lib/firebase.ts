@@ -11,11 +11,13 @@
 import { initializeApp, FirebaseApp, getApps } from 'firebase/app';
 import {
   getAuth,
+  initializeAuth,
   Auth,
   signInWithCustomToken,
   onAuthStateChanged,
   User,
   signOut as firebaseSignOut,
+  browserLocalPersistence,
 } from 'firebase/auth';
 import { getMessaging, Messaging, getToken, onMessage, MessagePayload } from 'firebase/messaging';
 import { Capacitor } from '@capacitor/core';
@@ -71,9 +73,49 @@ export const getFirebaseAuth = (): Auth | null => {
   if (!a) return null;
   if (!auth) {
     try {
-      auth = getAuth(a);
+      const platform = Capacitor.getPlatform();
+      const native = Capacitor.isNativePlatform();
+      const useExplicitIosPersistence = native && platform === 'ios';
+      console.info('[Startup] FIREBASE_AUTH_CREATION_STARTED', {
+        platform,
+        native,
+        mode: useExplicitIosPersistence ? 'initializeAuth' : 'getAuth',
+      });
+
+      if (useExplicitIosPersistence) {
+        console.info('[Startup] AUTH_PERSISTENCE_SELECTED', {
+          persistence: 'browserLocalPersistence',
+          reason: 'capacitor-ios-startup',
+        });
+        auth = initializeAuth(a, { persistence: browserLocalPersistence });
+      } else {
+        console.info('[Startup] AUTH_PERSISTENCE_SELECTED', {
+          persistence: 'firebase-default',
+          reason: native ? `capacitor-${platform}` : 'web',
+        });
+        auth = getAuth(a);
+      }
+
+      console.info('[Startup] FIREBASE_AUTH_CREATION_COMPLETED', {
+        hasAuth: !!auth,
+        appName: a.name,
+      });
       console.log('✅ Firebase Auth initialized');
     } catch (error) {
+      const code = (error as any)?.code;
+      if (code === 'auth/already-initialized') {
+        try {
+          auth = getAuth(a);
+          console.info('[Startup] FIREBASE_AUTH_CREATION_COMPLETED', {
+            hasAuth: !!auth,
+            appName: a.name,
+            reusedExisting: true,
+          });
+          return auth;
+        } catch (fallbackError) {
+          console.error('❌ Firebase Auth fallback init error:', fallbackError);
+        }
+      }
       console.error('❌ Firebase Auth init error:', error);
       return null;
     }
@@ -172,13 +214,33 @@ export const verifyOtp = async (
 // ─── Session helpers ──────────────────────────────────────────────────
 export const getCurrentUser = (): User | null => getFirebaseAuth()?.currentUser ?? null;
 
-export const onFirebaseAuthStateChanged = (callback: (user: User | null) => void): (() => void) => {
+export const onFirebaseAuthStateChanged = (
+  callback: (user: User | null) => void,
+  onError?: (error: Error) => void,
+): (() => void) => {
   const a = getFirebaseAuth();
   if (!a) {
     console.warn('⚠️ Auth not available for state listener');
     return () => {};
   }
-  return onAuthStateChanged(a, callback);
+  console.info('[Startup] AUTH_LISTENER_ATTACHED', {
+    currentUserPresent: !!a.currentUser,
+  });
+  return onAuthStateChanged(
+    a,
+    (user) => {
+      console.info('[Startup] AUTH_LISTENER_CALLBACK', { hasUser: !!user });
+      callback(user);
+    },
+    (error) => {
+      console.error('[Startup] AUTH_LISTENER_ERROR', {
+        message: error?.message,
+        code: (error as any)?.code,
+        stack: error?.stack,
+      });
+      onError?.(error);
+    },
+  );
 };
 
 export const signOut = async (): Promise<void> => {
