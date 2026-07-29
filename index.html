@@ -156,17 +156,44 @@
     <script type="module" src="/src/main.tsx"></script>
     
     <script>
-      // Remove splash screen when React signals ready
-      window.hideSplash = function() {
-        const splash = document.getElementById('app-splash');
-        if (splash) {
-          splash.style.opacity = '0';
-          splash.style.transition = 'opacity 0.3s ease-out';
-          setTimeout(function() {
-            splash.remove();
-          }, 300);
-        }
+      // ── Splash lifecycle ─────────────────────────────────────────────
+      // The React app calls window.hideSplash() once AuthGate is ready.
+      // Below that, we install a hard 15s fallback so the splash can
+      // never remain on-screen indefinitely — critical on iOS where a
+      // silent JS/init failure previously left users stuck forever.
+      window.__splashStartTs = Date.now();
+      window.hideSplash = function () {
+        var splash = document.getElementById('app-splash');
+        if (!splash) return;
+        splash.style.opacity = '0';
+        splash.style.transition = 'opacity 0.3s ease-out';
+        setTimeout(function () { splash.remove(); }, 300);
       };
+
+      // Hard fallback: after 15s, remove splash and show a Retry screen
+      // if React still hasn't painted into #root.
+      setTimeout(function () {
+        try {
+          var root = document.getElementById('root');
+          var splash = document.getElementById('app-splash');
+          var mounted = root && root.childElementCount > 0;
+          if (mounted) return; // React is up — splash handled by app
+          console.error('[Startup] APP_START_FAILED: no React mount after 15s');
+          if (splash) splash.remove();
+          if (root) {
+            root.innerHTML =
+              '<div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;background:linear-gradient(135deg,#ec4899 0%,#f472b6 50%,#fbbf24 100%);color:#fff;font-family:-apple-system,BlinkMacSystemFont,Inter,sans-serif;text-align:center;">' +
+                '<div style="background:rgba(255,255,255,0.95);color:#111;padding:24px;border-radius:20px;max-width:320px;">' +
+                  '<div style="font-size:40px;margin-bottom:8px;">📶</div>' +
+                  '<h1 style="font-size:18px;font-weight:700;margin:0 0 8px;">We couldn\'t open the app</h1>' +
+                  '<p style="font-size:14px;color:#555;margin:0 0 16px;">Please check your internet connection and try again.</p>' +
+                  '<button onclick="window.location.reload()" style="background:#ec4899;color:#fff;border:0;padding:10px 24px;border-radius:9999px;font-weight:600;font-size:14px;">Retry</button>' +
+                  '<p style="font-size:10px;color:#888;margin-top:12px;">Error ref: SPLASH_TIMEOUT_15S</p>' +
+                '</div>' +
+              '</div>';
+          }
+        } catch (e) { /* noop */ }
+      }, 15000);
     </script>
   </body>
 </html>
