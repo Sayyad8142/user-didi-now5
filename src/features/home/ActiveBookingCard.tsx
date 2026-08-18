@@ -315,7 +315,9 @@ const ActiveBookingCard = memo(() => {
           fetchActiveBooking();
           // Re-fetch shortly after in case the edge function's cache/read-replica
           // is momentarily behind the realtime event (RLS eventual consistency).
-          setTimeout(() => fetchActiveBooking(), 1500);
+          setTimeout(() => fetchActiveBooking(), 800);
+          setTimeout(() => fetchActiveBooking(), 2000);
+          setTimeout(() => fetchActiveBooking(), 4500);
         }
       )
       .subscribe();
