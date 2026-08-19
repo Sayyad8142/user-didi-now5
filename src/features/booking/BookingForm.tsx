@@ -105,8 +105,15 @@ export function BookingForm() {
   const [retrying, setRetrying] = useState(false);
 
   // Check instant booking availability (must be before any early returns)
-  const { isAvailable: instantAvailable, isError: instantError, isLoading: instantLoading } = useInstantBookingAvailability(service_type || '');
+  const { 
+    isAvailable: instantAvailable, 
+    freshCount,
+    isError: instantError, 
+    isLoading: instantLoading 
+  } = useInstantBookingAvailability(service_type || '');
+  
   const instantDisabled = !instantLoading && (!instantAvailable || instantError);
+  const lowAvailability = !instantLoading && instantAvailable && freshCount === 0;
 
   // Supply protection: max 3 pending instant bookings per community
   const { isSupplyFull, refetch: refetchSupply } = useSupplyCheck(profile?.community);
