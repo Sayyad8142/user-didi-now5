@@ -20,7 +20,7 @@ const serviceLabels: Record<string, string> = {
 };
 
 interface Props {
-  counts: Record<string, { online: number; candidates: number }>;
+  counts: Record<string, number>;
   loading: boolean;
   onServiceSelect?: (service: Service) => void;
 }
@@ -34,41 +34,28 @@ function LiveRow({
   onClick,
 }: {
   service: string;
-  count: { online: number; candidates: number };
+  count: number;
   label: string;
   onClick?: () => void;
 }) {
-  const onlineCount = count.online;
-  const candidateCount = count.candidates;
-
-  const urgent = onlineCount <= 3 && onlineCount > 0;
-  const empty = onlineCount === 0;
-  const hasCandidates = candidateCount > 0;
-
-  let statusText = '';
-  if (empty) {
-    statusText = hasCandidates 
-      ? 'Limited availability — book now' 
-      : 'Instant unavailable';
-  } else if (urgent) {
-    statusText = `Only ${onlineCount} left`;
-  } else {
-    statusText = `Available now`;
-  }
-
-  const StatusIcon = empty 
-    ? (hasCandidates ? Flame : AlertCircle) 
-    : (urgent ? Flame : CheckCircle2);
-
+  const urgent = count <= 3;
+  const empty = count === 0;
+  const statusText = empty
+    ? 'Try scheduling for tomorrow'
+    : urgent
+    ? `Only ${count} left`
+    : `${count} available now`;
+  const StatusIcon = empty ? AlertCircle : urgent ? Flame : CheckCircle2;
   const tone = empty
-    ? (hasCandidates ? 'text-[#ff007a] bg-[#ff007a]/10' : 'text-rose-600 bg-rose-500/10')
-    : (urgent ? 'text-[#ff007a] bg-[#ff007a]/10' : 'text-green-600 bg-green-500/10');
-
+    ? 'text-rose-600 bg-rose-500/10'
+    : urgent
+    ? 'text-[#ff007a] bg-[#ff007a]/10'
+    : 'text-green-600 bg-green-500/10';
   const badgeTone = empty
-    ? (hasCandidates ? 'bg-[#ff007a]' : 'bg-rose-500')
-    : (urgent ? 'bg-[#ff007a] animate-pulse' : 'bg-green-500');
-
-  const displayCount = empty && hasCandidates ? candidateCount : onlineCount;
+    ? 'bg-rose-500'
+    : urgent
+    ? 'bg-[#ff007a] animate-pulse'
+    : 'bg-green-500';
 
   return (
     <div
@@ -106,14 +93,13 @@ function LiveRow({
                 badgeTone,
               )}
             >
-              {displayCount}
+              {count}
             </span>
           </div>
           <p
             className={cn(
               'text-[11px] font-medium mt-0.5',
-              empty && !hasCandidates ? 'text-rose-600' : 'text-[#ff007a]',
-              !empty && !urgent && 'text-green-600'
+              empty ? 'text-rose-600' : urgent ? 'text-[#ff007a]' : 'text-green-600',
             )}
           >
             {statusText}

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Sparkles, ChefHat, ShowerHead, ArrowRight, X, PhoneCall, Star, CheckCircle, XCircle, KeyRound, Loader2, ChevronRight, Calendar, Navigation, PlayCircle, Loader, MapPin, Clock } from 'lucide-react';
+import { Sparkles, ChefHat, ShowerHead, ArrowRight, X, PhoneCall, Star, CheckCircle, XCircle, KeyRound, Loader2, ChevronRight, Calendar, Navigation, PlayCircle, Loader, MapPin } from 'lucide-react';
 import { getFirebaseAuth } from '@/lib/firebase';
 import { WorkerAvatar } from '@/components/WorkerAvatar';
 import { supabase } from '@/integrations/supabase/client';
@@ -33,8 +33,6 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Wallet } from 'lucide-react';
 import { fetchWalletBalanceValue } from '@/lib/wallet';
-import { syncServerTime, getServerAge, getServerNow } from '@/lib/serverTime';
-
 
 
 interface Booking {
@@ -48,7 +46,6 @@ interface Booking {
   flat_no: string;
   created_at: string;
   price_inr?: number | null;
-  payment_amount_inr?: number | null;
   worker_id?: string | null;
   worker_name?: string | null;
   worker_phone?: string | null;
@@ -56,7 +53,6 @@ interface Booking {
   worker_photo_url?: string | null;
   auto_complete_at?: string | null;
   assigned_at?: string | null;
-  dispatch_started_at?: string | null; // Priority timer source
   pay_enabled_at?: string | null;
   cancel_source?: string | null;
   cancel_reason?: string | null;
@@ -69,7 +65,6 @@ interface Booking {
   otp_verified_at?: string | null;
   payment_status?: string | null;
   dispatch_expires_at?: string | null;
-  customer_continue_waiting_at?: string | null; // Persisted decision
 }
 
 const getServiceIcon = (serviceType: string) => {
@@ -221,8 +216,6 @@ const ActiveBookingCard = memo(() => {
   const [assignmentCount, setAssignmentCount] = useState(0);
   const [noWorkerDialogOpen, setNoWorkerDialogOpen] = useState(false);
   const [walletBalance, setWalletBalance] = useState<number | null>(null);
-  const [showUnassignedDecision, setShowUnassignedDecision] = useState(false);
-  const [isDecisionProcessing, setIsDecisionProcessing] = useState(false);
 
 
   const fetchActiveBooking = useCallback(async () => {
@@ -248,10 +241,6 @@ const ActiveBookingCard = memo(() => {
         bookingToShow = activeBooking || cancelledBooking || null;
       }
       setActiveBooking(bookingToShow || null);
-      if (bookingToShow?.created_at) {
-        syncServerTime(bookingToShow.created_at);
-      }
-
     } catch (err) {
       console.error('Error:', err);
     } finally {
@@ -326,9 +315,7 @@ const ActiveBookingCard = memo(() => {
           fetchActiveBooking();
           // Re-fetch shortly after in case the edge function's cache/read-replica
           // is momentarily behind the realtime event (RLS eventual consistency).
-          setTimeout(() => fetchActiveBooking(), 800);
-          setTimeout(() => fetchActiveBooking(), 2000);
-          setTimeout(() => fetchActiveBooking(), 4500);
+          setTimeout(() => fetchActiveBooking(), 1500);
         }
       )
       .subscribe();
@@ -352,51 +339,11 @@ const ActiveBookingCard = memo(() => {
   }, [profile?.id, activeBooking?.status, activeBooking?.booking_type, fetchActiveBooking]);
 
   useEffect(() => {
-    if (!activeBooking) { 
-      setReachButtonsVisible(false); 
-      setShowUnassignedDecision(false);
-      return; 
-    }
-    
-    const checkVisibility = () => {
-      setReachButtonsVisible(shouldShowReachButtons(activeBooking));
-      
-      // Decision screen logic: 10 minutes (600,000ms)
-      if (activeBooking.status === 'pending' && activeBooking.booking_type === 'instant') {
-        const startTime = activeBooking.dispatch_started_at || activeBooking.created_at;
-        const ageMs = getServerAge(startTime);
-        
-        // Development/Test threshold override
-        const defaultThreshold = 10 * 60 * 1000;
-        const debugThreshold = (window as any).__DEBUG_DECISION_THRESHOLD_MS__;
-        const threshold = debugThreshold !== undefined ? debugThreshold : defaultThreshold;
-        
-        // Priority 1: Server-side persisted decision
-        // Priority 2: Local booking-scoped state
-        const dismissalKey = `decisionDismissed:${activeBooking.id}`;
-        const lastDismissedAt = activeBooking.customer_continue_waiting_at 
-          ? new Date(activeBooking.customer_continue_waiting_at).getTime()
-          : Number(localStorage.getItem(dismissalKey) || 0);
-
-        // Reprompt after another defined waiting interval (10 min)
-        const hasRecentDismissal = lastDismissedAt && (getServerNow() - lastDismissedAt) < threshold;
-
-        if (ageMs >= threshold && !activeBooking.worker_id && !hasRecentDismissal) {
-          setShowUnassignedDecision(true);
-        } else {
-          setShowUnassignedDecision(false);
-        }
-      } else {
-        setShowUnassignedDecision(false);
-      }
-
-    };
-
-    
+    if (!activeBooking) { setReachButtonsVisible(false); return; }
+    const checkVisibility = () => setReachButtonsVisible(shouldShowReachButtons(activeBooking));
     checkVisibility();
-    const interval = setInterval(checkVisibility, 2000); // Check every 2s for precise timer activation
+    const interval = setInterval(checkVisibility, 30000);
     return () => clearInterval(interval);
-
   }, [activeBooking]);
 
   useEffect(() => {
@@ -464,59 +411,6 @@ const ActiveBookingCard = memo(() => {
       .catch(() => { if (!cancelled) setWalletBalance(null); });
     return () => { cancelled = true; };
   }, [noWorkerDialogOpen, _wasRefundedForEffect]);
-
-  const handleCancelDecision = async () => {
-    if (!activeBooking || isDecisionProcessing) return;
-    setIsDecisionProcessing(true);
-    try {
-      // 1. Atomic Check & Cancel via RPC
-      const { data, error } = await supabase.rpc("cancel_unassigned_booking", {
-        p_booking_id: activeBooking.id,
-        p_reason: "Customer opted to cancel after 10 min wait threshold",
-      });
-
-      if (error) {
-        // Fallback for missing RPC (transition period)
-        console.warn('cancel_unassigned_booking RPC missing, falling back to legacy flow');
-        const { data: latest } = await supabase.from('bookings').select('status, worker_id').eq('id', activeBooking.id).single();
-        if (latest?.worker_id || latest?.status !== 'pending') {
-          toast.error("A worker just accepted your booking!");
-          setShowUnassignedDecision(false);
-          fetchActiveBooking();
-          return;
-        }
-        const { error: legacyErr } = await supabase.rpc("user_cancel_booking", {
-          p_booking_id: activeBooking.id,
-          p_reason: "Customer opted to cancel after 10 min wait",
-        });
-        if (legacyErr) throw legacyErr;
-      } else {
-        const result = Array.isArray(data) ? data[0] : data;
-        if (!result.success) {
-          toast.error(result.message || "A worker just accepted your booking!");
-          setShowUnassignedDecision(false);
-          fetchActiveBooking();
-          return;
-        }
-        toast.success(result.refund_amount ? `₹${result.refund_amount} refunded to wallet` : "Booking cancelled");
-      }
-
-      
-      const newDismissed = new Set(dismissedBookings);
-      newDismissed.add(activeBooking.id);
-      setDismissedBookings(newDismissed);
-      localStorage.setItem('dismissedBookings', JSON.stringify(Array.from(newDismissed)));
-      
-      setShowUnassignedDecision(false);
-      fetchActiveBooking();
-    } catch (err: any) {
-      console.error('Cancel decision error:', err);
-      toast.error(err.message || "Failed to cancel booking");
-    } finally {
-      setIsDecisionProcessing(false);
-    }
-  };
-
 
 
   if (loading || !activeBooking) return null;
@@ -1051,75 +945,8 @@ const ActiveBookingCard = memo(() => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      
-      {/* 10-Minute Unassigned Decision Screen */}
-      <Dialog open={showUnassignedDecision} onOpenChange={(open) => !isDecisionProcessing && setShowUnassignedDecision(open)}>
-        <DialogContent className="sm:max-w-md rounded-3xl">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-bold flex items-center gap-2">
-              <Clock className="w-5 h-5 text-amber-500" />
-              Still searching...
-            </DialogTitle>
-            <DialogDescription className="text-sm pt-2">
-              We're still searching for a worker near you. Ops is actively trying to assign your booking.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex flex-col gap-3 py-4">
-            <Button 
-              onClick={async () => {
-                if (!activeBooking?.id) return;
-                setIsDecisionProcessing(true);
-                const now = new Date().toISOString();
-                
-                // 1. Persist locally immediately
-                localStorage.setItem(`decisionDismissed:${activeBooking.id}`, Date.now().toString());
-                
-                // 2. Attempt to persist to server (best effort)
-                try {
-                  await supabase
-                    .from('bookings')
-                    .update({ customer_continue_waiting_at: now })
-                    .eq('id', activeBooking.id);
-                } catch (e) {
-                  console.warn('Failed to persist wait decision to server:', e);
-                }
-                
-                setIsDecisionProcessing(false);
-                setShowUnassignedDecision(false);
-              }}
-              disabled={isDecisionProcessing}
-              className="w-full h-12 rounded-2xl bg-primary hover:bg-primary/90 text-white font-bold"
-            >
-              Keep Searching
-            </Button>
 
-
-            <Button 
-              variant="outline"
-              onClick={handleCancelDecision}
-              disabled={isDecisionProcessing}
-              className="w-full h-12 rounded-2xl border-rose-200 text-rose-600 hover:bg-rose-50 font-bold"
-            >
-              {isDecisionProcessing ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Cancelling...
-                </>
-              ) : (
-                <>
-                  <XCircle className="w-4 h-4 mr-2" />
-                  Cancel & Refund to Wallet
-                </>
-              )}
-            </Button>
-          </div>
-          <p className="text-[11px] text-muted-foreground text-center">
-            You can also cancel later from the booking card.
-          </p>
-        </DialogContent>
-      </Dialog>
     </>
-
   );
 });
 

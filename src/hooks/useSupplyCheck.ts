@@ -1,12 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
-// Maximum concurrent pending/active instant bookings per community.
-// This matches SERVICE_INSTANT_LIMITS in the edge function.
 const MAX_PENDING_INSTANT = 3;
 
 /**
  * Reusable hook: checks if instant booking supply is full for a community.
+ * Only counts bookings with status = 'pending' (not dispatched/accepted/assigned).
  * Refetches every 15s for near-realtime accuracy.
  */
 export function useSupplyCheck(communityId: string | undefined) {
@@ -16,8 +15,6 @@ export function useSupplyCheck(communityId: string | undefined) {
     refetchInterval: 15_000,
     staleTime: 10_000,
     queryFn: async () => {
-      // NOTE: check_instant_supply in the DB counts active/pending bookings.
-      // It does NOT check worker heartbeats.
       const { data, error } = await supabase.rpc("check_instant_supply", {
         p_community: communityId!,
       });

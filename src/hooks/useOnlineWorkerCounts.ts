@@ -4,10 +4,7 @@ import { useProfile } from '@/contexts/ProfileContext';
 import { isOpenNow } from '@/features/home/time';
 
 interface OnlineCounts {
-  [service: string]: {
-    online: number;
-    candidates: number;
-  };
+  [service: string]: number;
 }
 
 export function useOnlineWorkerCounts() {
@@ -33,10 +30,7 @@ export function useOnlineWorkerCounts() {
     console.log('[useOnlineWorkerCounts] fetching for community:', community);
 
     if (!isOpenNow()) {
-      setCounts({ 
-        maid: { online: 0, candidates: 0 }, 
-        bathroom_cleaning: { online: 0, candidates: 0 } 
-      });
+      setCounts({ maid: 0, bathroom_cleaning: 0 });
       setLoading(false);
       return;
     }
@@ -53,10 +47,7 @@ export function useOnlineWorkerCounts() {
 
         const result: OnlineCounts = {};
         (data || []).forEach((row: any) => {
-          result[row.service] = {
-            online: Number(row.online_count),
-            candidates: Number(row.candidate_count)
-          };
+          result[row.service] = Number(row.online_count);
         });
         setCounts(result);
       } catch (e) {
@@ -69,7 +60,7 @@ export function useOnlineWorkerCounts() {
     return () => { cancelled = true; };
   }, [profile?.community]);
 
-  const isServiceAvailable = (service: string) => (counts[service]?.candidates ?? 0) > 0;
+  const isServiceAvailable = (service: string) => (counts[service] ?? 0) > 0;
 
   return { counts, loading, isServiceAvailable };
 }
