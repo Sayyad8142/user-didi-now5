@@ -387,8 +387,9 @@ const ActiveBookingCard = memo(() => {
 
     
     checkVisibility();
-    const interval = setInterval(checkVisibility, 10000); // Check every 10s
+    const interval = setInterval(checkVisibility, 2000); // Check every 2s for precise timer activation
     return () => clearInterval(interval);
+
   }, [activeBooking]);
 
   useEffect(() => {
