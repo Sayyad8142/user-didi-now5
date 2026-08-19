@@ -1173,6 +1173,11 @@ export function BookingForm() {
                     Busy
                   </span>
                 )}
+                {isServiceOpen && !instantBlocked && lowAvailability && (
+                  <span className="absolute top-3 right-3 bg-amber-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-[10px] leading-tight shadow-sm">
+                    Low Availability
+                  </span>
+                )}
 
                 <div className={cn(
                   "w-10 h-10 rounded-full flex items-center justify-center",
@@ -1183,7 +1188,7 @@ export function BookingForm() {
                 <div className="flex-1 min-w-0">
                   <div className={cn("font-bold text-base", isSupplyFull ? "text-muted-foreground" : "text-foreground")}>Instant</div>
                   <div className="text-xs text-muted-foreground mt-0.5">
-                    {isSupplyFull ? "Not Available Right Now" : "Get help in 10 mins"}
+                    {isSupplyFull ? "Not Available Right Now" : lowAvailability ? "Experts nearby · 15-20 min" : "Get help in 10 mins"}
                   </div>
                   {!isSupplyFull && isServiceOpen && slotSurgeAmount !== 0 && (
                     <div className={cn(
