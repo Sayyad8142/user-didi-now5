@@ -1018,8 +1018,53 @@ const ActiveBookingCard = memo(() => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
+      
+      {/* 10-Minute Unassigned Decision Screen */}
+      <Dialog open={showUnassignedDecision} onOpenChange={(open) => !isDecisionProcessing && setShowUnassignedDecision(open)}>
+        <DialogContent className="sm:max-w-md rounded-3xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold flex items-center gap-2">
+              <Clock className="w-5 h-5 text-amber-500" />
+              Still searching...
+            </DialogTitle>
+            <DialogDescription className="text-sm pt-2">
+              We're still searching for a worker near you. Ops is actively trying to assign your booking.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-3 py-4">
+            <Button 
+              onClick={() => setShowUnassignedDecision(false)}
+              disabled={isDecisionProcessing}
+              className="w-full h-12 rounded-2xl bg-primary hover:bg-primary/90 text-white font-bold"
+            >
+              Keep Searching
+            </Button>
+            <Button 
+              variant="outline"
+              onClick={handleCancelDecision}
+              disabled={isDecisionProcessing}
+              className="w-full h-12 rounded-2xl border-rose-200 text-rose-600 hover:bg-rose-50 font-bold"
+            >
+              {isDecisionProcessing ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Cancelling...
+                </>
+              ) : (
+                <>
+                  <XCircle className="w-4 h-4 mr-2" />
+                  Cancel & Refund to Wallet
+                </>
+              )}
+            </Button>
+          </div>
+          <p className="text-[11px] text-muted-foreground text-center">
+            You can also cancel later from the booking card.
+          </p>
+        </DialogContent>
+      </Dialog>
     </>
+
   );
 });
 
