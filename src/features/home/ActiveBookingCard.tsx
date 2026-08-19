@@ -360,12 +360,20 @@ const ActiveBookingCard = memo(() => {
       
       // Decision screen logic: 10 minutes (600,000ms)
       if (activeBooking.status === 'pending' && activeBooking.booking_type === 'instant') {
-        const createdTime = new Date(activeBooking.created_at).getTime();
-        const tenMinutesAgo = Date.now() - (10 * 60 * 1000);
+        const ageMs = getServerAge(activeBooking.created_at);
         
-        // Use a key to prevent showing it again if they dismissed it in this session (optional, but requested behavior is "decision screen")
-        // We'll show it if 10 mins passed and no worker yet.
-        if (createdTime <= tenMinutesAgo && !activeBooking.worker_id) {
+        // Development/Test threshold override
+        const defaultThreshold = 10 * 60 * 1000;
+        const debugThreshold = (window as any).__DEBUG_DECISION_THRESHOLD_MS__;
+        const threshold = debugThreshold !== undefined ? debugThreshold : defaultThreshold;
+        
+        // Use local decision dismissal state (booking-scoped)
+        // This prevents the dialog from reopening after "Keep Searching"
+        const dismissalKey = `decisionDismissed:${activeBooking.id}`;
+        const lastDismissedAt = localStorage.getItem(dismissalKey);
+        const hasRecentDismissal = lastDismissedAt && (Date.now() - parseInt(lastDismissedAt)) < defaultThreshold;
+
+        if (ageMs >= threshold && !activeBooking.worker_id && !hasRecentDismissal) {
           setShowUnassignedDecision(true);
         } else {
           setShowUnassignedDecision(false);
@@ -374,6 +382,7 @@ const ActiveBookingCard = memo(() => {
         setShowUnassignedDecision(false);
       }
     };
+
     
     checkVisibility();
     const interval = setInterval(checkVisibility, 10000); // Check every 10s
@@ -1039,12 +1048,19 @@ const ActiveBookingCard = memo(() => {
           </DialogHeader>
           <div className="flex flex-col gap-3 py-4">
             <Button 
-              onClick={() => setShowUnassignedDecision(false)}
+              onClick={() => {
+                setShowUnassignedDecision(false);
+                // Persist the choice locally for this booking
+                if (activeBooking?.id) {
+                  localStorage.setItem(`decisionDismissed:${activeBooking.id}`, Date.now().toString());
+                }
+              }}
               disabled={isDecisionProcessing}
               className="w-full h-12 rounded-2xl bg-primary hover:bg-primary/90 text-white font-bold"
             >
               Keep Searching
             </Button>
+
             <Button 
               variant="outline"
               onClick={handleCancelDecision}
