@@ -8,15 +8,24 @@ export function useInstantBookingAvailability(serviceType: string | undefined) {
   const { counts, loading, isServiceAvailable } = useOnlineWorkerCounts();
 
   if (!serviceType) {
-    return { isAvailable: false, activeCount: 0, isLoading: loading, isError: false };
+    return { 
+      isAvailable: false, 
+      activeCount: 0, 
+      freshCount: 0,
+      isLoading: loading, 
+      isError: false 
+    };
   }
 
   const available = isServiceAvailable(serviceType);
-  const activeCount = counts[serviceType] ?? 0;
+  const serviceCounts = counts[serviceType];
+  const freshCount = serviceCounts?.online ?? 0;
+  const candidateCount = serviceCounts?.candidates ?? 0;
 
   return {
     isAvailable: available,
-    activeCount,
+    activeCount: candidateCount,
+    freshCount: freshCount,
     isLoading: loading,
     isError: false,
   };
