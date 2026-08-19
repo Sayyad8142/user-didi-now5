@@ -440,6 +440,51 @@ const ActiveBookingCard = memo(() => {
     return () => { cancelled = true; };
   }, [noWorkerDialogOpen, _wasRefundedForEffect]);
 
+  const handleCancelDecision = async () => {
+    if (!activeBooking || isDecisionProcessing) return;
+    setIsDecisionProcessing(true);
+    try {
+      const { data: latest, error: fetchErr } = await supabase
+        .from('bookings')
+        .select('status, worker_id, payment_status, price_inr')
+        .eq('id', activeBooking.id)
+        .single();
+
+      if (fetchErr || !latest) throw new Error('Could not verify booking status');
+      
+      if (latest.worker_id || latest.status !== 'pending') {
+        toast.error("A worker just accepted your booking!");
+        setShowUnassignedDecision(false);
+        fetchActiveBooking();
+        return;
+      }
+
+      const { error } = await supabase.rpc("user_cancel_booking", {
+        p_booking_id: activeBooking.id,
+        p_reason: "Customer opted to cancel after 10 min wait",
+      });
+
+      if (error) throw error;
+
+      const amount = latest.price_inr;
+      toast.success(amount ? `₹${amount} refunded to wallet` : "Booking cancelled");
+      
+      const newDismissed = new Set(dismissedBookings);
+      newDismissed.add(activeBooking.id);
+      setDismissedBookings(newDismissed);
+      localStorage.setItem('dismissedBookings', JSON.stringify(Array.from(newDismissed)));
+      
+      setShowUnassignedDecision(false);
+      fetchActiveBooking();
+    } catch (err: any) {
+      console.error('Cancel decision error:', err);
+      toast.error(err.message || "Failed to cancel booking");
+    } finally {
+      setIsDecisionProcessing(false);
+    }
+  };
+
+
 
   if (loading || !activeBooking) return null;
 
