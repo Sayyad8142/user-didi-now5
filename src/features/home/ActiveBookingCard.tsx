@@ -33,7 +33,7 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Wallet } from 'lucide-react';
 import { fetchWalletBalanceValue } from '@/lib/wallet';
-import { syncServerTime, getServerAge } from '@/lib/serverTime';
+import { syncServerTime, getServerAge, getServerNow } from '@/lib/serverTime';
 
 
 
@@ -48,6 +48,7 @@ interface Booking {
   flat_no: string;
   created_at: string;
   price_inr?: number | null;
+  payment_amount_inr?: number | null;
   worker_id?: string | null;
   worker_name?: string | null;
   worker_phone?: string | null;
@@ -55,6 +56,7 @@ interface Booking {
   worker_photo_url?: string | null;
   auto_complete_at?: string | null;
   assigned_at?: string | null;
+  dispatch_started_at?: string | null; // Priority timer source
   pay_enabled_at?: string | null;
   cancel_source?: string | null;
   cancel_reason?: string | null;
@@ -67,6 +69,7 @@ interface Booking {
   otp_verified_at?: string | null;
   payment_status?: string | null;
   dispatch_expires_at?: string | null;
+  customer_continue_waiting_at?: string | null; // Persisted decision
 }
 
 const getServiceIcon = (serviceType: string) => {
@@ -360,19 +363,23 @@ const ActiveBookingCard = memo(() => {
       
       // Decision screen logic: 10 minutes (600,000ms)
       if (activeBooking.status === 'pending' && activeBooking.booking_type === 'instant') {
-        const ageMs = getServerAge(activeBooking.created_at);
+        const startTime = activeBooking.dispatch_started_at || activeBooking.created_at;
+        const ageMs = getServerAge(startTime);
         
         // Development/Test threshold override
         const defaultThreshold = 10 * 60 * 1000;
         const debugThreshold = (window as any).__DEBUG_DECISION_THRESHOLD_MS__;
         const threshold = debugThreshold !== undefined ? debugThreshold : defaultThreshold;
         
-        // Use local decision dismissal state (booking-scoped)
-        // This prevents the dialog from reopening after "Keep Searching"
+        // Priority 1: Server-side persisted decision
+        // Priority 2: Local booking-scoped state
         const dismissalKey = `decisionDismissed:${activeBooking.id}`;
-        const lastDismissedAt = localStorage.getItem(dismissalKey);
-        // If they keep searching, don't show again for another threshold interval
-        const hasRecentDismissal = lastDismissedAt && (Date.now() - parseInt(lastDismissedAt)) < threshold;
+        const lastDismissedAt = activeBooking.customer_continue_waiting_at 
+          ? new Date(activeBooking.customer_continue_waiting_at).getTime()
+          : Number(localStorage.getItem(dismissalKey) || 0);
+
+        // Reprompt after another defined waiting interval (10 min)
+        const hasRecentDismissal = lastDismissedAt && (getServerNow() - lastDismissedAt) < threshold;
 
         if (ageMs >= threshold && !activeBooking.worker_id && !hasRecentDismissal) {
           setShowUnassignedDecision(true);
@@ -462,32 +469,37 @@ const ActiveBookingCard = memo(() => {
     if (!activeBooking || isDecisionProcessing) return;
     setIsDecisionProcessing(true);
     try {
-      const { data: latest, error: fetchErr } = await supabase
-        .from('bookings')
-        .select('status, worker_id, payment_status, price_inr')
-        .eq('id', activeBooking.id)
-        .single();
-
-      if (fetchErr || !latest) throw new Error('Could not verify booking status');
-      
-      if (latest.worker_id || latest.status !== 'pending') {
-        toast.error("A worker just accepted your booking!");
-        setShowUnassignedDecision(false);
-        fetchActiveBooking();
-        return;
-      }
-
-      const { data: refundResult, error } = await supabase.rpc("user_cancel_booking", {
+      // 1. Atomic Check & Cancel via RPC
+      const { data, error } = await supabase.rpc("cancel_unassigned_booking", {
         p_booking_id: activeBooking.id,
-        p_reason: "Customer opted to cancel after 10 min wait",
+        p_reason: "Customer opted to cancel after 10 min wait threshold",
       });
 
-      if (error) throw error;
-      
-      // Attempt to get the actual refund amount from the RPC result if it returns it,
-      // otherwise use the latest price_inr as a fallback (the RPC handles the actual credit).
-      const refundAmount = (refundResult as any)?.refund_amount ?? latest.price_inr;
-      toast.success(refundAmount ? `₹${refundAmount} refunded to wallet` : "Booking cancelled");
+      if (error) {
+        // Fallback for missing RPC (transition period)
+        console.warn('cancel_unassigned_booking RPC missing, falling back to legacy flow');
+        const { data: latest } = await supabase.from('bookings').select('status, worker_id').eq('id', activeBooking.id).single();
+        if (latest?.worker_id || latest?.status !== 'pending') {
+          toast.error("A worker just accepted your booking!");
+          setShowUnassignedDecision(false);
+          fetchActiveBooking();
+          return;
+        }
+        const { error: legacyErr } = await supabase.rpc("user_cancel_booking", {
+          p_booking_id: activeBooking.id,
+          p_reason: "Customer opted to cancel after 10 min wait",
+        });
+        if (legacyErr) throw legacyErr;
+      } else {
+        const result = Array.isArray(data) ? data[0] : data;
+        if (!result.success) {
+          toast.error(result.message || "A worker just accepted your booking!");
+          setShowUnassignedDecision(false);
+          fetchActiveBooking();
+          return;
+        }
+        toast.success(result.refund_amount ? `₹${result.refund_amount} refunded to wallet` : "Booking cancelled");
+      }
 
       
       const newDismissed = new Set(dismissedBookings);
@@ -1054,12 +1066,26 @@ const ActiveBookingCard = memo(() => {
           </DialogHeader>
           <div className="flex flex-col gap-3 py-4">
             <Button 
-              onClick={() => {
-                setShowUnassignedDecision(false);
-                // Persist the choice locally for this booking
-                if (activeBooking?.id) {
-                  localStorage.setItem(`decisionDismissed:${activeBooking.id}`, Date.now().toString());
+              onClick={async () => {
+                if (!activeBooking?.id) return;
+                setIsDecisionProcessing(true);
+                const now = new Date().toISOString();
+                
+                // 1. Persist locally immediately
+                localStorage.setItem(`decisionDismissed:${activeBooking.id}`, Date.now().toString());
+                
+                // 2. Attempt to persist to server (best effort)
+                try {
+                  await supabase
+                    .from('bookings')
+                    .update({ customer_continue_waiting_at: now })
+                    .eq('id', activeBooking.id);
+                } catch (e) {
+                  console.warn('Failed to persist wait decision to server:', e);
                 }
+                
+                setIsDecisionProcessing(false);
+                setShowUnassignedDecision(false);
               }}
               disabled={isDecisionProcessing}
               className="w-full h-12 rounded-2xl bg-primary hover:bg-primary/90 text-white font-bold"
