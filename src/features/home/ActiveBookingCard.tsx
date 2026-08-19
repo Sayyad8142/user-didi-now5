@@ -1067,6 +1067,7 @@ const ActiveBookingCard = memo(() => {
               Keep Searching
             </Button>
 
+
             <Button 
               variant="outline"
               onClick={handleCancelDecision}
