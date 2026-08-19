@@ -474,15 +474,18 @@ const ActiveBookingCard = memo(() => {
         return;
       }
 
-      const { error } = await supabase.rpc("user_cancel_booking", {
+      const { data: refundResult, error } = await supabase.rpc("user_cancel_booking", {
         p_booking_id: activeBooking.id,
         p_reason: "Customer opted to cancel after 10 min wait",
       });
 
       if (error) throw error;
+      
+      // Attempt to get the actual refund amount from the RPC result if it returns it,
+      // otherwise use the latest price_inr as a fallback (the RPC handles the actual credit).
+      const refundAmount = (refundResult as any)?.refund_amount ?? latest.price_inr;
+      toast.success(refundAmount ? `₹${refundAmount} refunded to wallet` : "Booking cancelled");
 
-      const amount = latest.price_inr;
-      toast.success(amount ? `₹${amount} refunded to wallet` : "Booking cancelled");
       
       const newDismissed = new Set(dismissedBookings);
       newDismissed.add(activeBooking.id);
