@@ -49,11 +49,11 @@ function LiveRow({
   if (empty) {
     statusText = hasCandidates 
       ? 'Limited availability — book now' 
-      : 'Try scheduling for tomorrow';
+      : 'Instant unavailable';
   } else if (urgent) {
     statusText = `Only ${onlineCount} left`;
   } else {
-    statusText = `${onlineCount} available now`;
+    statusText = `Available now`;
   }
 
   const StatusIcon = empty 

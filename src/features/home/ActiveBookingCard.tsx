@@ -216,6 +216,8 @@ const ActiveBookingCard = memo(() => {
   const [assignmentCount, setAssignmentCount] = useState(0);
   const [noWorkerDialogOpen, setNoWorkerDialogOpen] = useState(false);
   const [walletBalance, setWalletBalance] = useState<number | null>(null);
+  const [showUnassignedDecision, setShowUnassignedDecision] = useState(false);
+  const [isDecisionProcessing, setIsDecisionProcessing] = useState(false);
 
 
   const fetchActiveBooking = useCallback(async () => {
@@ -341,10 +343,34 @@ const ActiveBookingCard = memo(() => {
   }, [profile?.id, activeBooking?.status, activeBooking?.booking_type, fetchActiveBooking]);
 
   useEffect(() => {
-    if (!activeBooking) { setReachButtonsVisible(false); return; }
-    const checkVisibility = () => setReachButtonsVisible(shouldShowReachButtons(activeBooking));
+    if (!activeBooking) { 
+      setReachButtonsVisible(false); 
+      setShowUnassignedDecision(false);
+      return; 
+    }
+    
+    const checkVisibility = () => {
+      setReachButtonsVisible(shouldShowReachButtons(activeBooking));
+      
+      // Decision screen logic: 10 minutes (600,000ms)
+      if (activeBooking.status === 'pending' && activeBooking.booking_type === 'instant') {
+        const createdTime = new Date(activeBooking.created_at).getTime();
+        const tenMinutesAgo = Date.now() - (10 * 60 * 1000);
+        
+        // Use a key to prevent showing it again if they dismissed it in this session (optional, but requested behavior is "decision screen")
+        // We'll show it if 10 mins passed and no worker yet.
+        if (createdTime <= tenMinutesAgo && !activeBooking.worker_id) {
+          setShowUnassignedDecision(true);
+        } else {
+          setShowUnassignedDecision(false);
+        }
+      } else {
+        setShowUnassignedDecision(false);
+      }
+    };
+    
     checkVisibility();
-    const interval = setInterval(checkVisibility, 30000);
+    const interval = setInterval(checkVisibility, 10000); // Check every 10s
     return () => clearInterval(interval);
   }, [activeBooking]);
 
