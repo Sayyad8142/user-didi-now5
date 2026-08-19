@@ -371,7 +371,8 @@ const ActiveBookingCard = memo(() => {
         // This prevents the dialog from reopening after "Keep Searching"
         const dismissalKey = `decisionDismissed:${activeBooking.id}`;
         const lastDismissedAt = localStorage.getItem(dismissalKey);
-        const hasRecentDismissal = lastDismissedAt && (Date.now() - parseInt(lastDismissedAt)) < defaultThreshold;
+        // If they keep searching, don't show again for another threshold interval
+        const hasRecentDismissal = lastDismissedAt && (Date.now() - parseInt(lastDismissedAt)) < threshold;
 
         if (ageMs >= threshold && !activeBooking.worker_id && !hasRecentDismissal) {
           setShowUnassignedDecision(true);
@@ -381,6 +382,7 @@ const ActiveBookingCard = memo(() => {
       } else {
         setShowUnassignedDecision(false);
       }
+
     };
 
     
