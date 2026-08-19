@@ -33,6 +33,8 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Wallet } from 'lucide-react';
 import { fetchWalletBalanceValue } from '@/lib/wallet';
+import { syncServerTime, getServerAge } from '@/lib/serverTime';
+
 
 
 interface Booking {
@@ -243,6 +245,10 @@ const ActiveBookingCard = memo(() => {
         bookingToShow = activeBooking || cancelledBooking || null;
       }
       setActiveBooking(bookingToShow || null);
+      if (bookingToShow?.created_at) {
+        syncServerTime(bookingToShow.created_at);
+      }
+
     } catch (err) {
       console.error('Error:', err);
     } finally {
