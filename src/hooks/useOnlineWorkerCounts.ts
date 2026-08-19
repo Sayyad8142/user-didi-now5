@@ -4,7 +4,10 @@ import { useProfile } from '@/contexts/ProfileContext';
 import { isOpenNow } from '@/features/home/time';
 
 interface OnlineCounts {
-  [service: string]: number;
+  [service: string]: {
+    online: number;
+    candidates: number;
+  };
 }
 
 export function useOnlineWorkerCounts() {
