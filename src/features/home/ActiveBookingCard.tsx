@@ -33,6 +33,8 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Wallet } from 'lucide-react';
 import { fetchWalletBalanceValue } from '@/lib/wallet';
+import { syncServerTime, getServerAge } from '@/lib/serverTime';
+
 
 
 interface Booking {
@@ -243,6 +245,10 @@ const ActiveBookingCard = memo(() => {
         bookingToShow = activeBooking || cancelledBooking || null;
       }
       setActiveBooking(bookingToShow || null);
+      if (bookingToShow?.created_at) {
+        syncServerTime(bookingToShow.created_at);
+      }
+
     } catch (err) {
       console.error('Error:', err);
     } finally {
@@ -354,12 +360,21 @@ const ActiveBookingCard = memo(() => {
       
       // Decision screen logic: 10 minutes (600,000ms)
       if (activeBooking.status === 'pending' && activeBooking.booking_type === 'instant') {
-        const createdTime = new Date(activeBooking.created_at).getTime();
-        const tenMinutesAgo = Date.now() - (10 * 60 * 1000);
+        const ageMs = getServerAge(activeBooking.created_at);
         
-        // Use a key to prevent showing it again if they dismissed it in this session (optional, but requested behavior is "decision screen")
-        // We'll show it if 10 mins passed and no worker yet.
-        if (createdTime <= tenMinutesAgo && !activeBooking.worker_id) {
+        // Development/Test threshold override
+        const defaultThreshold = 10 * 60 * 1000;
+        const debugThreshold = (window as any).__DEBUG_DECISION_THRESHOLD_MS__;
+        const threshold = debugThreshold !== undefined ? debugThreshold : defaultThreshold;
+        
+        // Use local decision dismissal state (booking-scoped)
+        // This prevents the dialog from reopening after "Keep Searching"
+        const dismissalKey = `decisionDismissed:${activeBooking.id}`;
+        const lastDismissedAt = localStorage.getItem(dismissalKey);
+        // If they keep searching, don't show again for another threshold interval
+        const hasRecentDismissal = lastDismissedAt && (Date.now() - parseInt(lastDismissedAt)) < threshold;
+
+        if (ageMs >= threshold && !activeBooking.worker_id && !hasRecentDismissal) {
           setShowUnassignedDecision(true);
         } else {
           setShowUnassignedDecision(false);
@@ -367,11 +382,14 @@ const ActiveBookingCard = memo(() => {
       } else {
         setShowUnassignedDecision(false);
       }
+
     };
+
     
     checkVisibility();
-    const interval = setInterval(checkVisibility, 10000); // Check every 10s
+    const interval = setInterval(checkVisibility, 2000); // Check every 2s for precise timer activation
     return () => clearInterval(interval);
+
   }, [activeBooking]);
 
   useEffect(() => {
@@ -459,15 +477,18 @@ const ActiveBookingCard = memo(() => {
         return;
       }
 
-      const { error } = await supabase.rpc("user_cancel_booking", {
+      const { data: refundResult, error } = await supabase.rpc("user_cancel_booking", {
         p_booking_id: activeBooking.id,
         p_reason: "Customer opted to cancel after 10 min wait",
       });
 
       if (error) throw error;
+      
+      // Attempt to get the actual refund amount from the RPC result if it returns it,
+      // otherwise use the latest price_inr as a fallback (the RPC handles the actual credit).
+      const refundAmount = (refundResult as any)?.refund_amount ?? latest.price_inr;
+      toast.success(refundAmount ? `₹${refundAmount} refunded to wallet` : "Booking cancelled");
 
-      const amount = latest.price_inr;
-      toast.success(amount ? `₹${amount} refunded to wallet` : "Booking cancelled");
       
       const newDismissed = new Set(dismissedBookings);
       newDismissed.add(activeBooking.id);
@@ -1033,12 +1054,20 @@ const ActiveBookingCard = memo(() => {
           </DialogHeader>
           <div className="flex flex-col gap-3 py-4">
             <Button 
-              onClick={() => setShowUnassignedDecision(false)}
+              onClick={() => {
+                setShowUnassignedDecision(false);
+                // Persist the choice locally for this booking
+                if (activeBooking?.id) {
+                  localStorage.setItem(`decisionDismissed:${activeBooking.id}`, Date.now().toString());
+                }
+              }}
               disabled={isDecisionProcessing}
               className="w-full h-12 rounded-2xl bg-primary hover:bg-primary/90 text-white font-bold"
             >
               Keep Searching
             </Button>
+
+
             <Button 
               variant="outline"
               onClick={handleCancelDecision}
