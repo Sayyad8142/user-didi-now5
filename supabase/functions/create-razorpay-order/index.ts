@@ -11,7 +11,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { countActiveInstantBookings } from "../_shared/capacityRules.ts";
 import { verifyFirebaseToken, extractToken, corsHeaders } from "../_shared/firebaseAuth.ts";
 import { getExpectedSurge, validateBookingSurge } from "../_shared/userSurge.ts";
-import { getExpectedSlotSurge, validateSlotSurge } from "../_shared/slotSurge.ts";
+import { getExpectedSlotSurge, validateSlotSurge, validatePriceComposition } from "../_shared/slotSurge.ts";
 import {
   EXTERNAL_SUPABASE_URL,
   EXTERNAL_SUPABASE_SERVICE_ROLE_KEY,
@@ -160,6 +160,22 @@ Deno.serve(async (req) => {
           );
         }
         safeBookingData.surcharge_amount = expectedSlotSurge;
+
+        const comp = validatePriceComposition(safeBookingData, expectedSurge, expectedSlotSurge);
+        if (!comp.ok) {
+          console.warn(
+            `[create-razorpay-order] ❌ PRICE_COMPOSITION_MISMATCH user=${profile.id} expected=₹${comp.expected} client=₹${comp.received}`,
+          );
+          return json(
+            {
+              error: "Price has changed for this slot. Please re-select the slot and try again.",
+              code: "PRICE_COMPOSITION_MISMATCH",
+              expected_price: comp.expected,
+              received_price: comp.received,
+            },
+            400,
+          );
+        }
       }
 
       // The Razorpay charge amount must match the booking's price_inr
