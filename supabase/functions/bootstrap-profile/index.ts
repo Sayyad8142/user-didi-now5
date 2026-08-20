@@ -518,25 +518,48 @@ serve(async (req) => {
 
       if (Object.keys(updates).length > 0) {
         updates.updated_at = new Date().toISOString();
-        const { data: updated, error: updErr } = await admin
+        let { data: updated, error: updErr } = await admin
           .from("profiles")
           .update(updates)
           .eq("id", profile.id)
           .select(SELECT_COLS)
           .single();
+
+        // The external DB may lock address columns after the first booking.
+        // In that case still persist the fields that are NOT locked (name/phone)
+        // so the user's save isn't lost, then report the lock.
+        if (updErr && /locked after first booking/i.test(updErr.message || "")) {
+          console.warn("[bootstrap-profile] address columns locked, saving safe fields only");
+          const safe: Record<string, unknown> = { updated_at: updates.updated_at };
+          for (const k of ["full_name", "phone"]) {
+            if (updates[k] !== undefined) safe[k] = updates[k];
+          }
+          if (Object.keys(safe).length > 1) {
+            const { data: partial } = await admin
+              .from("profiles")
+              .update(safe)
+              .eq("id", profile.id)
+              .select(SELECT_COLS)
+              .single();
+            if (partial) profile = partial;
+          }
+          return jsonResponse({
+            error:
+              "Your flat/community is locked because you already have a booking. Please contact support to change it.",
+            code: "flat_locked",
+          }, 409);
+        }
+
         if (updErr) {
           console.error("[bootstrap-profile] profileUpdates error", updErr);
-          const msg = updErr.message || "Profile update failed";
-          if (/locked after first booking/i.test(msg)) {
-            return jsonResponse({ error: msg, code: "flat_locked" }, 409);
-          }
-          return jsonResponse({ error: msg }, 500);
+          return jsonResponse({ error: updErr.message || "Profile update failed" }, 500);
         }
         if (!updated) {
           return jsonResponse({ error: "No profile row updated" }, 404);
         }
         profile = updated;
       }
+
     }
 
     const authoritativeCommunity = await resolveCommunity(profile?.community_id);
