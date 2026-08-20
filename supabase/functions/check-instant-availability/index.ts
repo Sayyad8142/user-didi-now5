@@ -1,6 +1,11 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.55.0";
-import { getISTDate } from "../../src/features/home/time.ts";
+function getISTDate(): Date {
+  const now = new Date();
+  const istOffset = 5.5 * 60 * 60 * 1000;
+  const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+  return new Date(utc + istOffset);
+}
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
