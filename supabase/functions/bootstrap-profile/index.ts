@@ -25,6 +25,11 @@ type ProfileUpdates = {
   flat_no?: string;
 };
 
+type ProfileUpdateWarning = {
+  code: "flat_locked";
+  message: string;
+};
+
 type BootstrapRequest = {
   phone?: string;
   mode?: 'signin' | 'signup' | null;
@@ -474,6 +479,7 @@ serve(async (req) => {
 
     // 6) Apply explicit profile updates from edit-profile flow
     const profileUpdates = payload.profileUpdates || null;
+    let profileUpdateWarning: ProfileUpdateWarning | null = null;
     if (profileUpdates && profile) {
       const updates: Record<string, unknown> = {};
       const allowed: (keyof ProfileUpdates)[] = [
@@ -543,11 +549,16 @@ serve(async (req) => {
               .single();
             if (partial) profile = partial;
           }
-          return jsonResponse({
-            error:
-              "Your flat/community is locked because you already have a booking. Please contact support to change it.",
+          // This is an expected business rule, not a function failure. Return
+          // the current profile with a warning so mobile runtime monitoring
+          // does not turn the non-2xx response into a blank-screen error.
+          profileUpdateWarning = {
             code: "flat_locked",
-          }, 409);
+            message:
+              "Your flat/community is locked because you already have a booking. Please contact support to change it.",
+          };
+          updated = profile;
+          updErr = null;
         }
 
         if (updErr) {
@@ -567,7 +578,10 @@ serve(async (req) => {
       ? { ...profile, community_name: authoritativeCommunity?.name || null }
       : profile;
     console.log(`[bootstrap] done cold=${isCold} totalMs=${Date.now() - requestStart}`);
-    return jsonResponse({ profile: responseProfile });
+    return jsonResponse({
+      profile: responseProfile,
+      warning: profileUpdateWarning,
+    });
   } catch (err) {
     console.error("[bootstrap-profile] error", err);
     const msg = err instanceof Error ? err.message : "Bootstrap failed";

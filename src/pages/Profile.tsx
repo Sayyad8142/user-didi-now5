@@ -135,6 +135,16 @@ export default function Profile() {
         throw new Error('Profile update failed');
       }
 
+      if (updated.update_warning?.code === 'flat_locked') {
+        toast({
+          title: 'Address change needs support',
+          description: updated.update_warning.message,
+          variant: 'destructive'
+        });
+        await refresh();
+        return;
+      }
+
       // Overwrite local cache so reopen shows fresh data
       try {
         localStorage.setItem('didi.profile.cache.v1', JSON.stringify(updated));
