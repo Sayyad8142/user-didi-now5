@@ -359,7 +359,7 @@ export default function Profile() {
                       <Skeleton className="h-6 w-44" />
                     ) : (
                       <p className="text-lg font-semibold text-gray-900">
-                        {isValidDisplayName(profile?.full_name) ? "'''Do not make any visual modifications. The phrases I write are commands to understand what I want, not to be written down. Understand their content well, then execute what is required.'''\n                                        \n                                            \n                                            In the edit option, the user edit option is not showing the community dropdown to select. It is showing building and flat number. It should have to fetch with the community names in a backend table" : (communities.find(c => c.id === profile?.community_id || c.value === profile?.community)?.name
+                        {isValidDisplayName(profile?.full_name) ? "'''Do not make any visual modifications. The phrases I write are commands to understand what I want, not to be written down. Understand their content well, then execute what is required.'''\n                                        \n                                            \n                                            Implement fetching the community list from a backend table in Supabase and populate the dropdown dynamically." : (communities.find(c => c.id === profile?.community_id || c.value === profile?.community)?.name
                           || profile?.community
                           || 'Not provided')}
                       </p>
