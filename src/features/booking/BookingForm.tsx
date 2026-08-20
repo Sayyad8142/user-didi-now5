@@ -1120,10 +1120,8 @@ export function BookingForm() {
           <div className="mt-8 space-y-3">
             <h3 className="text-sm font-semibold text-muted-foreground tracking-wide uppercase">Choose Booking Type</h3>
             <div className="grid grid-cols-2 gap-3 items-start">
-              {/* Instant Card + Fav Worker stacked */}
+              {/* Instant Card — books immediately */}
               <div className="flex flex-col gap-0">
-                <WorkerAvailabilityDiagnostic serviceType={service_type} />
-                {/* Instant Card — books immediately */}
               <button
                 onClick={() => {
                   // If supply is full, show modal instead of booking
