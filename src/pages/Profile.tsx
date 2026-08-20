@@ -86,8 +86,8 @@ export default function Profile() {
   // Get the selected community to check format
   const selectedCommunity = communities.find(c => c.id === editForm.community_id);
   const isPHF = selectedCommunity?.flat_format === 'PHF';
-  const assignedCommunityName = profile?.community_name
-    || communities.find(c => c.id === profile?.community_id)?.name;
+  // Authoritative community name: always resolve community_id -> communities.name
+  const assignedCommunityName = communities.find(c => c.id === profile?.community_id)?.name;
 
   // Use hooks with edit form values for dynamic dropdowns
   const { buildings } = useBuildings(editForm.community_id || null);
