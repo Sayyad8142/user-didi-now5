@@ -1,6 +1,14 @@
-export function isOpenNow(serviceType?: string): boolean {
+export function getISTDate(): Date {
   const now = new Date();
-  const hours = now.getHours();
+  const istOffset = 5.5 * 60 * 60 * 1000;
+  const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+  return new Date(utc + istOffset);
+}
+
+export function isOpenNow(serviceType?: string): boolean {
+  const istNow = getISTDate();
+  const hours = istNow.getHours();
+  // 7 AM to 7 PM IST
   return hours >= 7 && hours < 19;
 }
 

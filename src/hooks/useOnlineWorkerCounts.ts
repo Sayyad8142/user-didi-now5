@@ -29,11 +29,8 @@ export function useOnlineWorkerCounts() {
 
     console.log('[useOnlineWorkerCounts] fetching for community:', community);
 
-    if (!isOpenNow()) {
-      setCounts({ maid: 0, bathroom_cleaning: 0 });
-      setLoading(false);
-      return;
-    }
+    // No local isOpenNow check here. Let the backend RPC be the source of truth.
+    // If the service is closed or no workers are in shift, the RPC returns 0.
 
     let cancelled = false;
 

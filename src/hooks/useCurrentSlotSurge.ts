@@ -1,9 +1,10 @@
 import { useMemo } from 'react';
 import { useSlotSurge, type SurgeMap } from './useSlotSurge';
 import { useNow } from './useNow';
+import { getISTDate } from '@/features/home/time';
 
 /**
- * Round the current local (IST on-device) time DOWN to the largest configured
+ * Round the current IST time DOWN to the largest configured
  * surge slot ≤ now, and return that slot's surge amount.
  *
  * Instant bookings use this so the "current slot" pricing is applied the same
@@ -13,7 +14,7 @@ import { useNow } from './useNow';
 function findCurrentSlot(surgeMap: SurgeMap, nowMs: number): { time: string | null; amount: number } {
   const keys = Object.keys(surgeMap);
   if (keys.length === 0) return { time: null, amount: 0 };
-  const d = new Date(nowMs);
+  const d = getISTDate();
   const hh = String(d.getHours()).padStart(2, '0');
   const mm = String(d.getMinutes()).padStart(2, '0');
   const nowKey = `${hh}:${mm}:00`;

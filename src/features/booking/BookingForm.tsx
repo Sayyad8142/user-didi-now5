@@ -18,7 +18,7 @@ import { prettyServiceName, serviceIcon, isValidServiceType, getPricingMap, FLAT
 import { useUserSurge } from '@/hooks/useUserSurge';
 import { useCurrentSlotSurge } from '@/hooks/useCurrentSlotSurge';
 import { SlotPricingTimeline } from './SlotPricingTimeline';
-import { WorkerAvailabilityDiagnostic } from '@/features/admin/WorkerAvailabilityDiagnostic';
+
 
 const ordinal = (n: number): string => {
   const s = ['th', 'st', 'nd', 'rd'];
@@ -31,7 +31,7 @@ import { cn } from '@/lib/utils';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { PriceNote } from '@/components/PriceNote';
 import { isGuestMode } from '@/lib/demo';
-import { useInstantBookingAvailability } from '@/hooks/useInstantBookingAvailability';
+import { useInstantBookingAvailability } from '@/hooks/useInstantAvailabilityV2';
 import { useSupplyCheck, checkInstantBookingAvailability } from '@/hooks/useSupplyCheck';
 import { SupplyFullModal } from '@/components/SupplyFullModal';
 import { type DishIntensity } from './DishIntensitySheet';
@@ -105,16 +105,16 @@ export function BookingForm() {
   const [retryBookingCreatedAt, setRetryBookingCreatedAt] = useState<string | null>(null);
   const [retrying, setRetrying] = useState(false);
 
-  // Check instant booking availability (must be before any early returns)
-  const { isAvailable: instantAvailable, isError: instantError, isLoading: instantLoading } = useInstantBookingAvailability(service_type || '');
-  const instantDisabled = !instantLoading && (!instantAvailable || instantError);
+  // Check instant booking availability using unified backend source of truth
+  const { isAvailable: instantAvailable, isLoading: instantLoading, isError: instantError, reason: instantReason } = useInstantBookingAvailability(service_type || '', profile?.community);
+  const instantDisabled = !instantLoading && !instantAvailable;
 
   // Supply protection: max 3 pending instant bookings per community
   const { isSupplyFull, refetch: refetchSupply } = useSupplyCheck(profile?.community);
   const [supplyModalOpen, setSupplyModalOpen] = useState(false);
 
-  // Combined instant disabled state
-  const instantBlocked = instantDisabled || isSupplyFull;
+  // Combined instant blocked state
+  const instantBlocked = instantDisabled;
 
   // Maid service specific state
   const [selectedTasks, setSelectedTasks] = useState<MaidTask[]>([]); // User selects manually
@@ -1120,10 +1120,8 @@ export function BookingForm() {
           <div className="mt-8 space-y-3">
             <h3 className="text-sm font-semibold text-muted-foreground tracking-wide uppercase">Choose Booking Type</h3>
             <div className="grid grid-cols-2 gap-3 items-start">
-              {/* Instant Card + Fav Worker stacked */}
+              {/* Instant Card — books immediately */}
               <div className="flex flex-col gap-0">
-                <WorkerAvailabilityDiagnostic serviceType={service_type} />
-                {/* Instant Card — books immediately */}
               <button
                 onClick={() => {
                   // If supply is full, show modal instead of booking
@@ -1158,12 +1156,12 @@ export function BookingForm() {
                 )}>
 
                 {/* Status badge */}
-                {!isServiceOpen && (
+                {instantReason === 'CLOSED' && (
                   <span className="absolute top-3 right-3 bg-primary text-primary-foreground text-[11px] font-bold px-2 py-0.5 rounded-[10px] leading-tight">
                     Closed
                   </span>
                 )}
-                {isServiceOpen && instantBlocked && (
+                {(instantReason === 'BUSY' || instantReason === 'NO_SUPPLY') && (
                   <span className="absolute top-3 right-3 bg-orange-500 text-white text-[11px] font-bold px-2 py-0.5 rounded-[10px] leading-tight animate-pulse">
                     Busy
                   </span>
@@ -1171,7 +1169,7 @@ export function BookingForm() {
 
                 <div className={cn(
                   "w-10 h-10 rounded-full flex items-center justify-center",
-                  isSupplyFull ? "bg-muted" : "bg-primary/10"
+                  !instantAvailable ? "bg-muted" : "bg-primary/10"
                 )}>
                   <Zap className={cn("w-5 h-5", isSupplyFull ? "text-muted-foreground" : "text-primary")} />
                 </div>
