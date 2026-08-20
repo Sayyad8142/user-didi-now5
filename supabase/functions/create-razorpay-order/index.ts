@@ -11,6 +11,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { countActiveInstantBookings } from "../_shared/capacityRules.ts";
 import { verifyFirebaseToken, extractToken, corsHeaders } from "../_shared/firebaseAuth.ts";
 import { getExpectedSurge, validateBookingSurge } from "../_shared/userSurge.ts";
+import { getExpectedSlotSurge, validateSlotSurge } from "../_shared/slotSurge.ts";
 import {
   EXTERNAL_SUPABASE_URL,
   EXTERNAL_SUPABASE_SERVICE_ROLE_KEY,
@@ -129,6 +130,37 @@ Deno.serve(async (req) => {
         );
       }
       safeBookingData.loyalty_surge_amount = expectedSurge;
+
+      // ── Server-side slot surge enforcement (Scheduled) ─────────
+      if (safeBookingData.booking_type === "scheduled" && safeBookingData.scheduled_time) {
+        const scheduledTime = String(safeBookingData.scheduled_time);
+        const communityId = (safeBookingData.community_id as string) || null;
+        const serviceKey = (safeBookingData.service_type as string) || service_type || "maid";
+
+        const expectedSlotSurge = await getExpectedSlotSurge(
+          supabase,
+          communityId,
+          serviceKey,
+          scheduledTime,
+        );
+
+        const slotSurgeCheck = validateSlotSurge(safeBookingData, expectedSlotSurge);
+        if (!slotSurgeCheck.ok) {
+          console.warn(
+            `[create-razorpay-order] ❌ SLOT_SURGE_MISMATCH user=${profile.id} expected=₹${slotSurgeCheck.expectedSurge} client=₹${slotSurgeCheck.clientSurge} reason=${slotSurgeCheck.reason}`,
+          );
+          return json(
+            {
+              error: "Price has changed for this slot. Please refresh and try again.",
+              code: "SLOT_SURGE_MISMATCH",
+              expected_surge: slotSurgeCheck.expectedSurge,
+              received_surge: slotSurgeCheck.clientSurge,
+            },
+            400,
+          );
+        }
+        safeBookingData.surcharge_amount = expectedSlotSurge;
+      }
 
       // The Razorpay charge amount must match the booking's price_inr
       // (after server-validated surge). Otherwise a tampered client could

@@ -148,8 +148,13 @@ function normalizeScheduledTime(value: unknown): string | null {
 function sanitizeBookingDataForCreatePaidBooking(bookingData: Record<string, unknown>): Record<string, unknown> {
   const sanitized = { ...bookingData };
 
-  delete sanitized.slot_surge_amount;
-  delete sanitized.slot_surge_time;
+  // We strictly keep these for Scheduled bookings as the server needs to re-verify them.
+  // Previously they were being deleted, which prevented server-side validation.
+  if (sanitized.booking_type !== 'scheduled') {
+    delete sanitized.slot_surge_amount;
+    delete sanitized.slot_surge_time;
+  }
+  
   delete sanitized.request_id;
 
   if (sanitized.price_inr == null && sanitized.price != null) {

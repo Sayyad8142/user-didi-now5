@@ -19,6 +19,7 @@ import {
   corsHeaders,
 } from "../_shared/firebaseAuth.ts";
 import { getExpectedSurge, validateBookingSurge } from "../_shared/userSurge.ts";
+import { getExpectedSlotSurge, validateSlotSurge } from "../_shared/slotSurge.ts";
 
 const RAZORPAY_KEY_SECRET = Deno.env.get("RAZORPAY_KEY_SECRET")!;
 const SUPABASE_URL =
@@ -338,6 +339,39 @@ Deno.serve(async (req) => {
     }
     // Always persist the server-trusted surge value
     booking_data.loyalty_surge_amount = expectedSurge;
+
+    // 4c. Server-side slot surge enforcement (Scheduled Bookings)
+    if (booking_data.booking_type === "scheduled" && booking_data.scheduled_time) {
+      const scheduledTime = String(booking_data.scheduled_time);
+      const communityId = (booking_data.community_id as string) || null;
+      const serviceKey = (booking_data.service_type as string) || "maid";
+
+      const expectedSlotSurge = await getExpectedSlotSurge(
+        supabase,
+        communityId,
+        serviceKey,
+        scheduledTime,
+      );
+
+      const slotSurgeCheck = validateSlotSurge(booking_data, expectedSlotSurge);
+      if (!slotSurgeCheck.ok) {
+        console.warn(
+          `[create-paid-booking] ❌ SLOT_SURGE_MISMATCH user=${profile.id} expected=₹${slotSurgeCheck.expectedSurge} client=₹${slotSurgeCheck.clientSurge} reason=${slotSurgeCheck.reason}`,
+        );
+        return json(
+          {
+            error: "Price has changed for this slot. Please re-select the slot and try again.",
+            code: "SLOT_SURGE_MISMATCH",
+            expected_surge: slotSurgeCheck.expectedSurge,
+            received_surge: slotSurgeCheck.clientSurge,
+          },
+          400,
+        );
+      }
+      // Authoritative persistence
+      booking_data.surcharge_amount = expectedSlotSurge;
+      booking_data.surcharge_reason = expectedSlotSurge > 0 ? "slot_surge" : (expectedSlotSurge < 0 ? "off_peak_discount" : null);
+    }
 
     // 5. Verify payment
     if (payment_type === "razorpay" || payment_type === "wallet_and_razorpay") {
