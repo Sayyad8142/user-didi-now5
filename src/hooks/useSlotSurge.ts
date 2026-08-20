@@ -16,6 +16,7 @@ export function useSlotSurge(communityId: string | null | undefined, serviceKey 
     let cancelled = false;
     const fetch = async () => {
       setLoading(true);
+      console.log(`[useSlotSurge] Fetching for communityId: ${communityId}, serviceKey: ${serviceKey}`);
       const { data, error } = await supabase
         .from('slot_surge_pricing')
         .select('slot_time, surge_amount')
@@ -28,8 +29,13 @@ export function useSlotSurge(communityId: string | null | undefined, serviceKey 
           console.error('Surge fetch error:', error);
           setSurgeMap({});
         } else {
+          console.log(`[useSlotSurge] Received ${data.length} surge rows`);
           const map: SurgeMap = {};
           for (const row of data) {
+            // Trim slot_time to ensure match regardless of :00 suffix
+            const key = row.slot_time.length > 5 ? row.slot_time.slice(0, 5) : row.slot_time;
+            map[key] = row.surge_amount;
+            // Also store the full version to be safe
             map[row.slot_time] = row.surge_amount;
           }
           setSurgeMap(map);
@@ -44,10 +50,15 @@ export function useSlotSurge(communityId: string | null | undefined, serviceKey 
 
   /** Get surge for a slot time like "17:00" or "17:00:00" */
   const getSurge = (slotTime: string): number => {
-    const normalized = slotTime.includes(':') && slotTime.split(':').length === 2
-      ? slotTime + ':00'
-      : slotTime;
-    return surgeMap[normalized] ?? 0;
+    if (!slotTime) return 0;
+    const hhmm = slotTime.length > 5 ? slotTime.slice(0, 5) : slotTime;
+    const hhmmss = hhmm + ':00';
+    
+    const amount = surgeMap[hhmm] ?? surgeMap[hhmmss] ?? 0;
+    if (amount !== 0) {
+      console.log(`[useSlotSurge] Match found for ${slotTime}: ${amount}`);
+    }
+    return amount;
   };
 
   return { surgeMap, getSurge, loading };

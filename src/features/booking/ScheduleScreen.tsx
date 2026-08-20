@@ -293,10 +293,10 @@ export function ScheduleScreen() {
           ? GLASS_PARTITION_FEE * parseInt(bathroomCount!)
           : null,
         price_inr: finalPrice,
-        base_price_inr: Math.max(0, finalPrice - loyaltySurgeAmount),
+        base_price_inr: (price || 0),
         loyalty_surge_amount: loyaltySurgeAmount,
         surcharge_amount: surcharge,
-        surcharge_reason: surcharge > 0 ? 'slot_surge' : null,
+        surcharge_reason: surcharge > 0 ? 'slot_surge' : (surcharge < 0 ? 'off_peak_discount' : null),
         cust_name: /^\+?\d{7,15}$/.test(profile.full_name.trim()) ? 'User ' + profile.phone.slice(-4) : profile.full_name,
         cust_phone: profile.phone,
         community: profile.community,
