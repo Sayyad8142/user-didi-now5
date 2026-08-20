@@ -19,7 +19,7 @@ import {
   corsHeaders,
 } from "../_shared/firebaseAuth.ts";
 import { getExpectedSurge, validateBookingSurge } from "../_shared/userSurge.ts";
-import { getExpectedSlotSurge, validateSlotSurge } from "../_shared/slotSurge.ts";
+import { getExpectedSlotSurge, validateSlotSurge, validatePriceComposition } from "../_shared/slotSurge.ts";
 
 const RAZORPAY_KEY_SECRET = Deno.env.get("RAZORPAY_KEY_SECRET")!;
 const SUPABASE_URL =
@@ -371,6 +371,23 @@ Deno.serve(async (req) => {
       // Authoritative persistence
       booking_data.surcharge_amount = expectedSlotSurge;
       booking_data.surcharge_reason = expectedSlotSurge > 0 ? "slot_surge" : (expectedSlotSurge < 0 ? "off_peak_discount" : null);
+
+      // 4d. Final price must equal base + loyalty + slot surge
+      const comp = validatePriceComposition(booking_data, expectedSurge, expectedSlotSurge);
+      if (!comp.ok) {
+        console.warn(
+          `[create-paid-booking] ❌ PRICE_COMPOSITION_MISMATCH user=${profile.id} expected=₹${comp.expected} client=₹${comp.received}`,
+        );
+        return json(
+          {
+            error: "Price has changed for this slot. Please re-select the slot and try again.",
+            code: "PRICE_COMPOSITION_MISMATCH",
+            expected_price: comp.expected,
+            received_price: comp.received,
+          },
+          400,
+        );
+      }
     }
 
     // 5. Verify payment
