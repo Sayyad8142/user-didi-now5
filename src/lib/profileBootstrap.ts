@@ -19,6 +19,10 @@ export interface BootstrappedProfile {
   community_id?: string | null;
   flat_id?: string | null;
   firebase_uid?: string | null;
+  update_warning?: {
+    code: string;
+    message: string;
+  } | null;
 }
 
 export interface ProfileUpdates {
@@ -168,7 +172,16 @@ export async function bootstrapProfileViaEdge(
     }
     diagnostics.attempts.push({ url, status, ok: true, at: new Date().toISOString() });
     log('attempt.ok', { url, status });
-    return data.profile as BootstrappedProfile;
+    const returnedProfile = data.profile as BootstrappedProfile;
+    if (data?.warning && typeof data.warning === 'object') {
+      returnedProfile.update_warning = {
+        code: typeof data.warning.code === 'string' ? data.warning.code : 'profile_update_warning',
+        message: typeof data.warning.message === 'string'
+          ? data.warning.message
+          : 'Some profile fields could not be updated.',
+      };
+    }
+    return returnedProfile;
   };
 
   // Wait for token (parallel with backend resolution above)
