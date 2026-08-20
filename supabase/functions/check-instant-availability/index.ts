@@ -77,7 +77,7 @@ serve(async (req) => {
     const { data: online_workers, error: supplyErr } = await supabase.rpc("get_online_workers_count", { p_community: community });
     if (supplyErr) throw supplyErr;
 
-    const count = (online_workers || []).find((r: any) => r.service === service)?.online_count ?? 0;
+    const count = (online_workers || []).find((r: any) => r.service === service)?.total_count ?? 0;
     const has_supply = Number(count) > 0;
 
     if (!has_supply) {
