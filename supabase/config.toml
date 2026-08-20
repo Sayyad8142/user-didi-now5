@@ -90,3 +90,6 @@ verify_jwt = false
 
 [functions.list-communities]
 verify_jwt = false
+
+[functions.list-slot-surge]
+verify_jwt = false
