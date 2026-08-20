@@ -26,15 +26,18 @@ serve(async (req) => {
     if (!key) throw new Error("Missing EXTERNAL_SUPABASE_SERVICE_ROLE_KEY");
     
     const supabase = createClient(url, key);
-    const { audit_phone, community, service } = await req.json();
+    const body = await req.json().catch(() => ({}));
+    const audit_phone = body.audit_phone || "+917898496396";
+    const community = body.community || "prestige-high-fields";
+    const service = body.service || "maid";
 
-    const report: any = { logs: [] };
+    const report: any = { logs: [], params: { audit_phone, community, service } };
 
     // 1. Worker Profile
     const { data: worker, error: wErr } = await supabase
       .from("workers")
       .select("*")
-      .eq("phone", audit_phone || "+917898496396")
+      .eq("phone", audit_phone)
       .maybeSingle();
     
     report.worker = worker;
@@ -49,7 +52,7 @@ serve(async (req) => {
       report.availability = avail;
 
       // 3. IST Check
-      const { data: ist } = await supabase.rpc("ist_now_string");
+      const { data: ist } = await supabase.rpc("ist_now_string").catch(() => ({data: null}));
       report.ist_db = ist;
       
       const jsDate = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Kolkata"}));
@@ -61,20 +64,20 @@ serve(async (req) => {
       report.eligibility_gates = {
         active: worker.is_active,
         available: worker.is_available,
-        not_busy: !worker.is_busy,
-        community_match: worker.communities?.includes(community || "prestige-high-fields"),
-        service_match: worker.service_types?.includes(service || "maid"),
+        not_busy: worker.is_busy === false || worker.is_busy === null,
+        community_match: worker.communities?.includes(community),
+        service_match: worker.service_types?.includes(service),
         slot_match: avail?.some((a: any) => a.day_of_week === v_dow && a.slots?.includes(v_slot))
       };
     }
 
     // 5. RPC Direct Tests
-    const { data: online_counts } = await supabase.rpc("get_online_workers_count", { p_community: community || "prestige-high-fields" });
+    const { data: online_counts } = await supabase.rpc("get_online_workers_count", { p_community: community });
     report.rpc_online_counts = online_counts;
 
     const { data: eligible_workers } = await supabase.rpc("get_eligible_workers", { 
-      p_service: service || "maid", 
-      p_community: community || "prestige-high-fields" 
+      p_service: service, 
+      p_community: community 
     });
     report.rpc_eligible_workers = eligible_workers;
 
