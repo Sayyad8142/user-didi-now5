@@ -596,7 +596,7 @@ export function ScheduleScreen() {
         </div>
 
         {/* Tip: Save more with off-peak slots */}
-        {!loadingAvailability && Object.values(surgeMap || {}).some(v => v < 0) && (
+        {!loadingAvailability && Object.values(surgeMap || {}).some(v => (v as number) < 0) && (
           <div className="mt-3 px-1">
             <div className="bg-emerald-50 border border-emerald-100 rounded-xl px-3 py-2 flex items-center gap-2">
               <Zap className="w-3.5 h-3.5 text-emerald-600 fill-emerald-600" />
