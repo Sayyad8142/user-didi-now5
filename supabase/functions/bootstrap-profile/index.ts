@@ -493,7 +493,12 @@ serve(async (req) => {
           updates[k] = trimmed;
           continue;
         }
-        updates[k] = v === "" && (k === "community_id" || k === "building_id" || k === "flat_id") ? null : v;
+        const normalized = v === "" && (k === "community_id" || k === "building_id" || k === "flat_id") ? null : v;
+        // Skip no-op writes: the DB locks flat fields after the first booking,
+        // so re-sending an identical value would fail the trigger for no reason.
+        const current = (profile as Record<string, unknown>)?.[k];
+        if ((current ?? null) === (normalized ?? null)) continue;
+        updates[k] = normalized;
       }
       if (profileUpdates.community_id !== undefined) {
         const selectedCommunity = await resolveCommunity(profileUpdates.community_id);
