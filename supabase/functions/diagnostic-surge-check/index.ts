@@ -1,45 +1,36 @@
-
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.55.0";
 import {
   EXTERNAL_SUPABASE_URL,
   EXTERNAL_SUPABASE_SERVICE_ROLE_KEY,
 } from "../_shared/externalSupabaseEnv.ts";
 import { corsHeaders } from "../_shared/firebaseAuth.ts";
 
-/**
- * Diagnostic function to dump surge pricing configuration for a specific community.
- */
-Deno.serve(async (req) => {
+serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    const { community_id, service_key = 'maid' } = await req.json();
-    if (!community_id) return new Response(JSON.stringify({ error: "community_id required" }), { status: 400, headers: corsHeaders });
-
     const supabase = createClient(EXTERNAL_SUPABASE_URL, EXTERNAL_SUPABASE_SERVICE_ROLE_KEY);
 
-    // 1. Check if table exists and has data
-    const { data: surgeData, error: surgeError } = await supabase
+    // 1. Find all unique community_ids in slot_surge_pricing
+    const { data: uniqueCommunities, error: surgeError } = await supabase
       .from('slot_surge_pricing')
-      .select('*')
-      .eq('community_id', community_id)
-      .eq('service_key', service_key);
+      .select('community_id, service_key')
+      .limit(100);
 
-    // 2. Check community details
-    const { data: community, error: commError } = await supabase
+    // 2. Map them to names
+    const ids = Array.from(new Set(uniqueCommunities?.map(c => c.community_id).filter(Boolean) || []));
+    const { data: names } = await supabase
       .from('communities')
       .select('id, name')
-      .eq('id', community_id)
-      .maybeSingle();
+      .in('id', ids);
 
     return new Response(JSON.stringify({
-      community,
-      surge_count: surgeData?.length ?? 0,
-      active_surge_count: surgeData?.filter(s => s.is_active).length ?? 0,
-      sample_data: surgeData?.slice(0, 10),
-      errors: { surgeError, commError },
+      found_community_ids: ids,
+      community_names: names,
+      raw_sample: uniqueCommunities?.slice(0, 10),
       db_host: new URL(EXTERNAL_SUPABASE_URL).host,
-      timestamp: new Date().toISOString()
+      error: surgeError
     }), { 
       headers: { ...corsHeaders, "Content-Type": "application/json" } 
     });
