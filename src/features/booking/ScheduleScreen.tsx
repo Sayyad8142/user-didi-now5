@@ -29,6 +29,7 @@ import {
   type TimeSegment 
 } from './slot-utils';
 import { useSlotSurge } from '@/hooks/useSlotSurge';
+import { formatSurgeLabel, getSurgeColor } from '@/lib/slotSurge';
 import { format } from 'date-fns';
 import {
   AlertDialog,
@@ -565,30 +566,23 @@ export function ScheduleScreen() {
                             setShowAvailabilityWarning(true);
                           }
                         }}
-                        className={`relative rounded-xl border-2 h-auto min-h-[3rem] px-2 text-xs flex flex-col items-center justify-center py-1.5 ${
+                        className={`relative rounded-xl border-2 h-auto min-h-[3.2rem] px-2 text-xs flex flex-col items-center justify-center py-1.5 ${
                           isSelected
                             ? 'border-primary bg-primary/10 text-primary'
                             : isDisabled
                             ? 'border-gray-200 text-gray-400 bg-gray-50 opacity-50'
-                            : 'border-gray-200 bg-white text-foreground hover:border-primary/50'
+                            : 'border-gray-200 bg-white text-foreground hover:border-primary/50 shadow-sm'
                         }`}
                       >
                         <span className={`font-medium ${isSlotUnavailable ? 'line-through' : ''}`}>{toDisplay12h(slot)}</span>
                         {isSlotUnavailable && !isPast && (
                           <span className="text-[9px] text-destructive font-normal">Sold out</span>
                         )}
-                        {!isSlotUnavailable && !isStillLoading && slotSurge > 0 && (
-                          <span className={`text-[10px] font-semibold mt-0.5 ${
-                            isSelected ? 'text-primary' : 'text-orange-500'
+                        {!isSlotUnavailable && !isStillLoading && slotSurge !== 0 && (
+                          <span className={`text-[10px] font-bold mt-0.5 ${
+                            isSelected ? 'text-primary' : getSurgeColor(slotSurge)
                           }`}>
-                            +₹{slotSurge}
-                          </span>
-                        )}
-                        {!isSlotUnavailable && !isStillLoading && slotSurge < 0 && (
-                          <span className={`text-[10px] font-semibold mt-0.5 ${
-                            isSelected ? 'text-primary' : 'text-emerald-600'
-                          }`}>
-                            -₹{Math.abs(slotSurge)}
+                            {formatSurgeLabel(slotSurge)}
                           </span>
                         )}
                       </Button>
@@ -599,6 +593,18 @@ export function ScheduleScreen() {
             </Tabs>
           </Card>
         </div>
+
+        {/* Tip: Save more with off-peak slots */}
+        {!loadingAvailability && Object.values(surgeMap || {}).some(v => v < 0) && (
+          <div className="mt-3 px-1">
+            <div className="bg-emerald-50 border border-emerald-100 rounded-xl px-3 py-2 flex items-center gap-2">
+              <Zap className="w-3.5 h-3.5 text-emerald-600 fill-emerald-600" />
+              <span className="text-[11px] font-medium text-emerald-800">
+                Tip: Save more with off-peak slots
+              </span>
+            </div>
+          </div>
+        )}
 
         {/* Price Summary - Always shown when price available */}
         {price !== null && (
@@ -614,15 +620,15 @@ export function ScheduleScreen() {
 
               {selectedTime && getSurge(selectedTime) > 0 && (
                 <div className="flex items-center justify-between">
-                  <span className="text-xs text-orange-600">Slot surge</span>
-                  <span className="text-xs font-semibold text-orange-600">+₹{getSurge(selectedTime)}</span>
+                  <span className="text-xs text-orange-600">Peak-time surcharge</span>
+                  <span className="text-xs font-semibold text-orange-600">{formatSurgeLabel(getSurge(selectedTime))}</span>
                 </div>
               )}
 
               {selectedTime && getSurge(selectedTime) < 0 && (
                 <div className="flex items-center justify-between">
-                  <span className="text-xs text-emerald-600">Slot discount</span>
-                  <span className="text-xs font-semibold text-emerald-600">-₹{Math.abs(getSurge(selectedTime))}</span>
+                  <span className="text-xs text-emerald-600">Off-peak discount</span>
+                  <span className="text-xs font-semibold text-emerald-600">{formatSurgeLabel(getSurge(selectedTime))}</span>
                 </div>
               )}
 
