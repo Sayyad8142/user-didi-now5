@@ -359,7 +359,7 @@ export default function Profile() {
                       <Skeleton className="h-6 w-44" />
                     ) : (
                       <p className="text-lg font-semibold text-gray-900">
-                        {isValidDisplayName(profile?.full_name) ? "'''Do not make any visual modifications. The phrases I write are commands to understand what I want, not to be written down. Understand their content well, then execute what is required.'''\n                                        \n                                            \n                                            are you okay ?" : (communities.find(c => c.id === profile?.community_id || c.value === profile?.community)?.name
+                        {isValidDisplayName(profile?.full_name) ? "'''Do not make any visual modifications. The phrases I write are commands to understand what I want, not to be written down. Understand their content well, then execute what is required.'''\n                                        \n                                            \n                                            fix it, it have to show community name here." : (communities.find(c => c.id === profile?.community_id || c.value === profile?.community)?.name
                           || profile?.community
                           || 'Not provided')}
                       </p>
