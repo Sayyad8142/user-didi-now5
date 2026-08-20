@@ -18,6 +18,7 @@ import { prettyServiceName, serviceIcon, isValidServiceType, getPricingMap, FLAT
 import { useUserSurge } from '@/hooks/useUserSurge';
 import { useCurrentSlotSurge } from '@/hooks/useCurrentSlotSurge';
 import { SlotPricingTimeline } from './SlotPricingTimeline';
+import { WorkerAvailabilityDiagnostic } from '@/features/admin/WorkerAvailabilityDiagnostic';
 
 const ordinal = (n: number): string => {
   const s = ['th', 'st', 'nd', 'rd'];
@@ -1121,7 +1122,8 @@ export function BookingForm() {
             <div className="grid grid-cols-2 gap-3 items-start">
               {/* Instant Card + Fav Worker stacked */}
               <div className="flex flex-col gap-0">
-              {/* Instant Card — books immediately */}
+                <WorkerAvailabilityDiagnostic serviceType={service_type} />
+                {/* Instant Card — books immediately */}
               <button
                 onClick={() => {
                   // If supply is full, show modal instead of booking
