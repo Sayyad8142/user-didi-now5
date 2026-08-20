@@ -151,14 +151,16 @@ export default function Profile() {
     } catch (error: any) {
       console.error('Error updating profile:', error);
       const rawMsg = error?.message || '';
-      const isNetwork = /Failed to fetch|Load failed|NetworkError|TypeError|timed out/i.test(rawMsg);
+      const isLocked = /locked/i.test(rawMsg);
+      const isNetwork = !isLocked && /Failed to fetch|Load failed|NetworkError|TypeError|timed out/i.test(rawMsg);
       toast({
-        title: isNetwork ? 'Network issue' : 'Error',
+        title: isLocked ? 'Flat change needs support' : isNetwork ? 'Network issue' : 'Error',
         description: isNetwork
           ? 'Could not reach our servers. Please check your internet and try again.'
           : (rawMsg || 'Failed to update profile'),
         variant: 'destructive'
       });
+
     }
   };
 
