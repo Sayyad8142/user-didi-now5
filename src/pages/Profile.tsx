@@ -7,7 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useProfile } from '@/contexts/ProfileContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate, Link } from 'react-router-dom';
-import { User, Phone, Building, Home, LogOut, Settings, Shield, Edit3, Save, X, HelpCircle, Share2, Building2, Ruler, Wallet, Search } from 'lucide-react';
+import { User, Phone, Building, Home, LogOut, Settings, Shield, Edit3, Save, X, HelpCircle, Share2, Building2, Ruler, Wallet, Search, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { openExternalUrl } from '@/lib/nativeOpen';
 import { useToast } from '@/hooks/use-toast';
@@ -19,6 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useFlats } from '@/hooks/useFlats';
 import { useFlatSize } from '@/hooks/useFlatSize';
 import { useWalletBalance } from '@/hooks/useWallet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 
 function WalletCard() {
   const navigate = useNavigate();
@@ -81,6 +82,7 @@ export default function Profile() {
     flat_no: ''
   });
   const [communitySearch, setCommunitySearch] = useState('');
+  const [communitySheetOpen, setCommunitySheetOpen] = useState(false);
 
 
   // Get the selected community to check format
@@ -366,62 +368,87 @@ export default function Profile() {
                       </p>
                     )
                   ) : (
-                    <div className="space-y-3">
-                      <div className="relative">
-                        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
-                        <Input
-                          placeholder={editForm.community ? editForm.community : 'Search community...'}
-                          value={communitySearch}
-                          onChange={(e) => setCommunitySearch(e.target.value)}
-                          className="text-lg font-semibold border-0 bg-gray-50 rounded-xl p-3 pl-10 focus-visible:ring-2 focus-visible:ring-primary/20 h-auto"
-                        />
-                      </div>
-
-                      {/* Community suggestions */}
-                      <div className="max-h-[200px] overflow-y-auto rounded-xl border border-gray-100 bg-white p-1 space-y-1">
-                        {communitiesLoading ? (
-                          <div className="p-3 space-y-2">
-                            <Skeleton className="h-8 w-full" />
-                            <Skeleton className="h-8 w-full" />
+                    <Sheet open={communitySheetOpen} onOpenChange={setCommunitySheetOpen}>
+                      <SheetTrigger asChild>
+                        <button
+                          type="button"
+                          className="w-full flex items-center justify-between text-left px-4 py-3 bg-gray-50 rounded-xl focus-visible:ring-2 focus-visible:ring-primary/20"
+                        >
+                          <span className={cn(
+                            "text-lg font-semibold",
+                            editForm.community ? "text-gray-900" : "text-gray-400"
+                          )}>
+                            {editForm.community || 'Select community'}
+                          </span>
+                          <ChevronRight className="h-5 w-5 text-gray-400 shrink-0" />
+                        </button>
+                      </SheetTrigger>
+                      <SheetContent side="bottom" className="rounded-t-3xl px-4 pb-8 pt-6 max-w-md mx-auto">
+                        <SheetHeader className="text-left pb-4">
+                          <SheetTitle className="text-lg font-semibold text-gray-900">Choose community</SheetTitle>
+                        </SheetHeader>
+                        <div className="space-y-3">
+                          <div className="relative">
+                            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                            <Input
+                              placeholder="Search community..."
+                              value={communitySearch}
+                              onChange={(e) => setCommunitySearch(e.target.value)}
+                              className="text-base font-medium border border-gray-200 bg-gray-50 rounded-xl p-3 pl-10 focus-visible:ring-2 focus-visible:ring-primary/20 h-auto"
+                              autoFocus
+                            />
                           </div>
-                        ) : communities.length === 0 ? (
-                          <p className="px-4 py-3 text-sm text-gray-500">No communities available</p>
-                        ) : (
-                          (() => {
-                            const q = communitySearch.trim().toLowerCase();
-                            const list = communities.filter(c => !q || c.name.toLowerCase().includes(q));
-                            if (list.length === 0) {
-                              return <p className="px-4 py-3 text-sm text-gray-500">No matching community</p>;
-                            }
-                            return list.map((community) => (
-                              <button
-                                key={community.id}
-                                type="button"
-                                onClick={() => {
-                                  setEditForm(prev => ({
-                                    ...prev,
-                                    community_id: community.id,
-                                    community: community.name,
-                                    building_id: '',
-                                    flat_id: '',
-                                    flat_no: ''
-                                  }));
-                                  setCommunitySearch('');
-                                }}
-                                className={cn(
-                                  "w-full text-left px-4 py-3 rounded-lg text-sm font-medium transition-colors",
-                                  editForm.community_id === community.id
-                                    ? "bg-primary/10 text-primary"
-                                    : "hover:bg-gray-50 text-gray-700"
-                                )}
-                              >
-                                {community.name}
-                              </button>
-                            ));
-                          })()
-                        )}
-                      </div>
-                    </div>
+
+                          <div className="max-h-[280px] overflow-y-auto rounded-xl border border-gray-100 bg-white p-1 space-y-1">
+                            {communitiesLoading ? (
+                              <div className="p-3 space-y-2">
+                                <Skeleton className="h-10 w-full" />
+                                <Skeleton className="h-10 w-full" />
+                              </div>
+                            ) : communities.length === 0 ? (
+                              <p className="px-4 py-4 text-sm text-gray-500 text-center">No communities available</p>
+                            ) : (
+                              (() => {
+                                const q = communitySearch.trim().toLowerCase();
+                                const list = communities.filter(c => !q || c.name.toLowerCase().includes(q));
+                                if (list.length === 0) {
+                                  return <p className="px-4 py-4 text-sm text-gray-500 text-center">No matching community</p>;
+                                }
+                                return list.map((community) => (
+                                  <button
+                                    key={community.id}
+                                    type="button"
+                                    onClick={() => {
+                                      setEditForm(prev => ({
+                                        ...prev,
+                                        community_id: community.id,
+                                        community: community.name,
+                                        building_id: '',
+                                        flat_id: '',
+                                        flat_no: ''
+                                      }));
+                                      setCommunitySearch('');
+                                      setCommunitySheetOpen(false);
+                                    }}
+                                    className={cn(
+                                      "w-full text-left px-4 py-3 rounded-lg text-sm font-medium transition-colors flex items-center justify-between",
+                                      editForm.community_id === community.id
+                                        ? "bg-primary/10 text-primary"
+                                        : "hover:bg-gray-50 text-gray-700"
+                                    )}
+                                  >
+                                    {community.name}
+                                    {editForm.community_id === community.id && (
+                                      <span className="text-primary text-xs font-semibold">Selected</span>
+                                    )}
+                                  </button>
+                                ));
+                              })()
+                            )}
+                          </div>
+                        </div>
+                      </SheetContent>
+                    </Sheet>
                   )}
 
                 </div>
