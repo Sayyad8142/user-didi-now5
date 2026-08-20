@@ -149,10 +149,18 @@ export default function Profile() {
       // Refresh context (no full page reload)
       await refresh();
     } catch (error: any) {
-      console.error('Error updating profile:', error);
       const rawMsg = error?.message || '';
       const isLocked = /locked/i.test(rawMsg);
       const isNetwork = !isLocked && /Failed to fetch|Load failed|NetworkError|TypeError|timed out/i.test(rawMsg);
+      // Locked flat/community is an expected business rule, not a crash — keep it
+      // out of console.error so it isn't reported as a runtime error.
+      if (isLocked) {
+        console.warn('[Profile] flat/community locked:', rawMsg);
+        setIsEditing(false);
+        await refresh();
+      } else {
+        console.error('Error updating profile:', error);
+      }
       toast({
         title: isLocked ? 'Flat change needs support' : isNetwork ? 'Network issue' : 'Error',
         description: isNetwork
@@ -160,8 +168,8 @@ export default function Profile() {
           : (rawMsg || 'Failed to update profile'),
         variant: 'destructive'
       });
-
     }
+
   };
 
   const handleCancel = () => {
