@@ -11,29 +11,17 @@ serve(async (req) => {
 
   try {
     const supabase = createClient(EXTERNAL_SUPABASE_URL, EXTERNAL_SUPABASE_SERVICE_ROLE_KEY);
-
-    // 1. Find all unique community_ids in slot_surge_pricing
-    const { data: uniqueCommunities, error: surgeError } = await supabase
+    const { data: detail } = await supabase
       .from('slot_surge_pricing')
-      .select('community_id, service_key')
+      .select('*')
+      .eq('community_id', '7b7c6481-a983-44bd-b43a-5fee9b464e31')
       .limit(100);
 
-    // 2. Map them to names
-    const ids = Array.from(new Set(uniqueCommunities?.map(c => c.community_id).filter(Boolean) || []));
-    const { data: names } = await supabase
-      .from('communities')
-      .select('id, name')
-      .in('id', ids);
-
     return new Response(JSON.stringify({
-      found_community_ids: ids,
-      community_names: names,
-      raw_sample: uniqueCommunities?.slice(0, 10),
-      db_host: new URL(EXTERNAL_SUPABASE_URL).host,
-      error: surgeError
-    }), { 
-      headers: { ...corsHeaders, "Content-Type": "application/json" } 
-    });
+      community: "Prestige High Fields",
+      surge_count: detail?.length,
+      data: detail
+    }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (err: any) {
     return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: corsHeaders });
   }
