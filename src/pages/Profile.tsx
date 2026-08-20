@@ -80,6 +80,8 @@ export default function Profile() {
     flat_id: '',
     flat_no: ''
   });
+  const [communitySearch, setCommunitySearch] = useState('');
+
 
   // Get the selected community to check format
   const selectedCommunity = communities.find(c => c.id === editForm.community_id);
