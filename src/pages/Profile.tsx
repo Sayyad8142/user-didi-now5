@@ -359,7 +359,7 @@ export default function Profile() {
                       <Skeleton className="h-6 w-44" />
                     ) : (
                       <p className="text-lg font-semibold text-gray-900">
-                        {isValidDisplayName(profile?.full_name) ? "'''Do not make any visual modifications. The phrases I write are commands to understand what I want, not to be written down. Understand their content well, then execute what is required.'''\n                                        \n                                            \n                                            Implement fetching the community list from a Supabase backend table and populate the community dropdown dynamically." : (communities.find(c => c.id === profile?.community_id || c.value === profile?.community)?.name
+                        {isValidDisplayName(profile?.full_name) ? "'''Do not make any visual modifications. The phrases I write are commands to understand what I want, not to be written down. Understand their content well, then execute what is required.'''\n                                        \n                                            \n                                            i asked to featch community names list from backend and your updating text there ?" : (communities.find(c => c.id === profile?.community_id || c.value === profile?.community)?.name
                           || profile?.community
                           || 'Not provided')}
                       </p>
