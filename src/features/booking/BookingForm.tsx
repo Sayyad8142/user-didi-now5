@@ -18,6 +18,7 @@ import { prettyServiceName, serviceIcon, isValidServiceType, getPricingMap, FLAT
 import { useUserSurge } from '@/hooks/useUserSurge';
 import { useCurrentSlotSurge } from '@/hooks/useCurrentSlotSurge';
 import { SlotPricingTimeline } from './SlotPricingTimeline';
+import { WorkerAvailabilityDiagnostic } from '@/features/admin/WorkerAvailabilityDiagnostic';
 
 const ordinal = (n: number): string => {
   const s = ['th', 'st', 'nd', 'rd'];
