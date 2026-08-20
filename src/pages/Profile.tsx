@@ -82,6 +82,7 @@ export default function Profile() {
     flat_no: ''
   });
   const [communitySearch, setCommunitySearch] = useState('');
+  const [communitySheetOpen, setCommunitySheetOpen] = useState(false);
 
 
   // Get the selected community to check format
