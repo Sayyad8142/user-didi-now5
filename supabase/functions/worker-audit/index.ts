@@ -33,7 +33,7 @@ serve(async (req) => {
 
     const report: any = { logs: [], params: { audit_phone, community, service } };
 
-    // 1. Worker Profile
+    // 1. Worker Profile - Try direct query first
     const { data: worker, error: wErr } = await supabase
       .from("workers")
       .select("*")
@@ -43,24 +43,25 @@ serve(async (req) => {
     report.worker = worker;
     report.worker_error = wErr;
 
+    // 2. Fetch all workers to see what's happening
+    const { data: allWorkers } = await supabase.from("workers").select("id, full_name, phone, is_active, is_available").limit(10);
+    report.sample_workers = allWorkers;
+
     if (worker) {
-      // 2. Availability
+      // 3. Availability
       const { data: avail } = await supabase
         .from("worker_availability")
         .select("*")
         .eq("worker_id", worker.id);
       report.availability = avail;
 
-      // 3. IST Check
-      const { data: ist } = await supabase.rpc("ist_now_string").catch(() => ({data: null}));
-      report.ist_db = ist;
-      
+      // 4. IST Check
       const jsDate = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Kolkata"}));
       const v_dow = (jsDate.getDay() + 6) % 7;
       const v_slot = `${String(jsDate.getHours()).padStart(2,'0')}:${jsDate.getMinutes() < 30 ? '00' : '30'}:00`;
-      report.calculated = { dow: v_dow, slot: v_slot };
+      report.calculated = { dow: v_dow, slot: v_slot, jsDate: jsDate.toISOString() };
 
-      // 4. Manual Logic Simulation
+      // 5. Manual Logic Simulation
       report.eligibility_gates = {
         active: worker.is_active,
         available: worker.is_available,
@@ -71,15 +72,17 @@ serve(async (req) => {
       };
     }
 
-    // 5. RPC Direct Tests
-    const { data: online_counts } = await supabase.rpc("get_online_workers_count", { p_community: community });
+    // 6. RPC Direct Tests
+    const { data: online_counts, error: rpcErr1 } = await supabase.rpc("get_online_workers_count", { p_community: community });
     report.rpc_online_counts = online_counts;
+    report.rpc_online_counts_error = rpcErr1;
 
-    const { data: eligible_workers } = await supabase.rpc("get_eligible_workers", { 
+    const { data: eligible_workers, error: rpcErr2 } = await supabase.rpc("get_eligible_workers", { 
       p_service: service, 
       p_community: community 
     });
     report.rpc_eligible_workers = eligible_workers;
+    report.rpc_eligible_workers_error = rpcErr2;
 
     return new Response(JSON.stringify(report), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
