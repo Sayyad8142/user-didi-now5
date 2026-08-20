@@ -517,7 +517,11 @@ serve(async (req) => {
           .single();
         if (updErr) {
           console.error("[bootstrap-profile] profileUpdates error", updErr);
-          return jsonResponse({ error: updErr.message || "Profile update failed" }, 500);
+          const msg = updErr.message || "Profile update failed";
+          if (/locked after first booking/i.test(msg)) {
+            return jsonResponse({ error: msg, code: "flat_locked" }, 409);
+          }
+          return jsonResponse({ error: msg }, 500);
         }
         if (!updated) {
           return jsonResponse({ error: "No profile row updated" }, 404);
