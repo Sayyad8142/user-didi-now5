@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { LOVABLE_CLOUD_FUNCTIONS_URL, PRODUCTION_ANON_KEY } from '@/lib/constants';
 
 export type AvailabilityReason = 'AVAILABLE' | 'CLOSED' | 'BUSY' | 'NO_SUPPLY' | 'ERROR' | 'MISSING_INPUTS';
 
@@ -23,14 +24,25 @@ export function useInstantBookingAvailability(serviceType: string | undefined, c
     refetchInterval: 30_000, // Refetch every 30s
     staleTime: 15_000,
     queryFn: async (): Promise<InstantAvailabilityResult> => {
-      const { data, error } = await supabase.functions.invoke('check-instant-availability', {
-        body: { service: serviceType, community }
+      // Call the Lovable Cloud function directly to avoid routing through
+      // external custom domains that may not have the function registered.
+      const res = await fetch(`${LOVABLE_CLOUD_FUNCTIONS_URL}/functions/v1/check-instant-availability`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': PRODUCTION_ANON_KEY,
+          'Authorization': `Bearer ${PRODUCTION_ANON_KEY}`
+        },
+        body: JSON.stringify({ service: serviceType, community })
       });
       
-      if (error) {
-        console.error('[useInstantBookingAvailability] RPC error:', error);
-        throw error;
+      if (!res.ok) {
+        console.error('[useInstantBookingAvailability] API error:', res.status);
+        throw new Error(`Availability API failed with ${res.status}`);
       }
+      
+      const data = await res.json();
+      return data as InstantAvailabilityResult;
       
       return data as InstantAvailabilityResult;
     }

@@ -84,3 +84,6 @@ verify_jwt = false
 
 [functions.track-favorite-worker-event]
 verify_jwt = false
+
+[functions.check-instant-availability]
+verify_jwt = false

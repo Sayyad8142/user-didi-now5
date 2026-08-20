@@ -31,7 +31,11 @@ serve(async (req) => {
     if (!key) throw new Error("Missing EXTERNAL_SUPABASE_SERVICE_ROLE_KEY");
 
     const supabase = createClient(url, key);
-    const { community, service } = await req.json().catch(() => ({}));
+    const body = await req.json().catch(() => ({}));
+    const community = body.community;
+    const service = body.service || body.service_type;
+
+    console.log(`[check-instant-availability] Checking: community=${community}, service=${service}`);
 
     if (!community || !service) {
       return new Response(JSON.stringify({ 
@@ -77,6 +81,7 @@ serve(async (req) => {
     const { data: online_workers, error: supplyErr } = await supabase.rpc("get_online_workers_count", { p_community: community });
     if (supplyErr) throw supplyErr;
 
+    console.log(`[check-instant-availability] online_workers result:`, JSON.stringify(online_workers));
     const count = (online_workers || []).find((r: any) => r.service === service)?.total_count ?? 0;
     const has_supply = Number(count) > 0;
 
