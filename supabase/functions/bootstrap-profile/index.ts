@@ -19,7 +19,6 @@ type SignupData = {
 type ProfileUpdates = {
   full_name?: string;
   phone?: string;
-  community?: string;
   community_id?: string | null;
   building_id?: string | null;
   flat_id?: string | null;
@@ -151,6 +150,18 @@ serve(async (req) => {
 
     const SELECT_COLS =
       "id, full_name, phone, community, flat_no, is_admin, building_id, community_id, flat_id, firebase_uid";
+
+    const resolveCommunity = async (communityId?: string | null) => {
+      if (!communityId) return null;
+      const { data, error } = await admin
+        .from("communities")
+        .select("id, name, value")
+        .eq("id", communityId)
+        .eq("is_active", true)
+        .maybeSingle();
+      if (error) throw new Error("Community lookup failed");
+      return data;
+    };
 
     // 1) Lookup by firebase_uid
     const { data: byUid, error: byUidErr } = await admin
@@ -334,6 +345,10 @@ serve(async (req) => {
     // 3) Create new — only reached when mode='signup' AND no existing profile
     // AND signup.fullName is a real, validated name.
     if (!profile) {
+      const signupCommunity = await resolveCommunity(signup?.communityId);
+      if (signup?.communityId && !signupCommunity) {
+        return jsonResponse({ error: "Selected community is not available", code: "invalid_community" }, 400);
+      }
       const insertRow: Record<string, unknown> = {
         firebase_uid: firebaseUid,
         phone: phone || null,
@@ -342,7 +357,7 @@ serve(async (req) => {
         // the user instead of producing a stub name that booking screens
         // would render as "User <last4>".
         full_name: (signup?.fullName && signup.fullName.trim()) || "",
-        community: signup?.communityValue || "other",
+        community: signupCommunity?.value || "other",
         flat_no: signup?.flatNo || "",
         community_id: signup?.communityId ?? null,
         building_id: signup?.buildingId ?? null,
@@ -419,9 +434,15 @@ serve(async (req) => {
           console.warn(`[bootstrap] dropped invalid signup.fullName="${signup.fullName}" for id=${profile.id}`);
         }
       }
-      if (signup.communityValue) updates.community = signup.communityValue;
       if (signup.flatNo) updates.flat_no = signup.flatNo;
-      if (signup.communityId !== undefined) updates.community_id = signup.communityId;
+      if (signup.communityId !== undefined) {
+        const signupCommunity = await resolveCommunity(signup.communityId);
+        if (signup.communityId && !signupCommunity) {
+          return jsonResponse({ error: "Selected community is not available", code: "invalid_community" }, 400);
+        }
+        updates.community_id = signup.communityId;
+        updates.community = signupCommunity?.value || "other";
+      }
       if (signup.buildingId !== undefined) updates.building_id = signup.buildingId;
       if (signup.flatId !== undefined) updates.flat_id = signup.flatId;
 
@@ -456,7 +477,7 @@ serve(async (req) => {
     if (profileUpdates && profile) {
       const updates: Record<string, unknown> = {};
       const allowed: (keyof ProfileUpdates)[] = [
-        "full_name", "phone", "community", "community_id", "building_id", "flat_id", "flat_no",
+        "full_name", "phone", "community_id", "building_id", "flat_id", "flat_no",
       ];
       for (const k of allowed) {
         const v = profileUpdates[k];
@@ -473,6 +494,13 @@ serve(async (req) => {
           continue;
         }
         updates[k] = v === "" && (k === "community_id" || k === "building_id" || k === "flat_id") ? null : v;
+      }
+      if (profileUpdates.community_id !== undefined) {
+        const selectedCommunity = await resolveCommunity(profileUpdates.community_id);
+        if (profileUpdates.community_id && !selectedCommunity) {
+          return jsonResponse({ error: "Selected community is not available", code: "invalid_community" }, 400);
+        }
+        updates.community = selectedCommunity?.value || "other";
       }
       if (Object.keys(updates).length > 0) {
         updates.updated_at = new Date().toISOString();
@@ -493,8 +521,12 @@ serve(async (req) => {
       }
     }
 
+    const authoritativeCommunity = await resolveCommunity(profile?.community_id);
+    const responseProfile = profile
+      ? { ...profile, community_name: authoritativeCommunity?.name || null }
+      : profile;
     console.log(`[bootstrap] done cold=${isCold} totalMs=${Date.now() - requestStart}`);
-    return jsonResponse({ profile });
+    return jsonResponse({ profile: responseProfile });
   } catch (err) {
     console.error("[bootstrap-profile] error", err);
     const msg = err instanceof Error ? err.message : "Bootstrap failed";

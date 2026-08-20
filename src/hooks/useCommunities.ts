@@ -26,10 +26,10 @@ export function useCommunities() {
   const query = useQuery<Community[]>({
     queryKey: COMMUNITIES_KEY,
     queryFn: fetchCommunities,
-    staleTime: 24 * 60 * 60 * 1000, // 1 day
+    staleTime: 5 * 60 * 1000,
     gcTime: 7 * 24 * 60 * 60 * 1000, // 7 days
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
     retry: 2,
   });
 
