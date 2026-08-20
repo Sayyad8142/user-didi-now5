@@ -72,3 +72,21 @@ export function validateSlotSurge(
 
   return { ok: true, expectedSurge: expectedSlotSurge, clientSurge: clientSlotSurge };
 }
+
+/**
+ * Defence-in-depth: the client-declared final price must equal
+ * base_price_inr + loyalty surge + slot surge (all server-validated by now).
+ * Blocks a tampered client that keeps a low price_inr while sending correct surges.
+ */
+export function validatePriceComposition(
+  bookingData: Record<string, unknown>,
+  expectedLoyaltySurge: number,
+  expectedSlotSurge: number,
+): { ok: boolean; expected: number; received: number } {
+  const base = Number(bookingData.base_price_inr ?? 0);
+  const received = Number(bookingData.price_inr ?? 0);
+  // No trustworthy base recorded → skip (legacy bundles).
+  if (!base || base <= 0) return { ok: true, expected: received, received };
+  const expected = base + expectedLoyaltySurge + expectedSlotSurge;
+  return { ok: Math.abs(received - expected) <= 1, expected, received };
+}
