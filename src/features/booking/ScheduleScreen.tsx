@@ -95,7 +95,7 @@ export function ScheduleScreen() {
   const [pendingCheckout, setPendingCheckout] = useState<PendingCheckoutData | null>(null);
 
   // Dynamic slot surge pricing
-  const { getSurge } = useSlotSurge(profile?.community_id, service_type || 'maid');
+  const { getSurge, surgeMap } = useSlotSurge(profile?.community_id, service_type || 'maid');
   const { surge: userSurge } = useUserSurge();
   const loyaltySurgeAmount = userSurge.amount;
 
