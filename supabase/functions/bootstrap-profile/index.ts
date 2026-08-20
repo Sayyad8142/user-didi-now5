@@ -505,8 +505,17 @@ serve(async (req) => {
         if (profileUpdates.community_id && !selectedCommunity) {
           return jsonResponse({ error: "Selected community is not available", code: "invalid_community" }, 400);
         }
-        updates.community = selectedCommunity?.value || "other";
+        const nextCommunity = selectedCommunity?.value || "other";
+        // Only write `community` when it (or community_id) actually changes, so
+        // an unchanged save never touches locked columns.
+        if (
+          updates.community_id !== undefined ||
+          (profile as Record<string, unknown>)?.community !== nextCommunity
+        ) {
+          updates.community = nextCommunity;
+        }
       }
+
       if (Object.keys(updates).length > 0) {
         updates.updated_at = new Date().toISOString();
         const { data: updated, error: updErr } = await admin
