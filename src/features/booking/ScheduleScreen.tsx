@@ -293,8 +293,9 @@ export function ScheduleScreen() {
           ? GLASS_PARTITION_FEE * parseInt(bathroomCount!)
           : null,
         price_inr: finalPrice,
-        base_price_inr: (price || 0),
+        base_price_inr: Math.max(0, (price || 0) - loyaltySurgeAmount),
         loyalty_surge_amount: loyaltySurgeAmount,
+
         surcharge_amount: surcharge,
         surcharge_reason: surcharge > 0 ? 'slot_surge' : (surcharge < 0 ? 'off_peak_discount' : null),
         cust_name: /^\+?\d{7,15}$/.test(profile.full_name.trim()) ? 'User ' + profile.phone.slice(-4) : profile.full_name,
@@ -614,9 +615,9 @@ export function ScheduleScreen() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Wallet className="w-5 h-5 text-primary" />
-                  <span className="text-sm font-medium text-muted-foreground">Base price</span>
+                  <span className="text-sm font-medium text-muted-foreground">Base service price</span>
                 </div>
-                <span className="text-sm font-semibold text-foreground">₹{price}</span>
+                <span className="text-sm font-semibold text-foreground">₹{price - loyaltySurgeAmount}</span>
               </div>
 
               {selectedTime && getSurge(selectedTime) > 0 && (
@@ -632,6 +633,14 @@ export function ScheduleScreen() {
                   <span className="text-xs font-semibold text-emerald-600">{formatSurgeLabel(getSurge(selectedTime))}</span>
                 </div>
               )}
+
+              {loyaltySurgeAmount > 0 && (
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-amber-600">Loyalty surcharge</span>
+                  <span className="text-xs font-semibold text-amber-600">+₹{loyaltySurgeAmount}</span>
+                </div>
+              )}
+
 
 
               <div className="border-t border-primary/20 pt-1.5 flex items-center justify-between">
