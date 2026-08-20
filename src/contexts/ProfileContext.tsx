@@ -148,13 +148,14 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
           ? { id: user.id, phone: user.phone ?? null }
           : null;
 
-      // If we have a real Firebase user, always clear demo/guest mode first
-      if (firebaseUser || activeUser?.id) {
+      // Only a REAL Firebase user should clear demo/guest mode.
+      // (Guest sessions also expose an activeUser id, so never key off that.)
+      if (firebaseUser && !isDemoMode()) {
         clearDemoSession();
       }
 
-      // Demo/guest mode handling (only when no real user)
-      if (!firebaseUser && !activeUser?.id && isDemoMode()) {
+      // Demo/guest mode handling (only when no real Firebase user)
+      if (!firebaseUser && isDemoMode()) {
         const demoSession = getDemoSession();
         if (demoSession?.profile) {
           setProfile(demoSession.profile);
@@ -163,6 +164,7 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
           return demoSession.profile;
         }
       }
+
 
       if (!activeUser?.id) {
         setProfile(null);
