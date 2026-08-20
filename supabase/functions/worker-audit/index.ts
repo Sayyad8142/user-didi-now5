@@ -33,7 +33,7 @@ serve(async (req) => {
 
     const report: any = { logs: [], params: { audit_phone, community, service } };
 
-    // 1. Worker Profile - Try direct query first
+    // 1. Trace the worker by phone across all profiles (both DBs if possible, but here we check the worker table)
     const { data: worker, error: wErr } = await supabase
       .from("workers")
       .select("*")
@@ -43,36 +43,36 @@ serve(async (req) => {
     report.worker = worker;
     report.worker_error = wErr;
 
-    // 2. Fetch all workers to see what's happening
-    const { data: allWorkers } = await supabase.from("workers").select("id, full_name, phone, is_active, is_available").limit(10);
-    report.sample_workers = allWorkers;
+    // 2. Sample first 50 workers to check visibility
+    const { data: allWorkers } = await supabase.from("workers").select("id, full_name, phone, is_active, is_available, is_busy, communities, service_types").limit(50);
+    report.worker_pool_sample = allWorkers;
 
     if (worker) {
-      // 3. Availability
+      // 3. Detailed Availability Audit
       const { data: avail } = await supabase
         .from("worker_availability")
         .select("*")
         .eq("worker_id", worker.id);
       report.availability = avail;
 
-      // 4. IST Check
+      // 4. Current Time & Slot Audit (IST)
       const jsDate = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Kolkata"}));
       const v_dow = (jsDate.getDay() + 6) % 7;
       const v_slot = `${String(jsDate.getHours()).padStart(2,'0')}:${jsDate.getMinutes() < 30 ? '00' : '30'}:00`;
-      report.calculated = { dow: v_dow, slot: v_slot, jsDate: jsDate.toISOString() };
+      report.calculated = { dow: v_dow, slot: v_slot, ist_iso: jsDate.toISOString() };
 
-      // 5. Manual Logic Simulation
+      // 5. Logical Gate Audit
       report.eligibility_gates = {
-        active: worker.is_active,
-        available: worker.is_available,
-        not_busy: worker.is_busy === false || worker.is_busy === null,
+        is_active: worker.is_active,
+        is_available: worker.is_available,
+        is_not_busy: worker.is_busy === false || worker.is_busy === null,
         community_match: worker.communities?.includes(community),
         service_match: worker.service_types?.includes(service),
-        slot_match: avail?.some((a: any) => a.day_of_week === v_dow && a.slots?.includes(v_slot))
+        roster_match: avail?.some((a: any) => a.day_of_week === v_dow && a.slots?.includes(v_slot))
       };
     }
 
-    // 6. RPC Direct Tests
+    // 6. Direct RPC Execution Audit
     const { data: online_counts, error: rpcErr1 } = await supabase.rpc("get_online_workers_count", { p_community: community });
     report.rpc_online_counts = online_counts;
     report.rpc_online_counts_error = rpcErr1;
@@ -83,6 +83,9 @@ serve(async (req) => {
     });
     report.rpc_eligible_workers = eligible_workers;
     report.rpc_eligible_workers_error = rpcErr2;
+
+    // 7. Check if Sid is in the eligible list
+    report.is_sid_in_eligible_list = eligible_workers?.some((w: any) => w.worker_id === worker?.id);
 
     return new Response(JSON.stringify(report), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
