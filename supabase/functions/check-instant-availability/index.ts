@@ -31,12 +31,13 @@ serve(async (req) => {
     if (!key) throw new Error("Missing EXTERNAL_SUPABASE_SERVICE_ROLE_KEY");
 
     const supabase = createClient(url, key);
-    const { community, service, service_type } = await req.json().catch(() => ({}));
-    const targetService = service || service_type;
+    const body = await req.json().catch(() => ({}));
+    const community = body.community;
+    const service = body.service || body.service_type;
 
-    console.log(`[check-instant-availability] Checking: community=${community}, service=${targetService}`);
+    console.log(`[check-instant-availability] Checking: community=${community}, service=${service}`);
 
-    if (!community || !targetService) {
+    if (!community || !service) {
       return new Response(JSON.stringify({ 
         available: false, 
         reason: "MISSING_INPUTS", 
@@ -63,7 +64,7 @@ serve(async (req) => {
     const { data: pending_count, error: capErr } = await supabase.rpc("check_instant_supply", { p_community: community });
     if (capErr) throw capErr;
     
-    const CAPACITY_LIMIT = targetService === 'bathroom_cleaning' ? 1 : 3;
+    const CAPACITY_LIMIT = service === 'bathroom_cleaning' ? 1 : 3;
     const is_capacity_full = (pending_count ?? 0) >= CAPACITY_LIMIT;
 
     if (is_capacity_full) {
@@ -81,7 +82,7 @@ serve(async (req) => {
     if (supplyErr) throw supplyErr;
 
     console.log(`[check-instant-availability] online_workers result:`, JSON.stringify(online_workers));
-    const count = (online_workers || []).find((r: any) => r.service === targetService)?.total_count ?? 0;
+    const count = (online_workers || []).find((r: any) => r.service === service)?.total_count ?? 0;
     const has_supply = Number(count) > 0;
 
     if (!has_supply) {

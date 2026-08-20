@@ -24,7 +24,10 @@ export function useInstantBookingAvailability(serviceType: string | undefined, c
     staleTime: 15_000,
     queryFn: async (): Promise<InstantAvailabilityResult> => {
       const { data, error } = await supabase.functions.invoke('check-instant-availability', {
-        body: { service: serviceType, community }
+        body: { service: serviceType, community },
+        headers: {
+          'x-use-lovable-cloud': 'true'
+        }
       });
       
       if (error) {
