@@ -12,14 +12,32 @@ interface Community {
 
 const COMMUNITIES_KEY = ['communities', 'active'] as const;
 
-async function fetchCommunities(): Promise<Community[]> {
-  const { data, error } = await supabase
-    .from('communities')
-    .select('id, name, value, is_active, flat_format')
-    .eq('is_active', true)
-    .order('name');
+async function fetchViaEdge(): Promise<Community[]> {
+  const { data, error } = await supabase.functions.invoke('list-communities', {
+    body: {},
+  });
   if (error) throw error;
-  return (data || []) as Community[];
+  const list = (data as any)?.communities;
+  if (!Array.isArray(list)) throw new Error('Invalid communities response');
+  return list as Community[];
+}
+
+async function fetchCommunities(): Promise<Community[]> {
+  // Primary: direct table read (works when RLS allows anon/authenticated reads)
+  try {
+    const { data, error } = await supabase
+      .from('communities')
+      .select('id, name, value, is_active, flat_format')
+      .eq('is_active', true)
+      .order('name');
+    if (error) throw error;
+    if (data && data.length > 0) return data as Community[];
+  } catch (err) {
+    console.warn('[useCommunities] direct read failed, using edge fallback', err);
+  }
+
+  // Fallback: service-role edge proxy (immune to RLS/function-permission issues)
+  return await fetchViaEdge();
 }
 
 export function useCommunities() {

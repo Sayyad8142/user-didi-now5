@@ -87,3 +87,6 @@ verify_jwt = false
 
 [functions.check-instant-availability]
 verify_jwt = false
+
+[functions.list-communities]
+verify_jwt = false
