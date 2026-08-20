@@ -84,6 +84,8 @@ export default function Profile() {
   // Get the selected community to check format
   const selectedCommunity = communities.find(c => c.id === editForm.community_id);
   const isPHF = selectedCommunity?.flat_format === 'PHF';
+  const assignedCommunityName = profile?.community_name
+    || communities.find(c => c.id === profile?.community_id)?.name;
 
   // Use hooks with edit form values for dynamic dropdowns
   const { buildings } = useBuildings(editForm.community_id || null);
@@ -99,14 +101,14 @@ export default function Profile() {
       setEditForm({
         full_name: safeName,
         phone: profile.phone || '',
-        community: profile.community || '',
+        community: communities.find(c => c.id === profile.community_id)?.name || '',
         community_id: profile.community_id || '',
         building_id: profile.building_id || '',
         flat_id: profile.flat_id || '',
         flat_no: profile.flat_no || ''
       });
     }
-  }, [profile]);
+  }, [profile, communities]);
 
   const handleSave = async () => {
     const nameErr = validateName(editForm.full_name);
@@ -119,7 +121,6 @@ export default function Profile() {
       const updated = await updateProfileViaEdge({
         full_name: editForm.full_name,
         phone: editForm.phone,
-        community: editForm.community,
         community_id: editForm.community_id || null,
         building_id: editForm.building_id || null,
         flat_id: editForm.flat_id || null,
@@ -162,7 +163,7 @@ export default function Profile() {
       setEditForm({
         full_name: profile.full_name || '',
         phone: profile.phone || '',
-        community: profile.community || '',
+        community: communities.find(c => c.id === profile.community_id)?.name || '',
         community_id: profile.community_id || '',
         building_id: profile.building_id || '',
         flat_id: profile.flat_id || '',
@@ -355,13 +356,11 @@ export default function Profile() {
                 <div className="flex-1 space-y-1">
                   <p className="text-sm font-medium text-gray-500 uppercase tracking-wide">Community</p>
                   {!isEditing ? (
-                    hydrating || (communitiesLoading && !profile?.community) ? (
+                    hydrating || (communitiesLoading && !!profile?.community_id) ? (
                       <Skeleton className="h-6 w-44" />
                     ) : (
                       <p className="text-lg font-semibold text-gray-900">
-                        {isValidDisplayName(profile?.full_name) ? "'''Do not make any visual modifications. The phrases I write are commands to understand what I want, not to be written down. Understand their content well, then execute what is required.'''\n                                        \n                                            \n                                            fix it, it have to show community name here." : (communities.find(c => c.id === profile?.community_id || c.value === profile?.community)?.name
-                          || profile?.community
-                          || 'Not provided')}
+                        {assignedCommunityName || 'Not assigned'}
                       </p>
                     )
                   ) : (

@@ -10,6 +10,7 @@ interface Profile {
   full_name: string;
   phone: string;
   community: string;
+  community_name?: string | null;
   flat_no: string;
   building_id?: string | null;
   community_id?: string | null;

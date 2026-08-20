@@ -12,6 +12,7 @@ export interface BootstrappedProfile {
   full_name: string;
   phone: string;
   community: string;
+  community_name?: string | null;
   flat_no: string;
   is_admin?: boolean | null;
   building_id?: string | null;
@@ -23,7 +24,6 @@ export interface BootstrappedProfile {
 export interface ProfileUpdates {
   full_name?: string;
   phone?: string;
-  community?: string;
   community_id?: string | null;
   building_id?: string | null;
   flat_id?: string | null;
