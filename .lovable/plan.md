@@ -1,60 +1,48 @@
+# Plan: Fix Slot Surge Pricing Integration in User App
 
-## Per-User Dynamic Pricing — Spec
+We will implement a robust, server-validated Slot Surge Pricing system for Scheduled Bookings, ensuring customers see accurate pricing adjustments (surcharges or discounts) on the schedule screen and that these adjustments are strictly enforced by the backend.
 
-Surge is **per individual user**, based on how many bookings that user has placed so far. Applies to **all services** (Maid + Bathroom) and **both instant + scheduled**.
+## User Review Required
 
-### Tier table
+> [!IMPORTANT]
+> - **External Database Migration**: You MUST apply the SQL provided in `docs/fix-scheduled-slot-surge.sql` to your **External Supabase Database** (api.didisnow.com) SQL Editor. This is critical for server-side enforcement.
+> - **Operating Hours**: The system assumes business hours between 7 AM and 7 PM IST (Asia/Kolkata).
 
-| User's booking number | Extra charge |
-|---|---|
-| 1st, 2nd, 3rd | ₹0 (base) |
-| 4th, 5th, 6th | +₹10 |
-| 7th, 8th, 9th, 10th | +₹30 |
-| 11th and beyond | +₹60 |
+## Proposed Changes
 
-"Booking number" = count of the user's bookings that are **not cancelled** (pending, assigned, in-progress, completed all count). The booking currently being placed is the (count + 1)th.
+### 1. Shared Logic Implementation
+- Create `src/lib/slotSurge.ts` to provide unified helpers for formatting and calculating surge values.
+- Create `supabase/functions/_shared/slotSurge.ts` for edge function server-side validation.
 
-### Where it applies
+### 2. UI Updates (Scheduled Booking Screen)
+- **Time Slot Display**: Update `src/features/booking/ScheduleScreen.tsx` to:
+    - Show "+₹X" (orange) for surcharges and "Save ₹X" (green) for discounts directly on time slot cards.
+    - Highlight selected slots with their specific adjustment.
+    - Add a "Save more with off-peak slots" tip when discounts are available.
+- **Price Breakdown**: Show a clear breakdown (Base Price, Slot Adjustment, Total) before payment.
 
-1. **Price display** — Booking form, slot picker, instant checkout, schedule sheet, price chart sheet all show `base + user_surge` for the logged-in user. Guests see base price only.
-2. **Server-side enforcement** — `create-paid-booking`, `create-pending-booking`, and `create-razorpay-order` edge functions recompute the user's tier from the external DB and reject if the client-submitted price is lower than expected. This blocks tampering.
-3. **Transparency** — A small inline note under the price: "Loyalty pricing: +₹10 (your 5th booking)" so the user understands the change. Not a surprise.
+### 3. Backend Enforcement
+- **Edge Function Hardening**: Update `create-paid-booking` and `create-razorpay-order` to:
+    - Re-resolve the slot surge amount server-side using the community, service, and scheduled time.
+    - Reject any requests where the client-provided price doesn't match the server-expected slot surge.
+- **Database Trigger**: Update the `enforce_booking_flat_size_and_price` trigger on the external DB to overwrite `surcharge_amount` and `price_inr` with authoritative values from `slot_surge_pricing`.
 
-### What gets built
+### 4. Verification Plan
+- **Flow Tests**:
+    - Verify Maid/Bathroom Cleaning slots correctly show configured surcharges/discounts.
+    - Verify date/service switching refreshes pricing correctly.
+- **Safety Checks**:
+    - Confirm the final amount in Razorpay and the `bookings` table includes the adjustment.
+    - Attempt to "trick" the API by sending a base price without surge to confirm the backend rejects/overwrites it.
 
-**Backend (external DB — SQL written to `docs/`)**
-- `get_user_surge_amount(user_uuid)` RPC: counts user's non-cancelled bookings, returns surge ₹.
-- Used by edge functions for validation.
+## Technical Details
 
-**Frontend**
-- `src/lib/userSurge.ts` — pure function `computeUserSurge(bookingCount)` returning `{ amount, tier, nextThreshold }`.
-- `src/hooks/useUserSurge.ts` — fetches current user's booking count (cached 60s, invalidated after each booking).
-- Integrated into:
-  - `InstantCheckoutScreen.tsx` (price + button amount)
-  - `ScheduleScreen.tsx` / `ScheduleSheet.tsx`
-  - `BookingForm.tsx`
-  - `MaidPriceChartSheet.tsx` (shows tier hint)
-  - `PriceNote.tsx` (inline transparency line)
+### Database / API Source
+- **Table**: `slot_surge_pricing` (columns: `community_id`, `service_key`, `slot_time`, `surge_amount`, `is_active`).
+- **Resolver**: The backend will use `community_id` and `scheduled_time` to match records. Time comparison will be normalized to `HH:MM:00`.
 
-**Edge functions**
-- `create-paid-booking/index.ts`: recompute surge server-side, reject mismatched amount.
-- `create-pending-booking` and `create-razorpay-order`: same guard.
-
-**Admin override (optional, future)** — tiers hardcoded in shared util for now. If you later want admin-tunable tiers, we add an `app_config.surge_tiers` JSONB column.
-
-### Edge cases handled
-
-- **Guest users**: no surge (no user_id → tier 1).
-- **Failed/cancelled bookings**: excluded from count, so a user isn't punished for a system cancel.
-- **Slot surge stacking**: existing `slot_surge_pricing` (per-slot ₹ uplift) still applies — final price = `base + slot_surge + user_surge`.
-- **Wallet flow**: surge added before wallet deduction.
-
-### One open question
-
-After tier 4 (11+ bookings), do you want it to **stay flat at +₹60 forever**, or **keep adding +₹30 per tier of 4** (15+ = ₹90, 19+ = ₹120, etc.)?
-
-I'll default to **flat +₹60 forever** unless you say otherwise — say "keep climbing" if you want the laddered version.
-
----
-
-Approve this plan and I'll ship it in one pass: SQL doc + edge function guards + hook + UI integration + transparency line.
+### Affected Components
+- `src/features/booking/ScheduleScreen.tsx`: Main UI logic.
+- `src/lib/paymentService.ts`: Payload sanitization.
+- `supabase/functions/create-paid-booking/index.ts`: Transactional enforcement.
+- `supabase/functions/create-razorpay-order/index.ts`: Pre-payment amount validation.
