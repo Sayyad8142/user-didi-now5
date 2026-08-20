@@ -31,6 +31,7 @@ import {
 import { useSlotSurge } from '@/hooks/useSlotSurge';
 import { formatSurgeLabel, getSurgeColor } from '@/lib/slotSurge';
 import { format } from 'date-fns';
+import { Zap } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
