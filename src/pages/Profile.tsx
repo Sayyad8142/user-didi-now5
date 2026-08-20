@@ -80,6 +80,8 @@ export default function Profile() {
     flat_id: '',
     flat_no: ''
   });
+  const [communitySearch, setCommunitySearch] = useState('');
+
 
   // Get the selected community to check format
   const selectedCommunity = communities.find(c => c.id === editForm.community_id);
@@ -368,47 +370,60 @@ export default function Profile() {
                       <div className="relative">
                         <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
                         <Input
-                          placeholder="Search community..."
-                          value={editForm.community || ''}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            setEditForm(prev => ({ ...prev, community: val }));
-                          }}
+                          placeholder={editForm.community ? editForm.community : 'Search community...'}
+                          value={communitySearch}
+                          onChange={(e) => setCommunitySearch(e.target.value)}
                           className="text-lg font-semibold border-0 bg-gray-50 rounded-xl p-3 pl-10 focus-visible:ring-2 focus-visible:ring-primary/20 h-auto"
                         />
                       </div>
-                      
+
                       {/* Community suggestions */}
                       <div className="max-h-[200px] overflow-y-auto rounded-xl border border-gray-100 bg-white p-1 space-y-1">
-                        {communities
-                          .filter(c => c.name.toLowerCase().includes((editForm.community || '').toLowerCase()))
-                          .map((community) => (
-                            <button
-                              key={community.id}
-                              type="button"
-                              onClick={() => {
-                                setEditForm(prev => ({ 
-                                  ...prev, 
-                                  community_id: community.id,
-                                  community: community.name,
-                                  building_id: '',
-                                  flat_id: '',
-                                  flat_no: ''
-                                }));
-                              }}
-                              className={cn(
-                                "w-full text-left px-4 py-3 rounded-lg text-sm font-medium transition-colors",
-                                editForm.community_id === community.id 
-                                  ? "bg-primary/10 text-primary" 
-                                  : "hover:bg-gray-50 text-gray-700"
-                              )}
-                            >
-                              {community.name}
-                            </button>
-                          ))}
+                        {communitiesLoading ? (
+                          <div className="p-3 space-y-2">
+                            <Skeleton className="h-8 w-full" />
+                            <Skeleton className="h-8 w-full" />
+                          </div>
+                        ) : communities.length === 0 ? (
+                          <p className="px-4 py-3 text-sm text-gray-500">No communities available</p>
+                        ) : (
+                          (() => {
+                            const q = communitySearch.trim().toLowerCase();
+                            const list = communities.filter(c => !q || c.name.toLowerCase().includes(q));
+                            if (list.length === 0) {
+                              return <p className="px-4 py-3 text-sm text-gray-500">No matching community</p>;
+                            }
+                            return list.map((community) => (
+                              <button
+                                key={community.id}
+                                type="button"
+                                onClick={() => {
+                                  setEditForm(prev => ({
+                                    ...prev,
+                                    community_id: community.id,
+                                    community: community.name,
+                                    building_id: '',
+                                    flat_id: '',
+                                    flat_no: ''
+                                  }));
+                                  setCommunitySearch('');
+                                }}
+                                className={cn(
+                                  "w-full text-left px-4 py-3 rounded-lg text-sm font-medium transition-colors",
+                                  editForm.community_id === community.id
+                                    ? "bg-primary/10 text-primary"
+                                    : "hover:bg-gray-50 text-gray-700"
+                                )}
+                              >
+                                {community.name}
+                              </button>
+                            ));
+                          })()
+                        )}
                       </div>
                     </div>
                   )}
+
                 </div>
               </div>
             </div>
