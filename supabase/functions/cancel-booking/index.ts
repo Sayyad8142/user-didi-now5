@@ -110,7 +110,25 @@ serve(async (req) => {
     }
 
     console.log(`[cancel-booking] cancelled booking=${bookingId} profile=${profile.id}`);
-    return jsonResponse({ success: true });
+
+    // Wallet refund. A DB trigger may already have handled it; the RPC is
+    // idempotent so calling it again is safe. If the RPC is unavailable we
+    // fall back to a manual credit.
+    let refund: unknown = null;
+    const { data: refundData, error: refundError } = await admin.rpc("credit_wallet_on_cancel", {
+      p_booking_id: bookingId,
+      p_reason: "user_cancelled",
+    });
+
+    if (refundError) {
+      console.error("[cancel-booking] credit_wallet_on_cancel failed", refundError);
+      refund = await manualRefund(admin, bookingId, profile.id);
+    } else {
+      refund = refundData;
+      console.log("[cancel-booking] refund result", JSON.stringify(refundData));
+    }
+
+    return jsonResponse({ success: true, refund });
   } catch (err) {
     console.error("[cancel-booking] unhandled", err);
     return jsonResponse({ error: (err as Error).message || "Internal error" }, 500);
