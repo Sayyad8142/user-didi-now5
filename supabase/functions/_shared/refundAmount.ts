@@ -114,7 +114,7 @@ export async function refundBookingToWallet(
     return { skipped: true, reason: "booking_not_paid" };
   }
 
-  const paid = resolvePaidAmountInr(booking as BookingAmountRow);
+  const paid = await resolveActualDebitedInr(admin, bookingId, booking as BookingAmountRow);
   if (!(paid > 0)) return { skipped: true, reason: "zero_amount" };
 
   const eligible = Math.max(0, Math.round((paid * refundPercent - cancellationFee) * 100) / 100);
