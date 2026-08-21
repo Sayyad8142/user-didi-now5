@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import CancelBookingSheet from "./CancelBookingSheet";
-import { cancelMyBooking } from "./cancelBookingClient";
+import { cancelMyBooking, type CancelBookingResponse } from "./cancelBookingClient";
 
 interface CancelActionProps {
   booking: any;
@@ -29,8 +29,9 @@ export default function CancelAction({ booking, onCancel }: CancelActionProps) {
     if (cancelling) return;
     setCancelling(true);
     try {
+      let result: CancelBookingResponse | null = null;
       const error: { message: string } | null = await cancelMyBooking(booking.id, reason)
-        .then(() => null)
+        .then((res) => { result = res; return null; })
         .catch((e: any) => ({ message: e?.message || "Failed to cancel booking" }));
       
       if (error) {
@@ -56,8 +57,14 @@ export default function CancelAction({ booking, onCancel }: CancelActionProps) {
           throw error;
         }
       } else {
-        const isPaid = booking.payment_status === 'paid';
-        const amount = booking.price_inr || booking.payment_amount_inr;
+        const isPaid = booking.payment_status === 'paid' || booking.payment_status === 'moved_to_wallet';
+        // Always trust the server-resolved refund (amount actually charged),
+        // never a locally recomputed / base price.
+        const amount =
+          result?.refund?.refund_amount ??
+          result?.refund?.paid_amount ??
+          booking.payment_amount_inr ??
+          booking.price_inr;
         toast({
           title: "Booking cancelled",
           description: isPaid && amount

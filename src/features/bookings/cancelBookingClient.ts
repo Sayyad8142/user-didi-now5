@@ -2,6 +2,18 @@ import { getFirebaseIdToken, waitForFirebaseAuthReady } from '@/lib/firebase';
 import { LOVABLE_CLOUD_FUNCTIONS_URL, PRODUCTION_ANON_KEY } from '@/lib/constants';
 import { resolveBackendUrl } from '@/lib/backendResolver';
 
+export interface CancelBookingResponse {
+  success?: boolean;
+  already_cancelled?: boolean;
+  refund?: {
+    refunded?: boolean;
+    skipped?: boolean;
+    reason?: string;
+    paid_amount?: number;
+    refund_amount?: number;
+  } | null;
+}
+
 /**
  * Cancels a booking through the cancel-booking edge function.
  * The anonymous Supabase client cannot execute the user_cancel_booking RPC
@@ -43,7 +55,7 @@ export async function cancelMyBooking(bookingId: string, reason: string) {
 
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error || `Cancellation failed (HTTP ${res.status})`);
-      return data as { success?: boolean; already_cancelled?: boolean };
+      return data as CancelBookingResponse;
     } catch (err: any) {
       lastError = err instanceof Error ? err : new Error(err?.message || 'Failed to cancel booking');
       console.warn('[cancel-booking] endpoint failed, trying fallback if available', {
