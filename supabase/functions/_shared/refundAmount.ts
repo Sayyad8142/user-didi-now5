@@ -101,11 +101,31 @@ export async function refundBookingToWallet(
   refundPercent = 1,
   cancellationFee = 0,
 ): Promise<RefundResult> {
+  // Preferred path: fully atomic, race-safe DB RPC (advisory lock + row locks).
+  // Falls back to the TS reconciliation below when the RPC isn't deployed yet.
+  if (refundPercent === 1 && cancellationFee === 0) {
+    try {
+      const { data: rpcRes, error: rpcErr } = await admin.rpc("refund_booking_actual_paid", {
+        p_booking_id: bookingId,
+        p_reason: reason,
+      });
+      if (!rpcErr && rpcRes && typeof rpcRes === "object" && !(rpcRes as any).error) {
+        return rpcRes as RefundResult;
+      }
+      if (rpcErr) {
+        console.warn("[refundBookingToWallet] RPC unavailable, using fallback:", rpcErr.message);
+      }
+    } catch (e) {
+      console.warn("[refundBookingToWallet] RPC threw, using fallback:", (e as Error).message);
+    }
+  }
+
   const { data: booking, error } = await admin
     .from("bookings")
     .select(PAID_AMOUNT_COLUMNS)
     .eq("id", bookingId)
     .maybeSingle();
+
 
   if (error) return { error: error.message };
   if (!booking) return { error: "booking_not_found" };
