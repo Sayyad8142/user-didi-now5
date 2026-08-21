@@ -44,7 +44,11 @@ export function useOnlineWorkerCounts() {
 
         const result: OnlineCounts = {};
         (data || []).forEach((row: any) => {
-          result[row.service] = Number(row.online_count);
+          // RPC may return total_count / fresh_count depending on version
+          const raw =
+            row.online_count ?? row.total_count ?? row.fresh_count ?? row.count ?? 0;
+          const n = Number(raw);
+          result[row.service] = Number.isFinite(n) ? n : 0;
         });
         setCounts(result);
       } catch (e) {
