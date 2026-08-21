@@ -1,5 +1,10 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import {
+  EXTERNAL_SUPABASE_URL,
+  EXTERNAL_SUPABASE_SERVICE_ROLE_KEY,
+} from '../_shared/externalSupabaseEnv.ts'
+import { refundBookingToWallet } from '../_shared/refundAmount.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -42,11 +47,41 @@ serve(async (req) => {
       console.log(`SLA Checker: Auto-cancelled ${staleCancelledCount} stale instant bookings`)
     }
 
+    // 3. Reconcile refunds for recently cancelled paid bookings.
+    // DB-side auto-cancel refunds can be based on stale/base pricing; the
+    // authoritative amount is what the customer actually paid. This tops up
+    // any shortfall idempotently.
+    let reconciled = 0
+    try {
+      if (EXTERNAL_SUPABASE_URL && EXTERNAL_SUPABASE_SERVICE_ROLE_KEY) {
+        const admin = createClient(EXTERNAL_SUPABASE_URL, EXTERNAL_SUPABASE_SERVICE_ROLE_KEY, {
+          auth: { persistSession: false, autoRefreshToken: false },
+        })
+        const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+        const { data: cancelled } = await admin
+          .from('bookings')
+          .select('id, user_id')
+          .eq('status', 'cancelled')
+          .in('payment_status', ['paid', 'moved_to_wallet'])
+          .gte('cancelled_at', since)
+          .limit(200)
+
+        for (const b of cancelled || []) {
+          if (!b?.user_id) continue
+          const res = await refundBookingToWallet(admin, b.id as string, b.user_id as string, 'auto_cancelled')
+          if ((res as any)?.refunded) reconciled++
+        }
+      }
+    } catch (e) {
+      console.error('Refund reconciliation failed:', (e as Error).message)
+    }
+
     return new Response(
       JSON.stringify({ 
         success: true, 
         processed_count: processedCount,
         stale_cancelled_count: staleCancelledCount,
+        refunds_reconciled: reconciled,
         timestamp: new Date().toISOString()
       }),
       { 
