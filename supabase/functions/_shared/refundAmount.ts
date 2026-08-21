@@ -100,6 +100,45 @@ export async function refundBookingToWallet(
 
   const delta = Math.round((eligible - alreadyCredited) * 100) / 100;
 
+  // Over-refunded (e.g. a DB trigger credited the base price instead of the
+  // discounted amount actually paid) — claw the excess back so the wallet
+  // reflects exactly what the customer paid.
+  if (delta <= -0.5) {
+    const excess = Math.abs(delta);
+    const { error: decError } = await admin.rpc("safe_wallet_increment", {
+      p_user_id: userId,
+      p_amount_delta: -excess,
+    });
+    if (decError) {
+      console.error("[refundBookingToWallet] over-refund correction failed", decError);
+      return { error: decError.message, paid_amount: paid, already_credited: alreadyCredited };
+    }
+    await admin.from("wallet_transactions").insert({
+      user_id: userId,
+      booking_id: bookingId,
+      type: "debit",
+      amount_inr: excess,
+      reason: "refund_correction",
+      reference_type: "booking_refund",
+      notes: `Refund corrected to amount actually paid (₹${eligible})`,
+    });
+    await admin
+      .from("bookings")
+      .update({
+        wallet_refund_status: "credited",
+        wallet_refund_amount: eligible,
+        wallet_refund_reason: reason,
+      })
+      .eq("id", bookingId);
+    return {
+      refunded: true,
+      paid_amount: paid,
+      already_credited: alreadyCredited,
+      refund_amount: eligible,
+      reason: "over_refund_corrected",
+    };
+  }
+
   if (delta <= 0.5) {
     return {
       skipped: true,
