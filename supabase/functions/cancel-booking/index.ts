@@ -112,9 +112,6 @@ serve(async (req) => {
 
     console.log(`[cancel-booking] cancelled booking=${bookingId} profile=${profile.id}`);
 
-    // Wallet refund. A DB trigger may already have handled it; the RPC is
-    // idempotent so calling it again is safe. If the RPC is unavailable we
-    // fall back to a manual credit.
     // Wallet refund. A DB trigger / RPC may already have credited something,
     // but the authoritative amount is always the amount actually charged
     // (wallet + razorpay captured, else payment_amount_inr, else price_inr).
