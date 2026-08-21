@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import CancelBookingSheet from "./CancelBookingSheet";
+import { cancelMyBooking } from "./cancelBookingClient";
 
 interface CancelActionProps {
   booking: any;
@@ -29,10 +29,9 @@ export default function CancelAction({ booking, onCancel }: CancelActionProps) {
     if (cancelling) return;
     setCancelling(true);
     try {
-      const { error } = await supabase.rpc("user_cancel_booking", { 
-        p_booking_id: booking.id, 
-        p_reason: reason,
-      });
+      const error: { message: string } | null = await cancelMyBooking(booking.id, reason)
+        .then(() => null)
+        .catch((e: any) => ({ message: e?.message || "Failed to cancel booking" }));
       
       if (error) {
         if (error.message.includes('cancel_window_expired')) {
