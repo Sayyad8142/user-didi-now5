@@ -29,6 +29,69 @@ function normalizePhone(raw?: string | null): string {
   return raw;
 }
 
+/**
+ * Fallback refund path used when credit_wallet_on_cancel is not available on
+ * the DB. Idempotent: skips when a refund credit already exists.
+ */
+async function manualRefund(admin: any, bookingId: string, userId: string) {
+  const { data: booking } = await admin
+    .from("bookings")
+    .select("price_inr, payment_amount_inr, payment_status, wallet_refund_status, otp_verified_at")
+    .eq("id", bookingId)
+    .maybeSingle();
+
+  if (!booking) return { error: "booking_not_found" };
+  if (booking.otp_verified_at) return { skipped: true, reason: "otp_verified" };
+  if (!["paid", "moved_to_wallet"].includes(booking.payment_status)) {
+    return { skipped: true, reason: "booking_not_paid" };
+  }
+  if (booking.wallet_refund_status === "credited") {
+    return { skipped: true, reason: "already_refunded" };
+  }
+
+  const amount = Number(booking.price_inr ?? booking.payment_amount_inr ?? 0);
+  if (!(amount > 0)) return { skipped: true, reason: "zero_amount" };
+
+  const { data: existing } = await admin
+    .from("wallet_transactions")
+    .select("id")
+    .eq("booking_id", bookingId)
+    .eq("type", "credit")
+    .limit(1);
+  if (existing?.length) return { skipped: true, reason: "credit_exists" };
+
+  const { error: incError } = await admin.rpc("safe_wallet_increment", {
+    p_user_id: userId,
+    p_amount_delta: amount,
+  });
+  if (incError) {
+    console.error("[cancel-booking] manual refund increment failed", incError);
+    return { error: incError.message };
+  }
+
+  await admin.from("wallet_transactions").insert({
+    user_id: userId,
+    booking_id: bookingId,
+    type: "credit",
+    amount_inr: amount,
+    reason: "user_cancelled",
+    reference_type: "booking_refund",
+  });
+
+  await admin
+    .from("bookings")
+    .update({
+      wallet_refund_status: "credited",
+      wallet_refund_amount: amount,
+      wallet_refund_reason: "user_cancelled",
+    })
+    .eq("id", bookingId);
+
+  return { refunded: true, refund_amount: amount };
+}
+
+
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   if (req.method !== "POST") return jsonResponse({ error: "Method not allowed" }, 405);
@@ -110,7 +173,25 @@ serve(async (req) => {
     }
 
     console.log(`[cancel-booking] cancelled booking=${bookingId} profile=${profile.id}`);
-    return jsonResponse({ success: true });
+
+    // Wallet refund. A DB trigger may already have handled it; the RPC is
+    // idempotent so calling it again is safe. If the RPC is unavailable we
+    // fall back to a manual credit.
+    let refund: unknown = null;
+    const { data: refundData, error: refundError } = await admin.rpc("credit_wallet_on_cancel", {
+      p_booking_id: bookingId,
+      p_reason: "user_cancelled",
+    });
+
+    if (refundError) {
+      console.error("[cancel-booking] credit_wallet_on_cancel failed", refundError);
+      refund = await manualRefund(admin, bookingId, profile.id);
+    } else {
+      refund = refundData;
+      console.log("[cancel-booking] refund result", JSON.stringify(refundData));
+    }
+
+    return jsonResponse({ success: true, refund });
   } catch (err) {
     console.error("[cancel-booking] unhandled", err);
     return jsonResponse({ error: (err as Error).message || "Internal error" }, 500);
