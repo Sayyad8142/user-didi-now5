@@ -82,6 +82,10 @@ verify_jwt = false
 [functions.cancel-booking]
 verify_jwt = false
 
+[functions.refund-booking]
+verify_jwt = false
+
+
 
 
 [functions.submit-worker-rating]
