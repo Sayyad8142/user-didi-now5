@@ -88,6 +88,9 @@ async function manualRefund(admin: any, bookingId: string, userId: string) {
     .eq("id", bookingId);
 
   return { refunded: true, refund_amount: amount };
+}
+
+
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
