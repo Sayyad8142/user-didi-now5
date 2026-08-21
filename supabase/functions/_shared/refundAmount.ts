@@ -44,6 +44,40 @@ export function resolvePaidAmountInr(booking: BookingAmountRow): number {
   return num(booking.price_inr);
 }
 
+/**
+ * Ground truth: the exact amount actually debited for this booking.
+ * Sums wallet debits recorded in wallet_transactions (excluding refund
+ * corrections) plus any Razorpay capture on the booking. This is authoritative
+ * over booking snapshot columns, which can carry the pre-discount price.
+ */
+export async function resolveActualDebitedInr(
+  admin: any,
+  bookingId: string,
+  booking: BookingAmountRow,
+): Promise<number> {
+  let walletDebited = 0;
+  try {
+    const { data: debits } = await admin
+      .from("wallet_transactions")
+      .select("amount_inr, reason")
+      .eq("booking_id", bookingId)
+      .eq("type", "debit");
+
+    walletDebited = (debits || [])
+      .filter((r: any) => String(r.reason ?? "") !== "refund_correction")
+      .reduce((s: number, r: any) => s + num(r.amount_inr), 0);
+  } catch (_e) {
+    walletDebited = 0;
+  }
+
+  const total = walletDebited + num(booking.razorpay_paid_amount);
+  if (total > 0) return Math.round(total * 100) / 100;
+
+  // No ledger rows found — fall back to the booking snapshot.
+  return resolvePaidAmountInr(booking);
+}
+
+
 export interface RefundResult {
   refunded?: boolean;
   skipped?: boolean;
@@ -80,7 +114,7 @@ export async function refundBookingToWallet(
     return { skipped: true, reason: "booking_not_paid" };
   }
 
-  const paid = resolvePaidAmountInr(booking as BookingAmountRow);
+  const paid = await resolveActualDebitedInr(admin, bookingId, booking as BookingAmountRow);
   if (!(paid > 0)) return { skipped: true, reason: "zero_amount" };
 
   const eligible = Math.max(0, Math.round((paid * refundPercent - cancellationFee) * 100) / 100);
