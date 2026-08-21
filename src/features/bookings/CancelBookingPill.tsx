@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { XCircle } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import CancelBookingSheet from "./CancelBookingSheet";
+import { cancelMyBooking } from "./cancelBookingClient";
 
 interface CancelBookingPillProps {
   booking: any;
@@ -32,10 +32,9 @@ export default function CancelBookingPill({ booking, onCancel, className }: Canc
     if (cancelling) return;
     setCancelling(true);
     try {
-      const { error } = await supabase.rpc("user_cancel_booking", {
-        p_booking_id: booking.id,
-        p_reason: reason,
-      });
+      const error: { message: string } | null = await cancelMyBooking(booking.id, reason)
+        .then(() => null)
+        .catch((e: any) => ({ message: e?.message || "Failed to cancel booking" }));
 
       if (error) {
         if (error.message.includes('cancel_window_expired')) {
