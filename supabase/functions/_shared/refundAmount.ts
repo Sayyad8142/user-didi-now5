@@ -140,19 +140,27 @@ export async function refundBookingToWallet(
   const eligible = Math.max(0, Math.round((paid * refundPercent - cancellationFee) * 100) / 100);
   if (!(eligible > 0)) return { skipped: true, reason: "not_refundable", paid_amount: paid };
 
-  // How much has already been credited back for this booking?
+  // Net already refunded = refund credits minus any refund_correction debits.
   const { data: credits } = await admin
     .from("wallet_transactions")
     .select("amount_inr")
     .eq("booking_id", bookingId)
     .eq("type", "credit");
 
-  const alreadyCredited = (credits || []).reduce(
-    (sum: number, row: any) => sum + Number(row.amount_inr ?? 0),
-    0,
-  );
+  const { data: corrections } = await admin
+    .from("wallet_transactions")
+    .select("amount_inr")
+    .eq("booking_id", bookingId)
+    .eq("type", "debit")
+    .eq("reason", "refund_correction");
+
+  const sum = (rows: any[] | null) =>
+    (rows || []).reduce((s: number, r: any) => s + Number(r.amount_inr ?? 0), 0);
+
+  const alreadyCredited = Math.round((sum(credits) - sum(corrections)) * 100) / 100;
 
   const delta = Math.round((eligible - alreadyCredited) * 100) / 100;
+
 
   // Over-refunded (e.g. a DB trigger credited the base price instead of the
   // discounted amount actually paid) — claw the excess back so the wallet
