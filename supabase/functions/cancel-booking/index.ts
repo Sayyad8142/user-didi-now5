@@ -112,18 +112,12 @@ serve(async (req) => {
 
     console.log(`[cancel-booking] cancelled booking=${bookingId} profile=${profile.id}`);
 
-    // Wallet refund. A DB trigger / RPC may already have credited something,
-    // but the authoritative amount is always the amount actually charged
-    // (wallet + razorpay captured, else payment_amount_inr, else price_inr).
-    // refundBookingToWallet reconciles any shortfall idempotently.
-    const { error: refundError } = await admin.rpc("credit_wallet_on_cancel", {
-      p_booking_id: bookingId,
-      p_reason: "user_cancelled",
-    });
-    if (refundError) {
-      console.warn("[cancel-booking] credit_wallet_on_cancel unavailable", refundError.message);
-    }
-
+    // Wallet refund — single authoritative resolver. The amount is always the
+    // amount actually charged (wallet + razorpay captured, else
+    // payment_amount_inr, else the price snapshotted on the booking).
+    // Never recomputed from base price or current surge/discount rules.
+    // A DB trigger may also have credited something; the resolver reconciles
+    // the difference in either direction, idempotently.
     const refund = await refundBookingToWallet(
       admin,
       bookingId,
