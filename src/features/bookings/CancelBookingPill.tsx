@@ -2,7 +2,7 @@ import { useState } from "react";
 import { XCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import CancelBookingSheet from "./CancelBookingSheet";
-import { cancelMyBooking } from "./cancelBookingClient";
+import { cancelMyBooking, type CancelBookingResponse } from "./cancelBookingClient";
 
 interface CancelBookingPillProps {
   booking: any;
@@ -32,8 +32,9 @@ export default function CancelBookingPill({ booking, onCancel, className }: Canc
     if (cancelling) return;
     setCancelling(true);
     try {
+      let result: CancelBookingResponse | null = null;
       const error: { message: string } | null = await cancelMyBooking(booking.id, reason)
-        .then(() => null)
+        .then((res) => { result = res; return null; })
         .catch((e: any) => ({ message: e?.message || "Failed to cancel booking" }));
 
       if (error) {

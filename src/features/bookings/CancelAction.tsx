@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import CancelBookingSheet from "./CancelBookingSheet";
-import { cancelMyBooking } from "./cancelBookingClient";
+import { cancelMyBooking, type CancelBookingResponse } from "./cancelBookingClient";
 
 interface CancelActionProps {
   booking: any;
@@ -29,8 +29,9 @@ export default function CancelAction({ booking, onCancel }: CancelActionProps) {
     if (cancelling) return;
     setCancelling(true);
     try {
+      let result: CancelBookingResponse | null = null;
       const error: { message: string } | null = await cancelMyBooking(booking.id, reason)
-        .then(() => null)
+        .then((res) => { result = res; return null; })
         .catch((e: any) => ({ message: e?.message || "Failed to cancel booking" }));
       
       if (error) {
