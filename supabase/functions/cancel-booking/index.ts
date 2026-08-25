@@ -61,15 +61,18 @@ serve(async (req) => {
       .eq("firebase_uid", fb.uid)
       .maybeSingle();
 
-    if (!profile?.id && phone) {
+    // Collect every profile id belonging to this caller — duplicate profile rows
+    // (same phone, different firebase_uid) otherwise cause a false "forbidden".
+    const ownedIds = new Set<string>();
+    if (profile?.id) ownedIds.add(profile.id);
+
+    if (phone) {
       const { data: byPhone } = await admin
         .from("profiles")
         .select("id")
-        .eq("phone", phone)
-        .order("updated_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      profile = byPhone;
+        .eq("phone", phone);
+      (byPhone || []).forEach((p: any) => p?.id && ownedIds.add(p.id));
+      if (!profile?.id && byPhone?.length) profile = byPhone[0];
     }
 
     if (!profile?.id) return jsonResponse({ error: "Profile not found" }, 403);
@@ -85,7 +88,16 @@ serve(async (req) => {
       return jsonResponse({ error: "Failed to load booking" }, 500);
     }
     if (!booking) return jsonResponse({ error: "booking_not_found" }, 404);
-    if (booking.user_id !== profile.id) return jsonResponse({ error: "forbidden" }, 403);
+    if (!booking.user_id || !ownedIds.has(booking.user_id)) {
+      console.warn("[cancel-booking] ownership mismatch", {
+        bookingUser: booking.user_id,
+        ownedIds: [...ownedIds],
+      });
+      return jsonResponse({ error: "forbidden" }, 403);
+    }
+    // Refunds are credited to the profile that actually paid for the booking.
+    profile = { id: booking.user_id };
+
     if (booking.cancelled_at || booking.status === "cancelled") {
       return jsonResponse({ success: true, already_cancelled: true });
     }
@@ -93,24 +105,91 @@ serve(async (req) => {
       return jsonResponse({ error: "already_completed" }, 409);
     }
 
-    const { error: updateError } = await admin
-      .from("bookings")
-      .update({
+    // Resilient cancellation: the external DB schema/triggers vary between
+    // environments, so a single rigid UPDATE can fail with "column does not
+    // exist" (42703 / PGRST204) or a trigger error and leave the user stuck.
+    // Try progressively simpler payloads, then fall back to RPCs.
+    const nowIso = new Date().toISOString();
+    const attempts: Record<string, unknown>[] = [
+      {
         status: "cancelled",
-        cancelled_at: new Date().toISOString(),
+        cancelled_at: nowIso,
         cancel_reason: reason,
         cancel_source: "user",
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", bookingId)
-      .is("cancelled_at", null);
+        updated_at: nowIso,
+      },
+      { status: "cancelled", cancelled_at: nowIso, cancel_reason: reason, updated_at: nowIso },
+      { status: "cancelled", cancelled_at: nowIso, updated_at: nowIso },
+      { status: "cancelled", cancelled_at: nowIso },
+      { status: "cancelled" },
+    ];
 
-    if (updateError) {
-      console.error("[cancel-booking] update failed", updateError);
-      return jsonResponse({ error: updateError.message || "Failed to cancel booking" }, 500);
+    let cancelled = false;
+    let lastError: any = null;
+
+    for (const payload of attempts) {
+      const { error } = await admin
+        .from("bookings")
+        .update(payload)
+        .eq("id", bookingId)
+        .is("cancelled_at", null);
+
+      if (!error) {
+        cancelled = true;
+        break;
+      }
+      lastError = error;
+      console.warn("[cancel-booking] update attempt failed", {
+        code: error.code,
+        message: error.message,
+        keys: Object.keys(payload),
+      });
+      // Only retry with a smaller payload for schema mismatches; other errors
+      // (triggers, constraints) won't be fixed by dropping columns.
+      if (!["42703", "PGRST204", "PGRST116"].includes(String(error.code))) break;
+    }
+
+    // Last resort: server-side RPCs (may bypass problematic column paths).
+    if (!cancelled) {
+      for (const rpc of ["admin_cancel_booking", "user_cancel_booking", "cancel_booking"]) {
+        const { error } = await admin.rpc(rpc, {
+          p_booking_id: bookingId,
+          p_reason: reason || "user_cancelled",
+        });
+        if (!error) {
+          cancelled = true;
+          console.log(`[cancel-booking] cancelled via RPC ${rpc}`);
+          break;
+        }
+        console.warn(`[cancel-booking] RPC ${rpc} failed`, error.code, error.message);
+      }
+    }
+
+    if (!cancelled) {
+      // Verify — the row may already be cancelled by a concurrent request.
+      const { data: recheck } = await admin
+        .from("bookings")
+        .select("status, cancelled_at")
+        .eq("id", bookingId)
+        .maybeSingle();
+      if (recheck?.status === "cancelled" || recheck?.cancelled_at) {
+        cancelled = true;
+      }
+    }
+
+    if (!cancelled) {
+      console.error("[cancel-booking] all cancellation paths failed", lastError);
+      return jsonResponse(
+        {
+          error: lastError?.message || "Failed to cancel booking",
+          code: lastError?.code || "cancel_failed",
+        },
+        500,
+      );
     }
 
     console.log(`[cancel-booking] cancelled booking=${bookingId} profile=${profile.id}`);
+
 
     // Wallet refund — single authoritative resolver. The amount is always the
     // amount actually charged (wallet + razorpay captured, else

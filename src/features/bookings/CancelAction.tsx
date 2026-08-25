@@ -88,6 +88,18 @@ export default function CancelAction({ booking, onCancel }: CancelActionProps) {
 
   return (
     <>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => setSheetOpen(true)}
+        disabled={cancelling}
+        aria-label="Cancel booking"
+        className="h-8 rounded-full px-3 text-[12px] border-destructive/30 text-destructive hover:bg-destructive/5"
+      >
+        <X className="w-3.5 h-3.5 mr-1.5" />
+        Cancel Booking
+      </Button>
+
 
       <CancelBookingSheet
         open={sheetOpen}
