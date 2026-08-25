@@ -61,15 +61,18 @@ serve(async (req) => {
       .eq("firebase_uid", fb.uid)
       .maybeSingle();
 
-    if (!profile?.id && phone) {
+    // Collect every profile id belonging to this caller — duplicate profile rows
+    // (same phone, different firebase_uid) otherwise cause a false "forbidden".
+    const ownedIds = new Set<string>();
+    if (profile?.id) ownedIds.add(profile.id);
+
+    if (phone) {
       const { data: byPhone } = await admin
         .from("profiles")
         .select("id")
-        .eq("phone", phone)
-        .order("updated_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      profile = byPhone;
+        .eq("phone", phone);
+      (byPhone || []).forEach((p: any) => p?.id && ownedIds.add(p.id));
+      if (!profile?.id && byPhone?.length) profile = byPhone[0];
     }
 
     if (!profile?.id) return jsonResponse({ error: "Profile not found" }, 403);
@@ -85,7 +88,16 @@ serve(async (req) => {
       return jsonResponse({ error: "Failed to load booking" }, 500);
     }
     if (!booking) return jsonResponse({ error: "booking_not_found" }, 404);
-    if (booking.user_id !== profile.id) return jsonResponse({ error: "forbidden" }, 403);
+    if (!booking.user_id || !ownedIds.has(booking.user_id)) {
+      console.warn("[cancel-booking] ownership mismatch", {
+        bookingUser: booking.user_id,
+        ownedIds: [...ownedIds],
+      });
+      return jsonResponse({ error: "forbidden" }, 403);
+    }
+    // Refunds are credited to the profile that actually paid for the booking.
+    profile = { id: booking.user_id };
+
     if (booking.cancelled_at || booking.status === "cancelled") {
       return jsonResponse({ success: true, already_cancelled: true });
     }
