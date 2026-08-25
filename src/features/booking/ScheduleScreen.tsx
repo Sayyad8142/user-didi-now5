@@ -23,6 +23,7 @@ import {
   makeSlots, 
   toDisplay12h, 
   isPastToday, 
+  getISTNow,
   getDateChips,
   TIME_SEGMENTS,
   TIME_SEGMENTS_COOK,
@@ -613,11 +614,10 @@ export function ScheduleScreen() {
                     const isPast = isPastToday(slot, selectedDate);
                     const isSelected = selectedTime === slot;
                     const slotSurge = getSurge(slot);
-                    // Allowlist: slot must be explicitly returned as available by backend
-                    // While loading (availableSlots === null), disable all slots
-                    const isSlotUnavailable = availableSlots !== null && !availableSlots.has(slot);
-                    const isStillLoading = availableSlots === null && loadingAvailability;
-                    const isDisabled = isPast || isSlotUnavailable || isStillLoading;
+                    const isStillLoading = availabilityStatus === 'loading';
+                    // Same predicate the Confirm handler uses — no separate rules.
+                    const isDisabled = !isSlotSelectable(slot);
+                    const isSlotUnavailable = isDisabled && !isPast && !isStillLoading;
                     
                     return (
                       <Button
