@@ -549,7 +549,7 @@ export function ScheduleScreen() {
     30
   );
 
-  const canConfirm = selectedDate && selectedTime && !submitting;
+  const canConfirm = Boolean(selectedDate && selectedTime && !submitting && isSlotSelectable(selectedTime));
 
   return (
     <div className="min-h-screen bg-background">
