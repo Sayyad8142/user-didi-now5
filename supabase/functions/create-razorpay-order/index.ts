@@ -12,6 +12,7 @@ import { countActiveInstantBookings } from "../_shared/capacityRules.ts";
 import { verifyFirebaseToken, extractToken, corsHeaders } from "../_shared/firebaseAuth.ts";
 import { getExpectedSurge, validateBookingSurge } from "../_shared/userSurge.ts";
 import { getExpectedSlotSurge, validateSlotSurge, validatePriceComposition } from "../_shared/slotSurge.ts";
+import { validateScheduledSlot } from "../_shared/scheduledSlot.ts";
 import {
   EXTERNAL_SUPABASE_URL,
   EXTERNAL_SUPABASE_SERVICE_ROLE_KEY,
@@ -133,6 +134,27 @@ Deno.serve(async (req) => {
 
       // ── Server-side slot surge enforcement (Scheduled) ─────────
       if (safeBookingData.booking_type === "scheduled" && safeBookingData.scheduled_time) {
+        // Reject an unbookable slot BEFORE charging the customer.
+        const slotCheck = await validateScheduledSlot(supabase, {
+          community: safeBookingData.community,
+          service_type: safeBookingData.service_type,
+          scheduled_date: safeBookingData.scheduled_date,
+          scheduled_time: safeBookingData.scheduled_time,
+        });
+        if (!slotCheck.ok) {
+          console.warn(
+            `[create-razorpay-order] ❌ ${slotCheck.code} user=${profile.id} date=${safeBookingData.scheduled_date} slot=${safeBookingData.scheduled_time} community=${safeBookingData.community} service=${safeBookingData.service_type} reason=${slotCheck.reason}`,
+          );
+          return new Response(
+            JSON.stringify({
+              error: "That slot is no longer available. Please pick another slot.",
+              code: slotCheck.code,
+              detail: slotCheck.reason,
+            }),
+            { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
+        }
+
         const scheduledTime = String(safeBookingData.scheduled_time);
         const communityId = (safeBookingData.community_id as string) || null;
         const serviceKey = (safeBookingData.service_type as string) || service_type || "maid";
