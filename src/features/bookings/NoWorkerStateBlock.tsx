@@ -67,12 +67,16 @@ export function isNoWorkerCancellation(b: Booking): boolean {
   );
 }
 
-/** Should the countdown UI render for this booking? */
-export function shouldShowDispatchCountdown(b: Booking): boolean {
-  if (b.status !== 'pending') return false;
-  if (b.worker_id) return false;
-  return !!getDispatchExpiresAt(b);
+/**
+ * Should the countdown UI render for this booking?
+ * Never: bookings are no longer auto-cancelled when no worker accepts, so a
+ * countdown to cancellation would be false. The booking keeps waiting and is
+ * redispatched to newly available workers.
+ */
+export function shouldShowDispatchCountdown(_b: Booking): boolean {
+  return false;
 }
+
 
 export function FindingWorkerCountdown({ booking }: { booking: Booking }) {
   const expiresAt = getDispatchExpiresAt(booking);
