@@ -243,20 +243,52 @@ export function ScheduleScreen() {
     if (!selectedDate || !selectedTime || !profile || !user || !service_type || !price) {
       return;
     }
+    if (submitting) return; // double-tap guard
     if (service_type !== 'bathroom_cleaning' && !flatSize) return;
     if (service_type === 'bathroom_cleaning' && !bathroomCount) return;
 
-    const isThirtyMinuteSlot = /^\d{1,2}:(00|30)$/.test(selectedTime);
-    const isSelectedSlotAvailable = availableSlots !== null && availableSlots.has(selectedTime);
+    const canonicalSlot = selectedTime; // canonical: 'HH:mm' IST, never re-derived from Date
+    const canonicalDate = format(selectedDate, 'yyyy-MM-dd');
 
-    if (!isThirtyMinuteSlot || !isSelectedSlotAvailable) {
-      toast({
-        title: 'Slot unavailable',
-        description: 'Please select a currently available 30-minute slot before continuing.',
-        variant: 'destructive',
-      });
-      return;
+    // Same rule set as the slot grid. If it fails here, re-validate against the
+    // backend once before rejecting (the slot may have just expired/sold out).
+    if (!isSlotSelectable(canonicalSlot)) {
+      const refreshed = await fetchAvailability();
+      const stillOk =
+        /^\d{1,2}:(00|30)$/.test(canonicalSlot) &&
+        !isPastToday(canonicalSlot, selectedDate) &&
+        (refreshed === null || refreshed.has(canonicalSlot));
+
+      if (!stillOk) {
+        const ist = getISTNow();
+        console.warn('[schedule] slot rejected', {
+          reason: !/^\d{1,2}:(00|30)$/.test(canonicalSlot)
+            ? 'not_30_min_boundary'
+            : isPastToday(canonicalSlot, selectedDate)
+            ? 'slot_in_past_or_lead_time'
+            : 'not_in_backend_allowlist',
+          canonicalDate,
+          canonicalSlot,
+          timezone: 'Asia/Kolkata',
+          istNow: `${ist.y}-${String(ist.m).padStart(2, '0')}-${String(ist.d).padStart(2, '0')} ${String(Math.floor(ist.minutes / 60)).padStart(2, '0')}:${String(ist.minutes % 60).padStart(2, '0')}`,
+          deviceNow: new Date().toString(),
+          deviceTz: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          service: service_type,
+          community: profile.community,
+          communityId: profile.community_id,
+          availabilityStatus,
+          allowlistSize: refreshed ? refreshed.size : null,
+        });
+        setSelectedTime('');
+        toast({
+          title: 'Slot just became unavailable',
+          description: 'That slot is no longer bookable. Please pick another available slot.',
+          variant: 'destructive',
+        });
+        return;
+      }
     }
+
 
     setSubmitting(true);
     try {
