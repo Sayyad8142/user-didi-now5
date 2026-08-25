@@ -82,8 +82,11 @@ export function ScheduleScreen() {
   const [showAvailabilityWarning, setShowAvailabilityWarning] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('pay_now');
   const [showPaymentPicker, setShowPaymentPicker] = useState(false);
-  const [availableSlots, setAvailableSlots] = useState<Set<string> | null>(null); // null = still loading
+  const [availableSlots, setAvailableSlots] = useState<Set<string> | null>(null); // null = no allowlist known
   const [loadingAvailability, setLoadingAvailability] = useState(false);
+  // 'loading' → disable everything; 'ready' → allowlist authoritative; 'unknown' → allowlist unavailable, backend validates
+  const [availabilityStatus, setAvailabilityStatus] = useState<'loading' | 'ready' | 'unknown'>('loading');
+
 
   // Retry state
   const [retrySheetOpen, setRetrySheetOpen] = useState(false);
