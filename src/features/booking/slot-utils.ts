@@ -29,26 +29,43 @@ export const toDisplay12h = (hhmm: string): string => {
   return format(date, 'h:mm a');
 };
 
-export const isPastToday = (hhmm: string, selectedDate: Date, minBuffer = 30): boolean => {
-  const today = new Date();
-  const selectedDateStart = new Date(selectedDate);
-  selectedDateStart.setHours(0, 0, 0, 0);
-  const todayStart = new Date(today);
-  todayStart.setHours(0, 0, 0, 0);
-  
-  // If selected date is not today, it's not past
-  if (selectedDateStart.getTime() !== todayStart.getTime()) {
-    return false;
-  }
-  
-  const [hours, minutes] = hhmm.split(':').map(Number);
-  const slotTime = new Date();
-  slotTime.setHours(hours, minutes, 0, 0);
-  
-  const nowPlusBuffer = addMinutes(today, minBuffer);
-  
-  return isAfter(nowPlusBuffer, slotTime);
+/** Current wall-clock time in Asia/Kolkata, regardless of device timezone. */
+export const getISTNow = (): { y: number; m: number; d: number; minutes: number } => {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Kolkata',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', hour12: false,
+  }).formatToParts(new Date());
+  const get = (t: string) => Number(parts.find(p => p.type === t)?.value ?? 0);
+  const hour = get('hour') % 24;
+  return { y: get('year'), m: get('month'), d: get('day'), minutes: hour * 60 + get('minute') };
 };
+
+/**
+ * Is the slot in the past (or inside the lead-time buffer) for the selected date?
+ * Always evaluated against Asia/Kolkata so a device with a wrong/foreign timezone
+ * can neither hide valid slots nor enable expired ones.
+ */
+export const isPastToday = (hhmm: string, selectedDate: Date, minBuffer = 30): boolean => {
+  const ist = getISTNow();
+
+  // Compare calendar dates using the selected date's own local Y/M/D (chips are built locally).
+  const selY = selectedDate.getFullYear();
+  const selM = selectedDate.getMonth() + 1;
+  const selD = selectedDate.getDate();
+
+  const selKey = selY * 10000 + selM * 100 + selD;
+  const istKey = ist.y * 10000 + ist.m * 100 + ist.d;
+
+  if (selKey > istKey) return false;   // future date → nothing is past
+  if (selKey < istKey) return true;    // past date → everything is past
+
+  const [hours, minutes] = hhmm.split(':').map(Number);
+  const slotMinutes = hours * 60 + minutes;
+
+  return slotMinutes < ist.minutes + minBuffer;
+};
+
 
 export const getDateChips = (): Array<{ date: Date; label: string; dayLabel: string; isToday: boolean }> => {
   const chips = [];
