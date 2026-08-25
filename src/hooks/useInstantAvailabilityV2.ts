@@ -1,6 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { LOVABLE_CLOUD_FUNCTIONS_URL, PRODUCTION_ANON_KEY } from '@/lib/constants';
+import { Capacitor } from '@capacitor/core';
+import { APP_VERSION_NAME } from '@/config/version';
+
 
 export type AvailabilityReason = 'AVAILABLE' | 'CLOSED' | 'BUSY' | 'NO_SUPPLY' | 'ERROR' | 'MISSING_INPUTS';
 
@@ -31,8 +34,11 @@ export function useInstantBookingAvailability(serviceType: string | undefined, c
         headers: {
           'Content-Type': 'application/json',
           'apikey': PRODUCTION_ANON_KEY,
-          'Authorization': `Bearer ${PRODUCTION_ANON_KEY}`
+          'Authorization': `Bearer ${PRODUCTION_ANON_KEY}`,
+          'x-app-version': String(APP_VERSION_NAME),
+          'x-app-platform': Capacitor.getPlatform()
         },
+
         body: JSON.stringify({ service: serviceType, community })
       });
       

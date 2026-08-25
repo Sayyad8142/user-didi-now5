@@ -26,6 +26,9 @@ import { getFirebaseIdToken, waitForFirebaseAuthReady } from '@/lib/firebase';
 import { fetchWalletBalanceValue } from '@/lib/wallet';
 import { runCheckout, type CheckoutResult } from './checkoutRunner';
 import { LOVABLE_CLOUD_FUNCTIONS_URL, PRODUCTION_ANON_KEY } from '@/lib/constants';
+import { Capacitor } from '@capacitor/core';
+import { APP_VERSION_NAME } from '@/config/version';
+
 import {
   trackPaymentEvent,
   savePreferredMethod,
@@ -387,7 +390,10 @@ async function checkBookingCapacity(
           'Content-Type': 'application/json',
           apikey: PRODUCTION_ANON_KEY,
           Authorization: `Bearer ${PRODUCTION_ANON_KEY}`,
+          'x-app-version': String(APP_VERSION_NAME),
+          'x-app-platform': Capacitor.getPlatform(),
         },
+
         body: JSON.stringify({
           community_name: community,
           service_type: serviceType,
