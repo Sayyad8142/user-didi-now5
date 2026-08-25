@@ -27,6 +27,24 @@ Deno.serve(async (req) => {
   };
 
   report.get_online_workers_count = await rpc("get_online_workers_count", { p_community: community });
+
+  // Force PostgREST to project the legacy column: distinguishes a stale schema
+  // cache (works) from DDL that never committed (errors naming online_count).
+  {
+    const { data, error } = await db
+      .rpc("get_online_workers_count", { p_community: community })
+      .select("service,online_count,fresh_count,stale_count,total_count");
+    report.projected_online_count = error ? { error: error.message } : { data };
+  }
+  {
+    const probes = ["exec_sql", "execute_sql", "run_sql", "admin_exec_sql"];
+    const out: Record<string, string> = {};
+    for (const fn of probes) {
+      const { error } = await db.rpc(fn, { sql: "select 1" });
+      out[fn] = error ? error.message : "OK";
+    }
+    report.sql_exec_probes = out;
+  }
   report.get_online_workers_count_core = await rpc("get_online_workers_count_core", { p_community: community });
   report.check_instant_supply = await rpc("check_instant_supply", { p_community: community });
   report.instant_limit_for_service_maid = await rpc("instant_limit_for_service", { p_service_type: "maid" });
