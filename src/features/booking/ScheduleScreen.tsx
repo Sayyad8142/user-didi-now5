@@ -154,29 +154,57 @@ export function ScheduleScreen() {
       return null;
     }
     setLoadingAvailability(true);
+    const dateStr = format(selectedDate, 'yyyy-MM-dd');
+
+    const toAllowlist = (rows: any[]): Set<string> => {
+      const allowed = new Set<string>();
+      (rows || []).forEach((row: { slot_time: string; worker_count: number }) => {
+        if (Number(row.worker_count) >= 1) {
+          const normalized = String(row.slot_time).slice(0, 5);
+          allowed.add(normalized);
+        }
+      });
+      return allowed;
+    };
+
     try {
-      const dateStr = format(selectedDate, 'yyyy-MM-dd');
       const { data, error } = await supabase.rpc('get_scheduled_slot_availability', {
         p_community: profile.community,
         p_service_type: service_type,
         p_date: dateStr,
       });
-      if (error) {
-        console.warn('[schedule] slot availability unavailable, deferring to backend validation:', error.message);
-        setAvailableSlots(null);
-        setAvailabilityStatus('unknown');
-        return null;
+
+      if (!error) {
+        const allowed = toAllowlist(data as any[]);
+        setAvailableSlots(allowed);
+        setAvailabilityStatus('ready');
+        return allowed;
       }
-      const allowed = new Set<string>();
-      ((data as any[]) || []).forEach((row: { slot_time: string; worker_count: number }) => {
-        if (row.worker_count >= 1) {
-          const normalized = row.slot_time.length > 5 ? row.slot_time.slice(0, 5) : row.slot_time;
-          allowed.add(normalized);
-        }
+
+      // Direct RPC blocked (commonly 42501 permission denied). Do NOT degrade
+      // silently: use the service-role proxy AND report the failure so admin
+      // monitoring can fix the grant instead of living on the fallback.
+      console.warn('[schedule] slot availability RPC failed, trying proxy:', error.code, error.message);
+      const { data: proxy, error: proxyError } = await supabase.functions.invoke('list-slot-availability', {
+        body: {
+          community: profile.community,
+          service_type,
+          date: dateStr,
+          client_rpc_error: `${error.code || ''} ${error.message}`.trim(),
+        },
       });
-      setAvailableSlots(allowed);
-      setAvailabilityStatus('ready');
-      return allowed;
+
+      if (!proxyError && proxy?.slots) {
+        const allowed = toAllowlist(proxy.slots);
+        setAvailableSlots(allowed);
+        setAvailabilityStatus('ready');
+        return allowed;
+      }
+
+      console.warn('[schedule] proxy availability unavailable, deferring to backend validation:', proxyError?.message || proxy?.error);
+      setAvailableSlots(null);
+      setAvailabilityStatus('unknown');
+      return null;
     } catch (err) {
       console.warn('[schedule] slot availability fetch failed, deferring to backend validation:', err);
       setAvailableSlots(null);
@@ -186,6 +214,7 @@ export function ScheduleScreen() {
       setLoadingAvailability(false);
     }
   }, [selectedDate, profile?.community, service_type]);
+
 
   useEffect(() => {
     let cancelled = false;
