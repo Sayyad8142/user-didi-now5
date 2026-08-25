@@ -143,52 +143,79 @@ export function ScheduleScreen() {
     setInitialSegmentSet(true);
   }, [initialSegmentSet, selectedDate]);
 
-  // Fetch slot availability when date or community changes — ALLOWLIST approach
-  useEffect(() => {
+  // Fetch slot availability when date or community changes.
+  // Result is either an authoritative allowlist ('ready') or 'unknown' when the
+  // backend can't answer — 'unknown' must never disagree between UI and confirm.
+  const fetchAvailability = React.useCallback(async (): Promise<Set<string> | null> => {
     if (!selectedDate || !profile?.community || !service_type) {
       setAvailableSlots(null);
-      return;
+      setAvailabilityStatus('unknown');
+      return null;
     }
-
-    let cancelled = false;
-    const fetchAvailability = async () => {
-      setLoadingAvailability(true);
-      setAvailableSlots(null); // reset while loading
-      try {
-        const dateStr = format(selectedDate, 'yyyy-MM-dd');
-        const { data, error } = await supabase.rpc('get_scheduled_slot_availability', {
-          p_community: profile.community,
-          p_service_type: service_type,
-          p_date: dateStr,
-        });
-        if (error || cancelled) return;
-        const allowed = new Set<string>();
-        ((data as any[]) || []).forEach((row: { slot_time: string; worker_count: number }) => {
-          if (row.worker_count >= 1) {
-            const normalized = row.slot_time.length > 5 ? row.slot_time.slice(0, 5) : row.slot_time;
-            allowed.add(normalized);
-          }
-        });
-        if (!cancelled) setAvailableSlots(allowed);
-      } catch (err) {
-        console.error('Slot availability fetch failed:', err);
-      } finally {
-        if (!cancelled) setLoadingAvailability(false);
+    setLoadingAvailability(true);
+    try {
+      const dateStr = format(selectedDate, 'yyyy-MM-dd');
+      const { data, error } = await supabase.rpc('get_scheduled_slot_availability', {
+        p_community: profile.community,
+        p_service_type: service_type,
+        p_date: dateStr,
+      });
+      if (error) {
+        console.warn('[schedule] slot availability unavailable, deferring to backend validation:', error.message);
+        setAvailableSlots(null);
+        setAvailabilityStatus('unknown');
+        return null;
       }
-    };
-
-    fetchAvailability();
-    return () => {
-      cancelled = true;
-    };
+      const allowed = new Set<string>();
+      ((data as any[]) || []).forEach((row: { slot_time: string; worker_count: number }) => {
+        if (row.worker_count >= 1) {
+          const normalized = row.slot_time.length > 5 ? row.slot_time.slice(0, 5) : row.slot_time;
+          allowed.add(normalized);
+        }
+      });
+      setAvailableSlots(allowed);
+      setAvailabilityStatus('ready');
+      return allowed;
+    } catch (err) {
+      console.warn('[schedule] slot availability fetch failed, deferring to backend validation:', err);
+      setAvailableSlots(null);
+      setAvailabilityStatus('unknown');
+      return null;
+    } finally {
+      setLoadingAvailability(false);
+    }
   }, [selectedDate, profile?.community, service_type]);
 
-  // Auto-clear selected slot if it becomes unavailable after availability loads
   useEffect(() => {
-    if (availableSlots !== null && selectedTime && !availableSlots.has(selectedTime)) {
+    let cancelled = false;
+    setAvailabilityStatus('loading');
+    setAvailableSlots(null);
+    fetchAvailability().catch(() => {});
+    return () => {
+      cancelled = true;
+      void cancelled;
+    };
+  }, [fetchAvailability]);
+
+  /** SINGLE SOURCE OF TRUTH for slot validity (display + selection + confirm). */
+  const isSlotSelectable = React.useCallback(
+    (slot: string): boolean => {
+      if (!/^\d{1,2}:(00|30)$/.test(slot)) return false;
+      if (isPastToday(slot, selectedDate)) return false;
+      if (availabilityStatus === 'loading') return false;
+      if (availabilityStatus === 'ready' && availableSlots) return availableSlots.has(slot);
+      return true; // 'unknown' → allow; backend is authoritative
+    },
+    [selectedDate, availabilityStatus, availableSlots]
+  );
+
+  // Auto-clear selected slot if it stops being selectable (expired or sold out)
+  useEffect(() => {
+    if (selectedTime && availabilityStatus !== 'loading' && !isSlotSelectable(selectedTime)) {
       setSelectedTime('');
     }
-  }, [availableSlots, selectedTime]);
+  }, [selectedTime, availabilityStatus, isSlotSelectable]);
+
 
   useEffect(() => {
     if (priceParam) {
