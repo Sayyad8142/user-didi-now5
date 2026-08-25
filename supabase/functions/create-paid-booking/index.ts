@@ -20,6 +20,7 @@ import {
 } from "../_shared/firebaseAuth.ts";
 import { getExpectedSurge, validateBookingSurge } from "../_shared/userSurge.ts";
 import { getExpectedSlotSurge, validateSlotSurge, validatePriceComposition } from "../_shared/slotSurge.ts";
+import { validateScheduledSlot } from "../_shared/scheduledSlot.ts";
 
 const RAZORPAY_KEY_SECRET = Deno.env.get("RAZORPAY_KEY_SECRET")!;
 const SUPABASE_URL =
@@ -342,6 +343,35 @@ Deno.serve(async (req) => {
 
     // 4c. Server-side slot surge enforcement (Scheduled Bookings)
     if (booking_data.booking_type === "scheduled" && booking_data.scheduled_time) {
+      // 4c-0. Independent slot validation — the client is allowed to proceed when
+      // its availability allowlist is unknown, so the backend re-validates
+      // date + HH:mm + community + service_type here (IST, service role).
+      const slotCheck = await validateScheduledSlot(supabase, {
+        community: booking_data.community,
+        service_type: booking_data.service_type,
+        scheduled_date: booking_data.scheduled_date,
+        scheduled_time: booking_data.scheduled_time,
+      });
+      if (!slotCheck.ok) {
+        console.warn(
+          `[create-paid-booking] ❌ ${slotCheck.code} user=${profile.id} date=${booking_data.scheduled_date} slot=${booking_data.scheduled_time} community=${booking_data.community} service=${booking_data.service_type} reason=${slotCheck.reason}`,
+        );
+        return json(
+          {
+            error:
+              slotCheck.code === "SLOT_SOLD_OUT" || slotCheck.code === "SLOT_NOT_OFFERED"
+                ? "That slot is no longer available. Please pick another slot."
+                : "That slot is no longer bookable. Please pick another slot.",
+            code: slotCheck.code,
+            detail: slotCheck.reason,
+          },
+          409,
+        );
+      }
+      console.log(
+        `[create-paid-booking] ✅ SLOT_VALIDATED date=${booking_data.scheduled_date} slot=${booking_data.scheduled_time} workers=${slotCheck.workerCount} source=${slotCheck.source}`,
+      );
+
       const scheduledTime = String(booking_data.scheduled_time);
       const communityId = (booking_data.community_id as string) || null;
       const serviceKey = (booking_data.service_type as string) || "maid";
