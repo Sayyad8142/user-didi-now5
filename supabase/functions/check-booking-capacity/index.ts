@@ -46,9 +46,18 @@ Deno.serve(async (req) => {
     .json()
     .catch(() => ({}));
 
+  // Temporary diagnostics: identify which app build asked, and when (IST).
+  const appVersion = req.headers.get("x-app-version") ?? "unknown";
+  const platform = req.headers.get("x-app-platform") ?? "unknown";
+  const istTime = new Date(
+    Date.now() + 5.5 * 60 * 60 * 1000 + new Date().getTimezoneOffset() * 60000,
+  ).toISOString();
+
   console.log(
-    `[check-booking-capacity] capacity_gate_checked community=${community_name} service=${service_type} type=${booking_type}`,
+    `[check-booking-capacity] capacity_gate_checked community=${community_name} service=${service_type} type=${booking_type} ` +
+      `app_version=${appVersion} platform=${platform} client=${req.headers.get("x-client-info") ?? "unknown"} ist=${istTime}`,
   );
+
 
   // Scheduled bookings are governed by slot availability, not the instant cap.
   if (booking_type && booking_type !== "instant") {
