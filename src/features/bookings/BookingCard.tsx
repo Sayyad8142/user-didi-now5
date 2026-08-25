@@ -739,12 +739,10 @@ export function BookingCard({
           return null;
         }
         if (row.status === 'pending') {
-          return (
-            <div className="mt-3 ml-1 mr-1 flex justify-end animate-fade-in">
-              <CancelAction booking={row} onCancel={() => {}} />
-            </div>
-          );
+          // Cancel is rendered once in the footer action row (CancelBookingPill).
+          return null;
         }
+
         if ((row.status === 'assigned' || row.status === 'accepted' || row.status === 'on_the_way') && row.worker_phone) {
           return (
             <div className="mt-3 ml-1 mr-1 flex justify-end animate-fade-in">
