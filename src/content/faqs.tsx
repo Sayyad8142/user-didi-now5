@@ -75,7 +75,7 @@ export const FAQ_CATEGORIES: FaqCategory[] = [
       {
         id: "b-none",
         q: "What if no worker is available?",
-        a: "If no worker can be assigned, the booking may auto-cancel and any eligible refund or wallet credit is processed automatically.",
+        a: "Your booking stays active while we keep looking. We retry every newly available worker automatically, and we never cancel your booking for you — you can cancel any time and any eligible refund or wallet credit is processed automatically.",
       },
     ],
   },
