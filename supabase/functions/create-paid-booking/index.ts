@@ -21,6 +21,7 @@ import {
 import { getExpectedSurge, validateBookingSurge } from "../_shared/userSurge.ts";
 import { getExpectedSlotSurge, validateSlotSurge, validatePriceComposition } from "../_shared/slotSurge.ts";
 import { validateScheduledSlot } from "../_shared/scheduledSlot.ts";
+import { resolveBookingCommunity } from "../_shared/bookingCommunity.ts";
 
 const RAZORPAY_KEY_SECRET = Deno.env.get("RAZORPAY_KEY_SECRET")!;
 const SUPABASE_URL =
@@ -343,11 +344,13 @@ Deno.serve(async (req) => {
 
     // 4c. Server-side slot surge enforcement (Scheduled Bookings)
     if (booking_data.booking_type === "scheduled" && booking_data.scheduled_time) {
+      const availabilityCommunity = await resolveBookingCommunity(supabase, booking_data);
+      booking_data.community = availabilityCommunity;
       // 4c-0. Independent slot validation — the client is allowed to proceed when
       // its availability allowlist is unknown, so the backend re-validates
       // date + HH:mm + community + service_type here (IST, service role).
       const slotCheck = await validateScheduledSlot(supabase, {
-        community: booking_data.community,
+        community: availabilityCommunity,
         service_type: booking_data.service_type,
         scheduled_date: booking_data.scheduled_date,
         scheduled_time: booking_data.scheduled_time,

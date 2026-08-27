@@ -18,6 +18,8 @@ import {
   corsHeaders,
 } from "../_shared/firebaseAuth.ts";
 import { getExpectedSurge, validateBookingSurge } from "../_shared/userSurge.ts";
+import { validateScheduledSlot } from "../_shared/scheduledSlot.ts";
+import { resolveBookingCommunity } from "../_shared/bookingCommunity.ts";
 
 function cleanSecret(raw?: string | null): string {
   if (!raw) return "";
@@ -177,6 +179,30 @@ Deno.serve(async (req) => {
       );
     }
     booking_data.loyalty_surge_amount = expectedSurge;
+
+    if (booking_data.booking_type === "scheduled" && booking_data.scheduled_time) {
+      const availabilityCommunity = await resolveBookingCommunity(supabase, booking_data);
+      booking_data.community = availabilityCommunity;
+      const slotCheck = await validateScheduledSlot(supabase, {
+        community: availabilityCommunity,
+        service_type: booking_data.service_type,
+        scheduled_date: booking_data.scheduled_date,
+        scheduled_time: booking_data.scheduled_time,
+      });
+      if (!slotCheck.ok) {
+        console.warn(
+          `[create-pending-booking] ${slotCheck.code} user=${profile.id} community=${availabilityCommunity} service=${booking_data.service_type} date=${booking_data.scheduled_date} slot=${booking_data.scheduled_time} reason=${slotCheck.reason}`,
+        );
+        return json({
+          error: "That slot is no longer available. Please pick another slot.",
+          code: slotCheck.code,
+          detail: slotCheck.reason,
+        }, 409);
+      }
+      console.log(
+        `[create-pending-booking] SLOT_VALIDATED date=${booking_data.scheduled_date} slot=${booking_data.scheduled_time} workers=${slotCheck.workerCount} source=${slotCheck.source}`,
+      );
+    }
 
     // Sanity guard: this function is for non-online payments only
     const ps = booking_data.payment_status;

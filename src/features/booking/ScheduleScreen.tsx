@@ -30,7 +30,9 @@ import {
   type TimeSegment 
 } from './slot-utils';
 import { useSlotSurge } from '@/hooks/useSlotSurge';
+import { useCommunities } from '@/hooks/useCommunities';
 import { formatSurgeLabel, getSurgeColor } from '@/lib/slotSurge';
+import { LOVABLE_CLOUD_FUNCTIONS_URL } from '@/lib/constants';
 import { format } from 'date-fns';
 import { Zap } from 'lucide-react';
 import {
@@ -55,6 +57,7 @@ export function ScheduleScreen() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { profile, loading: profileLoading } = useProfile();
+  const { communities } = useCommunities();
   const { toast } = useToast();
   const { flatSize: autoFlatSize } = useFlatSize();
   const { data: walletData } = useWalletBalance();
@@ -102,6 +105,10 @@ export function ScheduleScreen() {
   const { getSurge, surgeMap } = useSlotSurge(profile?.community_id, service_type || 'maid');
   const { surge: userSurge } = useUserSurge();
   const loyaltySurgeAmount = userSurge.amount;
+  const availabilityCommunity = React.useMemo(() => {
+    const byId = communities.find((community) => community.id === profile?.community_id);
+    return byId?.value || profile?.community || '';
+  }, [communities, profile?.community_id, profile?.community]);
 
   // Use flat size from hook (admin-managed) instead of URL param
   const flatSize = autoFlatSize || searchParams.get('flat');
@@ -148,7 +155,7 @@ export function ScheduleScreen() {
   // Result is either an authoritative allowlist ('ready') or 'unknown' when the
   // backend can't answer — 'unknown' must never disagree between UI and confirm.
   const fetchAvailability = React.useCallback(async (): Promise<Set<string> | null> => {
-    if (!selectedDate || !profile?.community || !service_type) {
+    if (!selectedDate || !availabilityCommunity || !service_type) {
       setAvailableSlots(null);
       setAvailabilityStatus('unknown');
       return null;
@@ -169,7 +176,7 @@ export function ScheduleScreen() {
 
     try {
       const { data, error } = await supabase.rpc('get_scheduled_slot_availability', {
-        p_community: profile.community,
+        p_community: availabilityCommunity,
         p_service_type: service_type,
         p_date: dateStr,
       });
@@ -185,23 +192,26 @@ export function ScheduleScreen() {
       // silently: use the service-role proxy AND report the failure so admin
       // monitoring can fix the grant instead of living on the fallback.
       console.warn('[schedule] slot availability RPC failed, trying proxy:', error.code, error.message);
-      const { data: proxy, error: proxyError } = await supabase.functions.invoke('list-slot-availability', {
-        body: {
-          community: profile.community,
+      const proxyResponse = await fetch(`${LOVABLE_CLOUD_FUNCTIONS_URL}/functions/v1/list-slot-availability`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          community: availabilityCommunity,
           service_type,
           date: dateStr,
           client_rpc_error: `${error.code || ''} ${error.message}`.trim(),
-        },
+        }),
       });
+      const proxy = await proxyResponse.json().catch(() => null);
 
-      if (!proxyError && proxy?.slots) {
+      if (proxyResponse.ok && proxy?.slots) {
         const allowed = toAllowlist(proxy.slots);
         setAvailableSlots(allowed);
         setAvailabilityStatus('ready');
         return allowed;
       }
 
-      console.warn('[schedule] proxy availability unavailable, deferring to backend validation:', proxyError?.message || proxy?.error);
+      console.warn('[schedule] proxy availability unavailable, deferring to backend validation:', proxy?.error || `HTTP ${proxyResponse.status}`);
       setAvailableSlots(null);
       setAvailabilityStatus('unknown');
       return null;
@@ -213,7 +223,7 @@ export function ScheduleScreen() {
     } finally {
       setLoadingAvailability(false);
     }
-  }, [selectedDate, profile?.community, service_type]);
+  }, [selectedDate, availabilityCommunity, service_type]);
 
 
   useEffect(() => {
@@ -304,7 +314,7 @@ export function ScheduleScreen() {
           deviceNow: new Date().toString(),
           deviceTz: Intl.DateTimeFormat().resolvedOptions().timeZone,
           service: service_type,
-          community: profile.community,
+          community: availabilityCommunity,
           communityId: profile.community_id,
           availabilityStatus,
           allowlistSize: refreshed ? refreshed.size : null,
@@ -345,7 +355,7 @@ export function ScheduleScreen() {
         selectedTime,
         scheduledTime,
         serviceType: service_type,
-        community: profile.community,
+        community: availabilityCommunity,
         price
       });
 
@@ -392,7 +402,7 @@ export function ScheduleScreen() {
         surcharge_reason: surcharge > 0 ? 'slot_surge' : (surcharge < 0 ? 'off_peak_discount' : null),
         cust_name: /^\+?\d{7,15}$/.test(profile.full_name.trim()) ? 'User ' + profile.phone.slice(-4) : profile.full_name,
         cust_phone: profile.phone,
-        community: profile.community,
+        community: availabilityCommunity,
         flat_no: profile.flat_no,
         community_id: profile.community_id ?? null,
         building_id: profile.building_id ?? null,

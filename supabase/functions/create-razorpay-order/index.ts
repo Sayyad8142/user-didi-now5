@@ -13,6 +13,7 @@ import { verifyFirebaseToken, extractToken, corsHeaders } from "../_shared/fireb
 import { getExpectedSurge, validateBookingSurge } from "../_shared/userSurge.ts";
 import { getExpectedSlotSurge, validateSlotSurge, validatePriceComposition } from "../_shared/slotSurge.ts";
 import { validateScheduledSlot } from "../_shared/scheduledSlot.ts";
+import { resolveBookingCommunity } from "../_shared/bookingCommunity.ts";
 import {
   EXTERNAL_SUPABASE_URL,
   EXTERNAL_SUPABASE_SERVICE_ROLE_KEY,
@@ -134,9 +135,11 @@ Deno.serve(async (req) => {
 
       // ── Server-side slot surge enforcement (Scheduled) ─────────
       if (safeBookingData.booking_type === "scheduled" && safeBookingData.scheduled_time) {
+        const availabilityCommunity = await resolveBookingCommunity(supabase, safeBookingData);
+        safeBookingData.community = availabilityCommunity;
         // Reject an unbookable slot BEFORE charging the customer.
         const slotCheck = await validateScheduledSlot(supabase, {
-          community: safeBookingData.community,
+          community: availabilityCommunity,
           service_type: safeBookingData.service_type,
           scheduled_date: safeBookingData.scheduled_date,
           scheduled_time: safeBookingData.scheduled_time,
