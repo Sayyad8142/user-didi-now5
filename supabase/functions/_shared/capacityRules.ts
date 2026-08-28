@@ -73,6 +73,15 @@ export interface CapacityResult {
   is_full: boolean;
 }
 
+// Automatic cancellation is intentionally disabled, so unaccepted bookings
+// stay `pending`/`dispatched` forever. They must NOT occupy a capacity slot
+// indefinitely, otherwise the community becomes permanently unbookable.
+export const UNACCEPTED_STALE_MINUTES = 60;
+// In-progress work is bounded too, so an unclosed job can't block all day.
+export const ENGAGED_STALE_MINUTES = 6 * 60;
+
+const UNACCEPTED_STATUSES = new Set(["pending", "dispatched"]);
+
 // Counts active instant bookings for a (community, service_type) pair
 // using the EXTERNAL DB. Throws on any error — callers MUST fail-closed.
 export async function countActiveInstantBookings(
@@ -80,9 +89,9 @@ export async function countActiveInstantBookings(
   serviceType: string,
 ): Promise<CapacityResult> {
   const supabase = getExternalSupabase();
-  const { count, error } = await supabase
+  const { data, error } = await supabase
     .from("bookings")
-    .select("id", { count: "exact", head: true })
+    .select("id, status, created_at")
     .eq("community", community)
     .eq("service_type", serviceType)
     .eq("booking_type", "instant")
@@ -92,7 +101,25 @@ export async function countActiveInstantBookings(
     throw new Error(`capacity_count_failed: ${error.message}`);
   }
 
-  const active = Number(count) || 0;
+  const now = Date.now();
+  const rows = (data as any[]) || [];
+  let stale = 0;
+  const active = rows.filter((r) => {
+    const ageMin = (now - new Date(r.created_at).getTime()) / 60000;
+    const cutoff = UNACCEPTED_STATUSES.has(String(r.status))
+      ? UNACCEPTED_STALE_MINUTES
+      : ENGAGED_STALE_MINUTES;
+    if (!Number.isFinite(ageMin)) return true;
+    if (ageMin > cutoff) {
+      stale++;
+      return false;
+    }
+    return true;
+  }).length;
+
   const limit = limitForService(serviceType);
+  console.log(
+    `[capacityRules] community=${community} service=${serviceType} rows=${rows.length} stale_ignored=${stale} active=${active} limit=${limit}`,
+  );
   return { active_count: active, limit, is_full: active >= limit };
 }
