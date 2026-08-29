@@ -548,13 +548,18 @@ const ActiveBookingCard = memo(() => {
   const pill = getStatusPill(activeBooking);
   const infoLine = getInfoLine(activeBooking);
   const helperLine = getHelperLine(activeBooking);
-  // OTP visible for any active booking that has a completion_otp generated.
-  // Hidden only when cancelled, or completed+verified.
+  // OTP visible only once a worker is assigned.
+  // Hidden when cancelled, or completed+verified.
+  const _workerAssignedState =
+    !!(activeBooking as any).worker_id ||
+    !!(activeBooking as any).worker_name ||
+    ['assigned', 'accepted', 'confirmed', 'on_the_way', 'started'].includes(activeBooking.status);
   const _otpHiddenState =
     activeBooking.status === 'cancelled' ||
     (activeBooking.status === 'completed' && !!activeBooking.otp_verified_at);
   const showOtpRow =
     !!activeBooking.completion_otp &&
+    _workerAssignedState &&
     !activeBooking.otp_verified_at &&
     !_otpHiddenState;
   const isCancelled = activeBooking.status === 'cancelled';
