@@ -136,14 +136,21 @@ serve(async (req) => {
         console.error(`❌ Failed | user=${user_id} | platform=${platform || 'unknown'} | ${errorMsg}`);
         errors.push(`${user_id}[${platform || '?'}]: ${errorMsg}`);
 
-        if (errorMsg.includes('NOT_FOUND') || errorMsg.includes('UNREGISTERED')) {
-          console.log(`🗑️ Removing invalid token for user ${user_id} (platform=${platform || 'unknown'})`);
+        // Prune ONLY when Firebase explicitly says this registration token is
+        // unknown/unregistered. Transient errors (auth, 429, 5xx, APNs hiccups)
+        // must never delete a device row.
+        const tokenInvalid = err instanceof FcmSendError && err.tokenInvalid;
+        if (tokenInvalid) {
+          console.log(`🗑️ Pruning unregistered token for user ${user_id} (platform=${platform || 'unknown'})`);
           await supabase
             .from('fcm_tokens')
             .delete()
             .eq('token', token);
+        } else {
+          console.log(`↩️ Keeping token for user ${user_id} — failure is not a token-validity error`);
         }
       }
+
     }
 
     // Log notification attempt
