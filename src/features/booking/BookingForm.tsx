@@ -639,13 +639,10 @@ export function BookingForm() {
           setSupplyModalOpen(true);
           return;
         }
-        // Pre-payment capacity-check failure → friendly toast, no retry sheet
+        // Pre-payment capacity-check failure → centered modal, no retry sheet
         if (!paidAlready && payErr?.message?.includes('CAPACITY_CHECK_FAILED')) {
-          toast({
-            title: "Couldn't confirm availability",
-            description: "Please try again in a moment.",
-            variant: 'destructive',
-          });
+          refetchSupply();
+          setSupplyModalOpen(true);
           return;
         }
         const errType = payErr instanceof PaymentError ? payErr.type : 'payment_failed';
