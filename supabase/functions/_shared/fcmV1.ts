@@ -152,16 +152,51 @@ async function getAccessToken(
   return data.access_token;
 }
 
+/** Safe production fallback: the real iOS bundle identifier of the Didi Now user app. */
+export const DEFAULT_APNS_TOPIC = 'com.didisnow.app';
+
+/**
+ * Thrown when FCM rejects a send. `tokenInvalid` is true ONLY when Firebase
+ * explicitly reports the registration token is unknown/unregistered/malformed,
+ * so callers can prune that single row safely. Transient failures (429/5xx,
+ * auth issues, APNs outages) leave it false — never delete on those.
+ */
+export class FcmSendError extends Error {
+  status: number;
+  errorCode?: string;
+  tokenInvalid: boolean;
+  constructor(message: string, status: number, errorCode: string | undefined, tokenInvalid: boolean) {
+    super(message);
+    this.name = 'FcmSendError';
+    this.status = status;
+    this.errorCode = errorCode;
+    this.tokenInvalid = tokenInvalid;
+  }
+}
+
+/** Classifies an FCM v1 error body: is THIS token permanently unusable? */
+export function isUnregisteredTokenError(status: number, errorCode?: string, rawBody?: string): boolean {
+  const code = (errorCode || '').toUpperCase();
+  if (code === 'UNREGISTERED' || code === 'NOT_FOUND') return true;
+  if (status === 404) return true;
+  // INVALID_ARGUMENT is only token-related when the body names the token field.
+  if (status === 400 && code === 'INVALID_ARGUMENT') {
+    return /registration token|\bmessage\.token\b|not a valid FCM registration token/i.test(rawBody || '');
+  }
+  return false;
+}
+
 export interface SendFcmOptions {
   /** Device platform: 'ios' | 'android' | 'web'. Used for observability and APNs topic selection. */
   platform?: string;
-  /** iOS bundle id used as `apns-topic`. Falls back to APNS_TOPIC env or 'app.lovable.2edd991f3825445a9485006dde036295'. */
+  /** iOS bundle id used as `apns-topic`. Falls back to APNS_TOPIC env or 'com.didisnow.app'. */
   apnsTopic?: string;
   /** Optional badge count for iOS. If omitted, badge is NOT set (recommended for booking-style alerts). */
   badge?: number;
   /** Optional user_id for log breadcrumbs. */
   userId?: string;
 }
+
 
 /**
  * Sends an FCM push notification using HTTP v1 API.
