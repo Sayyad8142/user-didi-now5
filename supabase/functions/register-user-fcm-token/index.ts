@@ -178,6 +178,18 @@ serve(async (req) => {
       (deviceInfo && typeof deviceInfo === 'object' && (deviceInfo as any).platform) ||
       null;
 
+    // Guard: a raw APNs device token is 64 hex chars and is NOT usable with the
+    // FCM HTTP v1 API. Reject it instead of storing an undeliverable row.
+    // (Existing rows are left untouched — cleanup is a separate step.)
+    if (String(platform).toLowerCase() === 'ios' && /^[0-9a-f]{64}$/i.test(fcmToken.trim())) {
+      console.warn('⚠️ Rejecting raw APNs device token for iOS — expected an FCM registration token');
+      return new Response(
+        JSON.stringify({ ok: false, error: 'Raw APNs device token rejected; FCM registration token required' }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+
     console.log("📥 Registering user FCM token", {
       profile_id: profile.id,
       platform: platform || 'unknown',

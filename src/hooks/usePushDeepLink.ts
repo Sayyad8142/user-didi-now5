@@ -38,9 +38,26 @@ export function usePushDeepLink(navigate: (path: string) => void) {
       }
     });
 
+    // 3. iOS: taps arrive through Firebase Messaging (the plugin that owns the
+    //    FCM token on iOS). Android keeps using the listener above only.
+    let iosSub: Promise<{ remove: () => void }> | null = null;
+    if (Capacitor.getPlatform() === 'ios') {
+      iosSub = import('@capacitor-firebase/messaging').then(({ FirebaseMessaging }) =>
+        FirebaseMessaging.addListener('notificationActionPerformed', (event: any) => {
+          const data = event?.notification?.data;
+          console.log('[DeepLink] iOS push tap data:', data);
+          const link = data?.deep_link || data?.link || data?.url;
+          const path = normalizeDeepLink(link);
+          if (path) navigateDeepLink(path, navigate);
+        }),
+      );
+    }
+
     return () => {
       pushSub.then(h => h.remove());
       urlSub.then(h => h.remove());
+      iosSub?.then(h => h.remove());
     };
   }, [navigate]);
 }
+

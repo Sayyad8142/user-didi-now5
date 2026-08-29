@@ -5,6 +5,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { getFirebaseIdToken, getFcmToken, onForegroundMessage, showForegroundNotification } from "@/lib/firebase";
 import { queryClient } from "@/main";
 import { toast } from "@/components/ui/sonner";
+import { getIosFcmToken, attachIosMessagingListeners } from "@/lib/iosPush";
+
 
 interface UsePushNotificationsOptions {
   userId?: string | null;
@@ -255,6 +257,62 @@ export function usePushNotifications({ userId }: UsePushNotificationsOptions) {
 
   // ── Native push ─────────────────────────────────────────────────────────
   const nativeListenersAttachedRef = useRef(false);
+  const iosListenersAttachedRef = useRef(false);
+
+  // iOS uses Firebase Messaging directly so we get a real FCM registration
+  // token (@capacitor/push-notifications only yields a raw APNs device token,
+  // which the FCM HTTP v1 API rejects). Android path below is unchanged.
+  const registerIosPush = useCallback(async (force = false) => {
+    if (!userId) return;
+
+    const result = await getIosFcmToken();
+
+    if (result.status !== 'ok') {
+      const msg =
+        result.status === 'denied'
+          ? 'Notification permission not granted'
+          : result.status === 'no-token'
+            ? 'Failed to get iOS push token'
+            : result.status === 'error'
+              ? result.error
+              : 'iOS push unsupported';
+      console.warn('[Push][iOS] Registration aborted:', msg);
+      setLastError(msg);
+      return;
+    }
+
+    await registerTokenInSupabase(
+      result.token,
+      { platform: 'ios', model: navigator.userAgent },
+      true,
+    );
+
+    if (iosListenersAttachedRef.current) return;
+
+    const handles = await attachIosMessagingListeners({
+      onTokenRefresh: (token) => {
+        registerTokenInSupabase(token, { platform: 'ios', model: navigator.userAgent }, true);
+      },
+      onMessage: (payload) => {
+        if (isDuplicate((payload.notification ?? payload) as any)) {
+          console.log('[Push][iOS] Skipping duplicate foreground notification');
+          return;
+        }
+        const title = payload.data?.title || payload.notification?.title;
+        const body = payload.data?.body || payload.notification?.body;
+        if (title) toast.info(title, { description: body });
+        invalidateForType(payload.data?.type, payload.data);
+      },
+      onActionPerformed: (payload) => {
+        console.log('[Push][iOS] 🔗 Notification tapped:', payload.data?.type || 'unknown');
+        invalidateForType(payload.data?.type, payload.data);
+      },
+    });
+
+    listenerHandlesRef.current.push(...handles);
+    iosListenersAttachedRef.current = true;
+  }, [userId, registerTokenInSupabase]);
+
 
   const registerNativePush = useCallback(async (force = false) => {
     if (!userId) return;
@@ -352,14 +410,17 @@ export function usePushNotifications({ userId }: UsePushNotificationsOptions) {
 
     console.log('[Push] Starting registration for user:', userId, force ? '(forced)' : '');
 
-    if (Capacitor.isNativePlatform()) {
+    if (Capacitor.getPlatform() === 'ios') {
+      await registerIosPush(force);
+    } else if (Capacitor.isNativePlatform()) {
       await registerNativePush(force);
     } else {
       await registerWebPush(force);
     }
 
     registeredForRef.current = userId;
-  }, [userId, registerNativePush, registerWebPush]);
+  }, [userId, registerIosPush, registerNativePush, registerWebPush]);
+
 
   // ── Force register on every login (handles device change) ────────────
   const forceRegister = useCallback(() => register(true), [register]);
@@ -370,6 +431,7 @@ export function usePushNotifications({ userId }: UsePushNotificationsOptions) {
       // User logged out — cleanup listeners (token DB cleanup is in Profile.tsx logout)
       removeAllOwnListeners();
       nativeListenersAttachedRef.current = false;
+      iosListenersAttachedRef.current = false;
       registeredForRef.current = null;
       setIsRegistered(false);
       clearStoredToken(); // Clear cached token so next login always re-registers
@@ -382,6 +444,7 @@ export function usePushNotifications({ userId }: UsePushNotificationsOptions) {
     return () => {
       removeAllOwnListeners();
       nativeListenersAttachedRef.current = false;
+      iosListenersAttachedRef.current = false;
     };
   }, [userId, register, removeAllOwnListeners]);
 
