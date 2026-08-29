@@ -5,7 +5,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { sendFcmV1Message } from "../_shared/fcmV1.ts";
+import { sendFcmV1Message, FcmSendError } from "../_shared/fcmV1.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
