@@ -1,30 +1,36 @@
 import React from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Clock } from "lucide-react";
+import { Users } from "lucide-react";
 
 interface SupplyFullModalProps {
   open: boolean;
   onClose: () => void;
   onSchedule: () => void;
+  title?: string;
+  message?: string;
 }
 
-export function SupplyFullModal({ open, onClose, onSchedule }: SupplyFullModalProps) {
+export function SupplyFullModal({
+  open,
+  onClose,
+  onSchedule,
+  title = "Workers Are Busy",
+  message = "Workers are busy in other bookings. Please try after some time.",
+}: SupplyFullModalProps) {
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="max-w-xs rounded-3xl p-6 text-center shadow-xl border-0 gap-0">
         {/* Icon */}
         <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-primary/10 flex items-center justify-center">
-          <Clock className="w-8 h-8 text-primary" />
+          <Users className="w-8 h-8 text-primary" />
         </div>
 
         {/* Title */}
-        <h2 className="text-lg font-bold text-foreground mb-2">All Experts are Busy</h2>
+        <h2 className="text-lg font-bold text-foreground mb-2">{title}</h2>
 
         {/* Message */}
-        <p className="text-sm text-muted-foreground mb-6 leading-relaxed">
-          Currently all experts are busy. Please try again after 20 minutes.
-        </p>
+        <p className="text-sm text-muted-foreground mb-6 leading-relaxed">{message}</p>
 
         {/* Buttons */}
         <div className="space-y-2">
