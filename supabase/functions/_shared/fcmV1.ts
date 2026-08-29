@@ -317,11 +317,28 @@ export async function sendFcmV1Message(
 
   if (!response.ok) {
     const errorText = await response.text();
+    let errorCode: string | undefined;
+    try {
+      const parsed = JSON.parse(errorText);
+      errorCode =
+        parsed?.error?.details?.find((d: any) => d?.errorCode)?.errorCode ||
+        parsed?.error?.status;
+    } catch { /* non-JSON body */ }
+
+    const tokenInvalid = isUnregisteredTokenError(response.status, errorCode, errorText);
+
     console.error(
-      `❌ FCM v1 error | user=${userId} | platform=${platform} | status=${response.status} | ${errorText}`
+      `❌ FCM v1 error | user=${userId} | platform=${platform} | status=${response.status} | code=${errorCode || '—'} | tokenInvalid=${tokenInvalid} | ${errorText}`
     );
-    throw new Error(`FCM v1 failed: ${response.status} - ${errorText}`);
+
+    throw new FcmSendError(
+      `FCM v1 failed: ${response.status} - ${errorText}`,
+      response.status,
+      errorCode,
+      tokenInvalid,
+    );
   }
+
 
   const result = await response.json();
   console.log(
