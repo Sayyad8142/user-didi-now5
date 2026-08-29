@@ -410,14 +410,17 @@ export function usePushNotifications({ userId }: UsePushNotificationsOptions) {
 
     console.log('[Push] Starting registration for user:', userId, force ? '(forced)' : '');
 
-    if (Capacitor.isNativePlatform()) {
+    if (Capacitor.getPlatform() === 'ios') {
+      await registerIosPush(force);
+    } else if (Capacitor.isNativePlatform()) {
       await registerNativePush(force);
     } else {
       await registerWebPush(force);
     }
 
     registeredForRef.current = userId;
-  }, [userId, registerNativePush, registerWebPush]);
+  }, [userId, registerIosPush, registerNativePush, registerWebPush]);
+
 
   // ── Force register on every login (handles device change) ────────────
   const forceRegister = useCallback(() => register(true), [register]);
