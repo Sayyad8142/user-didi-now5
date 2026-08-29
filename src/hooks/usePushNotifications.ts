@@ -5,6 +5,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { getFirebaseIdToken, getFcmToken, onForegroundMessage, showForegroundNotification } from "@/lib/firebase";
 import { queryClient } from "@/main";
 import { toast } from "@/components/ui/sonner";
+import { getIosFcmToken, attachIosMessagingListeners } from "@/lib/iosPush";
+
 
 interface UsePushNotificationsOptions {
   userId?: string | null;
