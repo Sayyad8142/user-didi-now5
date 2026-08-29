@@ -368,15 +368,19 @@ const ActiveBookingCard = memo(() => {
   }, [isFindingActive, findingMessages.length]);
 
   // Auto-close OTP sheet if the OTP row becomes unavailable (status change, verified, etc.)
-  // OTP shows for ANY active booking with a completion_otp — no payment gating.
-  // Hidden only when cancelled, or completed AND already verified.
+  // OTP only shows once a worker is assigned.
   useEffect(() => {
     const status = activeBooking?.status ?? '';
     const isHiddenState =
       status === 'cancelled' ||
       (status === 'completed' && !!activeBooking?.otp_verified_at);
+    const workerAssigned =
+      !!(activeBooking as any)?.worker_id ||
+      !!(activeBooking as any)?.worker_name ||
+      ['assigned', 'accepted', 'confirmed', 'on_the_way', 'started'].includes(status);
     const shouldShow =
       !!activeBooking?.completion_otp &&
+      workerAssigned &&
       !activeBooking?.otp_verified_at &&
       !isHiddenState;
     if (!shouldShow && showOtpSheet) setShowOtpSheet(false);
@@ -548,13 +552,18 @@ const ActiveBookingCard = memo(() => {
   const pill = getStatusPill(activeBooking);
   const infoLine = getInfoLine(activeBooking);
   const helperLine = getHelperLine(activeBooking);
-  // OTP visible for any active booking that has a completion_otp generated.
-  // Hidden only when cancelled, or completed+verified.
+  // OTP visible only once a worker is assigned.
+  // Hidden when cancelled, or completed+verified.
+  const _workerAssignedState =
+    !!(activeBooking as any).worker_id ||
+    !!(activeBooking as any).worker_name ||
+    ['assigned', 'accepted', 'confirmed', 'on_the_way', 'started'].includes(activeBooking.status);
   const _otpHiddenState =
     activeBooking.status === 'cancelled' ||
     (activeBooking.status === 'completed' && !!activeBooking.otp_verified_at);
   const showOtpRow =
     !!activeBooking.completion_otp &&
+    _workerAssignedState &&
     !activeBooking.otp_verified_at &&
     !_otpHiddenState;
   const isCancelled = activeBooking.status === 'cancelled';
