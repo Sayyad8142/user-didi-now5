@@ -222,7 +222,8 @@ export async function sendFcmV1Message(
   const apnsTopic =
     opts.apnsTopic ||
     Deno.env.get('APNS_TOPIC') ||
-    'app.lovable.2edd991f3825445a9485006dde036295';
+    DEFAULT_APNS_TOPIC;
+
 
   console.log(
     `📛 FCM send | project=${projectId} | user=${userId} | platform=${platform} | token=${token.slice(0, 12)}…`
