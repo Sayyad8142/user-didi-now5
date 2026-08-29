@@ -373,12 +373,17 @@ export function BookingCard({
     row.payment_method === 'wallet' ||
     row.payment_method === 'wallet+razorpay' ||
     row.payment_method === 'razorpay';
-  // OTP visible from booking creation. Hidden only when cancelled,
+  // OTP visible ONLY after a worker is assigned. Hidden when cancelled,
   // or completed AND already verified.
+  const _workerAssigned =
+    !!(row as any).worker_id ||
+    !!(row as any).worker_name ||
+    ['assigned', 'accepted', 'confirmed', 'on_the_way', 'started'].includes(row.status);
   const _otpHidden =
     row.status === 'cancelled' ||
     (row.status === 'completed' && !!row.otp_verified_at);
   const showOtpBlock = !!row.completion_otp &&
+    _workerAssigned &&
     _isPaidLike &&
     !row.otp_verified_at &&
     !_otpHidden;
