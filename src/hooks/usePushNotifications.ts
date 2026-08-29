@@ -431,6 +431,7 @@ export function usePushNotifications({ userId }: UsePushNotificationsOptions) {
       // User logged out — cleanup listeners (token DB cleanup is in Profile.tsx logout)
       removeAllOwnListeners();
       nativeListenersAttachedRef.current = false;
+      iosListenersAttachedRef.current = false;
       registeredForRef.current = null;
       setIsRegistered(false);
       clearStoredToken(); // Clear cached token so next login always re-registers
@@ -443,6 +444,7 @@ export function usePushNotifications({ userId }: UsePushNotificationsOptions) {
     return () => {
       removeAllOwnListeners();
       nativeListenersAttachedRef.current = false;
+      iosListenersAttachedRef.current = false;
     };
   }, [userId, register, removeAllOwnListeners]);
 
