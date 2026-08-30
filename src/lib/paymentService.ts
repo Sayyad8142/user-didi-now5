@@ -352,7 +352,10 @@ export interface CapacityCheckResult {
 async function checkBookingCapacity(
   bookingPayload: Record<string, unknown>,
 ): Promise<CapacityCheckResult | null> {
-  const community = (bookingPayload.community as string) || null;
+  const community =
+    (bookingPayload.community as string) ||
+    (bookingPayload.community_name as string) ||
+    null;
   const serviceType = (bookingPayload.service_type as string) || null;
   const bookingType = (bookingPayload.booking_type as string) || 'instant';
 
@@ -361,30 +364,24 @@ async function checkBookingCapacity(
   console.log('capacity_gate_checked', { community, service_type: serviceType, booking_type: bookingType });
 
   if (!community || !serviceType) {
-    console.warn('capacity_gate_blocked', 'missing_inputs');
-    return {
-      can_accept_booking: false,
-      reason: 'missing_inputs',
-      pending_count: 0,
-      online_workers: 0,
-      available_workers: 0,
-    };
+    // Cannot pre-check. The authoritative gates (create-razorpay-order /
+    // create-paid-booking + DB trigger) still enforce the cap, so skip
+    // instead of blocking the user with a scary error.
+    console.warn('capacity_gate_skipped', 'missing_inputs');
+    return null;
   }
 
-  try {
-    // IMPORTANT: check-booking-capacity is deployed on Lovable Cloud
-    // (wvuuyrovdfydubmvsfxl), NOT the external Supabase project that
-    // `supabase.functions.invoke` points at. We MUST call it via direct
-    // fetch against LOVABLE_CLOUD_FUNCTIONS_URL — otherwise the request
-    // resolves to a non-existent function on the external project and
-    // returns "Failed to send a request to the Edge Function", which
-    // fails closed and blocks every booking.
-    const url = `${LOVABLE_CLOUD_FUNCTIONS_URL}/functions/v1/check-booking-capacity`;
+  // IMPORTANT: check-booking-capacity is deployed on Lovable Cloud
+  // (wvuuyrovdfydubmvsfxl), NOT the external Supabase project that
+  // `supabase.functions.invoke` points at. We MUST call it via direct
+  // fetch against LOVABLE_CLOUD_FUNCTIONS_URL.
+  const url = `${LOVABLE_CLOUD_FUNCTIONS_URL}/functions/v1/check-booking-capacity`;
+
+  const attempt = async (timeoutMs: number): Promise<CapacityCheckResult | null> => {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 5000);
-    let res: Response;
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
-      res = await fetch(url, {
+      const res = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -393,7 +390,6 @@ async function checkBookingCapacity(
           'x-app-version': String(APP_VERSION_NAME),
           'x-app-platform': Capacitor.getPlatform(),
         },
-
         body: JSON.stringify({
           community_name: community,
           service_type: serviceType,
@@ -401,39 +397,42 @@ async function checkBookingCapacity(
         }),
         signal: controller.signal,
       });
+
+      const data = (await res.json().catch(() => null)) as CapacityCheckResult | null;
+      if (!res.ok || !data || typeof data.can_accept_booking !== 'boolean') {
+        console.warn('capacity_gate_bad_response', `status=${res.status}`);
+        return null;
+      }
+      // A server-side verification failure is NOT a real "full" signal.
+      if (!data.can_accept_booking && data.reason !== 'supply_full') {
+        console.warn('capacity_gate_inconclusive', data.reason);
+        return null;
+      }
+      return data;
+    } catch (e: any) {
+      console.warn('capacity_gate_transport_error', e?.name === 'AbortError' ? 'timeout' : e?.message);
+      return null;
     } finally {
       clearTimeout(timer);
     }
+  };
 
-    const data = (await res.json().catch(() => null)) as CapacityCheckResult | null;
+  // First attempt can hit a cold edge isolate → retry once with a longer budget.
+  let data = await attempt(8000);
+  if (!data) data = await attempt(12000);
 
-    if (!res.ok || !data || typeof data.can_accept_booking !== 'boolean') {
-      console.warn('capacity_gate_blocked', `bad_response status=${res.status}`);
-      return {
-        can_accept_booking: false,
-        reason: 'check_failed',
-        pending_count: 0,
-        online_workers: 0,
-        available_workers: 0,
-      };
-    }
-
-    console.log(
-      data.can_accept_booking ? 'capacity_gate_passed' : 'capacity_gate_blocked',
-      data,
-    );
-    return data;
-  } catch (e: any) {
-    console.warn('capacity_gate_blocked', e?.name === 'AbortError' ? 'timeout' : e?.message);
-    return {
-      can_accept_booking: false,
-      reason: 'check_failed',
-      pending_count: 0,
-      online_workers: 0,
-      available_workers: 0,
-    };
+  if (!data) {
+    // FAIL-OPEN by design: the cap is still enforced authoritatively by
+    // create-razorpay-order / create-paid-booking and the DB trigger, so a
+    // flaky pre-check must never block a legitimate booking.
+    console.warn('capacity_gate_skipped', 'precheck_unavailable');
+    return null;
   }
+
+  console.log(data.can_accept_booking ? 'capacity_gate_passed' : 'capacity_gate_blocked', data);
+  return data;
 }
+
 
 // ─── Wallet Balance Check ─────────────────────────────────────
 
