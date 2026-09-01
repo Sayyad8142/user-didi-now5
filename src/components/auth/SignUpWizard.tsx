@@ -139,13 +139,16 @@ export function SignUpWizard({ data, setData, loading, onSubmit }: Props) {
     step === 1 ? "Let's get started"
     : step === 2 ? 'Choose your community'
     : step === 3 && !skipTower ? 'Select your tower'
+    : isVilla ? 'Pick your villa'
     : 'Pick your flat';
 
   const stepSubtitle =
     step === 1 ? 'Tell us a bit about you'
     : step === 2 ? 'We serve gated communities only'
     : step === 3 && !skipTower ? 'Which building do you live in?'
+    : isVilla ? 'Type or pick your villa number'
     : 'Type or pick from the list';
+
 
   return (
     <div className="space-y-6">
