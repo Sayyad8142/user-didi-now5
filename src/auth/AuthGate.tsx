@@ -1,21 +1,18 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { onFirebaseAuthStateChanged, getFirebaseAuth } from '@/lib/firebase';
 import { isDemoMode, getDemoSession } from '@/lib/demo';
 
-// Max time we'll wait for Firebase Auth to emit its initial listener callback
-// on the root path. On timeout we DO NOT sign out, clear storage, delete any
-// persisted session, or navigate to /auth. We only show a recoverable screen;
-// Retry performs a full JavaScript restart.
+// Max time we'll block the root route while Firebase restores persisted auth.
+// iOS WKWebView can occasionally delay this callback. A delay is not a fatal
+// auth error: after this window we open the best-known route and leave the
+// listener alive so a restored session can still move the user to /home.
 const AUTH_STATE_TIMEOUT_MS = 5000;
-
-type StartupError = { code: 'AUTH_INITIALIZATION_TIMEOUT' | 'AUTH_LISTENER_ERROR'; message: string } | null;
 
 export default function AuthGate({ children }: { children: React.ReactNode }) {
   const nav = useNavigate();
   const location = useLocation();
   const [ready, setReady] = useState(false);
-  const [startupError, setStartupError] = useState<StartupError>(null);
 
   useEffect(() => {
     if (ready && typeof window !== 'undefined' && (window as any).hideSplash) {
@@ -23,14 +20,6 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
       (window as any).hideSplash();
     }
   }, [ready]);
-
-  // Also hide the native splash if we surface the recoverable error screen
-  // so the user can actually see the Retry button.
-  useEffect(() => {
-    if (startupError && typeof window !== 'undefined' && (window as any).hideSplash) {
-      (window as any).hideSplash();
-    }
-  }, [startupError]);
 
   useEffect(() => {
     console.info('[Startup] AUTH_CHECK_STARTED', { path: location.pathname });
@@ -101,7 +90,10 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
       !!auth && typeof (auth as any).authStateReady === 'function';
     console.info('[Startup] AUTH_STATE_READY_SUPPORTED', { supportsAuthStateReady });
 
-    const openApp = (hasUser: boolean, source: 'listener' | 'authStateReady') => {
+    const openApp = (
+      hasUser: boolean,
+      source: 'listener' | 'authStateReady' | 'timeout' | 'listenerError',
+    ) => {
       if (cancelled || settled) return;
       settled = true;
       console.info('[Startup] AUTH_CHECK_COMPLETED', { hasUser, source });
@@ -116,11 +108,9 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
         code: err?.code,
         stack: err?.stack,
       });
-      settled = true;
-      setStartupError({
-        code: 'AUTH_LISTENER_ERROR',
-        message: err?.message || 'Authentication listener failed',
-      });
+      // A listener failure must not trap the user on a retry loop. Route from
+      // the current snapshot and let AuthProvider continue owning auth state.
+      openApp(!!getFirebaseAuth()?.currentUser, 'listenerError');
     };
 
     const unsubscribe = auth
@@ -154,16 +144,16 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
 
     timeoutId = window.setTimeout(() => {
       if (cancelled || settled) return;
-      // Timeout — DO NOT sign out, clear session, delete storage, or route to /auth.
+      // Firebase JS has a known iOS/WebView failure mode where persistence
+      // hydration can be delayed or its first callback can hang. Do not turn
+      // that delay into a blocking error screen. Open from the best-known
+      // snapshot; the listener remains active and can redirect after hydration.
       console.warn('[Startup] AUTH_INITIALIZATION_TIMEOUT', {
         waitedMs: AUTH_STATE_TIMEOUT_MS,
         supportsAuthStateReady,
+        action: 'continue_with_current_snapshot',
       });
-      settled = true;
-      setStartupError({
-        code: 'AUTH_INITIALIZATION_TIMEOUT',
-        message: `Firebase did not emit auth state within ${AUTH_STATE_TIMEOUT_MS}ms`,
-      });
+      openApp(!!getFirebaseAuth()?.currentUser, 'timeout');
     }, AUTH_STATE_TIMEOUT_MS);
 
     if (!auth) {
@@ -172,11 +162,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
       console.error('[Startup] AUTH_LISTENER_ERROR', {
         message: 'Firebase Auth not initialized',
       });
-      settled = true;
-      setStartupError({
-        code: 'AUTH_LISTENER_ERROR',
-        message: 'Firebase Auth not initialized',
-      });
+      openApp(false, 'listenerError');
     }
 
     return () => {
@@ -185,64 +171,6 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
       try { unsubscribe(); } catch {}
     };
   }, [nav, location.pathname]);
-
-  const handleRetry = useCallback(() => {
-    window.location.reload();
-  }, []);
-
-  if (startupError) {
-    return (
-      <div
-        role="alert"
-        style={{
-          minHeight: '100vh',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '24px',
-          background: 'linear-gradient(135deg, #ec4899 0%, #f472b6 50%, #fbbf24 100%)',
-        }}
-      >
-        <div
-          style={{
-            maxWidth: 360,
-            width: '100%',
-            background: '#ffffff',
-            borderRadius: 16,
-            padding: '24px',
-            boxShadow: '0 10px 30px rgba(0,0,0,0.15)',
-            textAlign: 'center',
-          }}
-        >
-          <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8, color: '#111827' }}>
-            Taking longer than usual
-          </div>
-          <div style={{ fontSize: 14, color: '#4b5563', marginBottom: 20, lineHeight: 1.5 }}>
-            We couldn't finish starting the app. Your session is safe — just tap Retry.
-          </div>
-          <button
-            onClick={handleRetry}
-            style={{
-              width: '100%',
-              padding: '12px 16px',
-              borderRadius: 12,
-              border: 'none',
-              background: '#ec4899',
-              color: '#ffffff',
-              fontWeight: 600,
-              fontSize: 15,
-              cursor: 'pointer',
-            }}
-          >
-            Retry
-          </button>
-          <div style={{ marginTop: 12, fontSize: 11, color: '#9ca3af' }}>
-            Ref: {startupError.code}
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   if (!ready) {
     return (
