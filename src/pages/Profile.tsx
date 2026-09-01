@@ -481,8 +481,9 @@ export default function Profile() {
               </div>
             </div>
 
-            {/* Building - show if buildings exist for community (not PHF format) */}
-            {!isPHF && buildings.length > 0 && (
+            {/* Building - show if buildings exist for community (not PHF / villa) */}
+            {!skipTower && buildings.length > 0 && (
+
               <div className="group">
                 <div className="flex items-start gap-4">
                   <div className="h-12 w-12 bg-indigo-50 rounded-2xl flex items-center justify-center group-hover:bg-indigo-100 transition-colors">
