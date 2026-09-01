@@ -73,10 +73,19 @@ export function SignUpWizard({ data, setData, loading, onSubmit }: Props) {
   const filteredFlats = useMemo(
     () =>
       flatQuery
-        ? flats.filter(f => f.flat_no.toLowerCase().includes(flatQuery.toLowerCase())).slice(0, 50)
+        ? flats
+            .filter(f => {
+              const q = flatQuery.toLowerCase();
+              return (
+                f.flat_no.toLowerCase().includes(q) ||
+                String(f.display_name || '').toLowerCase().includes(q)
+              );
+            })
+            .slice(0, 50)
         : flats.slice(0, 12),
     [flats, flatQuery]
   );
+
 
   // ----- Validation per step -----
   const validateStep = (s: Step): boolean => {
