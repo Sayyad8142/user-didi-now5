@@ -45,11 +45,11 @@ const normalizeList = (rows: any[]): Community[] =>
  * edge functions live on Lovable Cloud. So we must call the function URL
  * directly instead of supabase.functions.invoke().
  */
-async function fetchViaEdge(): Promise<Community[]> {
+async function fetchViaEdge(includeInactive = false): Promise<Community[]> {
   const res = await fetch(`${LOVABLE_CLOUD_FUNCTIONS_URL}/functions/v1/list-communities`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({}),
+    body: JSON.stringify({ include_inactive: includeInactive }),
   });
   const json = await res.json().catch(() => null);
   const list = (json as any)?.communities;
@@ -61,6 +61,9 @@ async function fetchViaEdge(): Promise<Community[]> {
 
 
 async function fetchCommunities(): Promise<Community[]> {
+  // QA path: inactive communities are only reachable through the service-role proxy
+  if (qaIncludeInactive()) return await fetchViaEdge(true);
+
   // Primary: direct table read (works when RLS allows anon/authenticated reads)
   try {
     const { data, error } = await supabase
