@@ -5,6 +5,7 @@ import { useCommunities } from '@/hooks/useCommunities';
 import { Wallet } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Skeleton } from '@/components/ui/skeleton';
+import { unitLabel } from '@/lib/address';
 const HomeHeader = memo(() => {
   const { profile, loading } = useProfile();
   const { data: wallet, isLoading: walletLoading } = useWalletBalance();
@@ -50,7 +51,7 @@ const HomeHeader = memo(() => {
                 {communityName || '—'}
               </div>
               <div className="text-xs text-gray-500 font-medium">
-                {profile?.flat_no || '—'}
+                {unitText || '—'}
               </div>
             </>
           )}
