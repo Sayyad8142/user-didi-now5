@@ -44,12 +44,12 @@ export function SignUpWizard({ data, setData, loading, onSubmit }: Props) {
   const { flats, loading: flatsLoading } = useFlats(
     data.buildingId || null,
     data.communityId || null,
-    isPHF
+    skipTower
   );
 
   // Skip tower step entirely for PHF format
-  const totalSteps = isPHF ? 3 : 4;
-  const displayStep = isPHF && step >= 3 ? step - 1 : step;
+  const totalSteps = skipTower ? 3 : 4;
+  const displayStep = skipTower && step >= 3 ? step - 1 : step;
 
   // ----- Bottom sheets -----
   const [communitySheet, setCommunitySheet] = useState(false);
@@ -86,10 +86,10 @@ export function SignUpWizard({ data, setData, loading, onSubmit }: Props) {
     if (s === 2) {
       if (!data.communityId) e.communityId = 'Please select your community';
     }
-    if (s === 3 && !isPHF) {
+    if (s === 3 && !skipTower) {
       if (!data.buildingId) e.buildingId = 'Please select your building';
     }
-    if (s === 4 || (s === 3 && isPHF)) {
+    if (s === 4 || (s === 3 && skipTower)) {
       if (!data.flatId) e.flatId = 'Please select a valid flat from the list';
       else if (!flats.some(f => f.id === data.flatId))
         e.flatId = 'Please select a valid flat from the list';
@@ -100,12 +100,12 @@ export function SignUpWizard({ data, setData, loading, onSubmit }: Props) {
 
   const goNext = () => {
     if (!validateStep(step)) return;
-    if (step === 2 && isPHF) {
+    if (step === 2 && skipTower) {
       // Skip tower step
       setStep(4);
       return;
     }
-    if (step >= totalSteps + (isPHF ? 1 : 0) - 1 && step !== 4) {
+    if (step >= totalSteps + (skipTower ? 1 : 0) - 1 && step !== 4) {
       setStep((step + 1) as Step);
     } else if (step < 4) {
       setStep((step + 1) as Step);
@@ -113,14 +113,14 @@ export function SignUpWizard({ data, setData, loading, onSubmit }: Props) {
   };
 
   const goBack = () => {
-    if (step === 4 && isPHF) {
+    if (step === 4 && skipTower) {
       setStep(2);
       return;
     }
     if (step > 1) setStep((step - 1) as Step);
   };
 
-  const isFinalStep = step === 4 || (step === 3 && isPHF);
+  const isFinalStep = step === 4 || (step === 3 && skipTower);
 
   const handleAction = () => {
     if (!validateStep(step)) return;
@@ -134,13 +134,13 @@ export function SignUpWizard({ data, setData, loading, onSubmit }: Props) {
   const stepTitle =
     step === 1 ? "Let's get started"
     : step === 2 ? 'Choose your community'
-    : step === 3 && !isPHF ? 'Select your tower'
+    : step === 3 && !skipTower ? 'Select your tower'
     : 'Pick your flat';
 
   const stepSubtitle =
     step === 1 ? 'Tell us a bit about you'
     : step === 2 ? 'We serve gated communities only'
-    : step === 3 && !isPHF ? 'Which building do you live in?'
+    : step === 3 && !skipTower ? 'Which building do you live in?'
     : 'Type or pick from the list';
 
   return (
@@ -292,7 +292,7 @@ export function SignUpWizard({ data, setData, loading, onSubmit }: Props) {
           </div>
         )}
 
-        {step === 3 && !isPHF && (
+        {step === 3 && !skipTower && (
           <div className="animate-in fade-in slide-in-from-right-2 duration-300 space-y-3">
             {buildingsLoading ? (
               <div className="text-sm text-muted-foreground text-center py-8">Loading towers…</div>
@@ -341,7 +341,7 @@ export function SignUpWizard({ data, setData, loading, onSubmit }: Props) {
           </div>
         )}
 
-        {(step === 4 || (step === 3 && isPHF)) && (
+        {(step === 4 || (step === 3 && skipTower)) && (
           <div className="animate-in fade-in slide-in-from-right-2 duration-300 space-y-3">
             <div className="space-y-2">
               <Label className="text-sm font-semibold text-gray-700">Flat Number</Label>
