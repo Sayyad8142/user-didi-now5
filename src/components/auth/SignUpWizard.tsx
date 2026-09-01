@@ -351,13 +351,19 @@ export function SignUpWizard({ data, setData, loading, onSubmit }: Props) {
         {(step === 4 || (step === 3 && skipTower)) && (
           <div className="animate-in fade-in slide-in-from-right-2 duration-300 space-y-3">
             <div className="space-y-2">
-              <Label className="text-sm font-semibold text-gray-700">Flat Number</Label>
+              <Label className="text-sm font-semibold text-gray-700">
+                {isVilla ? 'Villa Number' : 'Flat Number'}
+              </Label>
               <div className="relative">
                 <Home className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-pink-400" />
                 <Input
                   autoFocus
                   inputMode="text"
-                  placeholder={flatsLoading ? 'Loading flats…' : 'Type your flat number'}
+                  placeholder={
+                    flatsLoading
+                      ? isVilla ? 'Loading villas…' : 'Loading flats…'
+                      : isVilla ? 'Type your villa number' : 'Type your flat number'
+                  }
                   value={flatQuery}
                   onChange={e => {
                     const v = e.target.value;
@@ -377,10 +383,10 @@ export function SignUpWizard({ data, setData, loading, onSubmit }: Props) {
               <div className="rounded-2xl border border-gray-100 bg-white p-2 max-h-[220px] overflow-y-auto">
                 {filteredFlats.length === 0 ? (
                   <p className="text-xs text-muted-foreground text-center py-4">
-                    No flats matching "{flatQuery}"
+                    {isVilla ? 'No villas' : 'No flats'} matching "{flatQuery}"
                   </p>
                 ) : (
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className={cn('grid gap-2', isVilla ? 'grid-cols-2' : 'grid-cols-3')}>
                     {filteredFlats.map(f => {
                       const selected = data.flatId === f.id;
                       return (
@@ -398,7 +404,7 @@ export function SignUpWizard({ data, setData, loading, onSubmit }: Props) {
                               : 'bg-pink-50 text-pink-700 hover:bg-pink-100'
                           )}
                         >
-                          {f.flat_no}
+                          {isVilla ? unitLabel('villa', f.flat_no, f.display_name) : f.flat_no}
                         </button>
                       );
                     })}
@@ -406,6 +412,7 @@ export function SignUpWizard({ data, setData, loading, onSubmit }: Props) {
                 )}
               </div>
             )}
+
 
             {errors.flatId && <p className="text-xs text-destructive">{errors.flatId}</p>}
           </div>
