@@ -14,7 +14,25 @@ interface Community {
   community_type: CommunityType;
 }
 
+/**
+ * QA-only escape hatch: append ?qa_inactive=1 once (or set the localStorage
+ * flag) to also list inactive communities so the QA Villa Test Community can be
+ * exercised before onboarding a real villa community.
+ */
+function qaIncludeInactive(): boolean {
+  try {
+    const url = new URL(window.location.href);
+    if (url.searchParams.get('qa_inactive') === '1') {
+      localStorage.setItem('qa_include_inactive', '1');
+    }
+    return localStorage.getItem('qa_include_inactive') === '1';
+  } catch {
+    return false;
+  }
+}
+
 const COMMUNITIES_KEY = ['communities', 'active'] as const;
+
 
 const normalizeList = (rows: any[]): Community[] =>
   rows.map(r => ({
