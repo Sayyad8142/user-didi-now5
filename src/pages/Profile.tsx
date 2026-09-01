@@ -533,9 +533,19 @@ export default function Profile() {
                   <Home className="w-6 h-6 text-orange-600" />
                 </div>
                 <div className="flex-1 space-y-1">
-                  <p className="text-sm font-medium text-gray-500 uppercase tracking-wide">Flat Number</p>
+                  <p className="text-sm font-medium text-gray-500 uppercase tracking-wide">
+                    {(isEditing ? isVilla : profileIsVilla) ? 'Villa Number' : 'Flat Number'}
+                  </p>
                   {!isEditing ? (
-                    hydrating ? <Skeleton className="h-6 w-24" /> : <p className="text-lg font-semibold text-gray-900">{profile?.flat_no || 'Not provided'}</p>
+                    hydrating ? <Skeleton className="h-6 w-24" /> : (
+                      <p className="text-lg font-semibold text-gray-900">
+                        {profile?.flat_no
+                          ? (profileIsVilla
+                              ? unitLabel('villa', profile.flat_no, flats.find(f => f.id === profile.flat_id)?.display_name)
+                              : profile.flat_no)
+                          : 'Not provided'}
+                      </p>
+                    )
                   ) : flats.length > 0 ? (
                     <Select 
                       value={editForm.flat_id} 
@@ -549,15 +559,16 @@ export default function Profile() {
                       }}
                     >
                       <SelectTrigger className="text-lg font-semibold border-0 bg-gray-50 rounded-xl p-3 focus-visible:ring-2 focus-visible:ring-primary/20 h-auto">
-                        <SelectValue placeholder="Select flat number" />
+                        <SelectValue placeholder={isVilla ? 'Select villa number' : 'Select flat number'} />
                       </SelectTrigger>
                       <SelectContent className="bg-white border border-gray-200 rounded-xl shadow-lg z-50 max-h-60">
                         {flats.map((flat) => (
                           <SelectItem key={flat.id} value={flat.id}>
-                            {flat.flat_no}
+                            {isVilla ? unitLabel('villa', flat.flat_no, flat.display_name) : flat.flat_no}
                           </SelectItem>
                         ))}
                       </SelectContent>
+
                     </Select>
                   ) : (
                     <Input
