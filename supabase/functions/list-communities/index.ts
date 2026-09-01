@@ -46,18 +46,44 @@ serve(async (req) => {
       auth: { persistSession: false, autoRefreshToken: false },
     });
 
-    const { data, error } = await supabase
-      .from("communities")
-      .select("id, name, value, is_active, flat_format")
-      .eq("is_active", true)
-      .order("name");
+    let includeInactive = false;
+    try {
+      const body = req.method === "POST" ? await req.json() : {};
+      includeInactive = body?.include_inactive === true;
+    } catch (_) {
+      // no body
+    }
+
+    const run = async (select: string) => {
+      let q = supabase.from("communities").select(select);
+      if (!includeInactive) q = q.eq("is_active", true);
+      return await q.order("name");
+    };
+
+    // Phase 2A: community_type ('apartment' | 'villa'). Fall back if column absent.
+    let { data, error } = await run(
+      "id, name, value, is_active, flat_format, community_type",
+    );
+    if (error) {
+      console.warn("[list-communities] community_type select failed", error.message);
+      ({ data, error } = await run("id, name, value, is_active, flat_format"));
+    }
 
     if (error) {
       console.error("[list-communities] query failed", error.message);
       return json({ error: error.message, communities: [] }, 500);
     }
 
-    return json({ communities: data || [] });
+    const communities = (data || []).map((c: any) => ({
+      ...c,
+      community_type:
+        String(c?.community_type ?? "").toLowerCase() === "villa"
+          ? "villa"
+          : "apartment",
+    }));
+
+    return json({ communities });
+
   } catch (e: any) {
     console.error("[list-communities] unexpected", e?.message);
     return json({ error: e?.message || "Unexpected error", communities: [] }, 500);
