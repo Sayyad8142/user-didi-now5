@@ -39,6 +39,10 @@ export function SignUpWizard({ data, setData, loading, onSubmit }: Props) {
   const { communities, loading: communitiesLoading } = useCommunities();
   const selectedCommunity = communities.find(c => c.id === data.communityId);
   const isPHF = selectedCommunity?.flat_format === 'phf_code';
+  const isVilla = selectedCommunity?.community_type === 'villa';
+  // Villas and PHF-code communities have no tower/building level
+  const skipTower = isPHF || isVilla;
+
 
   const { buildings, loading: buildingsLoading } = useBuildings(data.communityId || null);
   const { flats, loading: flatsLoading } = useFlats(
