@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { LOVABLE_CLOUD_FUNCTIONS_URL } from '@/lib/constants';
+import { normalizeCommunityType, type CommunityType } from '@/lib/address';
 
 interface Community {
   id: string;
@@ -9,9 +10,17 @@ interface Community {
   value: string;
   is_active: boolean;
   flat_format?: string;
+  /** 'apartment' | 'villa' — always normalised, defaults to 'apartment'. */
+  community_type: CommunityType;
 }
 
 const COMMUNITIES_KEY = ['communities', 'active'] as const;
+
+const normalizeList = (rows: any[]): Community[] =>
+  rows.map(r => ({
+    ...r,
+    community_type: normalizeCommunityType(r?.community_type),
+  })) as Community[];
 
 /**
  * The shared supabase client points at the EXTERNAL database project, while
@@ -29,7 +38,7 @@ async function fetchViaEdge(): Promise<Community[]> {
   if (!res.ok || !Array.isArray(list)) {
     throw new Error((json as any)?.error || 'Invalid communities response');
   }
-  return list as Community[];
+  return normalizeList(list);
 }
 
 
@@ -38,11 +47,11 @@ async function fetchCommunities(): Promise<Community[]> {
   try {
     const { data, error } = await supabase
       .from('communities')
-      .select('id, name, value, is_active, flat_format')
+      .select('id, name, value, is_active, flat_format, community_type')
       .eq('is_active', true)
       .order('name');
     if (error) throw error;
-    if (data && data.length > 0) return data as Community[];
+    if (data && data.length > 0) return normalizeList(data as any[]);
   } catch (err) {
     console.warn('[useCommunities] direct read failed, using edge fallback', err);
   }
