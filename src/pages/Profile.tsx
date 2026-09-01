@@ -20,6 +20,8 @@ import { useFlats } from '@/hooks/useFlats';
 import { useFlatSize } from '@/hooks/useFlatSize';
 import { useWalletBalance } from '@/hooks/useWallet';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { unitLabel } from '@/lib/address';
+
 
 function WalletCard() {
   const navigate = useNavigate();
