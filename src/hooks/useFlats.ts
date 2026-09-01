@@ -6,9 +6,20 @@ interface Flat {
   building_id: string | null;
   community_id: string;
   flat_no: string;
+  display_name?: string | null;
 }
 
-export function useFlats(buildingId: string | null, communityId: string | null, isPHF: boolean = false) {
+const SELECT = 'id, building_id, community_id, flat_no, display_name';
+
+/**
+ * @param communityScopedOnly true for PHF-code apartments AND villa communities:
+ *        units live directly under the community with building_id IS NULL.
+ */
+export function useFlats(
+  buildingId: string | null,
+  communityId: string | null,
+  communityScopedOnly: boolean = false
+) {
   const [flats, setFlats] = useState<Flat[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -19,15 +30,15 @@ export function useFlats(buildingId: string | null, communityId: string | null, 
       return;
     }
 
-    // For PHF format, fetch flats by community_id only (building_id is null)
-    if (isPHF) {
+    // Community-scoped units (PHF codes / villas): building_id is null
+    if (communityScopedOnly) {
       try {
         setLoading(true);
         setError(null);
 
         const { data, error: fetchError } = await supabase
           .from('flats')
-          .select('id, building_id, community_id, flat_no')
+          .select(SELECT)
           .eq('community_id', communityId)
           .is('building_id', null)
           .order('flat_no');
@@ -38,7 +49,7 @@ export function useFlats(buildingId: string | null, communityId: string | null, 
           return;
         }
 
-        setFlats(data || []);
+        setFlats((data as Flat[]) || []);
       } catch (err) {
         console.error('Error:', err);
         setError('An unexpected error occurred');
@@ -60,7 +71,7 @@ export function useFlats(buildingId: string | null, communityId: string | null, 
 
       const { data, error: fetchError } = await supabase
         .from('flats')
-        .select('id, building_id, community_id, flat_no')
+        .select(SELECT)
         .eq('building_id', buildingId)
         .order('flat_no');
 
@@ -70,14 +81,14 @@ export function useFlats(buildingId: string | null, communityId: string | null, 
         return;
       }
 
-      setFlats(data || []);
+      setFlats((data as Flat[]) || []);
     } catch (err) {
       console.error('Error:', err);
       setError('An unexpected error occurred');
     } finally {
       setLoading(false);
     }
-  }, [buildingId, communityId, isPHF]);
+  }, [buildingId, communityId, communityScopedOnly]);
 
   useEffect(() => {
     fetchFlats();

@@ -20,6 +20,8 @@ import { useFlats } from '@/hooks/useFlats';
 import { useFlatSize } from '@/hooks/useFlatSize';
 import { useWalletBalance } from '@/hooks/useWallet';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { unitLabel } from '@/lib/address';
+
 
 function WalletCard() {
   const navigate = useNavigate();
@@ -88,12 +90,18 @@ export default function Profile() {
   // Get the selected community to check format
   const selectedCommunity = communities.find(c => c.id === editForm.community_id);
   const isPHF = selectedCommunity?.flat_format === 'PHF';
+  const isVilla = selectedCommunity?.community_type === 'villa';
+  // Villas and PHF communities have no building/tower level
+  const skipTower = isPHF || isVilla;
   // Authoritative community name: always resolve community_id -> communities.name
   const assignedCommunityName = communities.find(c => c.id === profile?.community_id)?.name;
+  const profileIsVilla =
+    communities.find(c => c.id === profile?.community_id)?.community_type === 'villa';
 
   // Use hooks with edit form values for dynamic dropdowns
   const { buildings } = useBuildings(editForm.community_id || null);
-  const { flats } = useFlats(editForm.building_id || null, editForm.community_id || null, isPHF);
+  const { flats } = useFlats(editForm.building_id || null, editForm.community_id || null, skipTower);
+
 
   // Note: ProfileContext owns retry/refresh logic — do NOT call refresh() from
   // here based on missing fields. That used to cause duplicate bootstrap calls.
@@ -475,8 +483,9 @@ export default function Profile() {
               </div>
             </div>
 
-            {/* Building - show if buildings exist for community (not PHF format) */}
-            {!isPHF && buildings.length > 0 && (
+            {/* Building - show if buildings exist for community (not PHF / villa) */}
+            {!skipTower && buildings.length > 0 && (
+
               <div className="group">
                 <div className="flex items-start gap-4">
                   <div className="h-12 w-12 bg-indigo-50 rounded-2xl flex items-center justify-center group-hover:bg-indigo-100 transition-colors">
@@ -526,9 +535,19 @@ export default function Profile() {
                   <Home className="w-6 h-6 text-orange-600" />
                 </div>
                 <div className="flex-1 space-y-1">
-                  <p className="text-sm font-medium text-gray-500 uppercase tracking-wide">Flat Number</p>
+                  <p className="text-sm font-medium text-gray-500 uppercase tracking-wide">
+                    {(isEditing ? isVilla : profileIsVilla) ? 'Villa Number' : 'Flat Number'}
+                  </p>
                   {!isEditing ? (
-                    hydrating ? <Skeleton className="h-6 w-24" /> : <p className="text-lg font-semibold text-gray-900">{profile?.flat_no || 'Not provided'}</p>
+                    hydrating ? <Skeleton className="h-6 w-24" /> : (
+                      <p className="text-lg font-semibold text-gray-900">
+                        {profile?.flat_no
+                          ? (profileIsVilla
+                              ? unitLabel('villa', profile.flat_no, flats.find(f => f.id === profile.flat_id)?.display_name)
+                              : profile.flat_no)
+                          : 'Not provided'}
+                      </p>
+                    )
                   ) : flats.length > 0 ? (
                     <Select 
                       value={editForm.flat_id} 
@@ -542,15 +561,16 @@ export default function Profile() {
                       }}
                     >
                       <SelectTrigger className="text-lg font-semibold border-0 bg-gray-50 rounded-xl p-3 focus-visible:ring-2 focus-visible:ring-primary/20 h-auto">
-                        <SelectValue placeholder="Select flat number" />
+                        <SelectValue placeholder={isVilla ? 'Select villa number' : 'Select flat number'} />
                       </SelectTrigger>
                       <SelectContent className="bg-white border border-gray-200 rounded-xl shadow-lg z-50 max-h-60">
                         {flats.map((flat) => (
                           <SelectItem key={flat.id} value={flat.id}>
-                            {flat.flat_no}
+                            {isVilla ? unitLabel('villa', flat.flat_no, flat.display_name) : flat.flat_no}
                           </SelectItem>
                         ))}
                       </SelectContent>
+
                     </Select>
                   ) : (
                     <Input

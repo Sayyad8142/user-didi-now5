@@ -47,6 +47,9 @@ export function AuthCard() {
   // Get selected community details
   const selectedCommunity = communities.find(c => c.id === signUpData.communityId);
   const isPHF = selectedCommunity?.flat_format === 'phf_code';
+  const isVilla = selectedCommunity?.community_type === 'villa';
+  // Villas and PHF-code communities have no building/tower level
+  const skipTower = isPHF || isVilla;
 
   // Fetch buildings based on selected community
   const { buildings, loading: buildingsLoading } = useBuildings(signUpData.communityId || null);
@@ -55,7 +58,7 @@ export function AuthCard() {
   const { flats, loading: flatsLoading } = useFlats(
     signUpData.buildingId || null,
     signUpData.communityId || null,
-    isPHF
+    skipTower
   );
 
   // Validation errors
@@ -88,9 +91,11 @@ export function AuthCard() {
     }
     
     const selectedCommunity = communities.find(c => c.id === signUpData.communityId);
-    const isPHF = selectedCommunity?.flat_format === 'phf_code';
+    const skipTowerCheck =
+      selectedCommunity?.flat_format === 'phf_code' ||
+      selectedCommunity?.community_type === 'villa';
     
-    if (!isPHF && !signUpData.buildingId) {
+    if (!skipTowerCheck && !signUpData.buildingId) {
       newErrors.buildingId = 'Please select your building';
     }
     if (!signUpData.flatId) {

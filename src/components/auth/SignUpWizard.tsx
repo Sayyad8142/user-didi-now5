@@ -12,6 +12,8 @@ import { isValidINPhone } from '@/lib/auth-helpers';
 import { useCommunities } from '@/hooks/useCommunities';
 import { useBuildings } from '@/hooks/useBuildings';
 import { useFlats } from '@/hooks/useFlats';
+import { unitLabel } from '@/lib/address';
+
 
 export interface SignUpData {
   fullName: string;
@@ -39,17 +41,21 @@ export function SignUpWizard({ data, setData, loading, onSubmit }: Props) {
   const { communities, loading: communitiesLoading } = useCommunities();
   const selectedCommunity = communities.find(c => c.id === data.communityId);
   const isPHF = selectedCommunity?.flat_format === 'phf_code';
+  const isVilla = selectedCommunity?.community_type === 'villa';
+  // Villas and PHF-code communities have no tower/building level
+  const skipTower = isPHF || isVilla;
+
 
   const { buildings, loading: buildingsLoading } = useBuildings(data.communityId || null);
   const { flats, loading: flatsLoading } = useFlats(
     data.buildingId || null,
     data.communityId || null,
-    isPHF
+    skipTower
   );
 
   // Skip tower step entirely for PHF format
-  const totalSteps = isPHF ? 3 : 4;
-  const displayStep = isPHF && step >= 3 ? step - 1 : step;
+  const totalSteps = skipTower ? 3 : 4;
+  const displayStep = skipTower && step >= 3 ? step - 1 : step;
 
   // ----- Bottom sheets -----
   const [communitySheet, setCommunitySheet] = useState(false);
@@ -69,10 +75,19 @@ export function SignUpWizard({ data, setData, loading, onSubmit }: Props) {
   const filteredFlats = useMemo(
     () =>
       flatQuery
-        ? flats.filter(f => f.flat_no.toLowerCase().includes(flatQuery.toLowerCase())).slice(0, 50)
+        ? flats
+            .filter(f => {
+              const q = flatQuery.toLowerCase();
+              return (
+                f.flat_no.toLowerCase().includes(q) ||
+                String(f.display_name || '').toLowerCase().includes(q)
+              );
+            })
+            .slice(0, 50)
         : flats.slice(0, 12),
     [flats, flatQuery]
   );
+
 
   // ----- Validation per step -----
   const validateStep = (s: Step): boolean => {
@@ -86,10 +101,10 @@ export function SignUpWizard({ data, setData, loading, onSubmit }: Props) {
     if (s === 2) {
       if (!data.communityId) e.communityId = 'Please select your community';
     }
-    if (s === 3 && !isPHF) {
+    if (s === 3 && !skipTower) {
       if (!data.buildingId) e.buildingId = 'Please select your building';
     }
-    if (s === 4 || (s === 3 && isPHF)) {
+    if (s === 4 || (s === 3 && skipTower)) {
       if (!data.flatId) e.flatId = 'Please select a valid flat from the list';
       else if (!flats.some(f => f.id === data.flatId))
         e.flatId = 'Please select a valid flat from the list';
@@ -100,12 +115,12 @@ export function SignUpWizard({ data, setData, loading, onSubmit }: Props) {
 
   const goNext = () => {
     if (!validateStep(step)) return;
-    if (step === 2 && isPHF) {
+    if (step === 2 && skipTower) {
       // Skip tower step
       setStep(4);
       return;
     }
-    if (step >= totalSteps + (isPHF ? 1 : 0) - 1 && step !== 4) {
+    if (step >= totalSteps + (skipTower ? 1 : 0) - 1 && step !== 4) {
       setStep((step + 1) as Step);
     } else if (step < 4) {
       setStep((step + 1) as Step);
@@ -113,14 +128,14 @@ export function SignUpWizard({ data, setData, loading, onSubmit }: Props) {
   };
 
   const goBack = () => {
-    if (step === 4 && isPHF) {
+    if (step === 4 && skipTower) {
       setStep(2);
       return;
     }
     if (step > 1) setStep((step - 1) as Step);
   };
 
-  const isFinalStep = step === 4 || (step === 3 && isPHF);
+  const isFinalStep = step === 4 || (step === 3 && skipTower);
 
   const handleAction = () => {
     if (!validateStep(step)) return;
@@ -134,14 +149,17 @@ export function SignUpWizard({ data, setData, loading, onSubmit }: Props) {
   const stepTitle =
     step === 1 ? "Let's get started"
     : step === 2 ? 'Choose your community'
-    : step === 3 && !isPHF ? 'Select your tower'
+    : step === 3 && !skipTower ? 'Select your tower'
+    : isVilla ? 'Pick your villa'
     : 'Pick your flat';
 
   const stepSubtitle =
     step === 1 ? 'Tell us a bit about you'
     : step === 2 ? 'We serve gated communities only'
-    : step === 3 && !isPHF ? 'Which building do you live in?'
+    : step === 3 && !skipTower ? 'Which building do you live in?'
+    : isVilla ? 'Type or pick your villa number'
     : 'Type or pick from the list';
+
 
   return (
     <div className="space-y-6">
@@ -292,7 +310,7 @@ export function SignUpWizard({ data, setData, loading, onSubmit }: Props) {
           </div>
         )}
 
-        {step === 3 && !isPHF && (
+        {step === 3 && !skipTower && (
           <div className="animate-in fade-in slide-in-from-right-2 duration-300 space-y-3">
             {buildingsLoading ? (
               <div className="text-sm text-muted-foreground text-center py-8">Loading towers…</div>
@@ -341,16 +359,22 @@ export function SignUpWizard({ data, setData, loading, onSubmit }: Props) {
           </div>
         )}
 
-        {(step === 4 || (step === 3 && isPHF)) && (
+        {(step === 4 || (step === 3 && skipTower)) && (
           <div className="animate-in fade-in slide-in-from-right-2 duration-300 space-y-3">
             <div className="space-y-2">
-              <Label className="text-sm font-semibold text-gray-700">Flat Number</Label>
+              <Label className="text-sm font-semibold text-gray-700">
+                {isVilla ? 'Villa Number' : 'Flat Number'}
+              </Label>
               <div className="relative">
                 <Home className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-pink-400" />
                 <Input
                   autoFocus
                   inputMode="text"
-                  placeholder={flatsLoading ? 'Loading flats…' : 'Type your flat number'}
+                  placeholder={
+                    flatsLoading
+                      ? isVilla ? 'Loading villas…' : 'Loading flats…'
+                      : isVilla ? 'Type your villa number' : 'Type your flat number'
+                  }
                   value={flatQuery}
                   onChange={e => {
                     const v = e.target.value;
@@ -370,10 +394,10 @@ export function SignUpWizard({ data, setData, loading, onSubmit }: Props) {
               <div className="rounded-2xl border border-gray-100 bg-white p-2 max-h-[220px] overflow-y-auto">
                 {filteredFlats.length === 0 ? (
                   <p className="text-xs text-muted-foreground text-center py-4">
-                    No flats matching "{flatQuery}"
+                    {isVilla ? 'No villas' : 'No flats'} matching "{flatQuery}"
                   </p>
                 ) : (
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className={cn('grid gap-2', isVilla ? 'grid-cols-2' : 'grid-cols-3')}>
                     {filteredFlats.map(f => {
                       const selected = data.flatId === f.id;
                       return (
@@ -391,7 +415,7 @@ export function SignUpWizard({ data, setData, loading, onSubmit }: Props) {
                               : 'bg-pink-50 text-pink-700 hover:bg-pink-100'
                           )}
                         >
-                          {f.flat_no}
+                          {isVilla ? unitLabel('villa', f.flat_no, f.display_name) : f.flat_no}
                         </button>
                       );
                     })}
@@ -399,6 +423,7 @@ export function SignUpWizard({ data, setData, loading, onSubmit }: Props) {
                 )}
               </div>
             )}
+
 
             {errors.flatId && <p className="text-xs text-destructive">{errors.flatId}</p>}
           </div>
