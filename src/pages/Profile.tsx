@@ -88,12 +88,18 @@ export default function Profile() {
   // Get the selected community to check format
   const selectedCommunity = communities.find(c => c.id === editForm.community_id);
   const isPHF = selectedCommunity?.flat_format === 'PHF';
+  const isVilla = selectedCommunity?.community_type === 'villa';
+  // Villas and PHF communities have no building/tower level
+  const skipTower = isPHF || isVilla;
   // Authoritative community name: always resolve community_id -> communities.name
   const assignedCommunityName = communities.find(c => c.id === profile?.community_id)?.name;
+  const profileIsVilla =
+    communities.find(c => c.id === profile?.community_id)?.community_type === 'villa';
 
   // Use hooks with edit form values for dynamic dropdowns
   const { buildings } = useBuildings(editForm.community_id || null);
-  const { flats } = useFlats(editForm.building_id || null, editForm.community_id || null, isPHF);
+  const { flats } = useFlats(editForm.building_id || null, editForm.community_id || null, skipTower);
+
 
   // Note: ProfileContext owns retry/refresh logic — do NOT call refresh() from
   // here based on missing fields. That used to cause duplicate bootstrap calls.
