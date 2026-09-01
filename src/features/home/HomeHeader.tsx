@@ -13,13 +13,12 @@ const HomeHeader = memo(() => {
   const balance = wallet?.balance_inr ?? 0;
 
   // Resolve community display name from community_id or slug
-  const communityName = (() => {
-    if (!profile) return '';
-    const match = communities.find(
-      c => c.id === profile.community_id || c.value === profile.community
-    );
-    return match?.name || profile.community || '';
-  })();
+  const matchedCommunity = profile
+    ? communities.find(c => c.id === profile.community_id || c.value === profile.community)
+    : undefined;
+  const communityName = matchedCommunity?.name || profile?.community || '';
+  const unitText = unitLabel(matchedCommunity?.community_type, profile?.flat_no);
+
 
   // Always render static branding; only skeleton dynamic parts
   return <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-0 mx-0">
