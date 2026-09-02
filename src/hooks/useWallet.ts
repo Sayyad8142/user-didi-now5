@@ -22,8 +22,13 @@ const WALLET_REASONS: Record<string, string> = {
   admin_cancelled: 'Refund: Cancelled by support',
   service_issue: 'Refund: Service issue',
   booking_cancelled: 'Refund: Booking cancelled',
+  booking_cancel_refund: 'Refund: Booking cancelled',
+  booking_refund_topup: 'Refund adjustment: Booking cancelled',
+  refund_adjustment: 'Refund adjustment: Booking cancelled',
+  refund_correction: 'Refund correction',
   system_expiry: 'Refund: Booking expired',
   dispatch_expired: 'Refund: No worker assigned',
+
   booking_payment: 'Booking payment',
 };
 

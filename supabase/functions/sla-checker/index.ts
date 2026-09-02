@@ -163,7 +163,7 @@ serve(async (req) => {
         .from("bookings")
         .select("id, user_id")
         .eq("status", "cancelled")
-        .in("payment_status", ["paid", "moved_to_wallet"])
+        .in("payment_status", ["paid", "moved_to_wallet", "refunded_to_wallet", "partially_refunded"])
         .gte("cancelled_at", since)
         .limit(200);
 
