@@ -22,6 +22,7 @@ import { getExpectedSurge, validateBookingSurge } from "../_shared/userSurge.ts"
 import { getExpectedSlotSurge, validateSlotSurge, validatePriceComposition } from "../_shared/slotSurge.ts";
 import { validateScheduledSlot } from "../_shared/scheduledSlot.ts";
 import { resolveBookingCommunity } from "../_shared/bookingCommunity.ts";
+import { sanitizePreferredWorkerId } from "../_shared/preferredWorker.ts";
 
 const RAZORPAY_KEY_SECRET = Deno.env.get("RAZORPAY_KEY_SECRET")!;
 const SUPABASE_URL =
@@ -420,6 +421,22 @@ Deno.serve(async (req) => {
           },
           400,
         );
+      }
+    }
+
+    // 4b. Server-side authorization of the requested favorite worker.
+    if ((booking_data as any).preferred_worker_id) {
+      const favCheck = await sanitizePreferredWorkerId(supabase, {
+        requested: (booking_data as any).preferred_worker_id,
+        userId: profile.id,
+        serviceType: String(booking_data.service_type ?? ""),
+        community: booking_data.community as string | null,
+      });
+      if (!favCheck.preferredWorkerId) {
+        console.warn(
+          `[create-paid-booking] ⚠️ preferred_worker_id rejected (${favCheck.reason}) requested=${(booking_data as any).preferred_worker_id} user=${profile.id}`,
+        );
+        (booking_data as any).preferred_worker_id = null;
       }
     }
 
