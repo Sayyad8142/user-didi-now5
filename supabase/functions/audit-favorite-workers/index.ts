@@ -13,55 +13,46 @@ Deno.serve(async (req) => {
     auth: { persistSession: false, autoRefreshToken: false },
   });
   const out: Record<string, unknown> = {};
-  const rpc = async (label: string, args: Record<string, unknown>) => {
-    const { data, error } = await db.rpc("get_favorite_workers", args);
-    out[label] = error ? { error: error.message, code: (error as any).code } : data;
-  };
+  const userId = "e1aeaa32-9a86-4f01-b45e-d7f20ddae167";
 
-  // A user with a completed maid booking (from earlier probe)
-  const user = "e1aeaa32-9a86-4f01-b45e-d7f20ddae167";
-  await rpc("completed_user_maid", { p_service: "maid", p_community: "prestige-high-fields", p_user_id: user });
-  await rpc("completed_user_bathroom", { p_service: "bathroom_cleaning", p_community: "prestige-high-fields", p_user_id: user });
-  await rpc("completed_user_wrong_community", { p_service: "maid", p_community: "qa-villa-test", p_user_id: user });
-  await rpc("unknown_user", { p_service: "maid", p_community: "prestige-high-fields", p_user_id: "00000000-0000-0000-0000-000000000000" });
+  // Simulate exactly what list-favorite-workers does after token verification.
+  const { data: profile } = await db
+    .from("profiles")
+    .select("id,firebase_uid,phone,community")
+    .eq("id", userId)
+    .maybeSingle();
+  out.profile = profile
+    ? { id: profile.id, has_firebase_uid: !!profile.firebase_uid, community: profile.community }
+    : null;
 
-  // Find a user whose only worker-bearing bookings are cancelled
-  {
-    const { data } = await db
-      .from("bookings")
-      .select("user_id,worker_id,service_type,community,status")
-      .eq("status", "cancelled")
-      .not("worker_id", "is", null)
-      .order("created_at", { ascending: false })
-      .limit(20);
-    out.cancelled_sample = data;
-    for (const b of data || []) {
-      const { count } = await db
-        .from("bookings")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", b.user_id)
-        .eq("status", "completed");
-      if (!count) {
-        await rpc("cancelled_only_user", {
-          p_service: b.service_type,
-          p_community: b.community,
-          p_user_id: b.user_id,
-        });
-        out.cancelled_only_user_id = b.user_id;
-        break;
-      }
-    }
+  if (profile?.firebase_uid) {
+    const { data: byUid } = await db
+      .from("profiles")
+      .select("id")
+      .eq("firebase_uid", profile.firebase_uid)
+      .maybeSingle();
+    out.reverse_uid_lookup_matches = byUid?.id === userId;
   }
 
-  // How many distinct users have >=1 completed booking with a worker
-  {
-    const { count } = await db
-      .from("bookings")
-      .select("id", { count: "exact", head: true })
-      .eq("status", "completed")
-      .not("worker_id", "is", null);
-    out.total_completed_with_worker = count;
-  }
+  const { data, error } = await db.rpc("get_favorite_workers", {
+    p_service: "maid",
+    p_community: profile?.community ?? "prestige-high-fields",
+    p_user_id: userId,
+  });
+  out.proxy_simulated_result = error ? { error: error.message } : data;
+
+  // Fallback path (used only if the RPC ever disappears)
+  const { data: bookings } = await db
+    .from("bookings")
+    .select("worker_id,created_at")
+    .eq("user_id", userId)
+    .eq("service_type", "maid")
+    .eq("community", profile?.community ?? "prestige-high-fields")
+    .eq("status", "completed")
+    .not("worker_id", "is", null)
+    .order("created_at", { ascending: false })
+    .limit(200);
+  out.fallback_distinct_workers = [...new Set((bookings || []).map((b: any) => b.worker_id))];
 
   return new Response(JSON.stringify(out, null, 2), {
     headers: { ...cors, "Content-Type": "application/json" },
