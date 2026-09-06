@@ -424,6 +424,22 @@ Deno.serve(async (req) => {
       }
     }
 
+    // 4b. Server-side authorization of the requested favorite worker.
+    if ((booking_data as any).preferred_worker_id) {
+      const favCheck = await sanitizePreferredWorkerId(supabase, {
+        requested: (booking_data as any).preferred_worker_id,
+        userId: profile.id,
+        serviceType: String(booking_data.service_type ?? ""),
+        community: booking_data.community as string | null,
+      });
+      if (!favCheck.preferredWorkerId) {
+        console.warn(
+          `[create-paid-booking] ⚠️ preferred_worker_id rejected (${favCheck.reason}) requested=${(booking_data as any).preferred_worker_id} user=${profile.id}`,
+        );
+        (booking_data as any).preferred_worker_id = null;
+      }
+    }
+
     // 5. Verify payment
     if (payment_type === "razorpay" || payment_type === "wallet_and_razorpay") {
       if (qr_recovery) {
