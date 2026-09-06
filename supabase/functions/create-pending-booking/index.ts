@@ -20,6 +20,7 @@ import {
 import { getExpectedSurge, validateBookingSurge } from "../_shared/userSurge.ts";
 import { validateScheduledSlot } from "../_shared/scheduledSlot.ts";
 import { resolveBookingCommunity } from "../_shared/bookingCommunity.ts";
+import { sanitizePreferredWorkerId } from "../_shared/preferredWorker.ts";
 
 function cleanSecret(raw?: string | null): string {
   if (!raw) return "";
