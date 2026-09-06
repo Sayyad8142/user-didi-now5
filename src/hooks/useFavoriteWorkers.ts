@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useProfile } from '@/contexts/ProfileContext';
+import { fetchFavoriteWorkersViaProxy } from '@/features/booking/favoriteWorkersClient';
 
 export type FavoriteWorker = {
   worker_id: string;
@@ -22,14 +23,25 @@ export function useFavoriteWorkers(serviceType?: string, community?: string) {
     queryKey: ['favorite-workers', serviceType, community, userId],
     enabled: !!serviceType && !!community && !!userId,
     refetchInterval: 15_000,
+    retry: 1,
     queryFn: async () => {
+      // Direct RPC first (works only if EXECUTE is granted to anon on the DB).
       const { data, error } = await supabase.rpc('get_favorite_workers', {
         p_service: serviceType!,
         p_community: community!,
         p_user_id: userId!,
       } as any);
-      if (error) throw error;
-      return (data || []) as FavoriteWorker[];
+
+      if (!error) return (data || []) as FavoriteWorker[];
+
+      // Production reality: 42501 permission denied → use the authenticated
+      // service-role proxy instead of silently showing an empty list.
+      console.warn('[favorite-workers] direct RPC failed, using proxy', error.code, error.message);
+      return fetchFavoriteWorkersViaProxy(
+        serviceType!,
+        community!,
+        `${error.code || ''} ${error.message}`.trim(),
+      );
     },
   });
 }
