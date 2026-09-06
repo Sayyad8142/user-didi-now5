@@ -93,13 +93,30 @@ export function SelectWorkerScreen() {
               </div>
             ))}
           </div>
+        ) : isError ? (
+          <div className="text-center py-12">
+            <p className="text-foreground font-medium">Couldn't load your previous experts</p>
+            <p className="text-xs text-muted-foreground mt-1 mb-4">
+              {(error as Error)?.message || 'Please check your connection and try again.'}
+            </p>
+            <Button
+              variant="outline"
+              className="rounded-xl"
+              onClick={() => refetch()}
+              disabled={isFetching}
+            >
+              {isFetching ? 'Retrying…' : 'Try again'}
+            </Button>
+          </div>
         ) : filtered.length === 0 ? (
           <div className="text-center py-12">
             <p className="text-muted-foreground font-medium">
               {search ? 'No workers match your search' : 'No previous experts yet'}
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              {search ? 'Try a different name.' : 'Book once to see your favorite experts here.'}
+              {search
+                ? 'Try a different name.'
+                : "You'll see workers here after you complete your first service."}
             </p>
           </div>
         ) : (
