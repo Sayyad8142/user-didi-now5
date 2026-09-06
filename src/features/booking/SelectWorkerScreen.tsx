@@ -17,7 +17,8 @@ export function SelectWorkerScreen() {
   const { toast } = useToast();
   const [search, setSearch] = useState('');
 
-  const { data: workers, isLoading } = useFavoriteWorkers(service_type, profile?.community);
+  const { data: workers, isLoading, isError, error, refetch, isFetching } =
+    useFavoriteWorkers(service_type, profile?.community);
 
   const filtered = (workers || [])
     .filter((w) => w.full_name.toLowerCase().includes(search.toLowerCase()))
