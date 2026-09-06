@@ -214,6 +214,22 @@ Deno.serve(async (req) => {
       (booking_data as any).preferred_worker_id ?? null;
     let preferredWorkerFallbackUsed = false;
 
+    // Server-side authorization: never trust a client-supplied worker id.
+    if (requestedPreferredWorkerId) {
+      const check = await sanitizePreferredWorkerId(supabase, {
+        requested: requestedPreferredWorkerId,
+        userId: profile.id,
+        serviceType: String(booking_data.service_type ?? ""),
+        community: booking_data.community as string | null,
+      });
+      if (!check.preferredWorkerId) {
+        console.warn(
+          `[create-pending-booking] ⚠️ preferred_worker_id rejected (${check.reason}) requested=${requestedPreferredWorkerId} user=${profile.id}`,
+        );
+        (booking_data as any).preferred_worker_id = null;
+      }
+    }
+
     let result = await insertWithCompat(supabase, booking_data);
 
     const firstErrMsg = result.error?.message || "";
