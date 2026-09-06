@@ -547,7 +547,7 @@ export function BookingForm() {
         cust_phone: profile.phone,
         community: profile.community,
         flat_no: profile.flat_no,
-        preferred_worker_id: null,
+        preferred_worker_id: preferredWorker?.id ?? null,
       } as any;
 
       const isPayAfter = paymentMethod === 'pay_after_service';
