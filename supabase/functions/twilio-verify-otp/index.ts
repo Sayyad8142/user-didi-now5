@@ -7,7 +7,7 @@ import { createFirebaseCustomToken, uidFromPhone } from "../_shared/firebaseCust
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-firebase-token",
+    "authorization, x-client-info, apikey, content-type, x-firebase-token, x-app-version, x-app-platform",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
