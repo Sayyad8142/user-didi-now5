@@ -130,6 +130,30 @@ Deno.serve(async (req) => {
       return json({ ok: true, mode, dry_run: dryRun, results: out });
     }
 
+    // ── backfill_ledger (money already credited, write the ledger row) ──
+    if (mode === "backfill_ledger") {
+      const out: any[] = [];
+      for (const r of repairs) {
+        const led = await insertLedger(
+          external,
+          { user_id: r.user_id, amount_inr: Math.abs(r.amount), type: "credit", reason: "payment_without_booking_refund" },
+          [],
+        );
+        out.push({ ...r, ledger: led.ok, ledger_error: led.error });
+      }
+      if (paymentIds?.length) {
+        await cloud
+          .from("orphan_payments")
+          .update({
+            status: "refunded_to_wallet",
+            resolved_at: new Date().toISOString(),
+            resolved_by: "refund-orphan-payments",
+          })
+          .in("razorpay_payment_id", paymentIds);
+      }
+      return json({ ok: true, mode, results: out });
+    }
+
     // ── refund ───────────────────────────────────────────────────
     let q = cloud
       .from("orphan_payments")
@@ -166,33 +190,36 @@ Deno.serve(async (req) => {
 
       const marker = `orphan_refund:${pid}`;
 
-      // Idempotency check on the ledger (description carries the marker).
-      const { data: existingTx } = await external
-        .from("wallet_transactions")
-        .select("id")
-        .eq("user_id", row.user_id)
-        .ilike("description", `%${pid}%`)
-        .limit(1);
-      if (existingTx?.length) {
-        await cloud.from("orphan_payments")
-          .update({ status: "refunded_to_wallet", resolved_at: new Date().toISOString(), resolved_by: "refund-orphan-payments" })
-          .eq("id", row.id);
-        push("already_refunded");
-        continue;
-      }
-
       if (dryRun) { push("would_refund", { amount_inr: amount }); continue; }
 
-      // Ledger FIRST — if this fails we never touch the balance.
+      // IDEMPOTENCY: claim the orphan row FIRST. `resolved_at IS NULL` in the
+      // filter means only one concurrent/repeat call can ever win the claim,
+      // so a payment can never be credited twice.
+      const { data: claimed, error: claimErr } = await cloud
+        .from("orphan_payments")
+        .update({
+          status: "refunded_to_wallet",
+          resolved_at: new Date().toISOString(),
+          resolved_by: "refund-orphan-payments",
+        })
+        .eq("id", row.id)
+        .is("resolved_at", null)
+        .select("id");
+      if (claimErr || !claimed?.length) { push("already_refunded"); continue; }
+
+      // Ledger next — descriptive only; the claim above is the safety net.
       const led = await insertLedger(
         external,
         { user_id: row.user_id, amount_inr: amount, type: "credit", reason: "payment_without_booking_refund" },
-        [
-          { description: `Refund — payment received but booking not created (${marker})`, reference_type: "orphan_payment_refund" },
-          { description: `Refund — payment received but booking not created (${marker})` },
-        ],
+        [{ description: `Refund — payment received but booking not created (${marker})` }],
       );
-      if (!led.ok) { push("aborted_ledger_failed", { error: led.error }); continue; }
+      if (!led.ok) {
+        await cloud.from("orphan_payments")
+          .update({ status: "unmapped", resolved_at: null, resolved_by: null })
+          .eq("id", row.id);
+        push("aborted_ledger_failed", { error: led.error });
+        continue;
+      }
 
       const { data: incResult, error: incErr } = await external.rpc("safe_wallet_increment", {
         p_user_id: row.user_id,
@@ -203,10 +230,6 @@ Deno.serve(async (req) => {
         push("failed_wallet_credit_after_ledger", { error: incErr?.message ?? (incResult as any)?.error });
         continue;
       }
-
-      await cloud.from("orphan_payments")
-        .update({ status: "refunded_to_wallet", resolved_at: new Date().toISOString(), resolved_by: "refund-orphan-payments" })
-        .eq("id", row.id);
 
       console.log(`[refund-orphan-payments] refunded ${amount} to user=${row.user_id} payment=${pid}`);
       push("refunded", { amount_inr: amount, new_balance: (incResult as any)?.new_balance });
