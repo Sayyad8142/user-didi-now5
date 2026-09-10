@@ -11,7 +11,7 @@ import { getExternalSupabase } from "../_shared/capacityRules.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, apikey, content-type, x-client-info",
+  "Access-Control-Allow-Headers": "authorization, apikey, content-type, x-client-info, x-firebase-token, x-app-version, x-app-platform",
 };
 
 Deno.serve(async (req) => {

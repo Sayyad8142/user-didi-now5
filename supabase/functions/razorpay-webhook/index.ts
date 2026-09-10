@@ -37,7 +37,7 @@ const DISPATCH_BASE_URL = FUNCTIONS_BASE_URL || SUPABASE_URL;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-razorpay-signature",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-razorpay-signature, x-firebase-token, x-app-version, x-app-platform",
 };
 
 /**

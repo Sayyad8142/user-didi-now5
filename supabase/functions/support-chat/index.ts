@@ -7,7 +7,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.55.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-firebase-token",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-firebase-token, x-app-version, x-app-platform",
 };
 
 const FIREBASE_API_KEY = "AIzaSyCJJ7PqGC890D92R5m5P5bHRB7k6AyomKo";

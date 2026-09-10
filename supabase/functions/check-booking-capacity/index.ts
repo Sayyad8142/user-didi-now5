@@ -27,7 +27,7 @@ import {
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-firebase-token",
+    "authorization, x-client-info, apikey, content-type, x-firebase-token, x-app-version, x-app-platform",
 };
 
 function json(body: Record<string, unknown>, status = 200) {

@@ -18,7 +18,7 @@ import { refundBookingToWallet } from "../_shared/refundAmount.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-service-key",
+    "authorization, x-client-info, apikey, content-type, x-service-key, x-firebase-token, x-app-version, x-app-platform",
 };
 
 function json(body: unknown, status = 200) {
