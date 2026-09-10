@@ -102,3 +102,6 @@ verify_jwt = false
 
 [functions.list-slot-surge]
 verify_jwt = false
+
+[functions.sweep-orphan-payments]
+verify_jwt = false
