@@ -105,3 +105,6 @@ verify_jwt = false
 
 [functions.sweep-orphan-payments]
 verify_jwt = false
+
+[functions.refund-orphan-payments]
+verify_jwt = false
