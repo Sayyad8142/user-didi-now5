@@ -152,8 +152,8 @@ async function getAccessToken(
   return data.access_token;
 }
 
-/** Safe production fallback: the real iOS bundle identifier of the Didi Now user app. */
-export const DEFAULT_APNS_TOPIC = 'com.didisnow.app';
+/** Safe production fallback: the real iOS bundle identifier of the Didi Now user iOS app. */
+export const DEFAULT_APNS_TOPIC = 'com.didisnow.iosapp';
 
 /**
  * Thrown when FCM rejects a send. `tokenInvalid` is true ONLY when Firebase
@@ -189,7 +189,7 @@ export function isUnregisteredTokenError(status: number, errorCode?: string, raw
 export interface SendFcmOptions {
   /** Device platform: 'ios' | 'android' | 'web'. Used for observability and APNs topic selection. */
   platform?: string;
-  /** iOS bundle id used as `apns-topic`. Falls back to APNS_TOPIC env or 'com.didisnow.app'. */
+  /** iOS bundle id used as `apns-topic`. Falls back to APNS_TOPIC env or 'com.didisnow.iosapp'. */
   apnsTopic?: string;
   /** Optional badge count for iOS. If omitted, badge is NOT set (recommended for booking-style alerts). */
   badge?: number;
