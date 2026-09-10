@@ -152,8 +152,8 @@ async function getAccessToken(
   return data.access_token;
 }
 
-/** Safe production fallback: the real iOS bundle identifier of the Didi Now user app. */
-export const DEFAULT_APNS_TOPIC = 'com.didisnow.app';
+/** Safe production fallback: the real iOS bundle identifier of the Didi Now user iOS app. */
+export const DEFAULT_APNS_TOPIC = 'com.didisnow.iosapp';
 
 /**
  * Thrown when FCM rejects a send. `tokenInvalid` is true ONLY when Firebase
