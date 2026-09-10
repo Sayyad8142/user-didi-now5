@@ -189,7 +189,7 @@ export function isUnregisteredTokenError(status: number, errorCode?: string, raw
 export interface SendFcmOptions {
   /** Device platform: 'ios' | 'android' | 'web'. Used for observability and APNs topic selection. */
   platform?: string;
-  /** iOS bundle id used as `apns-topic`. Falls back to APNS_TOPIC env or 'com.didisnow.app'. */
+  /** iOS bundle id used as `apns-topic`. Falls back to APNS_TOPIC env or 'com.didisnow.iosapp'. */
   apnsTopic?: string;
   /** Optional badge count for iOS. If omitted, badge is NOT set (recommended for booking-style alerts). */
   badge?: number;
