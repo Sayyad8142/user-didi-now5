@@ -285,18 +285,48 @@ async function invokeWithFirebaseAuth<T>(functionName: string, body: Record<stri
   }
   if (!token) throw new Error('Authentication expired, please login again');
 
-  const { data, error } = await supabase.functions.invoke(functionName, {
-    body,
-    headers: { 'x-firebase-token': token },
-  });
+  // CRITICAL (production incident 2026-09-10): `supabase.functions.invoke`
+  // targets the resolved data backend (api.didisnow.com / the external
+  // Supabase project), whose edge functions are a STALE deployment that
+  // never stashes the `pending_bookings` payment intent. That made booking
+  // creation depend entirely on the client returning from the UPI app —
+  // users who never came back paid but got no booking, and the
+  // webhook/reconcile safety net had nothing to recover from.
+  // All payment/booking-critical functions MUST run on the current
+  // Lovable Cloud deployment, exactly like check-booking-capacity does.
+  let data: unknown = null;
+  let error: any = null;
+  let httpStatus: number | null = null;
+  let errorBody: unknown = null;
 
-  const httpStatus = extractFunctionHttpStatus(error);
-
-  // If the function returned non-2xx, the body is in error.context (Response).
-  // Read it so we can show the real backend reason instead of the generic SDK message.
-  let errorBody: unknown = data ?? null;
-  if (error && (errorBody === null || errorBody === undefined)) {
-    errorBody = await readFunctionErrorBody(error);
+  try {
+    const res = await fetch(`${LOVABLE_CLOUD_FUNCTIONS_URL}/functions/v1/${functionName}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: PRODUCTION_ANON_KEY,
+        Authorization: `Bearer ${PRODUCTION_ANON_KEY}`,
+        'x-firebase-token': token,
+        'x-app-version': String(APP_VERSION_NAME),
+        'x-app-platform': Capacitor.getPlatform(),
+      },
+      body: JSON.stringify(body),
+    });
+    httpStatus = res.status;
+    const text = await res.text();
+    let parsed: unknown = null;
+    if (text) {
+      try { parsed = JSON.parse(text); } catch { parsed = text; }
+    }
+    if (res.ok) {
+      data = parsed;
+    } else {
+      errorBody = parsed;
+      error = { message: `${functionName} failed`, status: res.status };
+    }
+  } catch (transportErr: any) {
+    error = transportErr;
+    httpStatus = null;
   }
 
   if (functionName === 'create-paid-booking') {
