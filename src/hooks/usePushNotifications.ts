@@ -310,6 +310,7 @@ export function usePushNotifications({ userId }: UsePushNotificationsOptions) {
 
     listenerHandlesRef.current.push(...handles);
     iosListenersAttachedRef.current = true;
+    return saved;
   }, [userId, registerTokenInSupabase]);
 
 
