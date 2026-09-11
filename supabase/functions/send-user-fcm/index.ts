@@ -1,6 +1,6 @@
 // ============================================================================
 // User FCM Notifications - Send push to users by user_id
-// Uses fcm_tokens table (unified token storage)
+// Uses user_fcm_tokens, keyed to profiles.id for Firebase-authenticated users
 // ============================================================================
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -54,38 +54,28 @@ serve(async (req) => {
     console.log(`   Title: ${title}`);
     console.log(`   Body: ${messageBody}`);
 
-    // fcm_tokens lives on the EXTERNAL production project — the same DB that
+    // user_fcm_tokens lives on the EXTERNAL production project — the same DB that
     // register-user-fcm-token writes to. Using the Lovable-injected
     // SUPABASE_URL here made the sender read an empty table.
     const supabase = createClient(EXTERNAL_SUPABASE_URL, EXTERNAL_SUPABASE_SERVICE_ROLE_KEY);
     console.log('[send-user-fcm] DB host:', new URL(EXTERNAL_SUPABASE_URL).host);
 
-    // Query unified fcm_tokens table — try with platform column, fallback if missing.
+    // Query the profile-linked user token table.
     let tokens: Array<{ token: string; user_id: string; platform?: string | null }> | null = null;
     let tokenError: any = null;
 
     {
       const res = await supabase
-        .from('fcm_tokens')
+        .from('user_fcm_tokens')
         .select('token, user_id, platform')
         .in('user_id', userIds);
       tokens = res.data as any;
       tokenError = res.error;
 
-      // Graceful fallback if `platform` column doesn't exist yet on this DB.
-      if (tokenError && /column .*platform.* does not exist/i.test(tokenError.message || '')) {
-        console.warn('⚠️ fcm_tokens.platform column missing — falling back without it. Run docs/fcm-tokens-platform-migration.sql.');
-        const fb = await supabase
-          .from('fcm_tokens')
-          .select('token, user_id')
-          .in('user_id', userIds);
-        tokens = fb.data as any;
-        tokenError = fb.error;
-      }
     }
 
     if (tokenError) {
-      console.error('❌ Error fetching tokens from fcm_tokens:', tokenError);
+      console.error('❌ Error fetching tokens from user_fcm_tokens:', tokenError);
       return new Response(
         JSON.stringify({ ok: false, error: 'Failed to fetch tokens' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -149,7 +139,7 @@ serve(async (req) => {
         if (tokenInvalid) {
           console.log(`🗑️ Pruning unregistered token for user ${user_id} (platform=${platform || 'unknown'})`);
           await supabase
-            .from('fcm_tokens')
+            .from('user_fcm_tokens')
             .delete()
             .eq('token', token);
         } else {

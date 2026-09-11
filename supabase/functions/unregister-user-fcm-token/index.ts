@@ -1,6 +1,6 @@
 // ============================================================================
 // unregister-user-fcm-token
-// Removes the current user's FCM token from fcm_tokens on logout
+// Removes the current user's FCM token from user_fcm_tokens on logout
 // Accepts Firebase ID token in Authorization header
 // ============================================================================
 
@@ -138,7 +138,7 @@ serve(async (req) => {
     // Delete by specific token if provided
     if (fcmToken) {
       const { data } = await supabase
-        .from("fcm_tokens")
+        .from("user_fcm_tokens")
         .delete()
         .eq("user_id", profile.id)
         .eq("token", fcmToken)
@@ -150,7 +150,7 @@ serve(async (req) => {
     // Fallback: delete all tokens for this user if no specific token or nothing matched
     if (deleted === 0) {
       const { data } = await supabase
-        .from("fcm_tokens")
+        .from("user_fcm_tokens")
         .delete()
         .eq("user_id", profile.id)
         .select("user_id");
