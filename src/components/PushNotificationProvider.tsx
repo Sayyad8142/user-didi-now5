@@ -36,8 +36,17 @@ export const PushNotificationProvider: React.FC<Props> = ({ children }) => {
       try { localStorage.setItem(STORAGE_KEY, String(Date.now())); } catch {}
     };
 
-    // Stamp on first mount so we don't immediately re-register
-    stamp();
+    // Only a confirmed successful registration may start the 24h TTL.
+    const attempt = async (reason: string) => {
+      if (!shouldReregister()) {
+        console.log('[Push] Skip re-register (within 24h TTL)');
+        return;
+      }
+      console.log(`[Push] ${reason} — re-registering token`);
+      const ok = await forceRegister();
+      if (ok) stamp();
+      else console.warn('[Push] Re-registration failed — TTL not stamped, will retry');
+    };
 
     const platform = Capacitor.getPlatform();
 
@@ -47,13 +56,7 @@ export const PushNotificationProvider: React.FC<Props> = ({ children }) => {
       import('@capacitor/app').then(({ App }) => {
         listenerPromise = App.addListener('appStateChange', ({ isActive }) => {
           if (!isActive) return;
-          if (!shouldReregister()) {
-            console.log('[Push] Skip re-register (within 24h TTL)');
-            return;
-          }
-          console.log('[Push] App resumed (>24h) — re-registering token');
-          forceRegister();
-          stamp();
+          void attempt('App resumed (>24h)');
         });
       });
 
@@ -63,17 +66,12 @@ export const PushNotificationProvider: React.FC<Props> = ({ children }) => {
     } else {
       const handleVisibility = () => {
         if (document.visibilityState !== 'visible') return;
-        if (!shouldReregister()) {
-          console.log('[Push] Skip re-register (within 24h TTL)');
-          return;
-        }
-        console.log('[Push] Tab visible (>24h) — re-registering token');
-        forceRegister();
-        stamp();
+        void attempt('Tab visible (>24h)');
       };
       document.addEventListener('visibilitychange', handleVisibility);
       return () => document.removeEventListener('visibilitychange', handleVisibility);
     }
+
   }, [userId, forceRegister]);
 
   return <>{children}</>;
