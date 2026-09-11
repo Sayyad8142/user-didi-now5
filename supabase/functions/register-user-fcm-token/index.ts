@@ -168,7 +168,7 @@ serve(async (req) => {
       );
     }
 
-    // profiles / fcm_tokens live on the external project — never on the
+    // profiles / user_fcm_tokens live on the external project — never on the
     // Lovable-injected DB. Using SUPABASE_URL here made every call fail with
     // "Profile not found" once the client started calling Lovable Cloud.
     const supabase = createClient(EXTERNAL_SUPABASE_URL, EXTERNAL_SUPABASE_SERVICE_ROLE_KEY);
@@ -219,42 +219,47 @@ serve(async (req) => {
       token_preview: `${fcmToken.slice(0, 12)}...`,
     });
 
-    // First, remove any existing rows with this token (may belong to another user after reinstall)
+    // User tokens belong in user_fcm_tokens, whose user_id FK references
+    // profiles.id. The legacy fcm_tokens table belongs to public.users and
+    // cannot represent Firebase-only users.
     await supabase
-      .from("fcm_tokens")
+      .from("user_fcm_tokens")
       .delete()
       .eq("token", fcmToken)
       .neq("user_id", profile.id);
 
-    // Upsert: one token per user (replace old token). Try with platform; fall back if column missing.
+    // Preserve the existing one-token-per-user behavior without depending on
+    // a legacy table constraint: replace this profile's current row, then add
+    // the freshly issued FCM token.
+    const { error: deleteCurrentError } = await supabase
+      .from("user_fcm_tokens")
+      .delete()
+      .eq("user_id", profile.id);
+
+    if (deleteCurrentError) {
+      console.error("❌ user_fcm_tokens cleanup failed:", deleteCurrentError);
+      return new Response(
+        JSON.stringify({ ok: false, stage: "token_cleanup", error: deleteCurrentError.message }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
     const basePayload: Record<string, unknown> = {
       user_id: profile.id,
       token: fcmToken,
+      device_info: deviceInfo,
       updated_at: new Date().toISOString(),
     };
     if (platform) basePayload.platform = String(platform).toLowerCase();
 
-    let upsertError: any = null;
-    {
-      const res = await supabase
-        .from("fcm_tokens")
-        .upsert(basePayload, { onConflict: "user_id" });
-      upsertError = res.error;
-
-      if (upsertError && /column .*platform.* does not exist/i.test(upsertError.message || '')) {
-        console.warn("⚠️ fcm_tokens.platform column missing — retrying without it. Run docs/fcm-tokens-platform-migration.sql.");
-        const { platform: _omit, ...without } = basePayload as any;
-        const retry = await supabase
-          .from("fcm_tokens")
-          .upsert(without, { onConflict: "user_id" });
-        upsertError = retry.error;
-      }
-    }
+    const { error: upsertError } = await supabase
+      .from("user_fcm_tokens")
+      .insert(basePayload);
 
     if (upsertError) {
-      console.error("❌ fcm_tokens upsert failed:", upsertError);
+      console.error("❌ user_fcm_tokens insert failed:", upsertError);
       return new Response(
-        JSON.stringify({ ok: false, error: upsertError.message }),
+        JSON.stringify({ ok: false, stage: "token_insert", error: upsertError.message }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
