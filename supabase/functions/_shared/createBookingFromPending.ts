@@ -14,6 +14,7 @@
  * 'manual_review' so ops can fix it.
  */
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { notifyUserPush } from "./notifyUserPush.ts";
 
 const OPTIONAL_BOOKING_INSERT_COLUMNS = new Set([
   "completion_otp",
