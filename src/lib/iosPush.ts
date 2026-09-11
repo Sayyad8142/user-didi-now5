@@ -25,7 +25,10 @@ export function looksLikeApnsRawToken(token: string): boolean {
 
 async function loadMessaging() {
   const mod = await import('@capacitor-firebase/messaging');
-  return mod.FirebaseMessaging;
+  // Return the plugin inside a plain wrapper object. Never return the bare
+  // Capacitor proxy from an async function: JS tries to coerce it as a
+  // thenable, which throws "FirebaseMessaging.then() is not implemented".
+  return { FirebaseMessaging: mod.FirebaseMessaging };
 }
 
 /**
@@ -36,7 +39,7 @@ export async function getIosFcmToken(): Promise<IosPushResult> {
   if (Capacitor.getPlatform() !== 'ios') return { status: 'unsupported' };
 
   try {
-    const FirebaseMessaging = await loadMessaging();
+    const { FirebaseMessaging } = await loadMessaging();
 
     let perm = await FirebaseMessaging.checkPermissions();
     if (perm.receive === 'prompt' || perm.receive === 'prompt-with-rationale') {
@@ -81,7 +84,7 @@ export async function attachIosMessagingListeners(handlers: {
 }): Promise<Array<{ remove: () => void }>> {
   if (Capacitor.getPlatform() !== 'ios') return [];
 
-  const FirebaseMessaging = await loadMessaging();
+  const { FirebaseMessaging } = await loadMessaging();
   const handles: Array<{ remove: () => void }> = [];
 
   if (handlers.onTokenRefresh) {
