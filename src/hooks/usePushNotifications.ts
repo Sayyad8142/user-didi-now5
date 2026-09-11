@@ -1,7 +1,7 @@
 // src/hooks/usePushNotifications.ts
 import { useEffect, useCallback, useState, useRef } from "react";
 import { Capacitor } from "@capacitor/core";
-import { supabase } from "@/integrations/supabase/client";
+import { registerPushToken, unregisterPushToken } from "@/lib/pushTokenApi";
 import { getFirebaseIdToken, getFcmToken, onForegroundMessage, showForegroundNotification } from "@/lib/firebase";
 import { queryClient } from "@/main";
 import { toast } from "@/components/ui/sonner";
