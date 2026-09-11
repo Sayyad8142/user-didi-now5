@@ -248,9 +248,11 @@ export function usePushNotifications({ userId }: UsePushNotificationsOptions) {
         invalidateForType(payload.data?.type, payload.data as Record<string, any>);
       });
       webUnsubRef.current = unsub;
+      return saved;
     } catch (err: any) {
       console.error('[Push] Web push registration error:', err);
       setLastError(err?.message ?? 'Web push registration error');
+      return false;
     }
   }, [userId, registerTokenInSupabase]);
 
