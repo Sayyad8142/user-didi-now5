@@ -205,6 +205,25 @@ serve(async (req) => {
     );
     console.log("[cancel-booking] refund result", JSON.stringify(refund));
 
+    // Booking-cancelled push (existing product wording). Non-blocking.
+    try {
+      const { data: cancelledRow } = await admin
+        .from("bookings")
+        .select("service_type, is_demo")
+        .eq("id", bookingId)
+        .maybeSingle();
+      if (!cancelledRow?.is_demo) {
+        await notifyUserPush(
+          profile.id,
+          "Booking Cancelled",
+          `Your ${cancelledRow?.service_type ?? "service"} booking has been cancelled`,
+          { booking_id: String(bookingId), status: "cancelled" },
+        );
+      }
+    } catch (e) {
+      console.error("[cancel-booking] push notify failed (non-blocking):", e);
+    }
+
     return jsonResponse({ success: true, refund });
   } catch (err) {
     console.error("[cancel-booking] unhandled", err);
