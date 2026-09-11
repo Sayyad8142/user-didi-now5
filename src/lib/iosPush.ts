@@ -39,7 +39,7 @@ export async function getIosFcmToken(): Promise<IosPushResult> {
   if (Capacitor.getPlatform() !== 'ios') return { status: 'unsupported' };
 
   try {
-    const FirebaseMessaging = await loadMessaging();
+    const { FirebaseMessaging } = await loadMessaging();
 
     let perm = await FirebaseMessaging.checkPermissions();
     if (perm.receive === 'prompt' || perm.receive === 'prompt-with-rationale') {
