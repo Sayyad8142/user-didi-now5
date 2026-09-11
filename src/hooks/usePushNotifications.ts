@@ -286,7 +286,7 @@ export function usePushNotifications({ userId }: UsePushNotificationsOptions) {
     );
 
 
-    if (iosListenersAttachedRef.current) return;
+    if (iosListenersAttachedRef.current) return saved;
 
     const handles = await attachIosMessagingListeners({
       onTokenRefresh: (token) => {
