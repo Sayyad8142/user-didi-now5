@@ -200,14 +200,14 @@ export function usePushNotifications({ userId }: UsePushNotificationsOptions) {
 
 
   // ── Web push ────────────────────────────────────────────────────────────
-  const registerWebPush = useCallback(async (force = false) => {
-    if (!userId) return;
+  const registerWebPush = useCallback(async (force = false): Promise<boolean> => {
+    if (!userId) return false;
 
     try {
       if (!('Notification' in window) || !('serviceWorker' in navigator)) {
         console.log('[Push] Browser does not support notifications');
         setLastError('Browser does not support push notifications');
-        return;
+        return false;
       }
 
       let permission = Notification.permission;
@@ -217,18 +217,19 @@ export function usePushNotifications({ userId }: UsePushNotificationsOptions) {
       if (permission !== 'granted') {
         console.log('[Push] Permission not granted:', permission);
         setLastError('Notification permission not granted');
-        return;
+        return false;
       }
 
       const token = await getFcmToken();
       if (!token) {
         setLastError('Failed to get web push token');
-        return;
+        return false;
       }
 
       console.log('[Push] 🌐 Web FCM token:', token.substring(0, 20) + '...');
 
-      await registerTokenInSupabase(token, { platform: 'web', model: navigator.userAgent }, force);
+      const saved = await registerTokenInSupabase(token, { platform: 'web', model: navigator.userAgent }, force);
+
 
       // Foreground listener — store unsubscribe
       const unsub = onForegroundMessage((payload) => {
