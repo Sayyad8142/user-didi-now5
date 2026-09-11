@@ -25,7 +25,10 @@ export function looksLikeApnsRawToken(token: string): boolean {
 
 async function loadMessaging() {
   const mod = await import('@capacitor-firebase/messaging');
-  return mod.FirebaseMessaging;
+  // Return the plugin inside a plain wrapper object. Never return the bare
+  // Capacitor proxy from an async function: JS tries to coerce it as a
+  // thenable, which throws "FirebaseMessaging.then() is not implemented".
+  return { FirebaseMessaging: mod.FirebaseMessaging };
 }
 
 /**
