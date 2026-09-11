@@ -14,6 +14,7 @@
  * 'manual_review' so ops can fix it.
  */
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { notifyUserPush } from "./notifyUserPush.ts";
 
 const OPTIONAL_BOOKING_INSERT_COLUMNS = new Set([
   "completion_otp",
@@ -349,6 +350,16 @@ export async function createBookingFromPending(
 
   console.log(
     `${tag} ✅ recovered booking=${bookingId} order=${razorpay_order_id} payment=${razorpay_payment_id}`,
+  );
+
+  // Booking-created push for recovered (webhook/reconcile) bookings.
+  // Only fires on the "created" path, so it can never duplicate the
+  // create-paid-booking push for the same booking.
+  await notifyUserPush(
+    pending.user_id as string,
+    "Booking Created",
+    `Your ${(bookingRow as any)?.service_type ?? "service"} booking has been placed successfully`,
+    { booking_id: bookingId, service_type: String((bookingRow as any)?.service_type ?? "") },
   );
 
   return { status: "created", booking_id: bookingId };
