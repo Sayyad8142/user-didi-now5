@@ -80,7 +80,7 @@ async function callFunction(
 export function registerPushToken(
   idToken: string,
   token: string,
-  deviceInfo: Record<string, unknown>,
+  deviceInfo: unknown,
 ): Promise<PushTokenApiResult> {
   return callFunction('register-user-fcm-token', idToken, { token, device_info: deviceInfo });
 }
