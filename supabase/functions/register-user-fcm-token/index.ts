@@ -128,13 +128,19 @@ serve(async (req) => {
 
   try {
     const authHeader = req.headers.get("authorization") ?? "";
-    const idToken = authHeader.toLowerCase().startsWith("bearer ")
+    const bearer = authHeader.toLowerCase().startsWith("bearer ")
       ? authHeader.slice(7)
       : null;
+    const headerToken = req.headers.get("x-firebase-token");
+    // Some clients send the Supabase publishable key as the bearer and the
+    // Firebase ID token in x-firebase-token — accept either.
+    const idToken = (headerToken && headerToken.split(".").length === 3)
+      ? headerToken
+      : bearer;
 
     if (!idToken) {
       return new Response(
-        JSON.stringify({ ok: false, error: "Missing Authorization bearer token" }),
+        JSON.stringify({ ok: false, stage: "auth", error: "Missing Authorization bearer token" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
@@ -145,16 +151,28 @@ serve(async (req) => {
 
     if (!fcmToken) {
       return new Response(
-        JSON.stringify({ ok: false, error: "Missing token" }),
+        JSON.stringify({ ok: false, stage: "input", error: "Missing token" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
-    const { firebaseUid } = await verifyFirebaseIdToken(idToken);
+    let firebaseUid: string;
+    try {
+      ({ firebaseUid } = await verifyFirebaseIdToken(idToken));
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.error("❌ Firebase token verification failed:", msg);
+      return new Response(
+        JSON.stringify({ ok: false, stage: "verify", error: msg }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    // profiles / fcm_tokens live on the external project — never on the
+    // Lovable-injected DB. Using SUPABASE_URL here made every call fail with
+    // "Profile not found" once the client started calling Lovable Cloud.
+    const supabase = createClient(EXTERNAL_SUPABASE_URL, EXTERNAL_SUPABASE_SERVICE_ROLE_KEY);
+    console.log("[register-user-fcm-token] DB host:", new URL(EXTERNAL_SUPABASE_URL).host);
 
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
@@ -165,7 +183,7 @@ serve(async (req) => {
     if (profileError) {
       console.error("❌ profiles lookup failed:", profileError);
       return new Response(
-        JSON.stringify({ ok: false, error: "Failed to lookup profile" }),
+        JSON.stringify({ ok: false, stage: "profile_lookup", error: profileError.message }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
@@ -173,10 +191,11 @@ serve(async (req) => {
     if (!profile?.id) {
       console.log("⚠️ No profile for firebase_uid:", firebaseUid);
       return new Response(
-        JSON.stringify({ ok: false, error: "Profile not found" }),
+        JSON.stringify({ ok: false, stage: "profile_lookup", error: `Profile not found for uid ${firebaseUid}` }),
         { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
+
 
     const platform =
       (deviceInfo && typeof deviceInfo === 'object' && (deviceInfo as any).platform) ||
