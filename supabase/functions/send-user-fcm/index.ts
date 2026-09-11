@@ -6,6 +6,10 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { sendFcmV1Message, FcmSendError } from "../_shared/fcmV1.ts";
+import {
+  EXTERNAL_SUPABASE_URL,
+  EXTERNAL_SUPABASE_SERVICE_ROLE_KEY,
+} from "../_shared/externalSupabaseEnv.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -50,9 +54,11 @@ serve(async (req) => {
     console.log(`   Title: ${title}`);
     console.log(`   Body: ${messageBody}`);
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    // fcm_tokens lives on the EXTERNAL production project — the same DB that
+    // register-user-fcm-token writes to. Using the Lovable-injected
+    // SUPABASE_URL here made the sender read an empty table.
+    const supabase = createClient(EXTERNAL_SUPABASE_URL, EXTERNAL_SUPABASE_SERVICE_ROLE_KEY);
+    console.log('[send-user-fcm] DB host:', new URL(EXTERNAL_SUPABASE_URL).host);
 
     // Query unified fcm_tokens table — try with platform column, fallback if missing.
     let tokens: Array<{ token: string; user_id: string; platform?: string | null }> | null = null;
