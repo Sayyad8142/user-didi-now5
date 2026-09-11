@@ -84,7 +84,7 @@ export async function attachIosMessagingListeners(handlers: {
 }): Promise<Array<{ remove: () => void }>> {
   if (Capacitor.getPlatform() !== 'ios') return [];
 
-  const FirebaseMessaging = await loadMessaging();
+  const { FirebaseMessaging } = await loadMessaging();
   const handles: Array<{ remove: () => void }> = [];
 
   if (handlers.onTokenRefresh) {
