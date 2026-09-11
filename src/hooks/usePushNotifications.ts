@@ -1,7 +1,7 @@
 // src/hooks/usePushNotifications.ts
 import { useEffect, useCallback, useState, useRef } from "react";
 import { Capacitor } from "@capacitor/core";
-import { supabase } from "@/integrations/supabase/client";
+import { registerPushToken, unregisterPushToken } from "@/lib/pushTokenApi";
 import { getFirebaseIdToken, getFcmToken, onForegroundMessage, showForegroundNotification } from "@/lib/firebase";
 import { queryClient } from "@/main";
 import { toast } from "@/components/ui/sonner";
@@ -116,13 +116,9 @@ export async function unregisterFcmToken(): Promise<void> {
 
     console.log('[Push] 🗑️ Unregistering FCM token from backend...');
 
-    const { error } = await supabase.functions.invoke('unregister-user-fcm-token', {
-      body: { token: token || undefined },
-      headers: { Authorization: `Bearer ${idToken}` },
-    });
-
-    if (error) {
-      console.error('[Push] Unregister failed:', error);
+    const res = await unregisterPushToken(idToken, token || undefined);
+    if (!res.ok) {
+      console.error('[Push] Unregister failed:', res.error);
     } else {
       console.log('[Push] ✅ Token unregistered');
     }
@@ -157,15 +153,15 @@ export function usePushNotifications({ userId }: UsePushNotificationsOptions) {
   }, []);
 
   const registerTokenInSupabase = useCallback(
-    async (token: string, deviceInfo: DeviceInfo, force = false) => {
-      if (!userId) return;
+    async (token: string, deviceInfo: DeviceInfo, force = false): Promise<boolean> => {
+      if (!userId) return false;
 
       // Skip only if token AND user are identical AND not forced
       const stored = getStoredToken();
       if (!force && stored === token && registeredForRef.current === userId) {
         console.log('[Push] Token unchanged, skipping re-registration');
         setIsRegistered(true);
-        return;
+        return true;
       }
 
       try {
@@ -173,43 +169,45 @@ export function usePushNotifications({ userId }: UsePushNotificationsOptions) {
         if (!idToken) {
           console.warn('[Push] Missing Firebase session token');
           setLastError('Missing Firebase session token');
-          return;
+          return false;
         }
 
         console.log('[Push] Registering FCM token for user:', userId, force ? '(forced)' : '');
 
-        const { error } = await supabase.functions.invoke('register-user-fcm-token', {
-          body: { token, device_info: deviceInfo },
-          headers: { Authorization: `Bearer ${idToken}` },
-        });
+        const res = await registerPushToken(idToken, token, deviceInfo);
 
-        if (error) {
-          console.error('[Push] register-user-fcm-token failed:', error);
-          setLastError(error.message);
-          return;
+        if (!res.ok) {
+          // Full status + body already logged inside registerPushToken.
+          console.error('[Push] register-user-fcm-token failed:', res.error);
+          setLastError(res.error ?? 'register-user-fcm-token failed');
+          setIsRegistered(false);
+          return false;
         }
 
         console.log('[Push] ✅ Token registered successfully');
         setStoredToken(token);
         setIsRegistered(true);
         setLastError(null);
+        return true;
       } catch (e: any) {
         console.error('[Push] Error registering token:', e);
         setLastError(e?.message ?? 'Failed to register push token');
+        return false;
       }
     },
     [userId],
   );
 
+
   // ── Web push ────────────────────────────────────────────────────────────
-  const registerWebPush = useCallback(async (force = false) => {
-    if (!userId) return;
+  const registerWebPush = useCallback(async (force = false): Promise<boolean> => {
+    if (!userId) return false;
 
     try {
       if (!('Notification' in window) || !('serviceWorker' in navigator)) {
         console.log('[Push] Browser does not support notifications');
         setLastError('Browser does not support push notifications');
-        return;
+        return false;
       }
 
       let permission = Notification.permission;
@@ -219,18 +217,19 @@ export function usePushNotifications({ userId }: UsePushNotificationsOptions) {
       if (permission !== 'granted') {
         console.log('[Push] Permission not granted:', permission);
         setLastError('Notification permission not granted');
-        return;
+        return false;
       }
 
       const token = await getFcmToken();
       if (!token) {
         setLastError('Failed to get web push token');
-        return;
+        return false;
       }
 
       console.log('[Push] 🌐 Web FCM token:', token.substring(0, 20) + '...');
 
-      await registerTokenInSupabase(token, { platform: 'web', model: navigator.userAgent }, force);
+      const saved = await registerTokenInSupabase(token, { platform: 'web', model: navigator.userAgent }, force);
+
 
       // Foreground listener — store unsubscribe
       const unsub = onForegroundMessage((payload) => {
@@ -249,9 +248,11 @@ export function usePushNotifications({ userId }: UsePushNotificationsOptions) {
         invalidateForType(payload.data?.type, payload.data as Record<string, any>);
       });
       webUnsubRef.current = unsub;
+      return saved;
     } catch (err: any) {
       console.error('[Push] Web push registration error:', err);
       setLastError(err?.message ?? 'Web push registration error');
+      return false;
     }
   }, [userId, registerTokenInSupabase]);
 
@@ -262,8 +263,8 @@ export function usePushNotifications({ userId }: UsePushNotificationsOptions) {
   // iOS uses Firebase Messaging directly so we get a real FCM registration
   // token (@capacitor/push-notifications only yields a raw APNs device token,
   // which the FCM HTTP v1 API rejects). Android path below is unchanged.
-  const registerIosPush = useCallback(async (force = false) => {
-    if (!userId) return;
+  const registerIosPush = useCallback(async (force = false): Promise<boolean> => {
+    if (!userId) return false;
 
     const result = await getIosFcmToken();
 
@@ -278,16 +279,17 @@ export function usePushNotifications({ userId }: UsePushNotificationsOptions) {
               : 'iOS push unsupported';
       console.warn('[Push][iOS] Registration aborted:', msg);
       setLastError(msg);
-      return;
+      return false;
     }
 
-    await registerTokenInSupabase(
+    const saved = await registerTokenInSupabase(
       result.token,
       { platform: 'ios', model: navigator.userAgent },
       true,
     );
 
-    if (iosListenersAttachedRef.current) return;
+
+    if (iosListenersAttachedRef.current) return saved;
 
     const handles = await attachIosMessagingListeners({
       onTokenRefresh: (token) => {
@@ -311,6 +313,7 @@ export function usePushNotifications({ userId }: UsePushNotificationsOptions) {
 
     listenerHandlesRef.current.push(...handles);
     iosListenersAttachedRef.current = true;
+    return saved;
   }, [userId, registerTokenInSupabase]);
 
 
@@ -391,34 +394,42 @@ export function usePushNotifications({ userId }: UsePushNotificationsOptions) {
       // register() triggers the 'registration' listener with the current device token.
       // Safe to call on every login / resume; iOS just returns the cached APNs token.
       await PushNotifications.register();
+      return true;
     } catch (err: any) {
       console.error('[Push] Native push registration error:', err);
       setLastError(err?.message ?? 'Native push registration error');
+      return false;
     }
   }, [userId, registerTokenInSupabase, removeAllOwnListeners]);
 
   // ── Register entry point ────────────────────────────────────────────────
-  const register = useCallback(async (force = false) => {
+  const register = useCallback(async (force = false): Promise<boolean> => {
     if (!userId) {
       console.log('[Push] No userId, skipping registration');
-      return;
+      return false;
     }
     if (!force && registeredForRef.current === userId) {
       console.log('[Push] Already registered for user:', userId);
-      return;
+      return true;
     }
 
     console.log('[Push] Starting registration for user:', userId, force ? '(forced)' : '');
 
+    let ok = false;
     if (Capacitor.getPlatform() === 'ios') {
-      await registerIosPush(force);
+      ok = await registerIosPush(force);
     } else if (Capacitor.isNativePlatform()) {
-      await registerNativePush(force);
+      ok = await registerNativePush(force);
     } else {
-      await registerWebPush(force);
+      ok = await registerWebPush(force);
     }
 
-    registeredForRef.current = userId;
+    // Never mark the user as registered when the backend call failed —
+    // otherwise the next attempt is suppressed and the device stays silent.
+    if (ok) registeredForRef.current = userId;
+    else console.warn('[Push] Registration did not complete — will retry on next attempt');
+
+    return ok;
   }, [userId, registerIosPush, registerNativePush, registerWebPush]);
 
 
