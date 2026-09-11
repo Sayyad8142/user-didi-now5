@@ -23,6 +23,7 @@ import { getExpectedSlotSurge, validateSlotSurge, validatePriceComposition } fro
 import { validateScheduledSlot } from "../_shared/scheduledSlot.ts";
 import { resolveBookingCommunity } from "../_shared/bookingCommunity.ts";
 import { sanitizePreferredWorkerId } from "../_shared/preferredWorker.ts";
+import { notifyUserPush } from "../_shared/notifyUserPush.ts";
 
 const RAZORPAY_KEY_SECRET = Deno.env.get("RAZORPAY_KEY_SECRET")!;
 const SUPABASE_URL =
