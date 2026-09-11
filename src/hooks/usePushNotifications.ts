@@ -116,13 +116,9 @@ export async function unregisterFcmToken(): Promise<void> {
 
     console.log('[Push] 🗑️ Unregistering FCM token from backend...');
 
-    const { error } = await supabase.functions.invoke('unregister-user-fcm-token', {
-      body: { token: token || undefined },
-      headers: { Authorization: `Bearer ${idToken}` },
-    });
-
-    if (error) {
-      console.error('[Push] Unregister failed:', error);
+    const res = await unregisterPushToken(idToken, token || undefined);
+    if (!res.ok) {
+      console.error('[Push] Unregister failed:', res.error);
     } else {
       console.log('[Push] ✅ Token unregistered');
     }
@@ -157,15 +153,15 @@ export function usePushNotifications({ userId }: UsePushNotificationsOptions) {
   }, []);
 
   const registerTokenInSupabase = useCallback(
-    async (token: string, deviceInfo: DeviceInfo, force = false) => {
-      if (!userId) return;
+    async (token: string, deviceInfo: DeviceInfo, force = false): Promise<boolean> => {
+      if (!userId) return false;
 
       // Skip only if token AND user are identical AND not forced
       const stored = getStoredToken();
       if (!force && stored === token && registeredForRef.current === userId) {
         console.log('[Push] Token unchanged, skipping re-registration');
         setIsRegistered(true);
-        return;
+        return true;
       }
 
       try {
@@ -173,33 +169,35 @@ export function usePushNotifications({ userId }: UsePushNotificationsOptions) {
         if (!idToken) {
           console.warn('[Push] Missing Firebase session token');
           setLastError('Missing Firebase session token');
-          return;
+          return false;
         }
 
         console.log('[Push] Registering FCM token for user:', userId, force ? '(forced)' : '');
 
-        const { error } = await supabase.functions.invoke('register-user-fcm-token', {
-          body: { token, device_info: deviceInfo },
-          headers: { Authorization: `Bearer ${idToken}` },
-        });
+        const res = await registerPushToken(idToken, token, deviceInfo);
 
-        if (error) {
-          console.error('[Push] register-user-fcm-token failed:', error);
-          setLastError(error.message);
-          return;
+        if (!res.ok) {
+          // Full status + body already logged inside registerPushToken.
+          console.error('[Push] register-user-fcm-token failed:', res.error);
+          setLastError(res.error ?? 'register-user-fcm-token failed');
+          setIsRegistered(false);
+          return false;
         }
 
         console.log('[Push] ✅ Token registered successfully');
         setStoredToken(token);
         setIsRegistered(true);
         setLastError(null);
+        return true;
       } catch (e: any) {
         console.error('[Push] Error registering token:', e);
         setLastError(e?.message ?? 'Failed to register push token');
+        return false;
       }
     },
     [userId],
   );
+
 
   // ── Web push ────────────────────────────────────────────────────────────
   const registerWebPush = useCallback(async (force = false) => {
