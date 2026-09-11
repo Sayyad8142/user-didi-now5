@@ -260,8 +260,8 @@ export function usePushNotifications({ userId }: UsePushNotificationsOptions) {
   // iOS uses Firebase Messaging directly so we get a real FCM registration
   // token (@capacitor/push-notifications only yields a raw APNs device token,
   // which the FCM HTTP v1 API rejects). Android path below is unchanged.
-  const registerIosPush = useCallback(async (force = false) => {
-    if (!userId) return;
+  const registerIosPush = useCallback(async (force = false): Promise<boolean> => {
+    if (!userId) return false;
 
     const result = await getIosFcmToken();
 
@@ -276,14 +276,15 @@ export function usePushNotifications({ userId }: UsePushNotificationsOptions) {
               : 'iOS push unsupported';
       console.warn('[Push][iOS] Registration aborted:', msg);
       setLastError(msg);
-      return;
+      return false;
     }
 
-    await registerTokenInSupabase(
+    const saved = await registerTokenInSupabase(
       result.token,
       { platform: 'ios', model: navigator.userAgent },
       true,
     );
+
 
     if (iosListenersAttachedRef.current) return;
 
