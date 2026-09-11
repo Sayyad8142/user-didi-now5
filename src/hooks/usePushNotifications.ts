@@ -394,34 +394,42 @@ export function usePushNotifications({ userId }: UsePushNotificationsOptions) {
       // register() triggers the 'registration' listener with the current device token.
       // Safe to call on every login / resume; iOS just returns the cached APNs token.
       await PushNotifications.register();
+      return true;
     } catch (err: any) {
       console.error('[Push] Native push registration error:', err);
       setLastError(err?.message ?? 'Native push registration error');
+      return false;
     }
   }, [userId, registerTokenInSupabase, removeAllOwnListeners]);
 
   // ── Register entry point ────────────────────────────────────────────────
-  const register = useCallback(async (force = false) => {
+  const register = useCallback(async (force = false): Promise<boolean> => {
     if (!userId) {
       console.log('[Push] No userId, skipping registration');
-      return;
+      return false;
     }
     if (!force && registeredForRef.current === userId) {
       console.log('[Push] Already registered for user:', userId);
-      return;
+      return true;
     }
 
     console.log('[Push] Starting registration for user:', userId, force ? '(forced)' : '');
 
+    let ok = false;
     if (Capacitor.getPlatform() === 'ios') {
-      await registerIosPush(force);
+      ok = await registerIosPush(force);
     } else if (Capacitor.isNativePlatform()) {
-      await registerNativePush(force);
+      ok = await registerNativePush(force);
     } else {
-      await registerWebPush(force);
+      ok = await registerWebPush(force);
     }
 
-    registeredForRef.current = userId;
+    // Never mark the user as registered when the backend call failed —
+    // otherwise the next attempt is suppressed and the device stays silent.
+    if (ok) registeredForRef.current = userId;
+    else console.warn('[Push] Registration did not complete — will retry on next attempt');
+
+    return ok;
   }, [userId, registerIosPush, registerNativePush, registerWebPush]);
 
 
