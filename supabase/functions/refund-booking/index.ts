@@ -14,6 +14,8 @@ import {
   EXTERNAL_SUPABASE_SERVICE_ROLE_KEY,
 } from "../_shared/externalSupabaseEnv.ts";
 import { refundBookingToWallet } from "../_shared/refundAmount.ts";
+import { notifyUserPush } from "../_shared/notifyUserPush.ts";
+import { refundCompletedBody } from "../_shared/notifyMessages.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -76,6 +78,19 @@ serve(async (req) => {
       reason,
     );
     console.log("[refund-booking]", bookingId, reason, JSON.stringify(refund));
+
+    // Refund-completed push — ONLY when this call actually credited the wallet
+    // (never on skipped/already_refunded, so it cannot duplicate the
+    // cancellation notification). Amount comes from the refund record.
+    if ((refund as any)?.refunded) {
+      const body = refundCompletedBody((refund as any)?.refund_amount);
+      if (body) {
+        await notifyUserPush(booking.user_id as string, "Refund Completed", body, {
+          booking_id: String(bookingId),
+          type: "refund",
+        });
+      }
+    }
 
     return json({ success: true, refund });
   } catch (err) {

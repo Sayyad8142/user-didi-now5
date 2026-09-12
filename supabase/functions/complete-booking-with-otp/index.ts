@@ -1,5 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { verifyFirebaseToken, extractToken, corsHeaders } from "../_shared/firebaseAuth.ts";
+import { notifyUserPush } from "../_shared/notifyUserPush.ts";
+import { bookingCompletedBody } from "../_shared/notifyMessages.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -56,7 +58,7 @@ Deno.serve(async (req) => {
     // 4. Get booking
     const { data: booking, error: bookingErr } = await supabase
       .from("bookings")
-      .select("id, status, worker_id, completion_otp, otp_verified_at, payment_status, payment_amount_inr, price_inr, payment_method, worker_collected_payment")
+      .select("id, status, worker_id, completion_otp, otp_verified_at, payment_status, payment_amount_inr, price_inr, payment_method, worker_collected_payment, user_id, service_type, is_demo")
       .eq("id", booking_id)
       .single();
 
@@ -222,6 +224,17 @@ Deno.serve(async (req) => {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // Booking-completed push — only after the atomic completion succeeded, and
+    // only on the winning update so a race can never duplicate it. Non-blocking.
+    if (updatedRows && updatedRows.length > 0 && booking.user_id && !(booking as any).is_demo) {
+      await notifyUserPush(
+        booking.user_id as string,
+        "Booking Completed",
+        bookingCompletedBody((booking as any).service_type),
+        { booking_id: String(booking_id), status: "completed" },
+      );
     }
 
     // If no rows updated, booking was already completed (race condition)
