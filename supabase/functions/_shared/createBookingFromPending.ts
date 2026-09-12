@@ -15,6 +15,7 @@
  */
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { notifyUserPush } from "./notifyUserPush.ts";
+import { bookingCreatedBody } from "./notifyMessages.ts";
 
 const OPTIONAL_BOOKING_INSERT_COLUMNS = new Set([
   "completion_otp",
@@ -358,7 +359,7 @@ export async function createBookingFromPending(
   await notifyUserPush(
     pending.user_id as string,
     "Booking Created",
-    `Your ${(bookingRow as any)?.service_type ?? "service"} booking has been placed successfully`,
+    bookingCreatedBody((bookingRow as any)?.service_type),
     { booking_id: bookingId, service_type: String((bookingRow as any)?.service_type ?? "") },
   );
 
