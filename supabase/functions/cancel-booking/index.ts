@@ -15,6 +15,7 @@ import {
 } from "../_shared/externalSupabaseEnv.ts";
 import { refundBookingToWallet } from "../_shared/refundAmount.ts";
 import { notifyUserPush } from "../_shared/notifyUserPush.ts";
+import { bookingCancelledBody } from "../_shared/notifyMessages.ts";
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -206,19 +207,28 @@ serve(async (req) => {
     );
     console.log("[cancel-booking] refund result", JSON.stringify(refund));
 
-    // Booking-cancelled push (existing product wording). Non-blocking.
+    // Booking-cancelled push. Non-blocking. The refund sentence is only added
+    // when the wallet credit actually succeeded for a positive amount.
     try {
       const { data: cancelledRow } = await admin
         .from("bookings")
-        .select("service_type, is_demo")
+        .select("is_demo")
         .eq("id", bookingId)
         .maybeSingle();
+      const refundedAmount =
+        (refund as any)?.refunded || (refund as any)?.skipped === true
+          ? Number((refund as any)?.refund_amount ?? 0)
+          : 0;
       if (!cancelledRow?.is_demo) {
         await notifyUserPush(
           profile.id,
           "Booking Cancelled",
-          `Your ${cancelledRow?.service_type ?? "service"} booking has been cancelled`,
-          { booking_id: String(bookingId), status: "cancelled" },
+          bookingCancelledBody(refundedAmount),
+          {
+            booking_id: String(bookingId),
+            status: "cancelled",
+            refunded: refundedAmount > 0 ? "true" : "false",
+          },
         );
       }
     } catch (e) {
