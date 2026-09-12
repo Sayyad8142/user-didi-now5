@@ -1040,16 +1040,18 @@ Deno.serve(async (req) => {
     // Mark pending stash consumed (idempotent / no-op for wallet-only).
     await markPendingConsumed(supabase, razorpay_order_id, newBooking.id);
 
-    // Booking-created push (existing product wording). Non-blocking.
-    if (!newBooking.is_demo) {
+    // Booking-created push. Non-blocking. The insert only returns
+    // (id, booking_type, status), so the service name comes from the row we
+    // built for the insert — never from an undefined field.
+    if (!bookingRow.is_demo) {
       await notifyUserPush(
         profile.id,
         "Booking Created",
-        `Your ${newBooking.service_type} booking has been placed successfully`,
+        bookingCreatedBody(bookingRow.service_type),
         {
           booking_id: String(newBooking.id),
           status: String(newBooking.status ?? ""),
-          service_type: String(newBooking.service_type ?? ""),
+          service_type: String(bookingRow.service_type ?? ""),
         },
       );
     }
