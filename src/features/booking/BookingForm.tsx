@@ -653,6 +653,23 @@ export function BookingForm() {
           setSupplyModalOpen(true);
           return;
         }
+        // Stale quote → refresh the customer's price and show the new total.
+        // No money was taken, so this must never look like a payment failure.
+        if (!paidAlready && isPriceQuoteError(payErr)) {
+          const details = getBackendErrorDetails(payErr);
+          console.warn('[PRICE_QUOTE_REJECTED]', {
+            code: details?.code,
+            expected_surge: details?.expected_surge,
+            received_surge: details?.received_surge,
+            client_total: (bookingData as any)?.price_inr,
+          });
+          await refreshUserSurge();
+          toast({
+            title: 'Price updated',
+            description: priceQuoteMessage(payErr, (bookingData as any)?.price_inr),
+          });
+          return;
+        }
         const errType = payErr instanceof PaymentError ? payErr.type : 'payment_failed';
         setRetryErrorType(errType as PaymentErrorType);
         setRetryErrorMessage(payErr?.message);
