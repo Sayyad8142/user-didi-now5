@@ -345,11 +345,19 @@ async function invokeWithFirebaseAuth<T>(functionName: string, body: Record<stri
       errorMessage: error.message,
       responseBody: errorBody ?? null,
     });
-    throw new Error(backendMessage || error.message || `${functionName} failed`);
+    const thrown: any = new Error(backendMessage || error.message || `${functionName} failed`);
+    // Preserve the backend's structured reason (e.g. PRICE_MISMATCH with the
+    // expected surge/price) so the UI can re-quote instead of showing a
+    // generic payment failure.
+    if (errorBody && typeof errorBody === 'object') thrown.backend = errorBody;
+    thrown.httpStatus = httpStatus;
+    throw thrown;
   }
 
   if (data && typeof data === 'object' && 'error' in data && typeof (data as { error?: unknown }).error === 'string') {
-    throw new Error((data as { error: string }).error);
+    const thrown: any = new Error((data as { error: string }).error);
+    thrown.backend = data;
+    throw thrown;
   }
 
   return data as T;
