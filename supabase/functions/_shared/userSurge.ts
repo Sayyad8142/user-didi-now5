@@ -125,12 +125,19 @@ export function validateBookingSurge(
     };
   }
 
-  if (basePrice > 0 && Math.abs(priceInr - (basePrice + expectedSurge)) > 1) {
+  // The final price also includes the slot-time adjustment (may be negative for
+  // off-peak discounts). That value is validated separately by validateSlotSurge /
+  // validatePriceComposition, so exclude it here instead of failing the booking.
+  const slotAdjustment = Number(bookingData.surcharge_amount ?? 0);
+  if (
+    basePrice > 0 &&
+    Math.abs(priceInr - (basePrice + expectedSurge + slotAdjustment)) > 1
+  ) {
     return {
       ok: false,
       expectedSurge,
       clientSurge,
-      reason: `Price mismatch: ₹${priceInr} != base ₹${basePrice} + surge ₹${expectedSurge}`,
+      reason: `Price mismatch: ₹${priceInr} != base ₹${basePrice} + surge ₹${expectedSurge} + slot ₹${slotAdjustment}`,
     };
   }
 
