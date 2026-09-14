@@ -20,11 +20,6 @@ import { useCurrentSlotSurge } from '@/hooks/useCurrentSlotSurge';
 import { SlotPricingTimeline } from './SlotPricingTimeline';
 
 
-const ordinal = (n: number): string => {
-  const s = ['th', 'st', 'nd', 'rd'];
-  const v = n % 100;
-  return n + (s[(v - 20) % 10] || s[v] || s[0]);
-};
 import { isOpenNow, getOpenStatusText, getServiceHoursText } from '@/features/home/time';
 import { ScheduleSheet } from './ScheduleSheet';
 import { cn } from '@/lib/utils';
