@@ -11,7 +11,7 @@
 import { LOVABLE_CLOUD_FUNCTIONS_URL, PRODUCTION_ANON_KEY, DIRECT_SUPABASE_URL } from '@/lib/constants';
 import { APP_VERSION_NAME } from '@/config/version';
 import { getAppPlatform } from '@/utils/platform';
-import { auth } from '@/lib/firebase';
+import { getFirebaseIdToken } from '@/lib/firebase';
 import { log } from '@/lib/logger';
 
 const FUNCTION_HOSTS = [LOVABLE_CLOUD_FUNCTIONS_URL, DIRECT_SUPABASE_URL] as const;
@@ -23,7 +23,7 @@ export interface UserSurgeResponse {
 }
 
 export async function fetchUserSurge(): Promise<UserSurgeResponse> {
-  const token = await auth.currentUser?.getIdToken();
+  const token = await getFirebaseIdToken(false);
   if (!token) throw new Error('Not authenticated');
 
   let lastError = 'unknown error';
