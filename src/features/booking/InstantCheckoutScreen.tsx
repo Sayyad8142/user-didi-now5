@@ -19,6 +19,7 @@ import { checkInstantBookingAvailability } from '@/hooks/useSupplyCheck';
 import { SupplyFullModal } from '@/components/SupplyFullModal';
 import { executePaymentFlow, executePaymentFlowForNewBooking, retryPendingBookingCreation, PaymentError, type PaymentFlowStatus, type PaymentErrorType, type PendingCheckoutData } from '@/lib/paymentService';
 import { useUserSurge } from '@/hooks/useUserSurge';
+import { isPriceQuoteError, priceQuoteMessage, getBackendErrorDetails } from '@/lib/priceQuote';
 import { PaymentMethodSelector, type PaymentMethod } from '@/components/PaymentMethodSelector';
 import { PaymentRetrySheet } from '@/components/PaymentRetrySheet';
 import { trackPaymentEvent } from '@/lib/paymentAnalytics';
@@ -51,7 +52,7 @@ export function InstantCheckoutScreen() {
   const { flatSize: autoFlatSize } = useFlatSize();
   const { data: walletData } = useWalletBalance();
   const walletBalance = walletData?.balance_inr ?? 0;
-  const { surge: userSurge } = useUserSurge();
+  const { surge: userSurge, authoritative: surgeAuthoritative, refresh: refreshUserSurge } = useUserSurge();
   const surgeAmount = userSurge.amount;
   
 
@@ -135,6 +136,19 @@ export function InstantCheckoutScreen() {
       console.warn('[FAV_TRACE] 4a. ABORT missing profile/service_type/user', { traceId });
       return;
     }
+
+    // The backend rejects any amount that doesn't match its own calculation.
+    // Never start a payment on a quote we couldn't confirm with the server.
+    if (!surgeAuthoritative) {
+      await refreshUserSurge();
+      toast({
+        title: 'Confirming the latest price',
+        description: "We couldn't confirm the current price. Please tap confirm again.",
+      });
+      return;
+    }
+
+
 
     // Server-side supply check
     if (profile.community) {
@@ -365,6 +379,24 @@ export function InstantCheckoutScreen() {
           stack: payErr?.stack,
           preferred_worker_id: (bookingData as any).preferred_worker_id,
         });
+
+        // Stale quote → refresh and show the NEW total, no retry sheet (no money taken)
+        if (isPriceQuoteError(payErr)) {
+          console.warn('[PRICE_QUOTE_REFRESH]', {
+            service: service_type,
+            client_total: (bookingData as any).price_inr,
+            client_base: (bookingData as any).base_price_inr,
+            client_loyalty_surge: (bookingData as any).loyalty_surge_amount,
+            client_slot_surge: (bookingData as any).surcharge_amount,
+            backend: getBackendErrorDetails(payErr),
+          });
+          await refreshUserSurge();
+          toast({
+            title: 'Price updated',
+            description: priceQuoteMessage(payErr, (bookingData as any).price_inr),
+          });
+          return;
+        }
 
         // Pre-payment supply rejection → show busy modal, no retry sheet (no money taken)
         const paidAlready = payErr instanceof PaymentError && !!payErr.pendingCheckout;

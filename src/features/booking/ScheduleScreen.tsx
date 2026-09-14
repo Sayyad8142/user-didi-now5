@@ -14,6 +14,7 @@ import { PaymentRetrySheet } from '@/components/PaymentRetrySheet';
 import { trackPaymentEvent } from '@/lib/paymentAnalytics';
 import { useWalletBalance } from '@/hooks/useWallet';
 import { useUserSurge } from '@/hooks/useUserSurge';
+import { isPriceQuoteError, priceQuoteMessage, getBackendErrorDetails } from '@/lib/priceQuote';
 
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useProfile } from '@/contexts/ProfileContext';
@@ -103,7 +104,7 @@ export function ScheduleScreen() {
 
   // Dynamic slot surge pricing
   const { getSurge, surgeMap } = useSlotSurge(profile?.community_id, service_type || 'maid');
-  const { surge: userSurge } = useUserSurge();
+  const { surge: userSurge, authoritative: surgeAuthoritative, refresh: refreshUserSurge } = useUserSurge();
   const loyaltySurgeAmount = userSurge.amount;
   const availabilityCommunity = React.useMemo(() => {
     const byId = communities.find((community) => community.id === profile?.community_id);
@@ -286,6 +287,17 @@ export function ScheduleScreen() {
     if (submitting) return; // double-tap guard
     if (service_type !== 'bathroom_cleaning' && !flatSize) return;
     if (service_type === 'bathroom_cleaning' && !bathroomCount) return;
+
+    // The backend rejects any amount that doesn't match its own calculation.
+    // Never start a payment on a quote we couldn't confirm with the server.
+    if (!surgeAuthoritative) {
+      await refreshUserSurge();
+      toast({
+        title: 'Confirming the latest price',
+        description: "We couldn't confirm the current price. Please tap confirm again.",
+      });
+      return;
+    }
 
     const canonicalSlot = selectedTime; // canonical: 'HH:mm' IST, never re-derived from Date
     const canonicalDate = format(selectedDate, 'yyyy-MM-dd');
@@ -502,6 +514,27 @@ export function ScheduleScreen() {
         navigate('/home', { replace: true });
       } catch (payErr: any) {
         console.error('❌ Payment error:', payErr);
+
+        // Stale quote (loyalty / slot surge changed, or composition rejected):
+        // refresh the quote and show the NEW total instead of "Payment failed".
+        if (isPriceQuoteError(payErr)) {
+          console.warn('[PRICE_QUOTE_REFRESH]', {
+            service: service_type,
+            slot: `${bookingData.scheduled_date} ${bookingData.scheduled_time}`,
+            client_total: bookingData.price_inr,
+            client_base: bookingData.base_price_inr,
+            client_loyalty_surge: bookingData.loyalty_surge_amount,
+            client_slot_surge: bookingData.surcharge_amount,
+            backend: getBackendErrorDetails(payErr),
+          });
+          await refreshUserSurge();
+          toast({
+            title: 'Price updated',
+            description: priceQuoteMessage(payErr, bookingData.price_inr as number),
+          });
+          return;
+        }
+
         const errType = payErr instanceof PaymentError ? payErr.type : 'payment_failed';
         setRetryErrorType(errType as PaymentErrorType);
         setRetryErrorMessage(payErr?.message);

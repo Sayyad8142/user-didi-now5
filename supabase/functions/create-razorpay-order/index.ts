@@ -220,6 +220,25 @@ Deno.serve(async (req) => {
         );
       }
 
+      // Full quote breakdown for diagnostics (UI ↔ backend ↔ Razorpay).
+      console.log(
+        `[create-razorpay-order] 🧾 QUOTE_OK ${JSON.stringify({
+          request_id: body?.request_id ?? null,
+          profile_id: profile.id,
+          service_type: safeBookingData.service_type ?? null,
+          booking_type: safeBookingData.booking_type ?? null,
+          scheduled_date: safeBookingData.scheduled_date ?? null,
+          scheduled_time: safeBookingData.scheduled_time ?? null,
+          base_price_inr: safeBookingData.base_price_inr ?? null,
+          loyalty_surge: safeBookingData.loyalty_surge_amount ?? 0,
+          slot_surge: safeBookingData.surcharge_amount ?? 0,
+          client_total_inr: safeBookingData.price_inr ?? null,
+          razorpay_amount_inr: amount,
+        })}`,
+      );
+
+
+
       // ── P0 CAPACITY GATE V2 (Layer 2, server-side) ────────────
       // Per-service active-instant count on the EXTERNAL DB.
       // FAIL-CLOSED: any error blocks payment. The DB trigger remains
