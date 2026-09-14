@@ -513,6 +513,27 @@ export function ScheduleScreen() {
         navigate('/home', { replace: true });
       } catch (payErr: any) {
         console.error('❌ Payment error:', payErr);
+
+        // Stale quote (loyalty / slot surge changed, or composition rejected):
+        // refresh the quote and show the NEW total instead of "Payment failed".
+        if (isPriceQuoteError(payErr)) {
+          console.warn('[PRICE_QUOTE_REFRESH]', {
+            service: service_type,
+            slot: `${bookingData.scheduled_date} ${bookingData.scheduled_time}`,
+            client_total: bookingData.price_inr,
+            client_base: bookingData.base_price_inr,
+            client_loyalty_surge: bookingData.loyalty_surge_amount,
+            client_slot_surge: bookingData.surcharge_amount,
+            backend: getBackendErrorDetails(payErr),
+          });
+          await refreshUserSurge();
+          toast({
+            title: 'Price updated',
+            description: priceQuoteMessage(payErr, bookingData.price_inr as number),
+          });
+          return;
+        }
+
         const errType = payErr instanceof PaymentError ? payErr.type : 'payment_failed';
         setRetryErrorType(errType as PaymentErrorType);
         setRetryErrorMessage(payErr?.message);
