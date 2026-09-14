@@ -7,6 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { FLAT_SIZES } from './pricing';
+import { useUserSurge } from '@/hooks/useUserSurge';
 
 interface Props {
   open: boolean;
@@ -21,6 +22,11 @@ interface PriceRow {
 }
 
 export function MaidPriceChartSheet({ open, onOpenChange, userFlatSize, community }: Props) {
+  // Server-authoritative per-customer adjustment. Folded into every price shown
+  // here so the chart matches the service cards, checkout and payment exactly.
+  const { surge } = useUserSurge();
+  const adj = surge.amount;
+
   const { data: prices, isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ['maid_price_chart', community ?? 'global'],
     enabled: open,
@@ -118,9 +124,13 @@ export function MaidPriceChartSheet({ open, onOpenChange, userFlatSize, communit
               FLAT_SIZES.map((size) => {
                 const row = prices?.get(size);
                 const isUser = size === userFlatSize;
-                const floor = row?.floor ?? null;
-                const dish = row?.dish ?? null;
-                const both = floor != null && dish != null ? floor + dish : null;
+                // Single-service price = service + customer adjustment.
+                // Combined price follows the backend rule: the adjustment is
+                // applied once per booking, not once per service.
+                const floor = row?.floor != null ? row.floor + adj : null;
+                const dish = row?.dish != null ? row.dish + adj : null;
+                const both =
+                  row?.floor != null && row?.dish != null ? row.floor + row.dish + adj : null;
 
                 return (
                   <div
