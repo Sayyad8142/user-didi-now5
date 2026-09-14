@@ -1064,8 +1064,8 @@ export function BookingForm() {
                       {service_type === 'bathroom_cleaning' &&
                   <div className="text-xs text-muted-foreground mt-2 space-y-0.5">
                           <div className="flex justify-between">
-                            <span>Bathroom Cleaning:</span>
-                            <span>₹{bathroomUnitPrice ?? 250} × {bathroomCount} = ₹{bathroomBasePrice}</span>
+                            <span>Bathroom Cleaning ({bathroomCount}):</span>
+                            <span>₹{bathroomBasePrice + surgeAmount}</span>
                           </div>
                           {hasGlassPartition &&
                     <div className="flex justify-between text-primary">
