@@ -262,7 +262,7 @@ export function BookingForm() {
   const baseBathroomTotalPrice = bathroomBasePrice + glassPartitionFee;
 
   // Per-user loyalty surge (₹0 / ₹10 / ₹30 / ₹60+ based on booking count)
-  const { surge: userSurge } = useUserSurge();
+  const { surge: userSurge, authoritative: surgeAuthoritative, refresh: refreshUserSurge } = useUserSurge();
   const surgeAmount = userSurge.amount;
 
   // Current-slot surge/discount for INSTANT bookings — updates every minute.
@@ -387,6 +387,16 @@ export function BookingForm() {
         });
         return;
       }
+    }
+
+    // Never start a payment on a price the server hasn't confirmed.
+    if (!surgeAuthoritative) {
+      await refreshUserSurge();
+      toast({
+        title: 'Confirming the latest price',
+        description: "We couldn't confirm the current price. Please tap confirm again.",
+      });
+      return;
     }
 
     // All validations passed — show payment method picker
