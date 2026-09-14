@@ -264,7 +264,7 @@ export function ScheduleScreen() {
     } else if (profile && service_type && flatSize) {
       loadPrice();
     }
-  }, [profile, service_type, flatSize, priceParam]);
+  }, [profile, service_type, flatSize, priceParam, loyaltySurgeAmount]);
 
   const loadPrice = async () => {
     if (!service_type || !profile || !flatSize) return;
@@ -273,7 +273,9 @@ export function ScheduleScreen() {
       const pricing = await getPricingMap(service_type, profile.community);
       const flatPrice = pricing[flatSize];
       if (flatPrice) {
-        setPrice(flatPrice);
+        // The customer's current price already includes the internal per-user
+        // adjustment — the same value the server validates against.
+        setPrice(flatPrice + loyaltySurgeAmount);
       }
     } catch (error) {
       console.error('Error loading price:', error);
