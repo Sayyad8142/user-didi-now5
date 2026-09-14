@@ -103,7 +103,7 @@ export function ScheduleScreen() {
 
   // Dynamic slot surge pricing
   const { getSurge, surgeMap } = useSlotSurge(profile?.community_id, service_type || 'maid');
-  const { surge: userSurge } = useUserSurge();
+  const { surge: userSurge, authoritative: surgeAuthoritative, refresh: refreshUserSurge } = useUserSurge();
   const loyaltySurgeAmount = userSurge.amount;
   const availabilityCommunity = React.useMemo(() => {
     const byId = communities.find((community) => community.id === profile?.community_id);
@@ -286,6 +286,17 @@ export function ScheduleScreen() {
     if (submitting) return; // double-tap guard
     if (service_type !== 'bathroom_cleaning' && !flatSize) return;
     if (service_type === 'bathroom_cleaning' && !bathroomCount) return;
+
+    // The backend rejects any amount that doesn't match its own calculation.
+    // Never start a payment on a quote we couldn't confirm with the server.
+    if (!surgeAuthoritative) {
+      await refreshUserSurge();
+      toast({
+        title: 'Confirming the latest price',
+        description: "We couldn't confirm the current price. Please tap confirm again.",
+      });
+      return;
+    }
 
     const canonicalSlot = selectedTime; // canonical: 'HH:mm' IST, never re-derived from Date
     const canonicalDate = format(selectedDate, 'yyyy-MM-dd');
