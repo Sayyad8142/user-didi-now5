@@ -244,7 +244,10 @@ export function BookingForm() {
   // Placeholder used ONLY for visual rendering while live prices load.
   // Never feeds totalPrice / booking creation.
   const placeholderPrice = (_t: MaidTask) => PLACEHOLDER_PRICES[selectedFlatSize || "2BHK"] ?? 100;
-  const displayTaskPrice = (t: MaidTask) => livePrice(t) ?? placeholderPrice(t);
+  // Customer-facing price for a service card. The internal per-user adjustment
+  // (see `surgeAmount` below) is folded in so the customer only ever sees their
+  // own current price — never a separate adjustment line.
+  const displayTaskPrice = (t: MaidTask) => (livePrice(t) ?? placeholderPrice(t)) + surgeAmount;
 
   // Are all selected tasks priced from live admin data?
   const maidPricingReady =
@@ -1075,15 +1078,9 @@ export function BookingForm() {
                   {slotSurgeAmount !== 0 && currentPrice != null && currentPrice > 0 &&
                     <div className="mt-3 text-left text-xs space-y-1 border-t border-primary/20 pt-2">
                       <div className="flex justify-between text-muted-foreground">
-                        <span>Base Price</span>
-                        <span>₹{baseSubtotal}</span>
+                        <span>Service price</span>
+                        <span>₹{baseSubtotal + surgeAmount}</span>
                       </div>
-                      {surgeAmount > 0 &&
-                        <div className="flex justify-between text-amber-700">
-                          <span>Loyalty pricing</span>
-                          <span>+₹{surgeAmount}</span>
-                        </div>
-                      }
                       <div className={cn(
                         "flex justify-between font-medium",
                         slotSurgeAmount > 0 ? "text-orange-600" : "text-emerald-600"
@@ -1095,12 +1092,6 @@ export function BookingForm() {
                         <span>Total</span>
                         <span>₹{currentPrice}</span>
                       </div>
-                    </div>
-                  }
-                  {slotSurgeAmount === 0 && surgeAmount > 0 && currentPrice != null && currentPrice > 0 &&
-                    <div className="mt-2 inline-flex items-center gap-1.5 text-[11px] font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2.5 py-1">
-                      <span>Loyalty pricing: +₹{surgeAmount}</span>
-                      <span className="text-amber-600">· your {ordinal(userSurge.bookingNumber)} booking</span>
                     </div>
                   }
                     </>}
