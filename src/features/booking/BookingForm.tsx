@@ -37,6 +37,7 @@ import { MaidPriceChartSheet } from './MaidPriceChartSheet';
 import { PaymentMethodSelector, type PaymentMethod } from '@/components/PaymentMethodSelector';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription } from '@/components/ui/alert-dialog';
 import { executePaymentFlow, executePaymentFlowForNewBooking, PaymentError, type PaymentFlowStatus, type PaymentErrorType } from '@/lib/paymentService';
+import { isPriceQuoteError, priceQuoteMessage, getBackendErrorDetails } from '@/lib/priceQuote';
 import { PaymentRetrySheet } from '@/components/PaymentRetrySheet';
 import { trackPaymentEvent } from '@/lib/paymentAnalytics';
 import { CreditCard, HandCoins } from 'lucide-react';
@@ -262,7 +263,7 @@ export function BookingForm() {
   const baseBathroomTotalPrice = bathroomBasePrice + glassPartitionFee;
 
   // Per-user loyalty surge (₹0 / ₹10 / ₹30 / ₹60+ based on booking count)
-  const { surge: userSurge } = useUserSurge();
+  const { surge: userSurge, authoritative: surgeAuthoritative, refresh: refreshUserSurge } = useUserSurge();
   const surgeAmount = userSurge.amount;
 
   // Current-slot surge/discount for INSTANT bookings — updates every minute.
@@ -387,6 +388,16 @@ export function BookingForm() {
         });
         return;
       }
+    }
+
+    // Never start a payment on a price the server hasn't confirmed.
+    if (!surgeAuthoritative) {
+      await refreshUserSurge();
+      toast({
+        title: 'Confirming the latest price',
+        description: "We couldn't confirm the current price. Please tap confirm again.",
+      });
+      return;
     }
 
     // All validations passed — show payment method picker
@@ -641,6 +652,23 @@ export function BookingForm() {
         if (!paidAlready && payErr?.message?.includes('CAPACITY_CHECK_FAILED')) {
           refetchSupply();
           setSupplyModalOpen(true);
+          return;
+        }
+        // Stale quote → refresh the customer's price and show the new total.
+        // No money was taken, so this must never look like a payment failure.
+        if (!paidAlready && isPriceQuoteError(payErr)) {
+          const details = getBackendErrorDetails(payErr);
+          console.warn('[PRICE_QUOTE_REJECTED]', {
+            code: details?.code,
+            expected_surge: details?.expected_surge,
+            received_surge: details?.received_surge,
+            client_total: (bookingData as any)?.price_inr,
+          });
+          await refreshUserSurge();
+          toast({
+            title: 'Price updated',
+            description: priceQuoteMessage(payErr, (bookingData as any)?.price_inr),
+          });
           return;
         }
         const errType = payErr instanceof PaymentError ? payErr.type : 'payment_failed';
