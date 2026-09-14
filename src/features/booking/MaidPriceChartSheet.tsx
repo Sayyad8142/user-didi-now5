@@ -124,9 +124,13 @@ export function MaidPriceChartSheet({ open, onOpenChange, userFlatSize, communit
               FLAT_SIZES.map((size) => {
                 const row = prices?.get(size);
                 const isUser = size === userFlatSize;
-                const floor = row?.floor ?? null;
-                const dish = row?.dish ?? null;
-                const both = floor != null && dish != null ? floor + dish : null;
+                // Single-service price = service + customer adjustment.
+                // Combined price follows the backend rule: the adjustment is
+                // applied once per booking, not once per service.
+                const floor = row?.floor != null ? row.floor + adj : null;
+                const dish = row?.dish != null ? row.dish + adj : null;
+                const both =
+                  row?.floor != null && row?.dish != null ? row.floor + row.dish + adj : null;
 
                 return (
                   <div
