@@ -137,6 +137,19 @@ export function InstantCheckoutScreen() {
       return;
     }
 
+    // The backend rejects any amount that doesn't match its own calculation.
+    // Never start a payment on a quote we couldn't confirm with the server.
+    if (!surgeAuthoritative) {
+      await refreshUserSurge();
+      toast({
+        title: 'Confirming the latest price',
+        description: "We couldn't confirm the current price. Please tap confirm again.",
+      });
+      return;
+    }
+
+
+
     // Server-side supply check
     if (profile.community) {
       console.log('[FAV_TRACE] 5. checkInstantBookingAvailability START', { traceId, community: profile.community });
@@ -366,6 +379,24 @@ export function InstantCheckoutScreen() {
           stack: payErr?.stack,
           preferred_worker_id: (bookingData as any).preferred_worker_id,
         });
+
+        // Stale quote → refresh and show the NEW total, no retry sheet (no money taken)
+        if (isPriceQuoteError(payErr)) {
+          console.warn('[PRICE_QUOTE_REFRESH]', {
+            service: service_type,
+            client_total: (bookingData as any).price_inr,
+            client_base: (bookingData as any).base_price_inr,
+            client_loyalty_surge: (bookingData as any).loyalty_surge_amount,
+            client_slot_surge: (bookingData as any).surcharge_amount,
+            backend: getBackendErrorDetails(payErr),
+          });
+          await refreshUserSurge();
+          toast({
+            title: 'Price updated',
+            description: priceQuoteMessage(payErr, (bookingData as any).price_inr),
+          });
+          return;
+        }
 
         // Pre-payment supply rejection → show busy modal, no retry sheet (no money taken)
         const paidAlready = payErr instanceof PaymentError && !!payErr.pendingCheckout;
