@@ -7,6 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { FLAT_SIZES } from './pricing';
+import { useUserSurge } from '@/hooks/useUserSurge';
 
 interface Props {
   open: boolean;
@@ -21,6 +22,11 @@ interface PriceRow {
 }
 
 export function MaidPriceChartSheet({ open, onOpenChange, userFlatSize, community }: Props) {
+  // Server-authoritative per-customer adjustment. Folded into every price shown
+  // here so the chart matches the service cards, checkout and payment exactly.
+  const { surge } = useUserSurge();
+  const adj = surge.amount;
+
   const { data: prices, isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ['maid_price_chart', community ?? 'global'],
     enabled: open,
