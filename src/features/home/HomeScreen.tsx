@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Phone, MessageCircle, Star } from 'lucide-react';
-import { useUnseenMessages } from '@/hooks/useUnseenMessages';
 import { HomeHeader } from './HomeHeader';
 import { HeroCarousel } from './HeroCarousel';
 import { ServicesRow } from './ServicesRow';
@@ -13,6 +12,7 @@ import { FeatureCarousel } from './FeatureCarousel';
 import { ActiveBookingCard } from './ActiveBookingCard';
 import { HomeOtpCard } from './HomeOtpCard';
 import { openExternalUrl } from '@/lib/nativeOpen';
+import { openWhatsAppSupport } from '@/lib/whatsappShare';
 import FaqSection from './FaqSection';
 import { TrustedPartnersSection } from './TrustedPartnersSection';
 import { useOnlineWorkerCounts } from '@/hooks/useOnlineWorkerCounts';
@@ -24,7 +24,6 @@ import { BootstrapDebugPanel } from './BootstrapDebugPanel';
 export function HomeScreen() {
   const navigate = useNavigate();
   const { profile, loading: profileLoading, error: profileError, refresh } = useProfile();
-  const { hasUnseenMessages, markMessagesAsSeen } = useUnseenMessages();
   const { counts, loading, isServiceAvailable } = useOnlineWorkerCounts();
 
   console.log('[HomeScreen] mounted, profile:', profile?.id, 'community:', profile?.community);
@@ -71,15 +70,9 @@ export function HomeScreen() {
             <span>Call Manager</span>
           </Button>
           
-          <Button onClick={() => {
-            markMessagesAsSeen();
-            navigate('/chat');
-          }} className="w-full h-12 rounded-full gradient-primary shadow-button transition-spring hover:scale-[1.02] flex items-center justify-center gap-3 relative">
+          <Button onClick={() => openWhatsAppSupport()} className="w-full h-12 rounded-full gradient-primary shadow-button transition-spring hover:scale-[1.02] flex items-center justify-center gap-3 relative">
             <MessageCircle className="w-5 h-5" />
             <span className="font-semibold">Chat Support</span>
-            {hasUnseenMessages && (
-              <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse" />
-            )}
           </Button>
         </div>
         

@@ -30,6 +30,44 @@ export function buildOtpShareMessage(b: OtpShareInput): string {
   ].join('\n');
 }
 
+const SUPPORT_WHATSAPP_NUMBER = '918008180018';
+
+/**
+ * Open a WhatsApp chat with Didi Now support with a prefilled message.
+ * Returns true if launch was attempted successfully, false if WhatsApp seems unavailable.
+ */
+export async function openWhatsAppSupport(
+  message: string = 'Hey Didi Now, need your help'
+): Promise<boolean> {
+  const encoded = encodeURIComponent(message);
+  const native = Capacitor.isNativePlatform();
+
+  if (native) {
+    const waUrl = `whatsapp://send?phone=${SUPPORT_WHATSAPP_NUMBER}&text=${encoded}`;
+    try {
+      const can = await AppLauncher.canOpenUrl({ url: 'whatsapp://send' });
+      if (can.value) {
+        await AppLauncher.openUrl({ url: waUrl });
+        return true;
+      }
+    } catch {
+      // fall through to web fallback
+    }
+  }
+
+  // Web: wa.me handles install-prompt / web fallback gracefully.
+  try {
+    window.open(
+      `https://wa.me/${SUPPORT_WHATSAPP_NUMBER}?text=${encoded}`,
+      '_blank',
+      'noopener,noreferrer'
+    );
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Open WhatsApp share with a prefilled message.
  * Returns true if launch was attempted successfully, false if WhatsApp seems unavailable.
