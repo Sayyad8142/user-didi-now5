@@ -1130,10 +1130,14 @@ export function BookingForm() {
                   }
                     </>}
                 </div>
-                <SlotPricingTimeline
-                  communityId={profile?.community_id}
-                  serviceKey={service_type === 'bathroom_cleaning' ? 'bathroom_cleaning' : 'maid'}
-                />
+                {/* Today's Slot Pricing is only meaningful while instant
+                    booking is open — hidden entirely after the cutoff. */}
+                {serviceOpenNow && (
+                  <SlotPricingTimeline
+                    communityId={profile?.community_id}
+                    serviceKey={service_type === 'bathroom_cleaning' ? 'bathroom_cleaning' : 'maid'}
+                  />
+                )}
               </CardContent>
             </Card>
           </div>}
