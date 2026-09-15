@@ -90,3 +90,65 @@ export function validatePriceComposition(
   const expected = base + expectedLoyaltySurge + expectedSlotSurge;
   return { ok: Math.abs(received - expected) <= 1, expected, received };
 }
+
+/**
+ * Resolves the slot that an INSTANT booking falls into: the largest active
+ * configured slot_time <= current IST time. Mirrors the DB trigger
+ * enforce_booking_flat_size_and_price() so the server, the DB and the client
+ * all agree on one slot adjustment.
+ */
+// deno-lint-ignore no-explicit-any
+export async function resolveInstantSlotTime(
+  supabase: any,
+  communityId: string | null | undefined,
+  serviceKey: string,
+): Promise<string | null> {
+  if (!communityId) return null;
+  const nowIst = new Date(Date.now() + 5.5 * 60 * 60 * 1000)
+    .toISOString()
+    .slice(11, 19); // HH:MM:SS in IST
+  try {
+    const { data, error } = await supabase
+      .from("slot_surge_pricing")
+      .select("slot_time")
+      .eq("community_id", communityId)
+      .eq("service_key", serviceKey)
+      .eq("is_active", true)
+      .lte("slot_time", nowIst)
+      .order("slot_time", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) {
+      console.warn("[slotSurge] instant slot lookup failed:", error.message);
+      return null;
+    }
+    return data?.slot_time ?? null;
+  } catch (e) {
+    console.warn("[slotSurge] instant slot lookup threw:", (e as Error).message);
+    return null;
+  }
+}
+
+/**
+ * Single entry point used by every booking-creating edge function:
+ * returns the authoritative slot adjustment (₹, may be negative) for either
+ * an instant or a scheduled booking payload.
+ */
+// deno-lint-ignore no-explicit-any
+export async function getExpectedSlotSurgeForBooking(
+  supabase: any,
+  bookingData: Record<string, unknown>,
+): Promise<{ surge: number; slotTime: string | null }> {
+  const serviceKey = (bookingData.service_type as string) || "maid";
+  const communityId = (bookingData.community_id as string) || null;
+  const bookingType = (bookingData.booking_type as string) || "instant";
+
+  const slotTime =
+    bookingType === "scheduled"
+      ? (bookingData.scheduled_time ? String(bookingData.scheduled_time) : null)
+      : await resolveInstantSlotTime(supabase, communityId, serviceKey);
+
+  if (!slotTime) return { surge: 0, slotTime: null };
+  const surge = await getExpectedSlotSurge(supabase, communityId, serviceKey, slotTime);
+  return { surge, slotTime };
+}
