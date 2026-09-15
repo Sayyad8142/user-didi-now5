@@ -424,6 +424,46 @@ Deno.serve(async (req) => {
           400,
         );
       }
+    } else if (booking_data.booking_type === "instant") {
+      // 4c-instant. Instant bookings also carry a slot adjustment (the slot the
+      // current IST time falls into). It was previously never persisted
+      // server-side, so the stored total lost the peak/off-peak amount even
+      // though the customer was charged for it.
+      const { surge: expectedSlotSurge, slotTime } = await getExpectedSlotSurgeForBooking(
+        supabase,
+        booking_data,
+      );
+      const clientSlotSurge = Number(booking_data.surcharge_amount ?? 0);
+      // Do NOT reject: the payment is already authorised and the instant slot can
+      // roll over between quote and confirmation. Keep the amount the customer
+      // actually paid for and record the disagreement for audit.
+      const persistedSurge =
+        Math.abs(clientSlotSurge - expectedSlotSurge) <= 1 ? expectedSlotSurge : clientSlotSurge;
+      if (Math.abs(clientSlotSurge - expectedSlotSurge) > 1) {
+        console.warn(
+          `[create-paid-booking] ⚠️ INSTANT_SLOT_SURGE_DRIFT user=${profile.id} slot=${slotTime} client=₹${clientSlotSurge} server=₹${expectedSlotSurge} — persisting charged amount`,
+        );
+      }
+      booking_data.surcharge_amount = persistedSurge;
+      booking_data.surcharge_reason =
+        persistedSurge > 0 ? "peak_hour" : persistedSurge < 0 ? "off_peak_discount" : null;
+    }
+
+    // 4c-final. One authoritative total everywhere downstream (booking row,
+    // payment_amount_inr, booking card, worker payout basis):
+    //   price_inr = base_price_inr + loyalty surge + slot adjustment
+    {
+      const base = Number(booking_data.base_price_inr ?? 0);
+      if (base > 0) {
+        const slotAdj = Number(booking_data.surcharge_amount ?? 0);
+        const finalTotal = base + Number(booking_data.loyalty_surge_amount ?? 0) + slotAdj;
+        if (Math.abs(finalTotal - Number(booking_data.price_inr ?? 0)) > 1) {
+          console.warn(
+            `[create-paid-booking] ⚠️ TOTAL_NORMALISED client=₹${booking_data.price_inr} server=₹${finalTotal} base=₹${base} loyalty=₹${booking_data.loyalty_surge_amount ?? 0} slot=₹${slotAdj}`,
+          );
+        }
+        booking_data.price_inr = finalTotal;
+      }
     }
 
     // 4b. Server-side authorization of the requested favorite worker.

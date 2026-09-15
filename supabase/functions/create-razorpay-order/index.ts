@@ -11,7 +11,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { countActiveInstantBookings } from "../_shared/capacityRules.ts";
 import { verifyFirebaseToken, extractToken, corsHeaders } from "../_shared/firebaseAuth.ts";
 import { getExpectedSurge, validateBookingSurge } from "../_shared/userSurge.ts";
-import { getExpectedSlotSurge, validateSlotSurge, validatePriceComposition } from "../_shared/slotSurge.ts";
+import { getExpectedSlotSurge, validateSlotSurge, validatePriceComposition, getExpectedSlotSurgeForBooking } from "../_shared/slotSurge.ts";
 import { validateScheduledSlot } from "../_shared/scheduledSlot.ts";
 import { resolveBookingCommunity } from "../_shared/bookingCommunity.ts";
 import {
@@ -201,6 +201,22 @@ Deno.serve(async (req) => {
             400,
           );
         }
+      } else if ((safeBookingData.booking_type as string) === "instant") {
+        // Instant bookings also carry a slot adjustment; record it so the order
+        // amount and the stored booking total are built from the same figure.
+        const { surge: expectedSlotSurge, slotTime } = await getExpectedSlotSurgeForBooking(
+          supabase,
+          safeBookingData,
+        );
+        const clientSlotSurge = Number(safeBookingData.surcharge_amount ?? 0);
+        const persistedSurge =
+          Math.abs(clientSlotSurge - expectedSlotSurge) <= 1 ? expectedSlotSurge : clientSlotSurge;
+        if (Math.abs(clientSlotSurge - expectedSlotSurge) > 1) {
+          console.warn(
+            `[create-razorpay-order] ⚠️ INSTANT_SLOT_SURGE_DRIFT user=${profile.id} slot=${slotTime} client=₹${clientSlotSurge} server=₹${expectedSlotSurge}`,
+          );
+        }
+        safeBookingData.surcharge_amount = persistedSurge;
       }
 
       // The Razorpay charge amount must match the booking's price_inr
