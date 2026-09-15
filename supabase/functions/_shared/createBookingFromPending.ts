@@ -336,6 +336,45 @@ export async function createBookingFromPending(
 
   const bookingId = inserted!.id as string;
 
+  // 5b. Self-heal the stored total: re-assert the SAME validated values we
+  // inserted (and charged). The INSERT-only price trigger can drop the slot
+  // adjustment; an UPDATE is not touched by it. No new pricing rule here.
+  try {
+    const authoritativeSurcharge = Number(
+      (bookingRow.surcharge_amount as number | null | undefined) ?? 0,
+    );
+    const { data: storedRow } = await supabase
+      .from("bookings")
+      .select("price_inr, surcharge_amount")
+      .eq("id", bookingId)
+      .maybeSingle();
+    if (storedRow && bookingPriceInr > 0) {
+      const drift =
+        Math.abs(Number(storedRow.price_inr ?? 0) - bookingPriceInr) > 1 ||
+        Math.abs(Number(storedRow.surcharge_amount ?? 0) - authoritativeSurcharge) > 1;
+      if (drift) {
+        console.warn(
+          `${tag} ⚠️ STORED_TOTAL_DRIFT booking=${bookingId} stored_total=₹${storedRow.price_inr} stored_surge=₹${storedRow.surcharge_amount} authoritative_total=₹${bookingPriceInr} authoritative_surge=₹${authoritativeSurcharge} — correcting`,
+        );
+        const { error: healErr } = await supabase
+          .from("bookings")
+          .update({
+            price_inr: bookingPriceInr,
+            surcharge_amount: authoritativeSurcharge,
+            surcharge_reason: bookingRow.surcharge_reason ?? null,
+          })
+          .eq("id", bookingId);
+        if (healErr) {
+          console.warn(`${tag} ⚠️ STORED_TOTAL_HEAL_FAILED booking=${bookingId} msg="${healErr.message}"`);
+        }
+      }
+    }
+  } catch (e) {
+    console.warn(`${tag} ⚠️ STORED_TOTAL_HEAL_THREW booking=${bookingId} msg="${(e as Error).message}"`);
+  }
+
+
+
   // 6. Mark pending consumed + link wallet txn
   await markConsumed(supabase, pending.razorpay_order_id, bookingId);
   if (walletDebited > 0) {
