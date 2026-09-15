@@ -268,11 +268,22 @@ export function BookingForm() {
 
   // Current-slot surge/discount for INSTANT bookings — updates every minute.
   const {
-    amount: slotSurgeAmount,
-    slotTime: slotSurgeTime,
-    label: slotSurgeLabel,
-    reason: slotSurgeReason,
+    amount: rawSlotSurgeAmount,
+    slotTime: rawSlotSurgeTime,
+    label: rawSlotSurgeLabel,
+    reason: rawSlotSurgeReason,
   } = useCurrentSlotSurge(profile?.community_id, service_type || 'maid');
+
+  // Instant service window (IST 7 AM – 7 PM). Outside it, instant booking is
+  // Closed, so the *current* slot no longer represents a payable price: the
+  // whole current-slot adjustment must disappear from this screen. Recomputed
+  // on every render, and useCurrentSlotSurge re-renders each minute, so the
+  // transition at the cutoff is live (no stale surge left on screen).
+  const serviceOpenNow = isOpenNow(service_type);
+  const slotSurgeAmount = serviceOpenNow ? rawSlotSurgeAmount : 0;
+  const slotSurgeTime = serviceOpenNow ? rawSlotSurgeTime : null;
+  const slotSurgeLabel = serviceOpenNow ? rawSlotSurgeLabel : null;
+  const slotSurgeReason = serviceOpenNow ? rawSlotSurgeReason : null;
 
   // Final prices include loyalty + current-slot surge. Only when there IS a base.
   const totalPrice = baseTotalPrice > 0 ? baseTotalPrice + surgeAmount + slotSurgeAmount : 0;
