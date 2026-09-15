@@ -1073,6 +1073,49 @@ Deno.serve(async (req) => {
       );
     }
 
+    // 9b. Self-heal the stored total.
+    // The DB trigger enforce_booking_flat_size_and_price() may recompute
+    // price_inr/surcharge_amount on INSERT with its own slot lookup, which can
+    // drop the already-charged slot adjustment. No new pricing rule here: we
+    // simply re-assert the SAME server-validated values we inserted (and
+    // charged) via an UPDATE, which the INSERT-only trigger does not touch.
+    try {
+      const authoritativeTotal = Number(bookingRow.price_inr ?? 0);
+      const authoritativeSurcharge = Number(bookingRow.surcharge_amount ?? 0);
+      const { data: storedRow } = await supabase
+        .from("bookings")
+        .select("price_inr, surcharge_amount")
+        .eq("id", newBooking.id)
+        .maybeSingle();
+      if (storedRow && authoritativeTotal > 0) {
+        const driftTotal = Math.abs(Number(storedRow.price_inr ?? 0) - authoritativeTotal) > 1;
+        const driftSurge =
+          Math.abs(Number(storedRow.surcharge_amount ?? 0) - authoritativeSurcharge) > 1;
+        if (driftTotal || driftSurge) {
+          console.warn(
+            `[create-paid-booking] ⚠️ STORED_TOTAL_DRIFT booking=${newBooking.id} stored_total=₹${storedRow.price_inr} stored_surge=₹${storedRow.surcharge_amount} authoritative_total=₹${authoritativeTotal} authoritative_surge=₹${authoritativeSurcharge} — correcting`,
+          );
+          const { error: healErr } = await supabase
+            .from("bookings")
+            .update({
+              price_inr: authoritativeTotal,
+              surcharge_amount: authoritativeSurcharge,
+              surcharge_reason: bookingRow.surcharge_reason ?? null,
+            })
+            .eq("id", newBooking.id);
+          if (healErr) {
+            console.warn(
+              `[create-paid-booking] ⚠️ STORED_TOTAL_HEAL_FAILED booking=${newBooking.id} msg="${healErr.message}"`,
+            );
+          }
+        }
+      }
+    } catch (e) {
+      console.warn(
+        `[create-paid-booking] ⚠️ STORED_TOTAL_HEAL_THREW booking=${newBooking.id} msg="${(e as Error).message}"`,
+      );
+    }
+
 
     console.log(
       `[create-paid-booking] create_paid_booking_success booking=${newBooking.id} payment=${razorpay_payment_id} order=${razorpay_order_id} req=${requestId}`,
