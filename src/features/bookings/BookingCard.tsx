@@ -365,6 +365,9 @@ export function BookingCard({
   const pill = getStatusPill(row.status, booking.booking_type);
   const infoLine = getInfoLine();
   const isCancelled = row.status === 'cancelled';
+  // Final amount the customer paid: the charged amount is authoritative, so
+  // legacy rows whose stored total lost the slot adjustment still display right.
+  const displayTotal = row.payment_amount_inr ?? row.price_inr;
   const isCompleted = row.status === 'completed';
   const isPendingInstant = row.status === 'pending' && booking.booking_type !== 'scheduled';
   const workerDisplayName = assignedWorker?.worker?.full_name || row.worker_name;
