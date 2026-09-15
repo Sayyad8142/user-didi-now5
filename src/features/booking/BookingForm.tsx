@@ -733,7 +733,7 @@ export function BookingForm() {
   const currentPrice = service_type === 'maid' ? selectedFlatSize && selectedTasks.length > 0 ? totalPrice : null :
   service_type === 'bathroom_cleaning' ? bathroomTotalPrice :
   legacyWithSurge;
-  const isServiceOpen = isOpenNow(service_type);
+  const isServiceOpen = serviceOpenNow;
 
 
 
