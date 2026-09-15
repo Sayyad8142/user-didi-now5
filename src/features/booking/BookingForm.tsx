@@ -268,11 +268,22 @@ export function BookingForm() {
 
   // Current-slot surge/discount for INSTANT bookings — updates every minute.
   const {
-    amount: slotSurgeAmount,
-    slotTime: slotSurgeTime,
-    label: slotSurgeLabel,
-    reason: slotSurgeReason,
+    amount: rawSlotSurgeAmount,
+    slotTime: rawSlotSurgeTime,
+    label: rawSlotSurgeLabel,
+    reason: rawSlotSurgeReason,
   } = useCurrentSlotSurge(profile?.community_id, service_type || 'maid');
+
+  // Instant service window (IST 7 AM – 7 PM). Outside it, instant booking is
+  // Closed, so the *current* slot no longer represents a payable price: the
+  // whole current-slot adjustment must disappear from this screen. Recomputed
+  // on every render, and useCurrentSlotSurge re-renders each minute, so the
+  // transition at the cutoff is live (no stale surge left on screen).
+  const serviceOpenNow = isOpenNow(service_type);
+  const slotSurgeAmount = serviceOpenNow ? rawSlotSurgeAmount : 0;
+  const slotSurgeTime = serviceOpenNow ? rawSlotSurgeTime : null;
+  const slotSurgeLabel = serviceOpenNow ? rawSlotSurgeLabel : null;
+  const slotSurgeReason = serviceOpenNow ? rawSlotSurgeReason : null;
 
   // Final prices include loyalty + current-slot surge. Only when there IS a base.
   const totalPrice = baseTotalPrice > 0 ? baseTotalPrice + surgeAmount + slotSurgeAmount : 0;
@@ -722,7 +733,7 @@ export function BookingForm() {
   const currentPrice = service_type === 'maid' ? selectedFlatSize && selectedTasks.length > 0 ? totalPrice : null :
   service_type === 'bathroom_cleaning' ? bathroomTotalPrice :
   legacyWithSurge;
-  const isServiceOpen = isOpenNow(service_type);
+  const isServiceOpen = serviceOpenNow;
 
 
 
@@ -1119,10 +1130,14 @@ export function BookingForm() {
                   }
                     </>}
                 </div>
-                <SlotPricingTimeline
-                  communityId={profile?.community_id}
-                  serviceKey={service_type === 'bathroom_cleaning' ? 'bathroom_cleaning' : 'maid'}
-                />
+                {/* Today's Slot Pricing is only meaningful while instant
+                    booking is open — hidden entirely after the cutoff. */}
+                {serviceOpenNow && (
+                  <SlotPricingTimeline
+                    communityId={profile?.community_id}
+                    serviceKey={service_type === 'bathroom_cleaning' ? 'bathroom_cleaning' : 'maid'}
+                  />
+                )}
               </CardContent>
             </Card>
           </div>}
