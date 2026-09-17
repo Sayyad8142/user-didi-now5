@@ -19,7 +19,7 @@ import {
   corsHeaders,
 } from "../_shared/firebaseAuth.ts";
 import { getExpectedSurge, validateBookingSurge } from "../_shared/userSurge.ts";
-import { getExpectedSlotSurge, validateSlotSurge, validatePriceComposition } from "../_shared/slotSurge.ts";
+import { getExpectedSlotSurge, validateSlotSurge, validatePriceComposition, getExpectedSlotSurgeForBooking } from "../_shared/slotSurge.ts";
 import { validateScheduledSlot } from "../_shared/scheduledSlot.ts";
 import { resolveBookingCommunity } from "../_shared/bookingCommunity.ts";
 import { sanitizePreferredWorkerId } from "../_shared/preferredWorker.ts";
