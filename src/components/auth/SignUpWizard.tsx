@@ -59,6 +59,7 @@ export function SignUpWizard({ data, setData, loading, onSubmit }: Props) {
 
   // ----- Bottom sheets -----
   const [communitySheet, setCommunitySheet] = useState(false);
+  const [areaRequestSheet, setAreaRequestSheet] = useState(false);
   const [buildingSheet, setBuildingSheet] = useState(false);
   const [communityQuery, setCommunityQuery] = useState('');
   const [buildingQuery, setBuildingQuery] = useState('');
