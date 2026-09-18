@@ -252,8 +252,24 @@ export function SignUpWizard({ data, setData, loading, onSubmit }: Props) {
               {communitiesLoading ? (
                 <div className="text-sm text-muted-foreground text-center py-8">Loading communities…</div>
               ) : filteredCommunities.length === 0 ? (
-                <div className="text-sm text-muted-foreground text-center py-8">
-                  No communities match "{communityQuery}"
+                <div className="py-8 space-y-4 text-center">
+                  <p className="text-sm text-muted-foreground">
+                    No communities match "{communityQuery}"
+                  </p>
+                  <div className="rounded-2xl border border-pink-100 bg-pink-50/60 p-4 space-y-1.5">
+                    <p className="text-sm font-semibold text-gray-800">Can't find your community?</p>
+                    <p className="text-xs text-muted-foreground">
+                      Didi Now isn't available there yet. Request Didi Now in your area.
+                    </p>
+                    <Button
+                      type="button"
+                      onClick={() => setAreaRequestSheet(true)}
+                      disabled={loading}
+                      className="mt-2 w-full h-11 rounded-2xl bg-gradient-to-r from-pink-500 to-rose-500 text-white font-semibold shadow-md shadow-pink-500/20"
+                    >
+                      Request Didi Now in My Area
+                    </Button>
+                  </div>
                 </div>
               ) : (
                 filteredCommunities.map(c => {
