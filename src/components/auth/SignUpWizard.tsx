@@ -583,6 +583,14 @@ export function SignUpWizard({ data, setData, loading, onSubmit }: Props) {
           </div>
         </SheetContent>
       </Sheet>
+
+      {/* Request Didi Now in Your Area */}
+      <RequestAreaSheet
+        open={areaRequestSheet}
+        onOpenChange={setAreaRequestSheet}
+        searchText={communityQuery}
+        phone={data.phone}
+      />
     </div>
   );
 }
