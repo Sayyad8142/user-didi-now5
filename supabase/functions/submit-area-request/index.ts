@@ -14,7 +14,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.55.0";
-import { verifyFirebaseToken, extractToken, corsHeaders } from "../_shared/firebaseAuth.ts";
+import { verifyFirebaseToken, corsHeaders } from "../_shared/firebaseAuth.ts";
 import {
   EXTERNAL_SUPABASE_URL,
   EXTERNAL_SUPABASE_SERVICE_ROLE_KEY,
@@ -68,11 +68,11 @@ serve(async (req) => {
     // Optional identity: resolve profile server-side when a token is supplied.
     let profileId: string | null = null;
     let profilePhone: string | null = null;
-    const token = extractToken(req);
+    const token = req.headers.get("x-firebase-token") || "";
     if (token) {
       try {
         const decoded = await verifyFirebaseToken(token);
-        const uid = (decoded as any)?.user_id || (decoded as any)?.sub;
+        const uid = decoded?.uid;
         if (uid) {
           const { data: profile } = await supabase
             .from("profiles")
