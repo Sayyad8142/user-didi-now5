@@ -92,53 +92,76 @@ serve(async (req) => {
     const phone = profilePhone || clientPhone;
     const normalizedArea = normalizeArea(requestedArea);
 
-    // ---- Duplicate guard -------------------------------------------------
-    let dupQuery = supabase
-      .from("service_area_requests")
-      .select("id")
-      .eq("normalized_area", normalizedArea)
-      .limit(1);
-    if (profileId) dupQuery = dupQuery.eq("profile_id", profileId);
-    else if (phone) dupQuery = dupQuery.eq("phone", phone);
-    else dupQuery = dupQuery.is("profile_id", null).is("phone", null);
+    // Store on the external production DB (Admin Panel source of truth). If the
+    // table hasn't been created there yet (PGRST205), fall back to the Lovable
+    // Cloud DB so no request is ever lost.
+    const cloud = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+      { auth: { persistSession: false, autoRefreshToken: false } },
+    );
 
-    const { data: existing, error: dupError } = await dupQuery;
-    if (dupError) {
-      console.warn("[submit-area-request] dedupe check failed", dupError.message);
-    }
-    if (existing && existing.length > 0) {
-      console.log("[submit-area-request] duplicate ignored", { id: existing[0].id });
-      return json({ ok: true, duplicate: true, id: existing[0].id });
-    }
+    const save = async (client: any) => {
+      let dupQuery = client
+        .from("service_area_requests")
+        .select("id")
+        .eq("normalized_area", normalizedArea)
+        .limit(1);
+      if (profileId) dupQuery = dupQuery.eq("profile_id", profileId);
+      else if (phone) dupQuery = dupQuery.eq("phone", phone);
+      else dupQuery = dupQuery.is("profile_id", null).is("phone", null);
 
-    const { data, error } = await supabase
-      .from("service_area_requests")
-      .insert({
-        profile_id: profileId,
-        phone,
-        requested_area: requestedArea,
-        normalized_area: normalizedArea,
-        search_text: searchText,
-        status: "New",
-      })
-      .select("id")
-      .maybeSingle();
-
-    if (error) {
-      // Unique index race → treat as an accepted duplicate, never a failure.
-      if (String(error.code) === "23505") {
-        return json({ ok: true, duplicate: true });
+      const { data: existing, error: dupError } = await dupQuery;
+      if (dupError && String(dupError.code) === "PGRST205") {
+        return { missingTable: true } as const;
       }
-      console.error("[submit-area-request] insert failed", error.code, error.message);
+      if (existing && existing.length > 0) {
+        return { duplicate: true, id: existing[0].id } as const;
+      }
+
+      const { data, error } = await client
+        .from("service_area_requests")
+        .insert({
+          profile_id: profileId,
+          phone,
+          requested_area: requestedArea,
+          normalized_area: normalizedArea,
+          search_text: searchText,
+          status: "New",
+        })
+        .select("id")
+        .maybeSingle();
+
+      if (error) {
+        if (String(error.code) === "PGRST205") return { missingTable: true } as const;
+        // Unique index race → treat as an accepted duplicate, never a failure.
+        if (String(error.code) === "23505") return { duplicate: true, id: null } as const;
+        return { error: `${error.code}: ${error.message}` } as const;
+      }
+      return { duplicate: false, id: data?.id ?? null } as const;
+    };
+
+    let store = "external";
+    let result = await save(supabase);
+    if ("missingTable" in result) {
+      console.warn("[submit-area-request] external table missing → cloud fallback");
+      store = "cloud";
+      result = await save(cloud);
+    }
+
+    if ("missingTable" in result || "error" in result) {
+      console.error("[submit-area-request] save failed", store, (result as any).error || "table missing");
       return json({ error: "Could not save your request. Please try again." }, 500);
     }
 
     console.log("[submit-area-request] saved", {
-      id: data?.id,
+      store,
+      id: result.id,
+      duplicate: result.duplicate,
       hasProfile: !!profileId,
       hasPhone: !!phone,
     });
-    return json({ ok: true, duplicate: false, id: data?.id ?? null });
+    return json({ ok: true, duplicate: !!result.duplicate, id: result.id ?? null, store });
   } catch (e: any) {
     console.error("[submit-area-request] unexpected", e?.message);
     return json({ error: "Unexpected error. Please try again." }, 500);

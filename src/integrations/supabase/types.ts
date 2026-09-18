@@ -203,6 +203,39 @@ export type Database = {
         }
         Relationships: []
       }
+      service_area_requests: {
+        Row: {
+          created_at: string
+          id: string
+          normalized_area: string
+          phone: string | null
+          profile_id: string | null
+          requested_area: string
+          search_text: string | null
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          normalized_area: string
+          phone?: string | null
+          profile_id?: string | null
+          requested_area: string
+          search_text?: string | null
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          normalized_area?: string
+          phone?: string | null
+          profile_id?: string | null
+          requested_area?: string
+          search_text?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
