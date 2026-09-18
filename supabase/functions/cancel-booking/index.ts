@@ -81,7 +81,7 @@ serve(async (req) => {
 
     const { data: booking, error: bookingError } = await admin
       .from("bookings")
-      .select("id, user_id, status, cancelled_at, otp_verified_at, service_type")
+      .select("id, user_id, status, cancelled_at, otp_verified_at, service_type, maid_tasks")
       .eq("id", bookingId)
       .maybeSingle();
 
@@ -231,7 +231,7 @@ serve(async (req) => {
         await notifyUserPush(
           [...ownedIds],
           "Booking Cancelled",
-          bookingCancelledBody(booking.service_type, refundedAmount),
+          bookingCancelledBody(booking.service_type, refundedAmount, booking.maid_tasks),
           {
             type: "booking_cancelled",
             booking_id: String(bookingId),
