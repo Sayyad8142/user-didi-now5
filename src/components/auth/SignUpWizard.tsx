@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { PhoneInputIN } from './PhoneInputIN';
+import { RequestAreaSheet } from './RequestAreaSheet';
 import { CleaningLoader } from '@/components/ui/cleaning-loader';
 import { ArrowLeft, Building2, Check, ChevronRight, Home, MapPin, Search, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
