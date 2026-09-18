@@ -73,11 +73,18 @@ export function workerAssignedBody(workerName: unknown): string {
  * Cancellation copy. Only claims a wallet refund when the refund actually
  * succeeded (a positive credited amount).
  */
-export function bookingCancelledBody(refundedAmount: number | null | undefined): string {
+export function bookingCancelledBody(
+  serviceType: unknown,
+  refundedAmount: number | null | undefined,
+): string {
+  const label = serviceLabel(serviceType);
+  const cancelled = label
+    ? `Your ${label} booking has been cancelled.`
+    : "Your booking has been cancelled.";
   const amt = Number(refundedAmount ?? 0);
   return Number.isFinite(amt) && amt > 0
-    ? "Your booking has been cancelled. The amount has been refunded to your wallet."
-    : "Your booking has been cancelled.";
+    ? `${cancelled} The amount has been refunded to your wallet.`
+    : cancelled;
 }
 
 export function refundCompletedBody(amount: unknown): string | null {

@@ -33,6 +33,8 @@ serve(async (req) => {
     }
     
     const { title, body: messageBody, data } = body;
+    const eventType = String(data?.type || 'user_push').toLowerCase();
+    const bookingId = data?.booking_id ? String(data.booking_id) : null;
     
     if (userIds.length === 0) {
       console.log('❌ Missing user_id or user_ids');
@@ -59,6 +61,28 @@ serve(async (req) => {
     // SUPABASE_URL here made the sender read an empty table.
     const supabase = createClient(EXTERNAL_SUPABASE_URL, EXTERNAL_SUPABASE_SERVICE_ROLE_KEY);
     console.log('[send-user-fcm] DB host:', new URL(EXTERNAL_SUPABASE_URL).host);
+
+    // Cancellation can converge here from the user endpoint, refund endpoint,
+    // or a caller retry. A successful send is recorded once per booking and
+    // subsequent attempts are accepted without delivering another alert.
+    if (eventType === 'booking_cancelled' && bookingId) {
+      const { data: prior, error: priorError } = await supabase
+        .from('notification_logs')
+        .select('booking_id')
+        .eq('notification_type', 'booking_cancelled')
+        .eq('booking_id', bookingId)
+        .limit(1);
+      if (!priorError && prior && prior.length > 0) {
+        console.log(`[send-user-fcm] duplicate cancellation suppressed booking=${bookingId}`);
+        return new Response(
+          JSON.stringify({ ok: true, sent: 0, failed: 0, duplicate: true }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        );
+      }
+      if (priorError) {
+        console.warn('[send-user-fcm] cancellation dedup lookup unavailable:', priorError.message);
+      }
+    }
 
     // Query the profile-linked user token table.
     let tokens: Array<{ token: string; user_id: string; platform?: string | null }> | null = null;
@@ -149,13 +173,14 @@ serve(async (req) => {
 
     }
 
-    // Log notification attempt
-    try {
+    // Record successful delivery attempts. This row is also the cancellation
+    // idempotency marker; failed/no-token attempts remain retryable.
+    if (sent > 0) try {
       await supabase
         .from('notification_logs')
         .insert({
-          notification_type: 'user_push',
-          booking_id: data?.booking_id || null,
+          notification_type: eventType,
+          booking_id: bookingId,
           sent_at: new Date().toISOString(),
         });
     } catch (logError) {
