@@ -219,22 +219,26 @@ Deno.serve(async (req) => {
         safeBookingData.surcharge_amount = persistedSurge;
       }
 
-      // The Razorpay charge amount must match the booking's price_inr
-      // (after server-validated surge). Otherwise a tampered client could
-      // pay less than the booking price.
+      // The Razorpay charge amount must equal the booking's price_inr MINUS the
+      // wallet portion being debited (hybrid wallet + Razorpay payments).
+      // Otherwise a tampered client could pay less than the booking price.
       const expectedPriceInr = Number(safeBookingData.price_inr ?? amount);
-      if (Math.abs(amount - expectedPriceInr) > 1) {
+      const expectedRazorpayAmount = expectedPriceInr - (walletAmount > 0 ? walletAmount : 0);
+      if (Math.abs(amount - expectedRazorpayAmount) > 1) {
         console.warn(
-          `[create-razorpay-order] ❌ AMOUNT_MISMATCH user=${profile.id} amount=₹${amount} price_inr=₹${expectedPriceInr}`,
+          `[create-razorpay-order] ❌ AMOUNT_MISMATCH user=${profile.id} amount=₹${amount} price_inr=₹${expectedPriceInr} wallet=₹${walletAmount} expected_rp=₹${expectedRazorpayAmount}`,
         );
         return json(
           {
             error: "Amount does not match booking price.",
             code: "AMOUNT_MISMATCH",
+            expected_price: expectedRazorpayAmount,
+            received_price: amount,
           },
           400,
         );
       }
+
 
       // Full quote breakdown for diagnostics (UI ↔ backend ↔ Razorpay).
       console.log(
