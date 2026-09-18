@@ -15,7 +15,7 @@ import {
 } from "../_shared/externalSupabaseEnv.ts";
 import { refundBookingToWallet } from "../_shared/refundAmount.ts";
 import { notifyUserPush } from "../_shared/notifyUserPush.ts";
-import { refundCompletedBody } from "../_shared/notifyMessages.ts";
+import { bookingCancelledBody } from "../_shared/notifyMessages.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -59,7 +59,7 @@ serve(async (req) => {
 
     const { data: booking, error } = await admin
       .from("bookings")
-      .select("id, user_id, status, cancelled_at, otp_verified_at")
+      .select("id, user_id, status, cancelled_at, otp_verified_at, service_type, maid_tasks, is_demo")
       .eq("id", bookingId)
       .maybeSingle();
 
@@ -79,17 +79,30 @@ serve(async (req) => {
     );
     console.log("[refund-booking]", bookingId, reason, JSON.stringify(refund));
 
-    // Refund-completed push — ONLY when this call actually credited the wallet
-    // (never on skipped/already_refunded, so it cannot duplicate the
-    // cancellation notification). Amount comes from the refund record.
-    if ((refund as any)?.refunded) {
-      const body = refundCompletedBody((refund as any)?.refund_amount);
-      if (body) {
-        await notifyUserPush(booking.user_id as string, "Refund Completed", body, {
+    // Every non-user cancellation source converges here. Send the same
+    // cancellation event as the user-cancellation path; send-user-fcm owns
+    // idempotency, so a trigger/caller retry cannot produce a second alert.
+    if (!(booking as any).is_demo) {
+      const refundedAmount = (refund as any)?.refunded
+        ? Number((refund as any)?.refund_amount ?? 0)
+        : 0;
+      await notifyUserPush(
+        booking.user_id as string,
+        "Booking Cancelled",
+        bookingCancelledBody(
+          (booking as any).service_type,
+          refundedAmount,
+          (booking as any).maid_tasks,
+        ),
+        {
+          type: "booking_cancelled",
           booking_id: String(bookingId),
-          type: "refund",
-        });
-      }
+          status: "cancelled",
+          service_type: String((booking as any).service_type ?? ""),
+          deep_link: `/booking/${bookingId}`,
+          refunded: refundedAmount > 0 ? "true" : "false",
+        },
+      );
     }
 
     return json({ success: true, refund });

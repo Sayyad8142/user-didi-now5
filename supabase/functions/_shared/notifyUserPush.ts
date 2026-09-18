@@ -18,13 +18,14 @@ const FUNCTIONS_URL =
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 
 export async function notifyUserPush(
-  userId: string,
+  userId: string | string[],
   title: string,
   body: string,
   data?: Record<string, string>,
 ): Promise<void> {
   try {
-    if (!userId || !FUNCTIONS_URL) {
+    const userIds = (Array.isArray(userId) ? userId : [userId]).filter(Boolean);
+    if (userIds.length === 0 || !FUNCTIONS_URL) {
       console.warn("[notifyUserPush] skipped — missing userId or functions URL");
       return;
     }
@@ -37,12 +38,12 @@ export async function notifyUserPush(
           ? { Authorization: `Bearer ${SERVICE_KEY}`, apikey: SERVICE_KEY }
           : {}),
       },
-      body: JSON.stringify({ user_id: userId, title, body, data }),
+      body: JSON.stringify({ user_ids: userIds, title, body, data }),
     });
 
     const raw = await res.text();
     console.log(
-      `[notifyUserPush] user=${userId} title="${title}" → HTTP ${res.status} ${raw.slice(0, 200)}`,
+      `[notifyUserPush] users=${userIds.join(",")} title="${title}" → HTTP ${res.status} ${raw.slice(0, 200)}`,
     );
   } catch (e) {
     console.error("[notifyUserPush] failed (non-blocking):", (e as Error)?.message ?? e);

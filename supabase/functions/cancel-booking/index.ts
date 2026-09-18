@@ -81,7 +81,7 @@ serve(async (req) => {
 
     const { data: booking, error: bookingError } = await admin
       .from("bookings")
-      .select("id, user_id, status, cancelled_at, otp_verified_at")
+      .select("id, user_id, status, cancelled_at, otp_verified_at, service_type, maid_tasks")
       .eq("id", bookingId)
       .maybeSingle();
 
@@ -199,12 +199,20 @@ serve(async (req) => {
     // Never recomputed from base price or current surge/discount rules.
     // A DB trigger may also have credited something; the resolver reconciles
     // the difference in either direction, idempotently.
-    const refund = await refundBookingToWallet(
-      admin,
-      bookingId,
-      profile.id,
-      "user_cancelled",
-    );
+    let refund: any = { skipped: true, reason: "refund_unavailable" };
+    try {
+      refund = await refundBookingToWallet(
+        admin,
+        bookingId,
+        profile.id,
+        "user_cancelled",
+      );
+    } catch (e) {
+      // A transient refund failure must not suppress the cancellation alert.
+      // Reconciliation can safely retry the idempotent refund later.
+      console.error("[cancel-booking] refund threw (push will continue):", e);
+      refund = { error: (e as Error)?.message || "refund_failed" };
+    }
     console.log("[cancel-booking] refund result", JSON.stringify(refund));
 
     // Booking-cancelled push. Non-blocking. The refund sentence is only added
@@ -221,12 +229,15 @@ serve(async (req) => {
           : 0;
       if (!cancelledRow?.is_demo) {
         await notifyUserPush(
-          profile.id,
+          [...ownedIds],
           "Booking Cancelled",
-          bookingCancelledBody(refundedAmount),
+          bookingCancelledBody(booking.service_type, refundedAmount, booking.maid_tasks),
           {
+            type: "booking_cancelled",
             booking_id: String(bookingId),
             status: "cancelled",
+            service_type: String(booking.service_type ?? ""),
+            deep_link: `/booking/${bookingId}`,
             refunded: refundedAmount > 0 ? "true" : "false",
           },
         );
