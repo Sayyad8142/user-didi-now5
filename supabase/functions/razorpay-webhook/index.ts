@@ -121,17 +121,18 @@ Deno.serve(async (req) => {
 
       console.log(`${logPrefix} Payment captured: ${razorpayPaymentId}, order: ${razorpayOrderId}, amount: ${amountInPaise}`);
 
-      // Tip payments — separate from bookings; apply idempotently and stop.
-      if (payment.notes?.purpose === "tip") {
-        const { data: tip } = await supabase.from("booking_tips").select("*")
-          .eq("razorpay_order_id", razorpayOrderId).maybeSingle();
-        if (tip && tip.status === "pending") {
-          const { data: res, error: tipErr } = await supabase.rpc("apply_booking_tip", {
-            p_idempotency_key: tip.idempotency_key, p_user_id: tip.customer_id, p_booking_id: tip.booking_id,
-            p_amount: Number(tip.tip_amount), p_razorpay_amount: Math.round(amountInPaise) / 100,
-            p_razorpay_payment_id: razorpayPaymentId, p_razorpay_order_id: razorpayOrderId,
+      // Tip V2 payments — separate from bookings. Webhook signature was verified above;
+      // confirm_tip_razorpay is idempotent (only a 'processing' attempt can change) and
+      // checks the amount against the attempt. Late payments are credited to wallet by the DB.
+      if (payment.notes?.purpose === "tip_v2" || payment.notes?.purpose === "tip") {
+        if (payment.notes?.purpose === "tip_v2") {
+          const { data: res, error: tipErr } = await supabase.rpc("confirm_tip_razorpay", {
+            p_razorpay_order_id: razorpayOrderId, p_razorpay_payment_id: razorpayPaymentId,
+            p_amount_inr: Math.round(Number(amountInPaise) / 100),
           });
-          console.log(`${logPrefix} tip applied`, JSON.stringify(res), tipErr?.message);
+          console.log(`${logPrefix} tip v2 confirm`, JSON.stringify(res), tipErr?.message);
+        } else {
+          console.warn(`${logPrefix} legacy V1 tip payment ignored (V1 retired)`, razorpayPaymentId);
         }
         return new Response(JSON.stringify({ status: "tip_processed" }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
