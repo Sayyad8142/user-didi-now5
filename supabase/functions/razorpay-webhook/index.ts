@@ -121,6 +121,24 @@ Deno.serve(async (req) => {
 
       console.log(`${logPrefix} Payment captured: ${razorpayPaymentId}, order: ${razorpayOrderId}, amount: ${amountInPaise}`);
 
+      // Tip payments — separate from bookings; apply idempotently and stop.
+      if (payment.notes?.purpose === "tip") {
+        const { data: tip } = await supabase.from("booking_tips").select("*")
+          .eq("razorpay_order_id", razorpayOrderId).maybeSingle();
+        if (tip && tip.status === "pending") {
+          const { data: res, error: tipErr } = await supabase.rpc("apply_booking_tip", {
+            p_idempotency_key: tip.idempotency_key, p_user_id: tip.customer_id, p_booking_id: tip.booking_id,
+            p_amount: Number(tip.tip_amount), p_razorpay_amount: Math.round(amountInPaise) / 100,
+            p_razorpay_payment_id: razorpayPaymentId, p_razorpay_order_id: razorpayOrderId,
+          });
+          console.log(`${logPrefix} tip applied`, JSON.stringify(res), tipErr?.message);
+        }
+        return new Response(JSON.stringify({ status: "tip_processed" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+
       // Find booking by razorpay_order_id
       const { data: booking, error: findErr } = await supabase
         .from("bookings")
