@@ -41,9 +41,9 @@ async function hmac(body: string) {
 type Sb = any;
 
 /** Confirm a paid Razorpay tip order via the service-role-only V2 RPC. */
-async function confirmPaid(admin: Sb, orderId: string, paymentId: string, amountPaise: number) {
+async function confirmPaid(admin: Sb, tipPaymentId: string, orderId: string, paymentId: string, amountPaise: number) {
   const { data, error } = await admin.rpc("confirm_tip_razorpay", {
-    p_razorpay_order_id: orderId, p_razorpay_payment_id: paymentId,
+    p_tip_payment_id: tipPaymentId, p_razorpay_order_id: orderId, p_razorpay_payment_id: paymentId,
     p_amount_inr: Math.round(amountPaise / 100),
   });
   if (error) throw new Error(error.message);
@@ -93,8 +93,13 @@ Deno.serve(async (req) => {
       if (error) return;
       for (const p of pend || []) {
         try {
+          const { data: full } = await admin.from("booking_tip_payments")
+            .select("razorpay_amount_inr").eq("id", p.id).maybeSingle();
           const paid = await findPaidPayment(p.razorpay_order_id);
-          if (paid) await confirmPaid(admin, p.razorpay_order_id, paid.id, paid.amount);
+          if (paid && full && paid.order_id === p.razorpay_order_id &&
+              Number(paid.amount) === Number(full.razorpay_amount_inr) * 100) {
+            await confirmPaid(admin, p.id, p.razorpay_order_id, paid.id, paid.amount);
+          } else if (paid) console.error("[booking-tip] recover AMOUNT_OR_ORDER_MISMATCH", p.id, paid.id);
         } catch (e) { console.warn("[booking-tip] recover failed", p.id, e); }
       }
     };
@@ -205,7 +210,7 @@ Deno.serve(async (req) => {
         console.error("[booking-tip] AMOUNT_MISMATCH", tpid, p.amount, pay.razorpay_amount_inr);
         return json({ error: "amount_mismatch" }, 409);
       }
-      const data = await confirmPaid(admin, oid, pid, p.amount);
+      const data = await confirmPaid(admin, pay.id, oid, pid, p.amount);
       if (!data?.success) return json({ error: data?.error || "confirm_failed" }, 409);
       return json({ status: data.status, summary: await summary() });
     }
@@ -218,7 +223,11 @@ Deno.serve(async (req) => {
       if (pay.status === "processing" && pay.razorpay_order_id) {
         const paid = await findPaidPayment(pay.razorpay_order_id);
         if (paid) {
-          const data = await confirmPaid(admin, pay.razorpay_order_id, paid.id, paid.amount);
+          if (Number(paid.amount) !== Number(pay.razorpay_amount_inr) * 100) {
+            console.error("[booking-tip] abandon AMOUNT_MISMATCH", tpid, paid.amount);
+            return json({ error: "amount_mismatch" }, 409);
+          }
+          const data = await confirmPaid(admin, pay.id, pay.razorpay_order_id, paid.id, paid.amount);
           return json({ status: data?.status, summary: await summary() });
         }
       }
