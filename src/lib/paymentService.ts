@@ -557,6 +557,7 @@ async function createPaidBooking(params: CreatePaidBookingParams): Promise<Payme
   });
   try {
     const result = await invokeWithFirebaseAuth<PaymentResult>('create-paid-booking', payload);
+    try { window.dispatchEvent(new Event('worker-availability-refresh')); } catch { /* noop */ }
     console.log('[FAV_TRACE] PS.createPaidBooking → invoke END', {
       request_id: requestId,
       booking_id: result?.booking_id,

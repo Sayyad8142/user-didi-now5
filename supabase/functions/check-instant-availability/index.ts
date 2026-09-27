@@ -18,6 +18,7 @@ import {
   getExternalSupabase,
   limitForService,
 } from "../_shared/capacityRules.ts";
+import { getEligiblePool } from "../_shared/eligibleWorkers.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -92,15 +93,11 @@ export async function resolveInstantAvailability(
   // Per-service capacity (authoritative, EXTERNAL DB).
   const capacity = await countActiveInstantBookings(community, service);
 
-  // Eligible worker supply.
+  // Eligible worker supply — canonical dispatch pool (same as Home).
   const supabase = getExternalSupabase();
-  const { data: rows, error } = await supabase.rpc("get_online_workers_count", {
-    p_community: community,
-  });
-  if (error) throw error;
-
-  const list = (rows || []) as Record<string, unknown>[];
-  const eligible = readCount(list.find((r) => r.service === service));
+  const pool = await getEligiblePool(supabase, community, service);
+  const eligible = pool.count;
+  const list = pool.worker_ids;
 
   console.log(
     `[availability] resolved community=${community} service=${service} ist=${ist} ist_hour=${hours} ` +
