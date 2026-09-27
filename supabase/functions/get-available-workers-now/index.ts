@@ -7,7 +7,7 @@
  */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.55.0";
-import { getEligiblePool } from "../_shared/eligibleWorkers.ts";
+import { getDispatchEligibleCount } from "../_shared/eligibleWorkers.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -30,39 +30,9 @@ serve(async (req) => {
       clean(Deno.env.get("EXTERNAL_SUPABASE_SERVICE_ROLE_KEY")),
     );
 
-    const pools = await Promise.all(SERVICES.map((s) => getEligiblePool(sb, community, s)));
     const counts: Record<string, number> = {};
-    pools.forEach((p) => (counts[p.service] = p.count));
-    const result: Record<string, unknown> = {
-      community,
-      source: "get_eligible_workers",
-      generated_at: new Date().toISOString(),
-      counts,
-      services: pools.map((p) => ({ service: p.service, count: p.count, worker_ids: p.worker_ids })),
-    };
-
-    if (body.debug === true) {
-      const { data: legacy } = await sb.rpc("get_online_workers_count", { p_community: community });
-      const allIds = [...new Set(pools.flatMap((p) => p.worker_ids))];
-      const { data: w } = allIds.length
-        ? await sb.from("workers").select(
-          "id,full_name,is_active,is_available,is_busy,is_blocked,blocked_until,auto_paused_at,auto_paused_restored_at,dispatch_cooldown_until,fcm_token,fcm_token_status,push_health_status,push_block_reason,last_seen_at,last_heartbeat_at,deleted_at",
-        ).in("id", allIds)
-        : { data: [] };
-      result.comparison = pools.map((p) => {
-        const row = (legacy || []).find((r: any) => r.service === p.service) || {};
-        const legacyCount = Number(row.online_count ?? 0);
-        return {
-          service: p.service,
-          legacy_heartbeat_count: legacyCount,
-          dispatch_eligible_count: p.count,
-          difference: p.count - legacyCount,
-          mismatch: p.count !== legacyCount,
-          stale_but_eligible: p.workers.filter((x: any) => x.is_fresh === false).map((x: any) => x.worker_id),
-        };
-      });
-      result.worker_details = (w || []).map((x: any) => ({ ...x, fcm_token: x.fcm_token ? "present" : null }));
-    }
+    for (const s of SERVICES) counts[s] = await getDispatchEligibleCount(sb, community, s);
+    const result = { community, source: "get_dispatch_eligible_worker_count", generated_at: new Date().toISOString(), counts };
     console.log(`[avail-now] ${community} ${JSON.stringify(counts)}`);
     return json(result);
   } catch (e) {

@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useProfile } from '@/contexts/ProfileContext';
-import { LOVABLE_CLOUD_FUNCTIONS_URL, PRODUCTION_ANON_KEY } from '@/lib/constants';
+import { supabase } from '@/integrations/supabase/client';
+
+const SERVICES = ['maid', 'bathroom_cleaning'];
 
 interface OnlineCounts {
   [service: string]: number;
@@ -15,9 +17,9 @@ export function requestAvailabilityRefresh() {
 }
 
 /**
- * "Available right now" counts. Single source of truth: the backend
- * get-available-workers-now function, which reads the same eligible pool
- * the dispatcher offers bookings to. No eligibility rules live here.
+ * "Available right now" counts. Single source of truth: the canonical
+ * backend count get_dispatch_eligible_worker_count (backend resolves IST
+ * weekday + slot). No eligibility rules live here.
  */
 export function useOnlineWorkerCounts() {
   const { profile } = useProfile();
@@ -30,18 +32,20 @@ export function useOnlineWorkerCounts() {
     if (!community || community === 'other' || inflight.current) return;
     inflight.current = true;
     try {
-      const res = await fetch(`${LOVABLE_CLOUD_FUNCTIONS_URL}/functions/v1/get-available-workers-now`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          apikey: PRODUCTION_ANON_KEY,
-          Authorization: `Bearer ${PRODUCTION_ANON_KEY}`,
-        },
-        body: JSON.stringify({ community }),
-      });
-      if (!res.ok) throw new Error(`availability ${res.status}`);
-      const data = await res.json();
-      setCounts(data.counts || {});
+      const results = await Promise.all(
+        SERVICES.map(async (service) => {
+          const { data, error } = await (supabase as any).rpc('get_dispatch_eligible_worker_count', {
+            p_service: service,
+            p_community: community,
+            p_day: null,
+            p_slot: null,
+          });
+          if (error) throw error;
+          const n = Number(data);
+          return [service, Number.isFinite(n) ? n : 0] as const;
+        }),
+      );
+      setCounts(Object.fromEntries(results));
     } catch (e) {
       // Keep last known counts rather than falling back to different rules.
       console.error('Error loading worker availability:', e);

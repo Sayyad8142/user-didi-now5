@@ -18,7 +18,7 @@ import {
   getExternalSupabase,
   limitForService,
 } from "../_shared/capacityRules.ts";
-import { getEligiblePool } from "../_shared/eligibleWorkers.ts";
+import { getDispatchEligibleCount } from "../_shared/eligibleWorkers.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -95,14 +95,12 @@ export async function resolveInstantAvailability(
 
   // Eligible worker supply — canonical dispatch pool (same as Home).
   const supabase = getExternalSupabase();
-  const pool = await getEligiblePool(supabase, community, service);
-  const eligible = pool.count;
-  const list = pool.worker_ids;
+  const eligible = await getDispatchEligibleCount(supabase, community, service);
 
   console.log(
     `[availability] resolved community=${community} service=${service} ist=${ist} ist_hour=${hours} ` +
       `eligible=${eligible} active_instant=${capacity.active_count} limit=${capacity.limit} ` +
-      `raw_counts=${JSON.stringify(list)} diag=${JSON.stringify(diag)}`,
+      `source=get_dispatch_eligible_worker_count diag=${JSON.stringify(diag)}`,
   );
 
   if (capacity.is_full) {
