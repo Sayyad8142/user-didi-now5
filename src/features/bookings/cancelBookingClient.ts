@@ -1,6 +1,7 @@
 import { getFirebaseIdToken, waitForFirebaseAuthReady } from '@/lib/firebase';
 import { LOVABLE_CLOUD_FUNCTIONS_URL, PRODUCTION_ANON_KEY } from '@/lib/constants';
 import { resolveBackendUrl } from '@/lib/backendResolver';
+import { requestAvailabilityRefresh } from '@/hooks/useOnlineWorkerCounts';
 
 export interface CancelBookingResponse {
   success?: boolean;
@@ -55,6 +56,7 @@ export async function cancelMyBooking(bookingId: string, reason: string) {
 
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error || `Cancellation failed (HTTP ${res.status})`);
+      requestAvailabilityRefresh();
       return data as CancelBookingResponse;
     } catch (err: any) {
       lastError = err instanceof Error ? err : new Error(err?.message || 'Failed to cancel booking');

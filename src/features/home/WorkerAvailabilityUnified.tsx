@@ -38,12 +38,12 @@ function LiveRow({
   label: string;
   onClick?: () => void;
 }) {
-  const urgent = count <= 3;
+  const urgent = count === 1;
   const empty = count === 0;
   const statusText = empty
-    ? 'Try scheduling for tomorrow'
+    ? 'No workers available right now'
     : urgent
-    ? `Only ${count} left`
+    ? 'Only 1 available'
     : `${count} available now`;
   const StatusIcon = empty ? AlertCircle : urgent ? Flame : CheckCircle2;
   const tone = empty
