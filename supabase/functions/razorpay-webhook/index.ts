@@ -126,11 +126,25 @@ Deno.serve(async (req) => {
       // checks the amount against the attempt. Late payments are credited to wallet by the DB.
       if (payment.notes?.purpose === "tip_v2" || payment.notes?.purpose === "tip") {
         if (payment.notes?.purpose === "tip_v2") {
-          const { data: res, error: tipErr } = await supabase.rpc("confirm_tip_razorpay", {
-            p_razorpay_order_id: razorpayOrderId, p_razorpay_payment_id: razorpayPaymentId,
-            p_amount_inr: Math.round(Number(amountInPaise) / 100),
-          });
-          console.log(`${logPrefix} tip v2 confirm`, JSON.stringify(res), tipErr?.message);
+          // Never trust notes alone: resolve the attempt from the STORED order id.
+          const { data: attempt } = await supabase.from("booking_tip_payments")
+            .select("id, razorpay_order_id, razorpay_amount_inr")
+            .eq("razorpay_order_id", razorpayOrderId).maybeSingle();
+          const notedId = payment.notes?.tip_payment_id;
+          if (!attempt) {
+            console.error(`${logPrefix} tip v2 NO_ATTEMPT_FOR_ORDER`, razorpayOrderId, razorpayPaymentId);
+          } else if (notedId && notedId !== attempt.id) {
+            console.error(`${logPrefix} tip v2 TIP_ID_MISMATCH`, notedId, attempt.id);
+          } else if (Number(amountInPaise) !== Number(attempt.razorpay_amount_inr) * 100) {
+            console.error(`${logPrefix} tip v2 AMOUNT_MISMATCH`, attempt.id, amountInPaise, attempt.razorpay_amount_inr);
+          } else {
+            const { data: res, error: tipErr } = await supabase.rpc("confirm_tip_razorpay", {
+              p_tip_payment_id: attempt.id,
+              p_razorpay_order_id: razorpayOrderId, p_razorpay_payment_id: razorpayPaymentId,
+              p_amount_inr: Math.round(Number(amountInPaise) / 100),
+            });
+            console.log(`${logPrefix} tip v2 confirm`, JSON.stringify(res), tipErr?.message);
+          }
         } else {
           console.warn(`${logPrefix} legacy V1 tip payment ignored (V1 retired)`, razorpayPaymentId);
         }
