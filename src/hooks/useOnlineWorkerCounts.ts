@@ -50,6 +50,14 @@ export function useOnlineWorkerCounts() {
           const n = Number(raw);
           result[row.service] = Number.isFinite(n) ? n : 0;
         });
+        // TEMP DEBUG (availability audit): raw RPC rows vs displayed count
+        console.log('[availability-debug]', {
+          community,
+          now_ist: new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
+          raw_rows: data,
+          displayed: result,
+          note: 'displayed = online_count (= fresh_count) — per-worker stages: worker-availability-debug function',
+        });
         setCounts(result);
       } catch (e) {
         console.error('Error loading online worker counts:', e);
