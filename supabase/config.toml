@@ -108,3 +108,6 @@ verify_jwt = false
 
 [functions.refund-orphan-payments]
 verify_jwt = false
+
+[functions.booking-tip]
+verify_jwt = false
