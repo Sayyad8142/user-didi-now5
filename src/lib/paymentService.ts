@@ -261,7 +261,7 @@ function logCreatePaidBookingDebug(stage: 'request' | 'response' | 'error', deta
   console.log('CREATE_PAID_BOOKING_DEBUG', { stage, ...details });
 }
 
-async function invokeWithFirebaseAuth<T>(functionName: string, body: Record<string, unknown>): Promise<T> {
+export async function invokeWithFirebaseAuth<T>(functionName: string, body: Record<string, unknown>): Promise<T> {
   // Force refresh token for payment-critical calls to avoid stale tokens after checkout
   const forceRefresh = functionName === 'create-paid-booking' || functionName === 'verify-razorpay-payment';
 

@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import { BookingTipSection } from '@/features/bookings/BookingTipSection';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -784,6 +785,15 @@ export function BookingCard({
         }
         return null;
       })()}
+
+      {!isCancelled && (
+        <BookingTipSection
+          bookingId={row.id}
+          status={row.status}
+          hasWorker={!!row.worker_id}
+          servicePrice={displayTotal ?? null}
+        />
+      )}
 
       {/* Report Issue + Cancel Booking — active bookings */}
       {!isCancelled && !isCompleted && (
