@@ -24,6 +24,10 @@ const PROD_ANON = Deno.env.get("EXTERNAL_SUPABASE_ANON_KEY") ||
 const ALLOWED = [10, 20, 30, 40, 50];
 const MAX_TIP = 50;
 const OPEN_STATES = ["assigned", "accepted", "on_the_way", "started"];
+// Rollout gate: hidden for everyone unless TIP_V2_PUBLIC=true, or the customer's
+// profile id is listed in TIP_V2_TESTER_PROFILE_IDS (comma-separated).
+const TIP_PUBLIC = Deno.env.get("TIP_V2_PUBLIC") === "true";
+const TIP_TESTERS = new Set((Deno.env.get("TIP_V2_TESTER_PROFILE_IDS") || "").split(",").map((s) => s.trim()).filter(Boolean));
 
 const json = (b: unknown, s = 200) =>
   new Response(JSON.stringify(b), { status: s, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -83,6 +87,11 @@ Deno.serve(async (req) => {
       .select("id, user_id, worker_id, status, price_inr").eq("id", bookingId).maybeSingle();
     if (!booking) return json({ error: "booking_not_found" }, 404);
     if (booking.user_id !== profile.id) return json({ error: "not_owner" }, 403);
+    const gated = !TIP_PUBLIC && !TIP_TESTERS.has(profile.id);
+    // Hidden customers: no UI, no new attempts. verify/abandon stay open so an
+    // in-flight attempt can always finish or release its wallet hold.
+    if (gated && action === "status") return json({ enabled: false });
+    if (gated && action === "start") return json({ error: "tips_unavailable" }, 503);
 
     // Recover any processing attempt whose Razorpay payment already succeeded
     // (app closed / webhook delayed). Server checks Razorpay itself.
