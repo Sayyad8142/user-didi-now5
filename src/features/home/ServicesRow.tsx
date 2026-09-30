@@ -1,7 +1,7 @@
 import React from 'react';
 import { ArrowRight } from 'lucide-react';
-import maidImage from '@/assets/service-card-maid.jpg';
-import bathroomImage from '@/assets/service-card-bathroom.jpg';
+import maidImageAsset from '@/assets/service-card-maid.png.asset.json';
+import bathroomImageAsset from '@/assets/service-card-bathroom.png.asset.json';
 
 interface ServicesRowProps {
   onServiceSelect: (service: 'maid' | 'bathroom_cleaning') => void;
