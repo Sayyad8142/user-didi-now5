@@ -8,8 +8,8 @@ interface ServicesRowProps {
 }
 
 const services = [
-  { id: 'maid' as const, title: 'Maid', image: maidImage },
-  { id: 'bathroom_cleaning' as const, title: 'Bathroom Cleaning', image: bathroomImage },
+  { id: 'maid' as const, title: 'Maid', image: maidImageAsset.url },
+  { id: 'bathroom_cleaning' as const, title: 'Bathroom Cleaning', image: bathroomImageAsset.url },
 ];
 
 export function ServicesRow({ onServiceSelect }: ServicesRowProps) {
