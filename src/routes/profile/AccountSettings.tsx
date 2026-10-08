@@ -3,11 +3,20 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Download, Trash2 } from "lucide-react";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { toast } from "@/hooks/use-toast";
+import { getFirebaseIdToken, signOut as firebaseSignOut } from "@/lib/firebase";
+import { LOVABLE_CLOUD_FUNCTIONS_URL, PRODUCTION_ANON_KEY, DIRECT_SUPABASE_URL } from "@/lib/constants";
 
 export default function AccountSettings() {
   const navigate = useNavigate();
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string>("");
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [walletBalance, setWalletBalance] = useState<number | null>(null);
 
   async function downloadData() {
     setBusy(true); 
@@ -32,40 +41,61 @@ export default function AccountSettings() {
     }
   }
 
-  async function deleteAccount() {
-    if (!confirm("This will permanently delete your bookings and profile. This cannot be undone. Continue?")) {
-      return;
+  async function callDelete(acknowledgeWallet: boolean): Promise<{ status: number; body: any }> {
+    const token = await getFirebaseIdToken(true);
+    if (!token) return { status: 401, body: { message: "Your session expired. Please sign in again." } };
+    let last: any = null;
+    for (const host of [LOVABLE_CLOUD_FUNCTIONS_URL, DIRECT_SUPABASE_URL]) {
+      try {
+        const res = await fetch(`${host}/functions/v1/delete-account`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            apikey: PRODUCTION_ANON_KEY,
+            Authorization: `Bearer ${PRODUCTION_ANON_KEY}`,
+            "x-firebase-token": token,
+          },
+          body: JSON.stringify({ acknowledge_wallet_forfeit: acknowledgeWallet }),
+        });
+        const body = await res.json().catch(() => ({}));
+        if (res.status === 404) { last = { status: 404, body }; continue; }
+        return { status: res.status, body };
+      } catch (e) {
+        last = { status: 0, body: { message: "Network error. Please check your connection and try again." } };
+      }
     }
-    
-    setBusy(true); 
+    return last;
+  }
+
+  async function deleteAccount(acknowledgeWallet = false) {
+    setBusy(true);
     setMsg("");
     try {
-      // 1) purge database rows first
-      const { error: deleteError } = await supabase.rpc("delete_my_data");
-      if (deleteError) throw deleteError;
-
-      // 2) delete auth user via Edge Function
-      const { data: sess } = await supabase.auth.getSession();
-      const token = sess?.session?.access_token;
-      
-      if (token) {
-        const res = await supabase.functions.invoke('delete-auth-user', {
-          headers: { Authorization: `Bearer ${token}` },
-          body: {}
-        });
-        
-        if (res.error) {
-          console.error('Auth deletion error:', res.error);
-          throw new Error("Failed to delete authentication record");
-        }
+      const { status, body } = await callDelete(acknowledgeWallet);
+      if (status === 409 && body?.error === "wallet_balance") {
+        setWalletBalance(Number(body.balance_inr) || 0);
+        setConfirmOpen(false);
+        return;
       }
-
-      // 3) sign out and redirect
-      await supabase.auth.signOut();
-      navigate("/auth?deleted=1");
+      if (status !== 200 || !body?.ok) {
+        throw new Error(body?.message || "Failed to delete account. Please try again.");
+      }
+      setConfirmOpen(false);
+      setWalletBalance(null);
+      try {
+        const { unregisterFcmToken } = await import("@/hooks/usePushNotifications");
+        await unregisterFcmToken().catch(() => {});
+      } catch {}
+      try { const { clearDemoSession } = await import("@/lib/demo"); clearDemoSession(); } catch {}
+      try { await firebaseSignOut(); } catch {}
+      try { await supabase.auth.signOut(); } catch {}
+      toast({ title: "Account deleted", description: "Your account has been deleted successfully." });
+      setTimeout(() => { window.location.href = "/auth?deleted=1"; }, 800);
     } catch (e: any) {
-      console.error('Account deletion error:', e);
-      setMsg(e?.message || "Failed to delete account");
+      console.error("Account deletion error:", e);
+      setConfirmOpen(false);
+      setWalletBalance(null);
+      setMsg(e?.message || "Failed to delete account. Please try again.");
     } finally {
       setBusy(false);
     }
@@ -125,13 +155,13 @@ export default function AccountSettings() {
           Permanently delete your account and all associated data. This action cannot be undone and will remove:
         </p>
         <ul className="text-sm text-muted-foreground list-disc list-inside space-y-1">
-          <li>Your profile information</li>
-          <li>All booking history</li>
-          <li>Your login credentials</li>
+          <li>Your name, phone number and address</li>
+          <li>Your login and notifications</li>
+          <li>Any remaining wallet balance</li>
         </ul>
         <Button 
           variant="destructive" 
-          onClick={deleteAccount} 
+          onClick={() => setConfirmOpen(true)} 
           disabled={busy}
           className="w-full"
         >
@@ -143,6 +173,48 @@ export default function AccountSettings() {
         Need help? Contact us at support@didinow.com
       </div>
       </div>
+
+      <AlertDialog open={confirmOpen} onOpenChange={(o) => !busy && setConfirmOpen(o)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete your account?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently removes your personal details and signs you out on all devices. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={busy}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={busy}
+              onClick={(e) => { e.preventDefault(); deleteAccount(false); }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {busy ? "Deleting..." : "Yes, delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={walletBalance !== null} onOpenChange={(o) => { if (!o && !busy) setWalletBalance(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>You still have ₹{walletBalance} in your wallet</AlertDialogTitle>
+            <AlertDialogDescription>
+              If you delete your account now, this wallet balance will be lost. You can use it on a booking first, or continue to delete.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={busy}>Keep my account</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={busy}
+              onClick={(e) => { e.preventDefault(); deleteAccount(true); }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {busy ? "Deleting..." : "Delete anyway"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
