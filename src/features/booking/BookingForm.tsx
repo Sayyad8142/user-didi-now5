@@ -965,10 +965,8 @@ export function BookingForm() {
               const isSelected = selectedTasks.includes(task);
               const toggleTask = () => {
                 if (isSelected) {
-                  if (selectedTasks.length > 1) {
-                    setSelectedTasks((prev) => prev.filter((t) => t !== task));
-                    if (task === 'dish_washing') setDishIntensity(null);
-                  }
+                  setSelectedTasks((prev) => prev.filter((t) => t !== task));
+                  if (task === 'dish_washing') setDishIntensity(null);
                 } else {
                   setSelectedTasks((prev) => [...prev, task]);
                 }
@@ -1143,7 +1141,7 @@ export function BookingForm() {
           </div>}
 
           {/* Choose Booking Type */}
-          <div className="mt-8 space-y-3">
+          {(service_type !== 'maid' || selectedTasks.length > 0) && <div className="mt-8 space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
             <h3 className="text-sm font-semibold text-muted-foreground tracking-wide uppercase">Choose Booking Type</h3>
             <div className="grid grid-cols-2 gap-3 items-start">
               {/* Instant Card — books immediately */}
@@ -1399,7 +1397,7 @@ export function BookingForm() {
               </button>
             </div>
 
-          </div>
+          </div>}
         </div>
 
         {/* Schedule Sheet */}
