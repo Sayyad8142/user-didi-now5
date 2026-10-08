@@ -102,7 +102,7 @@ serve(async (req) => {
       const updErr = await adaptiveUpdate(db, "profiles", {
         full_name: "Deleted User",
         phone: `deleted:${profile.id}`,
-        firebase_uid: null,
+        firebase_uid: `deleted:${profile.id}`,
         email: null,
         avatar_url: null,
         flat_no: null,
