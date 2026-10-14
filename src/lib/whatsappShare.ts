@@ -21,10 +21,10 @@ export function buildOtpShareMessage(b: OtpShareInput): string {
     '',
     `👩 Expert: ${worker}`,
     `🧹 Service: ${service}`,
-    `🔑 Check-in OTP: ${otp}`,
+    `🔑 Booking Completion OTP: ${otp}`,
     `💰 Amount Paid: ${amount}`,
     '',
-    'Please share this OTP with the expert only when they arrive at your location.',
+    'Please share this code only after your worker finishes the service.',
     '',
     'Thank you for choosing Didi Now ❤️',
   ].join('\n');

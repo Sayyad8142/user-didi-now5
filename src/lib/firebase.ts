@@ -1,3 +1,4 @@
+import { safeNotificationText } from "@/lib/otpNotificationSafety";
 // Firebase identity + Web Push only.
 //
 // OTP delivery + verification: Twilio Verify (via `twilio-send-otp` and
@@ -356,14 +357,14 @@ export const onForegroundMessage = (callback: (payload: MessagePayload) => void)
     return () => {};
   }
   return onMessage(messagingInstance, (payload) => {
-    console.log('📩 Foreground message received:', payload);
+    // Notification payloads may contain legacy credentials; never log them.
     callback(payload);
   });
 };
 
 export const showForegroundNotification = (payload: MessagePayload): void => {
-  const title = payload.data?.title || payload.notification?.title || 'Didi Now';
-  const body = payload.data?.body || payload.notification?.body || '';
+  const title = safeNotificationText(payload.data?.title || payload.notification?.title) || 'Didi Now';
+  const body = safeNotificationText(payload.data?.body || payload.notification?.body) || '';
   if ('Notification' in window && Notification.permission === 'granted') {
     new Notification(title, {
       body,

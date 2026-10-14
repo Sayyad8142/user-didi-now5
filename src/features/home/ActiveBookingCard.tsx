@@ -15,7 +15,8 @@ import { PayWorkerManualSheet } from '@/components/PayWorkerManualSheet';
 import { toast } from 'sonner';
 import { RateWorker } from '@/features/bookings/RateWorker';
 import { openExternalUrl } from '@/lib/nativeOpen';
-import { shareOtpOnWhatsApp } from '@/lib/whatsappShare';
+import { useBookingOtp } from '@/features/bookings/useBookingOtp';
+import type { OtpBookingState } from '@/features/bookings/otpContract';
 import ChatSheet from '@/features/chat/ChatSheet';
 import { LoadingWorkerBadge } from '@/components/LoadingWorkerBadge';
 import { WorkerRatingsModal } from '@/features/bookings/WorkerRatingsModal';
@@ -35,7 +36,7 @@ import { Wallet } from 'lucide-react';
 import { fetchWalletBalanceValue } from '@/lib/wallet';
 
 
-interface Booking {
+interface Booking extends OtpBookingState {
   id: string;
   service_type: string;
   booking_type: string;
@@ -201,7 +202,7 @@ const ActiveBookingCard = memo(() => {
   const [workerStats, setWorkerStats] = useState<{ avg_rating: number; ratings_count: number } | null>(null);
   const [showWorkerRatings, setShowWorkerRatings] = useState(false);
   const [showPaySheet, setShowPaySheet] = useState(false);
-  const [showOtpSheet, setShowOtpSheet] = useState(false);
+  const otpValue = useBookingOtp(activeBooking);
   const [reachButtonsVisible, setReachButtonsVisible] = useState(false);
   const [updatingReachStatus, setUpdatingReachStatus] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState<string>('pending');
@@ -366,25 +367,6 @@ const ActiveBookingCard = memo(() => {
     const id = setInterval(() => setFindingIdx(i => (i + 1) % findingMessages.length), 3500);
     return () => clearInterval(id);
   }, [isFindingActive, findingMessages.length]);
-
-  // Auto-close OTP sheet if the OTP row becomes unavailable (status change, verified, etc.)
-  // OTP only shows once a worker is assigned.
-  useEffect(() => {
-    const status = activeBooking?.status ?? '';
-    const isHiddenState =
-      status === 'cancelled' ||
-      (status === 'completed' && !!activeBooking?.otp_verified_at);
-    const workerAssigned =
-      !!(activeBooking as any)?.worker_id ||
-      !!(activeBooking as any)?.worker_name ||
-      ['assigned', 'accepted', 'confirmed', 'on_the_way', 'started'].includes(status);
-    const shouldShow =
-      !!activeBooking?.completion_otp &&
-      workerAssigned &&
-      !activeBooking?.otp_verified_at &&
-      !isHiddenState;
-    if (!shouldShow && showOtpSheet) setShowOtpSheet(false);
-  }, [activeBooking?.completion_otp, activeBooking?.otp_verified_at, activeBooking?.status, showOtpSheet]);
 
   const workerChangeUsed = assignmentCount >= 2;
 
@@ -551,21 +533,8 @@ const ActiveBookingCard = memo(() => {
 
   const pill = getStatusPill(activeBooking);
   const infoLine = getInfoLine(activeBooking);
-  const helperLine = getHelperLine(activeBooking);
-  // OTP visible only once a worker is assigned.
-  // Hidden when cancelled, or completed+verified.
-  const _workerAssignedState =
-    !!(activeBooking as any).worker_id ||
-    !!(activeBooking as any).worker_name ||
-    ['assigned', 'accepted', 'confirmed', 'on_the_way', 'started'].includes(activeBooking.status);
-  const _otpHiddenState =
-    activeBooking.status === 'cancelled' ||
-    (activeBooking.status === 'completed' && !!activeBooking.otp_verified_at);
-  const showOtpRow =
-    !!activeBooking.completion_otp &&
-    _workerAssignedState &&
-    !activeBooking.otp_verified_at &&
-    !_otpHiddenState;
+  const helperLine = activeBooking.otp_mode === 'v2' || otpValue?.mode === 'v2'
+    ? null : getHelperLine(activeBooking);
   const isCancelled = activeBooking.status === 'cancelled';
   const isFinding = activeBooking.status === 'pending' && activeBooking.booking_type !== 'scheduled';
 
@@ -801,76 +770,6 @@ const ActiveBookingCard = memo(() => {
           </div>
         )}
       </Card>
-
-      {/* OTP Bottom Sheet — only mount when relevant to avoid portal teardown races */}
-      {showOtpRow && (
-      <Sheet open={showOtpSheet} onOpenChange={setShowOtpSheet}>
-        <SheetContent side="bottom" className="rounded-t-3xl px-6 pb-10 pt-6">
-          <SheetHeader className="text-center sm:text-center">
-            <div className="mx-auto mb-2 p-3 rounded-2xl bg-emerald-50 w-fit">
-              <KeyRound className="w-5 h-5 text-emerald-700" />
-            </div>
-            <SheetTitle className="text-center">Completion OTP</SheetTitle>
-            <SheetDescription className="text-center">
-              Share this OTP with your worker only after the work is fully completed.
-            </SheetDescription>
-          </SheetHeader>
-          <div className="mt-6 flex items-center justify-center gap-3">
-            {(activeBooking.completion_otp || '').split('').map((digit, i) => (
-              <span
-                key={i}
-                className="w-20 h-24 flex items-center justify-center bg-emerald-50 ring-2 ring-emerald-200 rounded-2xl text-5xl font-extrabold text-emerald-900 tabular-nums shadow-sm"
-              >
-                {digit}
-              </span>
-            ))}
-          </div>
-          <p className="mt-6 text-center text-xs text-muted-foreground">
-            Sharing OTP early may complete the booking before the work is done.
-          </p>
-
-          {/* Booked for someone else? — WhatsApp share */}
-          <div className="mt-6 rounded-2xl ring-1 ring-emerald-200 bg-emerald-50/60 p-3">
-            <p className="text-[12px] font-semibold text-emerald-900">
-              Booked for someone else?
-            </p>
-            <p className="text-[11px] text-emerald-800/80 mt-0.5">
-              Share the OTP and booking details on WhatsApp.
-            </p>
-            <button
-              type="button"
-              onClick={async () => {
-                const ok = await shareOtpOnWhatsApp({
-                  workerName: activeBooking.worker_name,
-                  serviceType: activeBooking.service_type,
-                  otp: activeBooking.completion_otp,
-                  amount: activeBooking.price_inr ?? undefined,
-                });
-                if (ok) {
-                  try {
-                    console.log('[analytics] otp_shared_whatsapp', {
-                      booking_id: activeBooking.id,
-                      worker_id: activeBooking.worker_id,
-                      timestamp: Date.now(),
-                    });
-                  } catch {}
-                } else {
-                  toast.error('WhatsApp is not installed on this device.');
-                }
-              }}
-              className="mt-2.5 w-full inline-flex items-center justify-center gap-2 h-11 rounded-xl bg-[#25D366] hover:bg-[#1ebe57] text-white font-semibold text-[14px] shadow-sm transition-colors active:scale-[0.99]"
-              aria-label="Share OTP on WhatsApp"
-            >
-              {/* WhatsApp glyph */}
-              <svg viewBox="0 0 32 32" className="w-4 h-4" fill="currentColor" aria-hidden>
-                <path d="M19.11 17.27c-.27-.14-1.6-.79-1.85-.88-.25-.09-.43-.14-.61.14-.18.27-.7.88-.86 1.06-.16.18-.32.2-.59.07-.27-.14-1.14-.42-2.17-1.34-.8-.71-1.34-1.59-1.5-1.86-.16-.27-.02-.41.12-.55.12-.12.27-.32.41-.48.14-.16.18-.27.27-.45.09-.18.05-.34-.02-.48-.07-.14-.61-1.47-.84-2.01-.22-.53-.45-.46-.61-.47l-.52-.01c-.18 0-.48.07-.73.34-.25.27-.95.93-.95 2.27 0 1.34.98 2.64 1.11 2.82.14.18 1.93 2.95 4.68 4.13.65.28 1.16.45 1.56.58.65.21 1.25.18 1.72.11.52-.08 1.6-.65 1.83-1.28.23-.63.23-1.17.16-1.28-.07-.11-.25-.18-.52-.32zM16.05 5.33c-5.91 0-10.71 4.81-10.71 10.72 0 1.89.49 3.73 1.43 5.36L5 27l5.74-1.5a10.7 10.7 0 0 0 5.31 1.4h.01c5.9 0 10.71-4.81 10.71-10.72 0-2.86-1.12-5.55-3.15-7.58a10.65 10.65 0 0 0-7.57-3.17zm0 19.55h-.01a8.83 8.83 0 0 1-4.52-1.24l-.32-.19-3.41.89.91-3.32-.21-.34a8.84 8.84 0 0 1-1.36-4.74c0-4.92 4-8.92 8.92-8.92 2.38 0 4.62.93 6.31 2.62a8.86 8.86 0 0 1 2.61 6.31c0 4.92-4 8.92-8.92 8.92z"/>
-              </svg>
-              Share OTP on WhatsApp
-            </button>
-          </div>
-        </SheetContent>
-      </Sheet>
-      )}
 
       <ChatSheet open={openChat} onOpenChange={setOpenChat} booking={activeBooking} mode="user" />
 

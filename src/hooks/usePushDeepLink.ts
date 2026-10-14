@@ -19,7 +19,6 @@ export function usePushDeepLink(navigate: (path: string) => void) {
     const pushSub = PushNotifications.addListener(
       'pushNotificationActionPerformed',
       (action) => {
-        console.log('[DeepLink] push tap data:', action.notification?.data);
         const data = action.notification?.data;
         const link = data?.deep_link || data?.link || data?.url;
         const path = normalizeDeepLink(link);
@@ -31,7 +30,6 @@ export function usePushDeepLink(navigate: (path: string) => void) {
 
     // 2. App Links / Custom scheme (cold start or intent)
     const urlSub = App.addListener('appUrlOpen', (event) => {
-      console.log('[DeepLink] appUrlOpen:', event.url);
       const path = normalizeDeepLink(event.url);
       if (path) {
         navigateDeepLink(path, navigate);
@@ -45,7 +43,6 @@ export function usePushDeepLink(navigate: (path: string) => void) {
       iosSub = import('@capacitor-firebase/messaging').then(({ FirebaseMessaging }) =>
         FirebaseMessaging.addListener('notificationActionPerformed', (event: any) => {
           const data = event?.notification?.data;
-          console.log('[DeepLink] iOS push tap data:', data);
           const link = data?.deep_link || data?.link || data?.url;
           const path = normalizeDeepLink(link);
           if (path) navigateDeepLink(path, navigate);

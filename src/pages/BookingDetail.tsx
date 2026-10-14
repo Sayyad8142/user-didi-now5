@@ -1,7 +1,8 @@
 import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { fetchBookingById } from '@/features/bookings/bookingsReadClient';
+import { useProfile } from '@/contexts/ProfileContext';
 import { BookingCard } from '@/features/bookings/BookingCard';
 import { WorkerReachConfirmationCard } from '@/features/bookings/WorkerReachConfirmationCard';
 import { CleaningLoader } from '@/components/ui/cleaning-loader';
@@ -11,21 +12,18 @@ import { ArrowLeft, AlertCircle } from 'lucide-react';
 export default function BookingDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { profile } = useProfile();
 
   const { data: booking, isLoading, error } = useQuery({
-    queryKey: ['booking-detail', id],
-    enabled: !!id,
+    queryKey: ['booking-detail', profile?.id, id],
+    enabled: !!id && !!profile?.id,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('bookings')
-        .select('*')
-        .eq('id', id!)
-        .maybeSingle();
-      if (error) throw error;
-      if (!data) throw new Error('Booking not found');
-      return data;
+      if (!id) throw new Error('Booking not found');
+      return fetchBookingById(id);
     },
     staleTime: 10_000,
+    refetchInterval: 15_000,
+    refetchOnWindowFocus: true,
     retry: 1,
   });
 

@@ -1,3 +1,4 @@
+import { safeNotificationText } from "@/lib/otpNotificationSafety";
 // src/hooks/usePushNotifications.ts
 import { useEffect, useCallback, useState, useRef } from "react";
 import { Capacitor } from "@capacitor/core";
@@ -243,7 +244,7 @@ export function usePushNotifications({ userId }: UsePushNotificationsOptions) {
 
         const title = payload.data?.title || payload.notification?.title;
         const body = payload.data?.body || payload.notification?.body;
-        if (title) toast.info(title, { description: body });
+        if (title) toast.info(safeNotificationText(title), { description: safeNotificationText(body) });
 
         invalidateForType(payload.data?.type, payload.data as Record<string, any>);
       });
@@ -302,7 +303,7 @@ export function usePushNotifications({ userId }: UsePushNotificationsOptions) {
         }
         const title = payload.data?.title || payload.notification?.title;
         const body = payload.data?.body || payload.notification?.body;
-        if (title) toast.info(title, { description: body });
+        if (title) toast.info(safeNotificationText(title), { description: safeNotificationText(body) });
         invalidateForType(payload.data?.type, payload.data);
       },
       onActionPerformed: (payload) => {
@@ -371,7 +372,7 @@ export function usePushNotifications({ userId }: UsePushNotificationsOptions) {
           // consistent across platforms.
           const title = notification.data?.title || notification.title;
           const body = notification.data?.body || notification.body;
-          if (title) toast.info(title, { description: body });
+          if (title) toast.info(safeNotificationText(title), { description: safeNotificationText(body) });
 
           invalidateForType(notification.data?.type, notification.data);
         });

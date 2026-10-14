@@ -14,6 +14,7 @@ export function useMyBookingsRealtime(enabled: boolean = true) {
         { event: "UPDATE", schema: "public", table: "bookings" },
         () => {
           qc.invalidateQueries({ queryKey: ["bookings"] });
+          qc.invalidateQueries({ queryKey: ["booking-detail"] });
           qc.invalidateQueries({ queryKey: ["bookings","upcoming"] });
           qc.invalidateQueries({ queryKey: ["bookings","history"] });
           qc.invalidateQueries({ queryKey: ["wallet"] });

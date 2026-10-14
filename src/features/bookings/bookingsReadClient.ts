@@ -1,3 +1,4 @@
+import { sanitizeOtpBooking } from './otpContract';
 import { getFirebaseIdToken, waitForFirebaseAuthReady } from '@/lib/firebase';
 import { LOVABLE_CLOUD_FUNCTIONS_URL, PRODUCTION_ANON_KEY } from '@/lib/constants';
 import { resolveBackendUrl } from '@/lib/backendResolver';
@@ -48,7 +49,7 @@ export async function fetchMyBookings(limit = 50) {
 
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error || `Bookings failed (HTTP ${res.status})`);
-      return (data?.bookings || []) as any[];
+      return ((data?.bookings || []) as any[]).map(row => sanitizeOtpBooking(row));
     } catch (err: any) {
       lastError = err instanceof Error ? err : new Error(err?.message || 'Failed to load bookings');
       console.warn('[bookings-read] endpoint failed, trying fallback if available', { url, error: lastError.message });
@@ -56,4 +57,11 @@ export async function fetchMyBookings(limit = 50) {
   }
 
   throw lastError || new Error('Failed to load bookings');
+}
+/** Ownership is enforced by bookings-read. No anonymous direct-table detail reads. */
+export async function fetchBookingById(bookingId: string) {
+  const bookings = await fetchMyBookings(200);
+  const booking = bookings.find(row => row.id === bookingId);
+  if (!booking) throw new Error('Booking not found');
+  return booking;
 }
