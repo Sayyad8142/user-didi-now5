@@ -39,6 +39,9 @@ export function useBookingOtp(booking: OtpBookingState | null): VisibleOtp | nul
           ? (await fetchMyBookings(200)).find(row => row.id === booking.id) as OtpBookingState | undefined
           : booking;
         if (!active || version !== requestVersion || requestController.signal.aborted || !fresh || !foreground || !canShowBookingOtp(fresh)) return;
+        // Do not associate a fresh worker/generation/stage with a stale parent card.
+        // Its existing booking refresh updates the parent before credentials reappear.
+        if (otpStateKey(fresh) !== key) return;
         const epoch = session.begin(fresh);
         const response = await fetchBookingOtp(fresh.id, requestController.signal);
         if (!active || version !== requestVersion || !foreground || getFirebaseAuth()?.currentUser?.uid !== uid) return;
