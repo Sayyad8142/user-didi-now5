@@ -67,7 +67,8 @@ const { data: allBookings = [], isLoading, isFetching, isSuccess, refetch } = us
   },
   staleTime: 30_000, // Cache for 30 seconds
   gcTime: 180_000, // Keep in memory for 3 minutes
-  refetchOnWindowFocus: false,
+  refetchOnWindowFocus: true,
+  refetchInterval: 15_000,
   retry: 1,
   placeholderData: (prev) => prev,
   meta: {

@@ -68,7 +68,7 @@ export function parseOtpResponse(value: unknown): OtpResponse {
     return { otp_mode: 'v2', available: false, reason: v.reason };
   }
   if (v.otp_mode === 'legacy' && v.available === false && v.reason === 'LEGACY_BOOKING') return { otp_mode: 'legacy', available: false, reason: 'LEGACY_BOOKING' };
-  if (v.available === false && typeof v.error_code === 'string') return { available: false, error_code: 'BOOKING_NOT_FOUND' };
+  if (v.available === false && v.error_code === 'BOOKING_NOT_FOUND') return { available: false, error_code: 'BOOKING_NOT_FOUND' };
   throw new Error('INVALID_GATEWAY_RESPONSE');
 }
 

@@ -32,7 +32,7 @@ export async function retrieveBookingOtp(bookingId: string, deps: OtpGatewayDepe
     // Never propagate response bodies or credentials into errors/telemetry.
     if (!res.ok) throw new Error(`OTP_GATEWAY_HTTP_${res.status}`);
     const response = parseOtpResponse(await res.json());
-    if ('otp_mode' in response && response.otp_mode === 'v2' && !response.available && response.reason === 'CREDENTIALS_NOT_READY' && attempt < 2) {
+    if ('otp_mode' in response && response.otp_mode === 'v2' && 'reason' in response && response.reason === 'CREDENTIALS_NOT_READY' && attempt < 2) {
       await deps.pause(750 * (attempt + 1), signal);
       continue;
     }

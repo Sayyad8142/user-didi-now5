@@ -36,9 +36,9 @@ export function useBookingOtp(booking: OtpBookingState | null): VisibleOtp | nul
       const timeout = window.setTimeout(() => requestController.abort(), 10000);
       try {
         const fresh = readFreshBooking
-          ? (await fetchMyBookings(50)).find(row => row.id === booking.id) as OtpBookingState | undefined
+          ? (await fetchMyBookings(200)).find(row => row.id === booking.id) as OtpBookingState | undefined
           : booking;
-        if (!active || version !== requestVersion || !fresh || !foreground || !canShowBookingOtp(fresh)) return;
+        if (!active || version !== requestVersion || requestController.signal.aborted || !fresh || !foreground || !canShowBookingOtp(fresh)) return;
         const epoch = session.begin(fresh);
         const response = await fetchBookingOtp(fresh.id, requestController.signal);
         if (!active || version !== requestVersion || !foreground || getFirebaseAuth()?.currentUser?.uid !== uid) return;
@@ -50,7 +50,7 @@ export function useBookingOtp(booking: OtpBookingState | null): VisibleOtp | nul
         window.clearTimeout(timeout);
       }
     };
-    void refresh(false);
+    void refresh(true);
     const auth = getFirebaseAuth();
     const unsubscribe = auth ? onAuthStateChanged(auth, user => {
       if (user?.uid !== uid) clear();
