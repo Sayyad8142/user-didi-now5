@@ -356,7 +356,7 @@ export const onForegroundMessage = (callback: (payload: MessagePayload) => void)
     return () => {};
   }
   return onMessage(messagingInstance, (payload) => {
-    console.log('📩 Foreground message received:', payload);
+    // Notification payloads may contain legacy credentials; never log them.
     callback(payload);
   });
 };
