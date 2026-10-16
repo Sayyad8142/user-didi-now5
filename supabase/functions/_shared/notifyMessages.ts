@@ -62,11 +62,14 @@ export function bookingCompletedBody(serviceType: unknown): string {
     : "Your service has been completed successfully.";
 }
 
+export const WORKER_ASSIGNED_TITLE = "✅ Didi Now – Worker Assigned!";
+
+/** Never includes the OTP: pushes can appear on a locked screen. */
 export function workerAssignedBody(workerName: unknown): string {
   const name = workerLabel(workerName);
   return name
-    ? `${name} has been assigned to your booking.`
-    : "A Didi has been assigned to your booking.";
+    ? `Your worker ${name} has been assigned to your booking. 🔐 Tap to view your OTP in the app.`
+    : "A Didi has been assigned to your booking. 🔐 Tap to view your OTP in the app.";
 }
 
 /**
