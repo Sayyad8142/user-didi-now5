@@ -39,8 +39,14 @@ function LiveRow({
 }) {
   const urgent = count === 1;
   const empty = count === 0;
+  const istHour = Number(
+    new Intl.DateTimeFormat('en-GB', { hour: 'numeric', hour12: false, timeZone: 'Asia/Kolkata' }).format(new Date()),
+  );
+  const offline = istHour >= 19 || istHour < 7;
   const statusText = empty
-    ? 'No workers available right now'
+    ? offline
+      ? `We're offline now. Schedule for ${istHour >= 19 ? 'tomorrow' : 'later today'}.`
+      : 'No workers available right now'
     : urgent
     ? 'Only 1 available'
     : `${count} available now`;
