@@ -5,6 +5,7 @@ import bannerMaid1 from '@/assets/banner-maid-1.webp';
 import bannerInstantMaid from '@/assets/banner-instant-maid-service.webp';
 import bannerDishesMopAsset from '@/assets/banner-maid-dishes-mop.png.asset.json';
 import bannerMaidOnLeaveAsset from '@/assets/banner-maid-on-leave.png.asset.json';
+import { resolveAssetUrl } from '@/lib/assetUrl';
 
 const carouselImages = [
   {
@@ -16,11 +17,11 @@ const carouselImages = [
     alt: "Professional cleaning service - Modern kitchen cleaning"
   },
   {
-    url: bannerDishesMopAsset.url,
+    url: resolveAssetUrl(bannerDishesMopAsset.url),
     alt: "Didi Now cleaner washing dishes and mopping the floor"
   },
   {
-    url: bannerMaidOnLeaveAsset.url,
+    url: resolveAssetUrl(bannerMaidOnLeaveAsset.url),
     alt: "Your maid on leave today? No worry, we will send maid in 10 mins"
   },
 ];

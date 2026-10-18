@@ -2,14 +2,15 @@ import React from 'react';
 import { ArrowRight } from 'lucide-react';
 import maidImageAsset from '@/assets/service-card-maid.png.asset.json';
 import bathroomImageAsset from '@/assets/service-card-bathroom.png.asset.json';
+import { resolveAssetUrl } from '@/lib/assetUrl';
 
 interface ServicesRowProps {
   onServiceSelect: (service: 'maid' | 'bathroom_cleaning') => void;
 }
 
 const services = [
-  { id: 'maid' as const, title: 'Maid', image: maidImageAsset.url },
-  { id: 'bathroom_cleaning' as const, title: 'Bathroom Cleaning', image: bathroomImageAsset.url },
+  { id: 'maid' as const, title: 'Maid', image: resolveAssetUrl(maidImageAsset.url) },
+  { id: 'bathroom_cleaning' as const, title: 'Bathroom Cleaning', image: resolveAssetUrl(bathroomImageAsset.url) },
 ];
 
 export function ServicesRow({ onServiceSelect }: ServicesRowProps) {
