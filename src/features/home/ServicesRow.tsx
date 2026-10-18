@@ -2,14 +2,15 @@ import React from 'react';
 import { ArrowRight } from 'lucide-react';
 import maidImageAsset from '@/assets/service-card-maid.png.asset.json';
 import bathroomImageAsset from '@/assets/service-card-bathroom.png.asset.json';
+import { resolveAssetUrl } from '@/lib/assetUrl';
 
 interface ServicesRowProps {
   onServiceSelect: (service: 'maid' | 'bathroom_cleaning') => void;
 }
 
 const services = [
-  { id: 'maid' as const, title: 'Maid', image: maidImageAsset.url },
-  { id: 'bathroom_cleaning' as const, title: 'Bathroom Cleaning', image: bathroomImageAsset.url },
+  { id: 'maid' as const, title: 'Maid', image: resolveAssetUrl(maidImageAsset.url) },
+  { id: 'bathroom_cleaning' as const, title: 'Bathroom Cleaning', image: resolveAssetUrl(bathroomImageAsset.url) },
 ];
 
 export function ServicesRow({ onServiceSelect }: ServicesRowProps) {
@@ -33,7 +34,9 @@ export function ServicesRow({ onServiceSelect }: ServicesRowProps) {
                 alt={service.title}
                 width={944}
                 height={704}
-                loading="lazy"
+                loading="eager"
+                decoding="async"
+                onError={(e) => { e.currentTarget.style.visibility = 'hidden'; }}
                 className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
               />
             </div>
