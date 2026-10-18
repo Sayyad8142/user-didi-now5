@@ -117,24 +117,12 @@ export function WorkerReachConfirmationCard({
             headers: token ? { 'x-firebase-token': token } : undefined,
           });
           if (!error && !data?.error) edgeOk = true;
-          else console.warn('[ReachStatus] Edge fn unavailable, falling back:', error || data?.error);
+          else console.warn('[ReachStatus] request failed:', error || data?.error);
         } catch (edgeErr) {
-          console.warn('[ReachStatus] Edge fn call failed, falling back:', edgeErr);
+          console.warn('[ReachStatus] request failed:', edgeErr);
         }
 
-        // FALLBACK: direct DB update (keeps booking row consistent even if edge fn down)
-        if (!edgeOk) {
-          const { error: dbErr } = await supabase
-            .from('bookings')
-            .update({
-              reach_status: newStatus,
-              reach_confirmed_at: new Date().toISOString(),
-              reach_confirmed_by: 'user',
-            })
-            .eq('id', booking.id)
-            .eq('user_id', profile?.id ?? '');
-          if (dbErr) throw dbErr;
-        }
+        if (!edgeOk) throw new Error('reach_confirm_failed');
 
         if (reached) toast.success('Thanks for confirming. Worker has reached.');
         else toast.info('Thanks. Our team will take action immediately.');

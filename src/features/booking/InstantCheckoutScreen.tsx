@@ -8,6 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { switchToPayAfterService } from '@/lib/payAfterServiceClient';
 import { insertBookingWithCompat } from './insertBookingCompat';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useAuth } from '@/components/auth/AuthProvider';
@@ -788,7 +789,8 @@ export function InstantCheckoutScreen() {
         }}
         onPayAfterService={async () => {
           if (!retryBookingId) return;
-          await supabase.from('bookings').update({ payment_method: 'pay_after_service', payment_status: 'pay_after_service' }).eq('id', retryBookingId);
+          const ok = await switchToPayAfterService(retryBookingId);
+            if (!ok) { toast({ title: "Could not switch to pay after service", description: "Please try again or contact support.", variant: "destructive" }); return; }
           setRetrySheetOpen(false);
           toast({ title: "Booking confirmed!", description: "Pay after service is done." });
           navigate('/home', { replace: true });

@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { switchToPayAfterService } from '@/lib/payAfterServiceClient';
 import { insertBookingWithCompat } from './insertBookingCompat';
 import { executePaymentFlow, executePaymentFlowForNewBooking, retryPendingBookingCreation, PaymentError, type PaymentFlowStatus, type PaymentErrorType, type PendingCheckoutData } from '@/lib/paymentService';
 import { PaymentMethodSelector, type PaymentMethod } from '@/components/PaymentMethodSelector';
@@ -916,7 +917,8 @@ export function ScheduleScreen() {
           }}
           onPayAfterService={async () => {
             if (!retryBookingId) return;
-            await supabase.from('bookings').update({ payment_method: 'pay_after_service', payment_status: 'pay_after_service' }).eq('id', retryBookingId);
+            const ok = await switchToPayAfterService(retryBookingId);
+            if (!ok) { toast({ title: "Could not switch to pay after service", description: "Please try again or contact support.", variant: "destructive" }); return; }
             setRetrySheetOpen(false);
             toast({ title: "Booking scheduled!", description: "Pay after service is done." });
             navigate('/home', { replace: true });

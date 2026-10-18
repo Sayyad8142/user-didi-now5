@@ -11,7 +11,6 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '
 import { useProfile } from '@/contexts/ProfileContext';
 import { prettyServiceName } from '@/features/booking/utils';
 import AssigningProgress from '@/features/bookings/AssigningProgress';
-import { PayWorkerManualSheet } from '@/components/PayWorkerManualSheet';
 import { toast } from 'sonner';
 import { RateWorker } from '@/features/bookings/RateWorker';
 import { openExternalUrl } from '@/lib/nativeOpen';
@@ -497,25 +496,12 @@ const ActiveBookingCard = memo(() => {
           headers: token ? { 'x-firebase-token': token } : undefined,
         });
         if (!error && !data?.error) edgeOk = true;
-        else console.warn('[ReachStatus] Edge function unavailable, using direct DB fallback:', error || data?.error);
+        else console.warn('[ReachStatus] Edge function unavailable, request failed:', error || data?.error);
       } catch (edgeErr) {
-        console.warn('[ReachStatus] Edge function call failed, falling back to direct update:', edgeErr);
+        console.warn('[ReachStatus] Edge function call failed, request failed:', edgeErr);
       }
 
-      // FALLBACK: direct DB update (works when edge fn is 404 / network unreachable)
-      if (!edgeOk) {
-        const { error: dbErr } = await supabase
-          .from('bookings')
-          .update({
-            reach_status: newStatus,
-            reach_confirmed_at: nowIso,
-            reach_confirmed_by: 'user',
-          })
-          .eq('id', activeBooking.id)
-          .eq('user_id', profile?.id ?? '');
-        if (dbErr) throw dbErr;
-        console.log('[ReachStatus] ✅ Direct DB update succeeded');
-      }
+      if (!edgeOk) throw new Error('reach_confirm_failed');
 
       if (reached) toast.success('Thanks for confirming. Worker has reached.');
       else toast.info('Thanks. Our team will take action immediately.');
@@ -772,17 +758,6 @@ const ActiveBookingCard = memo(() => {
       </Card>
 
       <ChatSheet open={openChat} onOpenChange={setOpenChat} booking={activeBooking} mode="user" />
-
-      <PayWorkerManualSheet
-        open={showPaySheet}
-        onOpenChange={setShowPaySheet}
-        bookingId={activeBooking.id}
-        workerName={activeBooking.worker_name || workerPaymentInfo?.full_name || undefined}
-        amount={activeBooking.price_inr ?? undefined}
-        upiId={upiId}
-        qrImageUrl={qrImageUrl}
-        paymentStatus={paymentStatus}
-      />
 
       {activeBooking.worker_id && activeBooking.worker_name && (
         <WorkerRatingsModal

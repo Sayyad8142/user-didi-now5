@@ -15,7 +15,6 @@ import { supabase } from '@/integrations/supabase/client';
 import AssigningProgress from '@/features/bookings/AssigningProgress';
 import AutoCompleteCountdown from '@/components/AutoCompleteCountdown';
 import { useBookingRealtime } from '@/features/bookings/useBookingRealtime';
-import { PayWorkerManualSheet } from '@/components/PayWorkerManualSheet';
 import { toast } from 'sonner';
 import { executePaymentFlow, type PaymentFlowStatus } from '@/lib/paymentService';
 import { useNow } from '@/hooks/useNow';
@@ -322,10 +321,6 @@ export function BookingCard({
   const qrImageUrl = workerPaymentInfo?.upi_qr_url || undefined;
   const hasPaymentInfo = !!upiId || !!qrImageUrl;
 
-  const handlePayWorker = () => {
-    setShowPaySheet(true);
-  };
-
   const handleSubmitRating = async (rating: number, comment?: string) => {
     if (!profile?.id) {
       throw new Error('Not authenticated');
@@ -357,8 +352,7 @@ export function BookingCard({
       if (err.message !== 'Payment cancelled by user') {
         toast.error(err.message || 'Payment failed. Please try again.');
       }
-      // Mark as failed so UI updates correctly
-      await supabase.from('bookings').update({ payment_status: 'failed' }).eq('id', row.id);
+      // Payment status is owned by the server (verification/webhook/recovery).
     } finally {
       setRetryingPayment(false);
     }
@@ -717,18 +711,6 @@ export function BookingCard({
     </Card>
 
     <ChatSheet open={openChat} onOpenChange={setOpenChat} booking={row} mode="user" />
-
-    {/* Pay Worker Manual Sheet */}
-    <PayWorkerManualSheet
-      open={showPaySheet}
-      onOpenChange={setShowPaySheet}
-      bookingId={row.id}
-      workerName={row.worker_name || assignedWorker?.worker?.full_name || workerPaymentInfo?.full_name || undefined}
-      amount={row.price_inr ?? undefined}
-      upiId={upiId}
-      qrImageUrl={qrImageUrl}
-      paymentStatus={paymentStatus}
-    />
 
     {/* Worker Ratings Modal */}
     {row.worker_id && row.worker_name && (
