@@ -10,3 +10,7 @@
 - [ ] Owner runs SQL section 1, then section 2/3 after the new app build ships (blocked: owner runs production SQL).
 - [ ] Secure 4-digit OTP generation (blocked: Worker App must accept 4 digits).
 - [ ] Start OTP + protected OTP storage (blocked: Worker App/Admin coordinated rollout).
+
+# Commission fix (draft, not deployed)
+- [x] Payout calculation without a hardcoded rate, with tests (_shared/commission.ts).
+- [ ] Wire completion to the community commission setting (blocked: Admin Panel table/column name not in this project).
