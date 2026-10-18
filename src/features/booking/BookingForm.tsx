@@ -35,7 +35,7 @@ import { ServiceInclusionsToggle, ServiceInclusionsPanel } from './ServiceInclus
 import { useDishIntensityPricing } from '@/hooks/useDishIntensityPricing';
 import { useFlatSize } from '@/hooks/useFlatSize';
 import { MaidPriceChartSheet } from './MaidPriceChartSheet';
-import { PaymentMethodSelector, type PaymentMethod } from '@/components/PaymentMethodSelector';
+import { PaymentMethodSelector, getPaymentActionLabel, type PaymentMethod } from '@/components/PaymentMethodSelector';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription } from '@/components/ui/alert-dialog';
 import { executePaymentFlow, executePaymentFlowForNewBooking, PaymentError, type PaymentFlowStatus, type PaymentErrorType } from '@/lib/paymentService';
 import { isPriceQuoteError, priceQuoteMessage, getBackendErrorDetails } from '@/lib/priceQuote';
@@ -1425,10 +1425,10 @@ export function BookingForm() {
 
         {/* Payment Method Picker for Instant Booking */}
         <AlertDialog open={showPaymentPicker} onOpenChange={setShowPaymentPicker}>
-          <AlertDialogContent className="max-w-sm rounded-2xl p-5">
+          <AlertDialogContent className="max-w-sm rounded-2xl p-5 max-h-[90dvh] overflow-y-auto">
             <AlertDialogHeader className="pb-1">
               <AlertDialogTitle className="text-center text-base font-bold">Complete your booking</AlertDialogTitle>
-              <AlertDialogDescription className="text-center text-xs text-muted-foreground">
+              <AlertDialogDescription className="sr-only">
                 Choose how you'd like to pay
               </AlertDialogDescription>
             </AlertDialogHeader>
@@ -1451,7 +1451,7 @@ export function BookingForm() {
                 onClick={handleConfirmInstantBooking}
                 disabled={submitting}
               >
-                {paymentMethod === 'pay_after_service' ? 'Confirm Booking' : 'Pay securely'}
+                {getPaymentActionLabel(paymentMethod, walletBalance, service_type === 'maid' ? totalPrice : service_type === 'bathroom_cleaning' ? bathroomTotalPrice : (selectedFlatSize ? (pricingMap[selectedFlatSize] ?? 0) + surgeAmount : 0))}
               </Button>
             </div>
           </AlertDialogContent>
