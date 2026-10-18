@@ -1089,44 +1089,39 @@ export function BookingForm() {
           {(service_type === 'maid' && selectedFlatSize && selectedTasks.length > 0 || service_type === 'bathroom_cleaning' || service_type !== 'maid' && service_type !== 'bathroom_cleaning' && selectedFlatSize) && <div>
             <Card className="bg-primary/5 border-primary/20 rounded-2xl">
               <CardContent className="p-6 py-[5px] px-[24px] bg-stone-50">
-                <div className="text-center px-0">
+                <div className="px-0 py-3">
                   {loadingPricing && service_type !== 'maid' && service_type !== 'bathroom_cleaning' ? <Skeleton className="h-8 w-32 mx-auto rounded-lg" /> : <>
-                      <span className="text-3xl font-bold text-primary">
-                        Price: ₹{currentPrice}
-                      </span>
-                      {service_type === 'bathroom_cleaning' &&
-                  <div className="text-xs text-muted-foreground mt-2 space-y-0.5">
-                          <div className="flex justify-between">
-                            <span>Bathroom Cleaning ({bathroomCount}):</span>
-                            <span>₹{bathroomBasePrice + surgeAmount}</span>
-                          </div>
-                          {hasGlassPartition &&
-                    <div className="flex justify-between text-primary">
-                              <span>Glass Partition:</span>
-                              <span>₹{GLASS_PARTITION_FEE} × {bathroomCount} = ₹{glassPartitionFee}</span>
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1.5">Price Breakdown</p>
+                      <div className="text-xs space-y-1">
+                        {service_type === 'bathroom_cleaning' ? <>
+                            <div className="flex justify-between text-muted-foreground">
+                              <span>Bathroom Cleaning ({bathroomCount})</span>
+                              <span>₹{bathroomBasePrice + surgeAmount}</span>
                             </div>
-                    }
-                        </div>
-                  }
-                  {slotSurgeAmount !== 0 && currentPrice != null && currentPrice > 0 &&
-                    <div className="mt-3 text-left text-xs space-y-1 border-t border-primary/20 pt-2">
+                            {hasGlassPartition &&
                       <div className="flex justify-between text-muted-foreground">
-                        <span>Service price</span>
-                        <span>₹{baseSubtotal + surgeAmount}</span>
+                                <span>Glass Partition (₹{GLASS_PARTITION_FEE} × {bathroomCount})</span>
+                                <span>₹{glassPartitionFee}</span>
+                              </div>
+                      }
+                          </> : <div className="flex justify-between text-muted-foreground">
+                            <span>Service price</span>
+                            <span>₹{slotSurgeAmount !== 0 ? baseSubtotal + surgeAmount : currentPrice}</span>
+                          </div>}
+                        {slotSurgeAmount !== 0 && currentPrice != null && currentPrice > 0 &&
+                    <div className={cn(
+                      "flex justify-between font-medium",
+                      slotSurgeAmount > 0 ? "text-orange-600" : "text-emerald-600"
+                    )}>
+                            <span>{slotSurgeAmount > 0 ? 'Peak Hour Surge' : 'Current Discount'}</span>
+                            <span>{slotSurgeAmount > 0 ? `+₹${slotSurgeAmount}` : `-₹${Math.abs(slotSurgeAmount)}`}</span>
+                          </div>
+                    }
                       </div>
-                      <div className={cn(
-                        "flex justify-between font-medium",
-                        slotSurgeAmount > 0 ? "text-orange-600" : "text-emerald-600"
-                      )}>
-                        <span>{slotSurgeAmount > 0 ? 'Peak Hour Surge' : 'Current Discount'}</span>
-                        <span>{slotSurgeAmount > 0 ? `+₹${slotSurgeAmount}` : `-₹${Math.abs(slotSurgeAmount)}`}</span>
+                      <div className="mt-2.5 pt-2.5 border-t border-primary/20 flex items-baseline justify-between">
+                        <span className="text-sm font-semibold text-foreground">Total to Pay</span>
+                        <span className="text-2xl font-bold text-primary">₹{currentPrice}</span>
                       </div>
-                      <div className="flex justify-between font-bold text-foreground pt-1 border-t border-primary/10">
-                        <span>Total</span>
-                        <span>₹{currentPrice}</span>
-                      </div>
-                    </div>
-                  }
                     </>}
                 </div>
                 {/* Today's Slot Pricing is only meaningful while instant
