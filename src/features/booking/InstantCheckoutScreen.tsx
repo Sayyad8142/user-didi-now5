@@ -21,7 +21,7 @@ import { SupplyFullModal } from '@/components/SupplyFullModal';
 import { executePaymentFlow, executePaymentFlowForNewBooking, retryPendingBookingCreation, PaymentError, type PaymentFlowStatus, type PaymentErrorType, type PendingCheckoutData } from '@/lib/paymentService';
 import { useUserSurge } from '@/hooks/useUserSurge';
 import { isPriceQuoteError, priceQuoteMessage, getBackendErrorDetails } from '@/lib/priceQuote';
-import { PaymentMethodSelector, type PaymentMethod } from '@/components/PaymentMethodSelector';
+import { PaymentMethodSelector, getPaymentActionLabel, type PaymentMethod } from '@/components/PaymentMethodSelector';
 import { PaymentRetrySheet } from '@/components/PaymentRetrySheet';
 import { trackPaymentEvent } from '@/lib/paymentAnalytics';
 import { useWalletBalance } from '@/hooks/useWallet';
@@ -711,10 +711,10 @@ export function InstantCheckoutScreen() {
 
       {/* Payment Method Picker Dialog */}
       <AlertDialog open={showPaymentPicker} onOpenChange={setShowPaymentPicker}>
-        <AlertDialogContent className="max-w-sm rounded-2xl p-5">
+        <AlertDialogContent className="max-w-sm rounded-2xl p-5 max-h-[90dvh] overflow-y-auto">
           <AlertDialogHeader className="pb-1">
             <AlertDialogTitle className="text-base font-bold text-center">Complete your booking</AlertDialogTitle>
-            <AlertDialogDescription className="text-xs text-muted-foreground text-center">
+            <AlertDialogDescription className="sr-only">
               Choose how you'd like to pay
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -727,11 +727,7 @@ export function InstantCheckoutScreen() {
           <div className="flex gap-2 mt-3">
             <AlertDialogCancel className="flex-1 rounded-xl h-11">Cancel</AlertDialogCancel>
             <Button className="flex-1 rounded-xl h-11 font-bold" onClick={confirmBooking} disabled={submitting}>
-              {paymentMethod === 'pay_after_service'
-                ? 'Confirm Booking'
-                : paymentMethod === 'wallet'
-                  ? 'Pay with Wallet'
-                  : `Pay ₹${Math.max(0, Math.ceil(price - Math.min(walletBalance, price)))} securely`}
+              {getPaymentActionLabel(paymentMethod, walletBalance, price)}
             </Button>
           </div>
         </AlertDialogContent>

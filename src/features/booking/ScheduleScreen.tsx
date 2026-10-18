@@ -10,7 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { switchToPayAfterService } from '@/lib/payAfterServiceClient';
 import { insertBookingWithCompat } from './insertBookingCompat';
 import { executePaymentFlow, executePaymentFlowForNewBooking, retryPendingBookingCreation, PaymentError, type PaymentFlowStatus, type PaymentErrorType, type PendingCheckoutData } from '@/lib/paymentService';
-import { PaymentMethodSelector, type PaymentMethod } from '@/components/PaymentMethodSelector';
+import { PaymentMethodSelector, getPaymentActionLabel, type PaymentMethod } from '@/components/PaymentMethodSelector';
 import { PaymentRetrySheet } from '@/components/PaymentRetrySheet';
 import { trackPaymentEvent } from '@/lib/paymentAnalytics';
 import { useWalletBalance } from '@/hooks/useWallet';
@@ -815,12 +815,12 @@ export function ScheduleScreen() {
 
         {/* Payment Method Popup */}
         <AlertDialog open={showPaymentPicker} onOpenChange={setShowPaymentPicker}>
-          <AlertDialogContent className="max-w-sm rounded-2xl p-5">
+          <AlertDialogContent className="max-w-sm rounded-2xl p-5 max-h-[90dvh] overflow-y-auto">
             <AlertDialogHeader className="pb-1">
               <AlertDialogTitle className="text-base font-bold text-center">
                 Complete your booking
               </AlertDialogTitle>
-              <AlertDialogDescription className="text-xs text-muted-foreground text-center">
+              <AlertDialogDescription className="sr-only">
                 Choose how you'd like to pay
               </AlertDialogDescription>
             </AlertDialogHeader>
@@ -847,7 +847,7 @@ export function ScheduleScreen() {
                 disabled={submitting}
                 className="flex-1 rounded-xl h-11 font-bold"
               >
-                {paymentMethod === 'pay_after_service' ? 'Confirm Booking' : paymentMethod === 'wallet' ? 'Pay with Wallet' : 'Pay securely'}
+                {getPaymentActionLabel(paymentMethod, walletBalance, price ? price + (selectedTime ? getSurge(selectedTime) : 0) : 0)}
               </Button>
             </div>
           </AlertDialogContent>
