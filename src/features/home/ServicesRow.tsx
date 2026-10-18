@@ -34,7 +34,9 @@ export function ServicesRow({ onServiceSelect }: ServicesRowProps) {
                 alt={service.title}
                 width={944}
                 height={704}
-                loading="lazy"
+                loading="eager"
+                decoding="async"
+                onError={(e) => { e.currentTarget.style.visibility = 'hidden'; }}
                 className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
               />
             </div>
