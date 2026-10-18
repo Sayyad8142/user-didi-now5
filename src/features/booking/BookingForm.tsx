@@ -11,6 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { switchToPayAfterService } from '@/lib/payAfterServiceClient';
 import { insertBookingWithCompat } from './insertBookingCompat';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useProfile } from '@/contexts/ProfileContext';
@@ -1483,7 +1484,8 @@ export function BookingForm() {
           }}
           onPayAfterService={async () => {
             if (!retryBookingId) return;
-            await supabase.from('bookings').update({ payment_method: 'pay_after_service', payment_status: 'pay_after_service' }).eq('id', retryBookingId);
+            const ok = await switchToPayAfterService(retryBookingId);
+            if (!ok) { toast({ title: "Could not switch to pay after service", description: "Please try again or contact support.", variant: "destructive" }); return; }
             setRetrySheetOpen(false);
             toast({ title: "Booking confirmed!", description: "Pay after service is done." });
             navigate('/home', { replace: true });
