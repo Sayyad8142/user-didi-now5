@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { friendlyBookingError, redactForLog } from '@/lib/customerErrors';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, MapPin, Home, Clock, Calendar, AlertCircle, Check, Zap, ChevronRight, Star, X, Ruler, ChevronDown } from 'lucide-react';
 import dishesLightImg from '@/assets/dishes-light.webp';
@@ -542,7 +543,7 @@ export function BookingForm() {
 
     // Validate flat details are linked (required by DB trigger)
     if (service_type !== 'bathroom_cleaning' && !profile.flat_id) {
-      console.error('❌ Missing flat_id in profile:', profile);
+      console.error('❌ Missing flat_id in profile:', profile?.id);
       toast({
         title: "Flat Details Missing",
         description: "Please update your flat details in Account Settings before booking.",
@@ -556,7 +557,6 @@ export function BookingForm() {
       serviceType: service_type,
       bookingType,
       community: profile.community,
-      flatNo: profile.flat_no,
       userId: user.id,
       price,
       scheduledDate,
@@ -623,7 +623,7 @@ export function BookingForm() {
           payment_status: 'pay_after_service',
         };
 
-        console.log('📤 Sending pay-after booking to database:', insertData);
+        console.log('📤 Sending pay-after booking:', redactForLog(insertData));
         const { data, error } = await insertBookingWithCompat(insertData);
 
         if (error) {
@@ -643,7 +643,7 @@ export function BookingForm() {
             title: "Booking Failed",
             description: isFlatError ?
               "Please update your flat details in Account Settings before booking." :
-              `Error: ${error.message || 'Please try again.'}`,
+              friendlyBookingError(error),
             variant: "destructive"
           });
           if (isFlatError) navigate('/profile/account');
@@ -729,7 +729,7 @@ export function BookingForm() {
         title: "Booking Failed",
         description: isNetworkError ?
         "Network error – please check your internet connection and try again." :
-        `Error: ${err?.message || 'Please try again.'}`,
+        friendlyBookingError(err),
         variant: "destructive"
       });
     } finally {

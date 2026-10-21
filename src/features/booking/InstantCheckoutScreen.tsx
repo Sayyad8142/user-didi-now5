@@ -1,4 +1,5 @@
 import React, { useState, useCallback } from 'react';
+import { friendlyBookingError, redactForLog } from '@/lib/customerErrors';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Star, Search, X, Zap, Check, Users, Sparkles } from 'lucide-react';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel } from '@/components/ui/alert-dialog';
@@ -236,7 +237,7 @@ export function InstantCheckoutScreen() {
         preferred_worker_id: selectedWorker?.worker_id || null,
       } as any;
 
-      console.log("FINAL_BOOKING_PAYLOAD", bookingData);
+      console.log("FINAL_BOOKING_PAYLOAD", redactForLog(bookingData));
 
       // ── Wallet pre-check: block creation if balance insufficient ──
       if (paymentMethod === 'wallet') {
@@ -280,7 +281,7 @@ export function InstantCheckoutScreen() {
             title: "Booking Failed",
             description: isFlatError
               ? "Please update your flat details in Account Settings before booking."
-              : `Error: ${error.message || 'Please try again.'}`,
+              : friendlyBookingError(error),
             variant: "destructive"
           });
           if (isFlatError) navigate('/profile/account');
@@ -446,7 +447,7 @@ export function InstantCheckoutScreen() {
           }
           toast({
             title: "Booking could not be created",
-            description: payErr.message,
+            description: 'Any amount taken has been refunded automatically. Please check your wallet before trying again.',
             variant: 'destructive',
           });
           return;
@@ -474,7 +475,7 @@ export function InstantCheckoutScreen() {
         title: "Booking Failed",
         description: isNetworkError
           ? "Network error – please check your internet connection and try again."
-          : `Error: ${err?.message || 'Please try again.'}`,
+          : friendlyBookingError(err),
         variant: "destructive"
       });
     } finally {
