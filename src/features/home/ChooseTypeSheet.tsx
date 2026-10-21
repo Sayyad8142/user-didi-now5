@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/sheet';
 import { Clock, Calendar, AlertCircle } from 'lucide-react';
 import { useInstantBookingAvailability } from '@/hooks/useInstantBookingAvailability';
+import { useBookingPauseFlags, BOOKINGS_PAUSED_FALLBACK_MESSAGE, SCHEDULED_BOOKINGS_PAUSED_MESSAGE } from '@/hooks/useBookingPauseFlags';
 
 interface ChooseTypeSheetProps {
   open: boolean;
@@ -26,6 +27,7 @@ export function ChooseTypeSheet({ open, onOpenChange, serviceType }: ChooseTypeS
   const navigate = useNavigate();
   const location = useLocation();
   const { isAvailable: instantAvailable, isLoading, isError } = useInstantBookingAvailability(serviceType);
+  const { bookingsPaused, scheduledPaused, message: pauseMessage } = useBookingPauseFlags();
 
   const normalize = (s: string) => s.replace(/\s+/g, '_').toLowerCase();
 
