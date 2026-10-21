@@ -1,3 +1,4 @@
+import { maskPhone } from '@/lib/customerErrors';
 import { safeNotificationText } from "@/lib/otpNotificationSafety";
 // Firebase identity + Web Push only.
 //
@@ -142,7 +143,7 @@ export const sendOtp = async (
   _containerId?: string,
 ): Promise<{ success: boolean; error?: string }> => {
   const phone = normalizePhone(phoneNumber);
-  console.log('[OTP] sendOtp via Twilio', { phone, platform: Capacitor.getPlatform() });
+  console.log('[OTP] sendOtp via Twilio', { phone: maskPhone(phone), platform: Capacitor.getPlatform() });
 
   try {
     const { data, error } = await supabase.functions.invoke('twilio-send-otp', {

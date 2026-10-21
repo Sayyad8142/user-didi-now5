@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { friendlyBookingError, redactForLog } from '@/lib/customerErrors';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Home, MapPin, Wallet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -434,7 +435,7 @@ export function ScheduleScreen() {
 
       // 🔒 SAFETY: hard-assert this payload is scheduled (not instant)
       if (bookingData.booking_type !== 'scheduled' || !bookingData.scheduled_date || !bookingData.scheduled_time) {
-        console.error('[SCHEDULED-AUDIT] ❌ Refusing to send: payload is not properly scheduled', bookingData);
+        console.error('[SCHEDULED-AUDIT] ❌ Refusing to send: payload is not properly scheduled', redactForLog(bookingData));
         toast({
           title: 'Booking error',
           description: 'Schedule details are missing. Please reselect date and time.',
@@ -456,7 +457,7 @@ export function ScheduleScreen() {
         price_inr: bookingData.price_inr,
         prealert_sent_default: false,
       });
-      console.log('FINAL_BOOKING_PAYLOAD', bookingData);
+      console.log('FINAL_BOOKING_PAYLOAD', redactForLog(bookingData));
 
       // ── Wallet pre-check: block creation if balance insufficient ──
       if (paymentMethod === 'wallet') {
@@ -481,7 +482,7 @@ export function ScheduleScreen() {
           payment_status: 'pay_after_service',
         };
 
-        console.log('📤 Sending pay-after-service scheduled booking to database:', payAfterData);
+        console.log('📤 Sending pay-after-service scheduled booking:', redactForLog(payAfterData));
         const { data, error } = await insertBookingWithCompat(payAfterData);
 
         if (error) {
@@ -499,7 +500,7 @@ export function ScheduleScreen() {
               ? "Please update your flat details in Account Settings before booking."
               : isSlotError
               ? "No workers are available at this time. Please choose another time slot."
-              : `Error: ${error.message || 'Please try again.'}`,
+              : friendlyBookingError(error),
             variant: "destructive"
           });
           if (isFlatError) navigate('/profile/account');
@@ -568,7 +569,7 @@ export function ScheduleScreen() {
         title: "Booking Failed",
         description: isNetworkError
           ? "Network error – please check your internet connection and try again."
-          : `Error: ${err?.message || 'Please try again.'}`,
+          : friendlyBookingError(err),
         variant: "destructive"
       });
     } finally {
