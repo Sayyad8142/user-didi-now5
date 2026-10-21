@@ -388,7 +388,7 @@ export function ScheduleScreen() {
           description: "Please update your flat details in Account Settings before booking.",
           variant: "destructive"
         });
-        navigate('/profile/settings');
+        navigate('/profile/account');
         setSubmitting(false);
         return;
       }
@@ -502,7 +502,7 @@ export function ScheduleScreen() {
               : `Error: ${error.message || 'Please try again.'}`,
             variant: "destructive"
           });
-          if (isFlatError) navigate('/profile/settings');
+          if (isFlatError) navigate('/profile/account');
           return;
         }
 
