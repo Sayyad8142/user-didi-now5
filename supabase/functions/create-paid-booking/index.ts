@@ -25,6 +25,7 @@ import { resolveBookingCommunity } from "../_shared/bookingCommunity.ts";
 import { sanitizePreferredWorkerId } from "../_shared/preferredWorker.ts";
 import { notifyUserPush } from "../_shared/notifyUserPush.ts";
 import { bookingCreatedBody } from "../_shared/notifyMessages.ts";
+import { getBookingPauseFlags, bookingPauseBlock } from "../_shared/bookingPause.ts";
 
 const RAZORPAY_KEY_SECRET = Deno.env.get("RAZORPAY_KEY_SECRET")!;
 const SUPABASE_URL =
@@ -271,6 +272,20 @@ Deno.serve(async (req) => {
     const validTypes = ["razorpay", "wallet", "wallet_and_razorpay"];
     if (!validTypes.includes(payment_type)) {
       return json({ error: "Invalid payment_type" }, 400);
+    }
+
+    // Admin "Stop Taking Bookings" switches. Only the pure-wallet path moves
+    // money inside THIS call, so only it is blocked. Razorpay types are
+    // post-payment conversions — the customer has already paid, so the
+    // booking must always be completed for them.
+    if (payment_type === "wallet") {
+      const pauseClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+      const pauseFlags = await getBookingPauseFlags(pauseClient);
+      const pauseBlock = bookingPauseBlock(pauseFlags, booking_data.booking_type);
+      if (pauseBlock) {
+        console.warn(`[create-paid-booking] ⛔ ${pauseBlock.error} type=${booking_data.booking_type} payment_type=wallet`);
+        return json(pauseBlock, 409);
+      }
     }
 
     // Razorpay fields required for razorpay payments (unless QR recovery)

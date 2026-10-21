@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Phone, MessageCircle, Star } from 'lucide-react';
+import { Phone, MessageCircle, Star, AlertCircle } from 'lucide-react';
 import { HomeHeader } from './HomeHeader';
 import { HeroCarousel } from './HeroCarousel';
 import { ServicesRow } from './ServicesRow';
@@ -16,6 +16,7 @@ import { openWhatsAppSupport } from '@/lib/whatsappShare';
 import FaqSection from './FaqSection';
 import { TrustedPartnersSection } from './TrustedPartnersSection';
 import { useOnlineWorkerCounts } from '@/hooks/useOnlineWorkerCounts';
+import { useBookingPauseFlags, BOOKINGS_PAUSED_FALLBACK_MESSAGE } from '@/hooks/useBookingPauseFlags';
 import { useProfile } from '@/contexts/ProfileContext';
 import { HomeSkeleton } from './HomeSkeleton';
 import { BootstrapDebugPanel } from './BootstrapDebugPanel';
@@ -25,6 +26,7 @@ export function HomeScreen() {
   const navigate = useNavigate();
   const { profile, loading: profileLoading, error: profileError, refresh } = useProfile();
   const { counts, loading, isServiceAvailable } = useOnlineWorkerCounts();
+  const { bookingsPaused, message: pauseMessage } = useBookingPauseFlags();
 
   console.log('[HomeScreen] mounted, profile:', profile?.id, 'community:', profile?.community);
 
@@ -46,6 +48,7 @@ export function HomeScreen() {
   }
 
   const handleServiceSelect = (service: 'maid' | 'bathroom_cleaning') => {
+    if (bookingsPaused) return;
     navigate(`/book/${service}`);
   };
 
@@ -57,7 +60,16 @@ export function HomeScreen() {
       </header>
       <div className="max-w-md mx-auto px-4 space-y-4 bg-slate-50">
         <HeroCarousel />
-        <ServicesRow onServiceSelect={handleServiceSelect} />
+        {bookingsPaused && (
+          <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4" role="alert">
+            <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+            <div>
+              <p className="text-sm font-semibold text-amber-900">Bookings temporarily paused</p>
+              <p className="text-sm text-amber-800">{pauseMessage || BOOKINGS_PAUSED_FALLBACK_MESSAGE}</p>
+            </div>
+          </div>
+        )}
+        <ServicesRow onServiceSelect={handleServiceSelect} disabled={bookingsPaused} />
         <HomeOtpCard />
         <ActiveBookingCard />
         

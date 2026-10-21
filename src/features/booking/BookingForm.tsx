@@ -13,6 +13,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { switchToPayAfterService } from '@/lib/payAfterServiceClient';
 import { insertBookingWithCompat } from './insertBookingCompat';
+import { checkBookingAllowed, bookingPauseMessageFromError } from '@/hooks/useBookingPauseFlags';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useProfile } from '@/contexts/ProfileContext';
 import { prettyServiceName, serviceIcon, isValidServiceType, getPricingMap, FLAT_SIZES, type FlatSize, type PricingMap } from './pricing';
@@ -347,6 +348,13 @@ export function BookingForm() {
   const handleBookNow = async () => {
     if (!profile || !service_type) return;
 
+    // Admin "Stop Taking Bookings" switch — fresh check before payment opens
+    const pauseCheck = await checkBookingAllowed('instant');
+    if (!pauseCheck.allowed) {
+      toast({ title: "Bookings paused", description: pauseCheck.message, variant: "destructive" });
+      return;
+    }
+
     // Server-side supply check before creating booking
     if (profile.community) {
       const available = await checkInstantBookingAvailability(profile.community);
@@ -432,8 +440,15 @@ export function BookingForm() {
       await createBooking('instant', null, null, basePrice + surgeAmount + slotSurgeAmount);
     }
   };
-  const handleSchedule = () => {
+  const handleSchedule = async () => {
     if (!profile || !service_type) return;
+
+    // Admin "Stop Taking Bookings" switch — fresh check before scheduling
+    const pauseCheck = await checkBookingAllowed('scheduled');
+    if (!pauseCheck.allowed) {
+      toast({ title: "Scheduled bookings paused", description: pauseCheck.message, variant: "destructive" });
+      return;
+    }
 
     // Build query parameters for ScheduleScreen
     const params = new URLSearchParams();
@@ -490,6 +505,13 @@ export function BookingForm() {
   };
   const createBooking = async (bookingType: 'instant' | 'scheduled', scheduledDate: string | null, scheduledTime: string | null, price: number) => {
     if (service_type !== 'bathroom_cleaning' && !selectedFlatSize) return;
+
+    // Admin "Stop Taking Bookings" switch — final fresh check right before payment
+    const pauseCheck = await checkBookingAllowed(bookingType);
+    if (!pauseCheck.allowed) {
+      toast({ title: "Bookings paused", description: pauseCheck.message, variant: "destructive" });
+      return;
+    }
 
     // Final guard: never create a maid booking with missing/zero live pricing.
     if (service_type === 'maid' && (!maidPricingReady || !price || price <= 0)) {
@@ -605,6 +627,11 @@ export function BookingForm() {
           if (error.message?.includes('SUPPLY_FULL')) {
             refetchSupply();
             setSupplyModalOpen(true);
+            return;
+          }
+          const pauseMessage = bookingPauseMessageFromError(error);
+          if (pauseMessage) {
+            toast({ title: "Bookings paused", description: pauseMessage, variant: "destructive" });
             return;
           }
           const isFlatError = error.message?.includes('flat details');

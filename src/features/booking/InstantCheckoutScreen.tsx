@@ -25,6 +25,7 @@ import { PaymentMethodSelector, getPaymentActionLabel, type PaymentMethod } from
 import { PaymentRetrySheet } from '@/components/PaymentRetrySheet';
 import { trackPaymentEvent } from '@/lib/paymentAnalytics';
 import { useWalletBalance } from '@/hooks/useWallet';
+import { checkBookingAllowed, bookingPauseMessageFromError } from '@/hooks/useBookingPauseFlags';
 
 
 export function InstantCheckoutScreen() {
@@ -110,11 +111,17 @@ export function InstantCheckoutScreen() {
     setSelectedWorker(null);
   }, []);
 
-  const handleBookNow = () => {
+  const handleBookNow = async () => {
     console.log('[FAV_TRACE] 3. handleBookNow tapped', {
       selectedWorker_id: selectedWorker?.worker_id || null,
       selectedWorker_name: selectedWorker?.full_name || null,
     });
+    // Admin "Stop Taking Bookings" switch — fresh check before payment opens
+    const pauseCheck = await checkBookingAllowed('instant');
+    if (!pauseCheck.allowed) {
+      toast({ title: "Bookings paused", description: pauseCheck.message, variant: "destructive" });
+      return;
+    }
     setShowPaymentPicker(true);
   };
 
@@ -135,6 +142,13 @@ export function InstantCheckoutScreen() {
     setShowPaymentPicker(false);
     if (!profile || !service_type || !user) {
       console.warn('[FAV_TRACE] 4a. ABORT missing profile/service_type/user', { traceId });
+      return;
+    }
+
+    // Admin "Stop Taking Bookings" switch — final fresh check right before payment
+    const pauseCheck = await checkBookingAllowed('instant');
+    if (!pauseCheck.allowed) {
+      toast({ title: "Bookings paused", description: pauseCheck.message, variant: "destructive" });
       return;
     }
 
@@ -254,6 +268,11 @@ export function InstantCheckoutScreen() {
           console.error('❌ Booking error:', error);
           if (error.message?.includes('SUPPLY_FULL')) {
             setSupplyModalOpen(true);
+            return;
+          }
+          const pauseMessage = bookingPauseMessageFromError(error);
+          if (pauseMessage) {
+            toast({ title: "Bookings paused", description: pauseMessage, variant: "destructive" });
             return;
           }
           const isFlatError = error.message?.includes('flat details');

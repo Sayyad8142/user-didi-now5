@@ -21,6 +21,7 @@ import { getExpectedSurge, validateBookingSurge } from "../_shared/userSurge.ts"
 import { validateScheduledSlot } from "../_shared/scheduledSlot.ts";
 import { resolveBookingCommunity } from "../_shared/bookingCommunity.ts";
 import { sanitizePreferredWorkerId } from "../_shared/preferredWorker.ts";
+import { getBookingPauseFlags, bookingPauseBlock } from "../_shared/bookingPause.ts";
 
 function cleanSecret(raw?: string | null): string {
   if (!raw) return "";
@@ -161,6 +162,14 @@ Deno.serve(async (req) => {
 
     // Force the user_id server-side (don't trust the client)
     booking_data.user_id = profile.id;
+
+    // Admin "Stop Taking Bookings" switches — block BEFORE inserting
+    const pauseFlags = await getBookingPauseFlags(supabase);
+    const pauseBlock = bookingPauseBlock(pauseFlags, booking_data.booking_type);
+    if (pauseBlock) {
+      console.warn(`[create-pending-booking] ⛔ ${pauseBlock.error} user=${profile.id} type=${booking_data.booking_type}`);
+      return json(pauseBlock, 409);
+    }
 
     // Server-side loyalty surge enforcement
     const expectedSurge = await getExpectedSurge(supabase, profile.id);

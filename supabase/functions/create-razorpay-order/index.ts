@@ -18,6 +18,7 @@ import {
   EXTERNAL_SUPABASE_URL,
   EXTERNAL_SUPABASE_SERVICE_ROLE_KEY,
 } from "../_shared/externalSupabaseEnv.ts";
+import { getBookingPauseFlags, bookingPauseBlock } from "../_shared/bookingPause.ts";
 
 const RAZORPAY_KEY_ID = Deno.env.get("RAZORPAY_KEY_ID")!;
 const RAZORPAY_KEY_SECRET = Deno.env.get("RAZORPAY_KEY_SECRET")!;
@@ -113,6 +114,16 @@ Deno.serve(async (req) => {
 
       // Force-sync user_id to the authenticated profile (never trust client).
       const safeBookingData = { ...bookingData, user_id: profile.id };
+
+      // Admin "Stop Taking Bookings" switches — block BEFORE creating the
+      // Razorpay order so money is never taken for a paused booking type.
+      // (Legacy retry mode with booking_id is exempt: that booking already exists.)
+      const pauseFlags = await getBookingPauseFlags(supabase);
+      const pauseBlock = bookingPauseBlock(pauseFlags, safeBookingData.booking_type);
+      if (pauseBlock) {
+        console.warn(`[create-razorpay-order] ⛔ ${pauseBlock.error} user=${profile.id} type=${safeBookingData.booking_type}`);
+        return json(pauseBlock, 409);
+      }
 
       // ── Server-side loyalty surge enforcement ─────────────────
       const expectedSurge = await getExpectedSurge(supabase, profile.id);

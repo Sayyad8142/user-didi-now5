@@ -16,6 +16,7 @@ import { trackPaymentEvent } from '@/lib/paymentAnalytics';
 import { useWalletBalance } from '@/hooks/useWallet';
 import { useUserSurge } from '@/hooks/useUserSurge';
 import { isPriceQuoteError, priceQuoteMessage, getBackendErrorDetails } from '@/lib/priceQuote';
+import { checkBookingAllowed, bookingPauseMessageFromError } from '@/hooks/useBookingPauseFlags';
 
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useProfile } from '@/contexts/ProfileContext';
@@ -291,6 +292,13 @@ export function ScheduleScreen() {
     if (service_type !== 'bathroom_cleaning' && !flatSize) return;
     if (service_type === 'bathroom_cleaning' && !bathroomCount) return;
 
+    // Admin "Stop Taking Bookings" switch — fresh check right before payment
+    const pauseCheck = await checkBookingAllowed('scheduled');
+    if (!pauseCheck.allowed) {
+      toast({ title: "Scheduled bookings paused", description: pauseCheck.message, variant: "destructive" });
+      return;
+    }
+
     // The backend rejects any amount that doesn't match its own calculation.
     // Never start a payment on a quote we couldn't confirm with the server.
     if (!surgeAuthoritative) {
@@ -478,6 +486,11 @@ export function ScheduleScreen() {
 
         if (error) {
           console.error('❌ Scheduled booking error:', error);
+          const pauseMessage = bookingPauseMessageFromError(error);
+          if (pauseMessage) {
+            toast({ title: "Scheduled bookings paused", description: pauseMessage, variant: "destructive" });
+            return;
+          }
           const isFlatError = error.message?.includes('flat details');
           const isSlotError = error.message?.includes('Slot unavailable') || error.message?.includes('Not enough workers');
           toast({
