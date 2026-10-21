@@ -100,23 +100,42 @@ export function ChooseTypeSheet({ open, onOpenChange, serviceType }: ChooseTypeS
             </SheetClose>
           )}
 
-          {/* Schedule Booking Option - Always Available */}
-          <SheetClose asChild>
-            <button
-              onClick={() => go('scheduled')}
-              className="w-full p-4 rounded-2xl border-2 border-border bg-background hover:bg-accent transition-colors"
-            >
+          {/* Schedule Booking Option — disabled when admin pauses scheduled/all bookings */}
+          {scheduleDisabled ? (
+            <div className="w-full p-4 rounded-2xl border-2 border-border bg-muted/50 opacity-60">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-                  <Calendar className="w-6 h-6 text-primary" />
+                <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+                  <Calendar className="w-6 h-6 text-muted-foreground" />
                 </div>
-                <div className="text-left">
-                  <h3 className="font-semibold">Schedule</h3>
-                  <p className="text-sm text-muted-foreground">Pick date & time</p>
+                <div className="text-left flex-1">
+                  <h3 className="font-semibold text-muted-foreground">Schedule</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {bookingsPaused
+                      ? (pauseMessage || BOOKINGS_PAUSED_FALLBACK_MESSAGE)
+                      : SCHEDULED_BOOKINGS_PAUSED_MESSAGE}
+                  </p>
                 </div>
+                <AlertCircle className="w-5 h-5 text-amber-500" />
               </div>
-            </button>
-          </SheetClose>
+            </div>
+          ) : (
+            <SheetClose asChild>
+              <button
+                onClick={() => go('scheduled')}
+                className="w-full p-4 rounded-2xl border-2 border-border bg-background hover:bg-accent transition-colors"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                    <Calendar className="w-6 h-6 text-primary" />
+                  </div>
+                  <div className="text-left">
+                    <h3 className="font-semibold">Schedule</h3>
+                    <p className="text-sm text-muted-foreground">Pick date & time</p>
+                  </div>
+                </div>
+              </button>
+            </SheetClose>
+          )}
 
           {/* Helper message when instant is disabled */}
           {instantDisabled && (
