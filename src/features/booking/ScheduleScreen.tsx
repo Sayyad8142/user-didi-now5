@@ -406,7 +406,7 @@ export function ScheduleScreen() {
           description: "Please update your flat details in Account Settings before booking.",
           variant: "destructive"
         });
-        navigate('/profile/account');
+        goToFlatDetails();
         setSubmitting(false);
         return;
       }
