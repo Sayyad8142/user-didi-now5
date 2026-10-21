@@ -138,7 +138,7 @@ export function ChooseTypeSheet({ open, onOpenChange, serviceType }: ChooseTypeS
           )}
 
           {/* Helper message when instant is disabled */}
-          {instantDisabled && (
+          {instantDisabled && !bookingsPaused && (
             <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-xl">
               <div className="flex items-start gap-2">
                 <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
