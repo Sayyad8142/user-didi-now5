@@ -13,6 +13,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { switchToPayAfterService } from '@/lib/payAfterServiceClient';
 import { insertBookingWithCompat } from './insertBookingCompat';
+import { checkBookingAllowed } from '@/hooks/useBookingPauseFlags';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useProfile } from '@/contexts/ProfileContext';
 import { prettyServiceName, serviceIcon, isValidServiceType, getPricingMap, FLAT_SIZES, type FlatSize, type PricingMap } from './pricing';
@@ -346,6 +347,13 @@ export function BookingForm() {
   };
   const handleBookNow = async () => {
     if (!profile || !service_type) return;
+
+    // Admin "Stop Taking Bookings" switch — fresh check before payment opens
+    const pauseCheck = await checkBookingAllowed('instant');
+    if (!pauseCheck.allowed) {
+      toast({ title: "Bookings paused", description: pauseCheck.message, variant: "destructive" });
+      return;
+    }
 
     // Server-side supply check before creating booking
     if (profile.community) {
