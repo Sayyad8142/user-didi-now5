@@ -152,10 +152,13 @@ export const sendOtp = async (
     if (error) {
       console.error('[OTP] twilio-send-otp invoke error:', error);
       // Edge function returns 4xx with { error } in `data` when it's a known failure (e.g. rate limit)
-      const msg =
-        (data && typeof data === 'object' && (data as any).error) ||
-        error.message ||
-        'Failed to send OTP';
+      let serverMsg = '';
+      try { serverMsg = (await (error as any).context?.json?.())?.error || ''; } catch {}
+      const msg = /not active|authentication failed/i.test(serverMsg)
+        ? 'OTP service is temporarily unavailable. Please call the manager or try again later.'
+        : (serverMsg ||
+          (data && typeof data === 'object' && (data as any).error) ||
+          'Failed to send OTP. Please try again.');
       return { success: false, error: String(msg) };
     }
     if (!data?.success) {
