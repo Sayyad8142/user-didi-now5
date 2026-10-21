@@ -13,7 +13,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { switchToPayAfterService } from '@/lib/payAfterServiceClient';
 import { insertBookingWithCompat } from './insertBookingCompat';
-import { checkBookingAllowed, bookingPauseMessageFromError } from '@/hooks/useBookingPauseFlags';
+import { checkBookingAllowed, bookingPauseMessageFromError, useBookingPauseFlags } from '@/hooks/useBookingPauseFlags';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useProfile } from '@/contexts/ProfileContext';
 import { prettyServiceName, serviceIcon, isValidServiceType, getPricingMap, FLAT_SIZES, type FlatSize, type PricingMap } from './pricing';
@@ -345,6 +345,10 @@ export function BookingForm() {
       setLoadingPricing(false);
     }
   };
+  const { bookingsPaused: _bp, scheduledPaused: _sp } = useBookingPauseFlags();
+  const instantPaused = _bp;
+  const schedulePaused = _bp || _sp;
+
   const handleBookNow = async () => {
     if (!profile || !service_type) return;
 
@@ -1192,7 +1196,7 @@ export function BookingForm() {
                   }
                   handleBookNow();
                 }}
-                disabled={!canBook || submitting}
+                disabled={instantPaused || !canBook || submitting}
                 className={cn(
                   "relative flex flex-col items-start gap-3 p-4 rounded-2xl border-2 shadow-sm transition-all duration-200 text-left",
                   "hover:shadow-md active:scale-[0.98]",
@@ -1274,7 +1278,7 @@ export function BookingForm() {
               )}
 
               {/* Choose Fav Worker — opens worker selection + books from there */}
-              {isServiceOpen && !instantBlocked &&
+              {isServiceOpen && !instantBlocked && !instantPaused &&
               <button
                 onClick={() => {
                   // Validate before navigating
@@ -1401,7 +1405,7 @@ export function BookingForm() {
                   navigate(`/book/${service_type}/schedule?flat=${selectedFlatSize}&price=${(price ?? 0) + surgeAmount}`);
                 }
               }}
-              disabled={service_type === 'maid' ? !selectedFlatSize || selectedTasks.length === 0 || selectedTasks.includes('dish_washing') && !dishIntensity : service_type === 'bathroom_cleaning' ? false : !selectedFlatSize}
+              disabled={schedulePaused || (service_type === 'maid' ? !selectedFlatSize || selectedTasks.length === 0 || selectedTasks.includes('dish_washing') && !dishIntensity : service_type === 'bathroom_cleaning' ? false : !selectedFlatSize)}
               className={cn(
                 "relative flex flex-col items-start gap-3 p-4 rounded-2xl border-2 shadow-sm transition-all duration-200 text-left",
                 "hover:shadow-md active:scale-[0.98]",
@@ -1419,6 +1423,12 @@ export function BookingForm() {
                 <ChevronRight className="w-4 h-4 text-muted-foreground absolute top-4 right-4" />
               </button>
             </div>
+            {(instantPaused || schedulePaused) && (
+              <div className="flex items-center gap-1.5 bg-orange-50 border border-orange-200 rounded-xl px-3 py-2 animate-fade-in">
+                <AlertCircle className="w-4 h-4 text-orange-500 shrink-0" />
+                <p className="text-xs font-semibold text-orange-600">We are busy now. Try after some time.</p>
+              </div>
+            )}
 
           </div>}
         </div>
