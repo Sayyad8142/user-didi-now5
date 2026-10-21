@@ -13,7 +13,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { switchToPayAfterService } from '@/lib/payAfterServiceClient';
 import { insertBookingWithCompat } from './insertBookingCompat';
-import { checkBookingAllowed } from '@/hooks/useBookingPauseFlags';
+import { checkBookingAllowed, bookingPauseMessageFromError } from '@/hooks/useBookingPauseFlags';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useProfile } from '@/contexts/ProfileContext';
 import { prettyServiceName, serviceIcon, isValidServiceType, getPricingMap, FLAT_SIZES, type FlatSize, type PricingMap } from './pricing';
@@ -627,6 +627,11 @@ export function BookingForm() {
           if (error.message?.includes('SUPPLY_FULL')) {
             refetchSupply();
             setSupplyModalOpen(true);
+            return;
+          }
+          const pauseMessage = bookingPauseMessageFromError(error);
+          if (pauseMessage) {
+            toast({ title: "Bookings paused", description: pauseMessage, variant: "destructive" });
             return;
           }
           const isFlatError = error.message?.includes('flat details');
