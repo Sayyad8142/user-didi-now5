@@ -6,6 +6,7 @@ import { resolveAssetUrl } from '@/lib/assetUrl';
 
 interface ServicesRowProps {
   onServiceSelect: (service: 'maid' | 'bathroom_cleaning') => void;
+  disabled?: boolean;
 }
 
 const services = [
@@ -13,7 +14,7 @@ const services = [
   { id: 'bathroom_cleaning' as const, title: 'Bathroom Cleaning', image: resolveAssetUrl(bathroomImageAsset.url) },
 ];
 
-export function ServicesRow({ onServiceSelect }: ServicesRowProps) {
+export function ServicesRow({ onServiceSelect, disabled = false }: ServicesRowProps) {
   return (
     <section aria-labelledby="select-service-heading" className="space-y-3">
       <h2 id="select-service-heading" className="text-base font-semibold text-foreground">
@@ -26,7 +27,8 @@ export function ServicesRow({ onServiceSelect }: ServicesRowProps) {
             type="button"
             onClick={() => onServiceSelect(service.id)}
             aria-label={`Book ${service.title}`}
-            className="group flex h-full flex-col rounded-[20px] border border-border bg-card p-2 text-left shadow-sm transition-all duration-150 hover:shadow-md hover:border-primary/40 active:scale-[0.97] active:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            disabled={disabled}
+            className="group flex h-full flex-col rounded-[20px] border border-border bg-card p-2 text-left shadow-sm transition-all duration-150 hover:shadow-md hover:border-primary/40 active:scale-[0.97] active:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:shadow-sm disabled:hover:border-border disabled:active:scale-100"
           >
             <div className="aspect-[4/3] w-full overflow-hidden rounded-2xl bg-primary/5">
               <img
