@@ -44,7 +44,8 @@ export function ChooseTypeSheet({ open, onOpenChange, serviceType }: ChooseTypeS
     }
   }, [location, onOpenChange]);
 
-  const instantDisabled = !instantAvailable || isError;
+  const instantDisabled = bookingsPaused || !instantAvailable || isError;
+  const scheduleDisabled = bookingsPaused || scheduledPaused;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -65,8 +66,17 @@ export function ChooseTypeSheet({ open, onOpenChange, serviceType }: ChooseTypeS
                   <Clock className="w-6 h-6 text-muted-foreground" />
                 </div>
                 <div className="text-left flex-1">
-                  <h3 className="font-semibold text-muted-foreground">All workers are currently busy</h3>
-                  <p className="text-sm text-muted-foreground">Schedule for later instead</p>
+                  {bookingsPaused ? (
+                    <>
+                      <h3 className="font-semibold text-muted-foreground">Bookings temporarily paused</h3>
+                      <p className="text-sm text-muted-foreground">{pauseMessage || BOOKINGS_PAUSED_FALLBACK_MESSAGE}</p>
+                    </>
+                  ) : (
+                    <>
+                      <h3 className="font-semibold text-muted-foreground">All workers are currently busy</h3>
+                      <p className="text-sm text-muted-foreground">Schedule for later instead</p>
+                    </>
+                  )}
                 </div>
                 <AlertCircle className="w-5 h-5 text-amber-500" />
               </div>
