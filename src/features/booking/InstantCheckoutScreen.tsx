@@ -447,7 +447,7 @@ export function InstantCheckoutScreen() {
           }
           toast({
             title: "Booking could not be created",
-            description: 'Any amount taken has been refunded automatically. Please check your wallet before trying again.',
+            description: 'If any amount was taken, it will be refunded automatically. Please check your wallet before trying again.',
             variant: 'destructive',
           });
           return;

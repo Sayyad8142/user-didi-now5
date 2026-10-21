@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { friendlyBookingError, redactForLog } from '@/lib/customerErrors';
+import { saveBookingDraft, takeBookingDraft } from '@/lib/bookingDraft';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Home, MapPin, Wallet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -82,6 +83,22 @@ export function ScheduleScreen() {
     return new Date();
   });
   const [selectedTime, setSelectedTime] = useState<string>('');
+  const draftKey = `schedule:${service_type}`;
+  useEffect(() => {
+    const d = takeBookingDraft<{ selectedDate: string; selectedTime: string }>(draftKey);
+    if (!d?.selectedDate) return;
+    const restored = new Date(d.selectedDate);
+    const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
+    if (isNaN(restored.getTime()) || restored < startOfToday) return; // never restore a past date
+    setSelectedDate(restored);
+    // Slot is re-checked against live availability and the clock on submit.
+    if (typeof d.selectedTime === 'string' && !isPastToday(d.selectedTime, restored)) setSelectedTime(d.selectedTime);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftKey]);
+  const goToFlatDetails = () => {
+    saveBookingDraft(draftKey, { selectedDate: selectedDate.toISOString(), selectedTime });
+    navigate('/profile/account');
+  };
   const [activeSegment, setActiveSegment] = useState<TimeSegment>('Morning');
   const [initialSegmentSet, setInitialSegmentSet] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -389,7 +406,7 @@ export function ScheduleScreen() {
           description: "Please update your flat details in Account Settings before booking.",
           variant: "destructive"
         });
-        navigate('/profile/account');
+        goToFlatDetails();
         setSubmitting(false);
         return;
       }
@@ -503,7 +520,7 @@ export function ScheduleScreen() {
               : friendlyBookingError(error),
             variant: "destructive"
           });
-          if (isFlatError) navigate('/profile/account');
+          if (isFlatError) goToFlatDetails();
           return;
         }
 
