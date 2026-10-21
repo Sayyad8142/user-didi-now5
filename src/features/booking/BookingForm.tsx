@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { friendlyBookingError, redactForLog } from '@/lib/customerErrors';
+import { saveBookingDraft, takeBookingDraft } from '@/lib/bookingDraft';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, MapPin, Home, Clock, Calendar, AlertCircle, Check, Zap, ChevronRight, Star, X, Ruler, ChevronDown } from 'lucide-react';
 import dishesLightImg from '@/assets/dishes-light.webp';
@@ -126,6 +127,22 @@ export function BookingForm() {
   // Bathroom cleaning specific state
   const [bathroomCount, setBathroomCount] = useState(1);
   const [hasGlassPartition, setHasGlassPartition] = useState(false);
+
+  // Restore selections saved before visiting Account Settings (flat details).
+  const draftKey = `form:${service_type}`;
+  useEffect(() => {
+    const d = takeBookingDraft<{ selectedTasks: MaidTask[]; dishIntensity: DishIntensity | null; bathroomCount: number; hasGlassPartition: boolean }>(draftKey);
+    if (!d) return;
+    if (Array.isArray(d.selectedTasks)) setSelectedTasks(d.selectedTasks);
+    if (d.dishIntensity !== undefined) setDishIntensity(d.dishIntensity);
+    if (typeof d.bathroomCount === 'number' && d.bathroomCount >= 1) setBathroomCount(d.bathroomCount);
+    if (typeof d.hasGlassPartition === 'boolean') setHasGlassPartition(d.hasGlassPartition);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftKey]);
+  const goToFlatDetails = () => {
+    saveBookingDraft(draftKey, { selectedTasks, dishIntensity, bathroomCount, hasGlassPartition });
+    navigate('/profile/account');
+  };
   const servicesRef = useRef<HTMLDivElement>(null);
   const GLASS_PARTITION_FEE = 30; // ₹30 per bathroom
 
@@ -537,7 +554,7 @@ export function BookingForm() {
         description: "Please complete your profile with community information before booking.",
         variant: "destructive"
       });
-      navigate('/profile/account');
+      goToFlatDetails();
       return;
     }
 
@@ -549,7 +566,7 @@ export function BookingForm() {
         description: "Please update your flat details in Account Settings before booking.",
         variant: "destructive"
       });
-      navigate('/profile/account');
+      goToFlatDetails();
       return;
     }
 
@@ -646,7 +663,7 @@ export function BookingForm() {
               friendlyBookingError(error),
             variant: "destructive"
           });
-          if (isFlatError) navigate('/profile/account');
+          if (isFlatError) goToFlatDetails();
           return;
         }
 
