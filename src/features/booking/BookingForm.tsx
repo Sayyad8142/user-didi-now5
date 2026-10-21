@@ -536,7 +536,7 @@ export function BookingForm() {
         description: "Please complete your profile with community information before booking.",
         variant: "destructive"
       });
-      navigate('/profile/settings');
+      navigate('/profile/account');
       return;
     }
 
@@ -548,7 +548,7 @@ export function BookingForm() {
         description: "Please update your flat details in Account Settings before booking.",
         variant: "destructive"
       });
-      navigate('/profile/settings');
+      navigate('/profile/account');
       return;
     }
 
@@ -646,7 +646,7 @@ export function BookingForm() {
               `Error: ${error.message || 'Please try again.'}`,
             variant: "destructive"
           });
-          if (isFlatError) navigate('/profile/settings');
+          if (isFlatError) navigate('/profile/account');
           return;
         }
 
